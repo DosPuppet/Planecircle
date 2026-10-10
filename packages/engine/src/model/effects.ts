@@ -5,6 +5,7 @@ import type {
   CardType,
   Color,
   Condition,
+  CostDef,
   DelayedTiming,
   EventReplacement,
   Keyword,
@@ -221,13 +222,42 @@ export type Effect =
       /** "… with the greatest power among …" (Consumed by Greed). */
       greatestPower?: boolean;
     }
-  /** "You may pay {X}. If you do, …": the next `skip` effects are skipped otherwise. */
-  /** `lifeAmount`: variable life (Niv-Mizzet, Ghost Counsel: "that much life"). */
-  | { op: "mayPay"; cost: ManaCost; prompt: string; skip: number; life?: number; lifeAmount?: Amount }
-  /** "You may": if the controller declines, the next `skip` effects are skipped. */
-  | { op: "may"; prompt: string; skip: number; who?: Ref; store?: string }
-  /** "You may behold [filter]. If you do, …" during the resolution: otherwise, the `skip` effects are skipped. */
-  | { op: "behold"; filter: ObjectFilter; skip: number }
+  /**
+   * Paying a cost during a resolution (PLAN-S, PLAN-M M4: the "pay" family, `ops/pay.ts`), by shape:
+   * - `unless`: "… unless [`who`] pays [cost]" (ward, counterspells, cumulative upkeep): if they pay, the next `skip`
+   *   effects are skipped; `or`: another cost of their choice (Lim-Dûl's Hex: "{B} or {3}"; Titania's ward: "discard a
+   *   card or pay {2}"); `x`: {1} more per point ("{1} for each…", Swallowed by Leviathan); `times`: the cost paid that
+   *   many times (cumulative upkeep, 702.24a); `store`: 1 if paid ("if they do", Divert Disaster); `cost.tapToPay`:
+   *   the mana is a waterbend cost;
+   * - `manaOf`: "you may pay [this card]'s mana cost" (automatic payment); `store`: 1 if paid;
+   * - `totalManaValue`: exile `cost.exile` permanents you control with total mana value N or greater, the cheapest
+   *   first (Fabrication Foundry); `store`: 1 if done;
+   * - `cost.collectEvidence`: "you may collect evidence N. If you do, …" (701.59); `"X"`: X is `x` (an amount) or
+   *   chosen (`x.chosen`), stored in `store`; `exclude`: cards that don't count (Lamplight Phoenix);
+   * - `x.chosen`: choose X, then pay {X} (`cost.mana`) or X life (`cost.payLife`, Necrodominance), stored in `store`;
+   *   `who`: that player pays (Plague of Vermin); `x.max`: "pay {1} up to three times" (Hawkeye);
+   * - `cost.forage`: "you may forage. If you do, …" (701.61);
+   * - `cost.behold`: "you may behold [filter]. If you do, …";
+   * - `cost.mana`, `cost.payLife`: "you may pay [mana and/or life]. If you do, …";
+   * - an empty cost: "you may …" (`fx.may`), asked to `who` ("[that player] may", the controller by default); `store`:
+   *   the answer (1 = yes). Its question key stays `may` (answers kept by "always answer this way").
+   * The "you may" forms skip the next `skip` effects when the player declines or can't pay.
+   */
+  | {
+      op: "pay";
+      cost: PayCost;
+      or?: PayCost;
+      who?: Ref;
+      unless?: true;
+      skip: number;
+      prompt?: string;
+      x?: Amount | { chosen: true; max?: Amount };
+      times?: Amount;
+      manaOf?: Ref;
+      exclude?: Ref;
+      totalManaValue?: Amount;
+      store?: string;
+    }
   /** "Choose" (608.2d): the player chooses an option during the resolution; `store` receives its rank (1, 2…). */
   /** `who`: that player chooses (Expropriate: each player votes), the controller by default. */
   | { op: "chooseOption"; prompt: string; labels: string[]; store: string; who?: Ref }
@@ -358,8 +388,6 @@ export type Effect =
   | { op: "chooseCardName" }
   /** Exiles up to N cards with the chosen name from the player's graveyard, hand and library; they shuffle. */
   | { op: "exileNamed"; who: Ref; max: number }
-  /** "You may pay [this card]'s mana cost" (automatic payment); `store`: 1 if paid. */
-  | { op: "payCostOf"; what: Ref; store: string; prompt: string }
   /** Token copy of an object (copiable values), with possible modifications. */
   | {
       op: "copyToken";
@@ -446,34 +474,6 @@ export type Effect =
   /** `exile`: exiled instead of put into the graveyard, all of them or the spells matching a filter (Thranduil's
    * Decree: permanent spells); `storeMoved`: the countered cards, where they went (Desertion). */
   | { op: "counter"; what: Ref; exile?: boolean | ObjectFilter; store?: string; storeMoved?: string }
-  /** "… unless [player] pays X": if they pay, the next `skip` effects are skipped. */
-  | {
-      op: "unlessPay";
-      paidStore?: string;
-      discard?: boolean;
-      discardRandom?: boolean;
-      sacrifice?: number;
-      /** The sacrificed permanents: nonlands (Valgavoth's ward), creatures (Vein Ripper). */
-      sacrificeFilter?: ObjectFilter;
-      /** Collect evidence N (Axebane Ferox's ward). */
-      collectEvidence?: number;
-      /** The mana is a waterbend cost (ward of The Unagi of Kyoshi Island, Waterbending Lesson). */
-      waterbend?: boolean;
-      /** Get N poison counters (ward of The Serpent Society). */
-      poison?: number;
-      /** Or this mana instead of the discard (Titania's ward: "discard a card or pay {2}"). */
-      orMana?: ManaCost;
-      who: Ref;
-      mana?: ManaCost;
-      /** {1} for each… (Swallowed by Leviathan). */
-      genericAmount?: Amount;
-      /** Variable life (Raubahn: its power). */
-      lifeAmount?: Amount;
-      life?: number;
-      /** The cost (mana and life) paid that many times (cumulative upkeep, 702.24a: once per age counter). */
-      times?: Amount;
-      skip: number;
-    }
   /**
    * "As this enters, choose a creature type / a color / a name / a mode…" (614.12, in `CardDef.asEnters`), or the same
    * choice made by a triggered ability or a spell (Petrified Hamlet, Harmonized Crescendo).
@@ -743,11 +743,6 @@ export type Effect =
    * permanent loses all abilities for as long as the source of the effect remains on the battlefield.
    */
   | { op: "counterAbilitySilence"; what: Ref }
-  /**
-   * Fabrication Foundry: exile [artifacts] you control with total mana value N or greater (the cheapest first);
-   * `store` is 1 if done.
-   */
-  | { op: "exileForManaValue"; filter: ObjectFilter; atLeast: Amount; store: string }
   /** Sovereign Okinec Ahau: as many +1/+1 counters as the difference between its power and its base power. */
   | { op: "countersAboveBase"; filter: ObjectFilter }
   /** The designated creatures connive (701.50): their controller draws, discards; nonland: +1/+1 counter. */
@@ -815,10 +810,6 @@ export type Effect =
    * objects; `anyNumber`: "among any number of" (no minimum per object, Crashing Wave).
    */
   | { op: "countersDivided"; total: Amount; to: Ref; counter?: string; anyNumber?: boolean }
-  /** Choose X, then pay {X} (or X life: `life`, Necrodominance); stored under `store` (Wildborn Preserver). */
-  /** `who`: that player pays (Plague of Vermin), the controller by default. */
-  /** `max`: "pay {1} up to three times" (Hawkeye). */
-  | { op: "payX"; prompt: string; store: string; life?: boolean; who?: Ref; max?: Amount }
   /**
    * Changes the target of a spell or ability with a single target (Bolt Bend); with several targets, new targets of
    * choice for each word "target", the original ones offered ("you may choose new targets": Commandeer).
@@ -982,16 +973,6 @@ export type Effect =
       damage?: Amount;
       times?: Amount;
     }
-  /**
-   * Forage (701.61, Bloomburrow): exile three cards from one's graveyard or sacrifice a Food (automatic choice).
-   * `skip`: "you may forage; if you do, …" (the next `skip` effects are skipped otherwise).
-   */
-  | { op: "forage"; skip: number }
-  /**
-   * "You may collect evidence N. If you do, …" (701.59); without `n`: collect evidence X, X chosen and stored in
-   * `store`; `exclude`: cards that don't count (Lamplight Phoenix, exiled at the same time).
-   */
-  | { op: "collectEvidence"; n?: Amount; skip: number; store?: string; exclude?: Ref }
   /** Gift (702.174): the chosen opponent gets the promised gift. */
   | { op: "gift"; kind: GiftKind; token?: TokenSpec }
   /**
@@ -1001,6 +982,28 @@ export type Effect =
   | { op: "portent" };
 
 /** What a gift offers: a card, a Food, a tapped Fish, a Treasure. */
+/**
+ * What a `pay` effect pays: the fields of an ability cost (`CostDef`) a resolution can ask for. `collectEvidence` also
+ * takes `"X"` there (the X of the effect, `x`).
+ */
+export type PayCost = Omit<
+  Pick<
+    CostDef,
+    | "mana"
+    | "payLife"
+    | "sacrifice"
+    | "discard"
+    | "discardRandom"
+    | "collectEvidence"
+    | "tapToPay"
+    | "forage"
+    | "exile"
+    | "behold"
+    | "poison"
+  >,
+  "collectEvidence"
+> & { collectEvidence?: number | "X" };
+
 export type GiftKind = "card" | "food" | "fish" | "treasure";
 
 /**

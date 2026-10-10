@@ -13,6 +13,7 @@ import type {
   ManaType,
   ObjectFilter,
   ObjectId,
+  PayCost,
   PlayerId,
   Ref,
   TargetSpec,
@@ -130,8 +131,8 @@ export interface CardDef {
     waterbend?: boolean;
     /** "Ward—Get N poison counters" (The Serpent Society). */
     poison?: number;
-    /** "Ward—Discard a card or pay [mana]" (Titania): `discard` or this mana, as chosen. */
-    orMana?: ManaCost;
+    /** "Ward—Discard a card or pay [mana]" (Titania): `discard` or this cost (`mana`), as chosen. */
+    or?: PayCost;
   };
   /** Costs in addition to the flashback cost (Twinned Vision: "discard a card"; Group Project: "tap three creatures"). */
   flashbackCost?: AdditionalCost;
@@ -691,6 +692,15 @@ export interface CostDef {
   exile?: ObjectFilter;
   /** Forage (701.61): exile three cards from your graveyard or sacrifice a Food (automatic choice). */
   forage?: boolean;
+  /** With `discard`: the card is discarded at random (Alpharael, Stonechosen's ward). Only in a `pay` effect for now. */
+  discardRandom?: boolean;
+  /** Get N poison counters (The Serpent Society's ward). Only in a `pay` effect for now. */
+  poison?: number;
+  /**
+   * Behold: choose a matching permanent you control or reveal a matching card from your hand. Only in a `pay`
+   * effect for now (the additional cost to cast is `AdditionalCost.behold`).
+   */
+  behold?: ObjectFilter;
 }
 /** Modifications made by a continuous effect, sorted by layer (613). */
 /**

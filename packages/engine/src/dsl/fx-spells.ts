@@ -1,6 +1,5 @@
 import { parseManaCost } from "../mana";
 import type { Amount, Condition, Effect, ObjectFilter, Ref } from "../types";
-import type { Effects } from "./shared";
 
 /** `fx` builders (dsl.ts) of the stack and casting: countering, copying, casting permissions, resolution riders (`ops/spells.ts`). */
 export const spellsFx = {
@@ -15,38 +14,6 @@ export const spellsFx = {
   }),
   /** "Counter it; exile it instead of putting it into the graveyard" (Syncopate). */
   counterExile: (what: Ref): Effect => ({ op: "counter", what, exile: true }),
-  /** "Counter it unless its controller pays X": the payment cancels the following effects. */
-  unlessPays: (
-    who: Ref,
-    cost: {
-      mana?: string;
-      /** Or this mana cost, of their choice (Lim-Dûl's Hex: "{B} or {3}"). */
-      orMana?: string;
-      life?: number;
-      paidStore?: string;
-      genericAmount?: Amount;
-      waterbend?: boolean;
-      times?: Amount;
-    },
-    ...effects: Effects
-  ): Effect[] => {
-    const flat = effects.flat();
-    return [
-      {
-        op: "unlessPay",
-        who,
-        mana: cost.mana ? parseManaCost(cost.mana) : undefined,
-        ...(cost.orMana ? { orMana: parseManaCost(cost.orMana) } : {}),
-        genericAmount: cost.genericAmount,
-        life: cost.life,
-        paidStore: cost.paidStore,
-        waterbend: cost.waterbend,
-        ...(cost.times ? { times: cost.times } : {}),
-        skip: flat.length,
-      },
-      ...flat,
-    ];
-  },
   /** These cards in your graveyard can be cast this turn (ordinary permission, Zul Ashur). */
   allowCastFromGraveyard: (what: Ref): Effect => ({ op: "grantPlay", what }),
   /** "Exile the top N cards. Choose one of them. You may play it this turn (or until the end of your next turn)." */
@@ -148,7 +115,6 @@ export const spellsFx = {
   /** The card or spell is exiled and becomes plotted. */
   plot: (what: Ref): Effect => ({ op: "exileToCast", what, kind: "plot" }),
   plotOnResolve: (what: Ref): Effect => ({ op: "spellFate", fate: "plot", what }),
-  payCostOf: (what: Ref, store: string, prompt: string): Effect => ({ op: "payCostOf", what, store, prompt }),
   /** Tishana's Tidebinder: counters the ability; its permanent loses its abilities as long as the source remains. */
   counterAbilitySilence: (what: Ref): Effect => ({ op: "counterAbilitySilence", what }),
   /** "[This spell] gains rebound" (Ojer Pakpatiq). */
@@ -161,21 +127,6 @@ export const spellsFx = {
   exileOnResolve: { op: "spellFate", fate: "exile" } as Effect,
   /** "Put [this spell] on the bottom of its owner's library" (Ultimate Nullification). */
   bottomOnResolve: { op: "spellFate", fate: "bottom" } as Effect,
-  /** "Pay {X}" (`max`: "pay {1} up to N times"): X stored under `store`. */
-  payX: (prompt: string, store: string, max?: Amount): Effect => ({
-    op: "payX",
-    prompt,
-    store,
-    ...(max !== undefined ? { max } : {}),
-  }),
-  /** "Pay any amount of life": X stored under `store`. */
-  payLifeX: (prompt: string, store: string, who?: Ref): Effect => ({
-    op: "payX",
-    prompt,
-    store,
-    life: true,
-    ...(who ? { who } : {}),
-  }),
   changeTarget: (what: Ref): Effect => ({ op: "changeTarget", what }),
   tripleTriad: { op: "tripleTriad" } as Effect,
   resolveToBattlefieldTransformed: { op: "spellFate", fate: "battlefieldTransformed" } as Effect,

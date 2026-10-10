@@ -534,7 +534,7 @@ export const FACE_DOWN_WARD: AbilityDef = {
   trigger: { on: "becomesTarget", who: "self", by: "opponent" },
   targets: [],
   effects: [
-    { op: "unlessPay", who: { kind: "eventPlayer" }, mana: { generic: 2, colored: {}, x: 0 }, skip: 1 },
+    { op: "pay", unless: true, who: { kind: "eventPlayer" }, cost: { mana: { generic: 2, colored: {}, x: 0 } }, skip: 1 },
     { op: "counter", what: { kind: "eventObject" } },
   ],
   label: msg("Ward {2}"),

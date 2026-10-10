@@ -5,7 +5,7 @@
 
 import { copiedDefId, FACE_DOWN_WARD, textBoxOf } from "./layers";
 import { legalActions } from "./legal";
-import { costToText, manaValue, totalCost } from "./mana";
+import { costToText, manaValue, payCostText, totalCost } from "./mana";
 import { customArtSet, keyedPrinting } from "./printing";
 import { abilitiesOf, castTerms, landPermitted, modesOf, spellCost } from "./stack";
 import { chars, commanderOf, decider, HIDDEN_CARD_ID, isSummoningSick, obj } from "./state";
@@ -478,11 +478,6 @@ function activatedView(abilities: CardDef["abilities"]): Pick<ObjectView, "activ
   return out.length ? { activated: out } : {};
 }
 
-/** Joins texts into one: `{a} and {b}` (several parts nest, left to right). */
-function joinAnd(parts: string[]): string {
-  return parts.reduce((a, b) => msg("{a} and {b}", { a, b }));
-}
-
 /**
  * Cost of the ward (702.21) read in its triggered ability: "unless … pays …". The ward {2} of a face-down permanent is
  * not shown.
@@ -491,22 +486,22 @@ function wardCost(abilities: CardDef["abilities"]): string | undefined {
   const costs = abilities.flatMap((ab) => {
     if (ab.kind !== "triggered" || ab.trigger.on !== "becomesTarget" || !ab.ward || ab === FACE_DOWN_WARD) return [];
     const pay = ab.effects[0];
-    if (pay?.op !== "unlessPay") return [];
-    const parts = [
-      pay.mana ? costToText(pay.mana) : "",
-      pay.life ? msg("ctx:short|{n} life", { n: pay.life }) : "",
-      pay.lifeAmount ? msg("life equal to its power") : "",
-      pay.discard ? (pay.discardRandom ? msg("a card at random") : msg("discard a card")) : "",
-      pay.sacrifice
-        ? pay.sacrificeFilter?.types?.includes("Creature")
-          ? msg("sacrifice {n} creature(s)", { n: pay.sacrifice })
-          : pay.sacrificeFilter?.notTypes?.includes("Land")
-            ? msg("sacrifice {n} nonland permanents", { n: pay.sacrifice })
-            : msg("sacrifice {n} permanents", { n: pay.sacrifice })
-        : "",
-      pay.collectEvidence ? msg("collect evidence {n}", { n: pay.collectEvidence }) : "",
-    ].filter(Boolean);
-    return parts.length ? [joinAnd(parts)] : [];
+    if (pay?.op !== "pay" || !pay.unless) return [];
+    const c = pay.cost;
+    const sac = c.sacrifice;
+    const text = payCostText({
+      mana: c.mana ? costToText(c.mana) : "",
+      life:
+        c.payLife === undefined
+          ? ""
+          : typeof c.payLife === "number"
+            ? msg("ctx:short|{n} life", { n: c.payLife })
+            : msg("life equal to its power"),
+      discard: c.discard ? (c.discardRandom ? msg("a card at random") : msg("discard a card")) : "",
+      sacrifice: sac ? { count: Number(sac.count), filter: sac.filter } : undefined,
+      collectEvidence: c.collectEvidence,
+    });
+    return text ? [text] : [];
   });
   return costs.length ? costs.reduce((a, b) => msg("{a}, {b}", { a, b })) : undefined;
 }

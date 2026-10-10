@@ -158,7 +158,9 @@ type EntersAsk = Extract<OpResult, { ask: unknown }>;
 export const ENTERS_PREFIX = "enter:";
 
 /** "As it enters" effects that only choose: the only ones done outside a resolution, and probed for a land. */
-const CHOICE_OPS: ReadonlySet<Effect["op"]> = new Set(["chooseOnEnter", "chooseCopy", "behold", "exchangeTextBox"]);
+const CHOICE_OPS: ReadonlySet<Effect["op"]> = new Set(["chooseOnEnter", "chooseCopy", "exchangeTextBox"]);
+/** An "as it enters" effect that only chooses: a choice op, or "you may behold" (Theorist's Sanctum). */
+const isChoiceEffect = (e: Effect): boolean => CHOICE_OPS.has(e.op) || (e.op === "pay" && !!e.cost.behold);
 /** Results of these choices, removed before each effect (a second choice of the same kind is properly asked). */
 const RESULT_KEYS = ["$chosen", "$copyOf", "$copyCard", "$devoured", "$ids:devoured", "$beheld", "$textSwap"];
 
@@ -217,7 +219,7 @@ function collectEntering(
   } else if (e.op === "exchangeTextBox") {
     const other = diff.$textSwap?.[0];
     if (other !== undefined) out.textSwap = String(other);
-  } else if (e.op === "behold") {
+  } else if (e.op === "pay" && e.cost.behold) {
     // "As this land enters, you may behold a Jace" (Theorist's Sanctum): read by `cond.beheld` as it enters.
     out.beheld = Number(diff.$beheld?.[0] ?? 0) > 0;
   } else if (e.op === "devour") {
@@ -320,7 +322,7 @@ export function asEntersChoices(
         continue;
       }
       // Outside a resolution (`default`) and to probe a land (`probe`): the choices only.
-      if ((mode === "default" || mode === "probe") && !CHOICE_OPS.has(e.op)) continue;
+      if ((mode === "default" || mode === "probe") && !isChoiceEffect(e)) continue;
       // "It enters with N counters": counters put on itself (614.1c).
       if (e.op === "addCounters" && e.what.kind === "self") {
         const n = Math.max(0, evalAmount(s, ctx, e.amount));

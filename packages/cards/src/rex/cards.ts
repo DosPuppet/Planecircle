@@ -1,5 +1,5 @@
 /** Jurassic World Collection (REX): card scripts (PLAN-G). */
-import { cardRef, type Effect, type Keyword, msg, type TokenSpec } from "@mtgx/engine";
+import { cardRef, type Keyword, msg, type TokenSpec } from "@mtgx/engine";
 import { slug } from "../scryfall";
 import {
   activated,
@@ -198,14 +198,11 @@ export const CARDS: Record<string, CardScript> = {
         when.isDealtDamage,
         [
           fx.chooseOpponent("o", { random: true }),
-          {
-            op: "unlessPay",
-            who: ref.stored("o"),
-            sacrifice: 1,
-            sacrificeFilter: { types: ["Creature"], token: false },
-            skip: 1,
-          } as Effect,
-          fx.damage(amount.powerOf(ref.self), ref.stored("o")),
+          ...fx.unlessPays(
+            ref.stored("o"),
+            { sacrifice: { count: 1, filter: { types: ["Creature"], token: false } } },
+            fx.damage(amount.powerOf(ref.self), ref.stored("o")),
+          ),
         ],
         {
           label: "Enrage: a random opponent is dealt damage equal to its power unless they sacrifice a nontoken creature",

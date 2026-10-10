@@ -7,6 +7,7 @@ import { countersFx } from "./dsl/fx-counters";
 import { damageFx } from "./dsl/fx-damage";
 import { flowFx } from "./dsl/fx-flow";
 import { manaFx } from "./dsl/fx-mana";
+import { payFx } from "./dsl/fx-pay";
 import { permanentsFx } from "./dsl/fx-permanents";
 import { playersFx } from "./dsl/fx-players";
 import { spellsFx } from "./dsl/fx-spells";
@@ -41,6 +42,7 @@ import type {
   ManaType,
   ModeDef,
   ObjectFilter,
+  PayCost,
   PlayerStaticAbilityDef,
   PowerRule,
   PreventionAbilityDef,
@@ -399,6 +401,7 @@ export const fx = {
   ...permanentsFx,
   ...manaFx,
   ...flowFx,
+  ...payFx,
 };
 
 export function spell(targets: TargetSpec[], effects: Effects): SpellDef {
@@ -1186,7 +1189,14 @@ export function cumulativeUpkeepAbility(cost: { mana?: ManaCost; life?: number }
     targets: [],
     effects: [
       { op: "addCounters", what: { kind: "self" }, amount: 1, kind: "age" },
-      { op: "unlessPay", who: { kind: "you" }, mana: cost.mana, life: cost.life, times: age, skip: 1 },
+      {
+        op: "pay",
+        unless: true,
+        who: { kind: "you" },
+        cost: { ...(cost.mana ? { mana: cost.mana } : {}), ...(cost.life !== undefined ? { payLife: cost.life } : {}) },
+        times: age,
+        skip: 1,
+      },
       { op: "sacrificeIt", what: { kind: "self" } },
     ],
     label,
@@ -1204,25 +1214,32 @@ export function wardAbility(ward: NonNullable<CardDef["ward"]>): TriggeredAbilit
     targets: [],
     effects: [
       {
-        op: "unlessPay",
+        op: "pay",
+        unless: true,
         who: { kind: "eventPlayer" },
-        mana: ward.mana,
-        life: ward.life,
-        lifeAmount: ward.lifePower ? { kind: "powerOf", ref: { kind: "self" } } : undefined,
-        discard: ward.discard,
-        discardRandom: ward.discardRandom,
-        sacrifice: ward.sacrifice,
-        sacrificeFilter: ward.sacrificeFilter,
-        collectEvidence: ward.collectEvidence,
-        waterbend: ward.waterbend,
-        poison: ward.poison,
-        orMana: ward.orMana,
+        cost: wardCost(ward),
+        ...(ward.or ? { or: ward.or } : {}),
         skip: 1,
       },
       { op: "counter", what: { kind: "eventObject" } },
     ],
     ward: true,
     label: msg("Ward"),
+  };
+}
+
+/** The cost of a ward (`CardDef.ward`) as the cost of its `pay` effect. */
+function wardCost(ward: NonNullable<CardDef["ward"]>): PayCost {
+  const life: Amount | undefined = ward.lifePower ? { kind: "powerOf", ref: { kind: "self" } } : ward.life;
+  return {
+    ...(ward.mana ? { mana: ward.mana } : {}),
+    ...(life !== undefined ? { payLife: life } : {}),
+    ...(ward.discard ? { discard: 1 } : {}),
+    ...(ward.discardRandom ? { discardRandom: true } : {}),
+    ...(ward.sacrifice ? { sacrifice: { filter: ward.sacrificeFilter ?? {}, count: ward.sacrifice } } : {}),
+    ...(ward.collectEvidence ? { collectEvidence: ward.collectEvidence } : {}),
+    ...(ward.waterbend ? { tapToPay: "waterbend" as const } : {}),
+    ...(ward.poison ? { poison: ward.poison } : {}),
   };
 }
 

@@ -136,10 +136,11 @@ export const LEGENDS: Record<string, CardScript> = {
         targets: [target.cardInGraveyard("t", { types: ["Artifact"] }, "you", "artifact card from your graveyard")],
         effects: [
           {
-            op: "exileForManaValue",
-            filter: { types: ["Artifact"], other: true },
-            atLeast: amount.manaValueOf(ref.target()),
+            op: "pay",
+            cost: { exile: { types: ["Artifact"], other: true } },
+            totalManaValue: amount.manaValueOf(ref.target()),
             store: "ok",
+            skip: 0,
           },
           ...fx.when(cond.v("ok"), fx.toBattlefield(ref.target())),
         ],

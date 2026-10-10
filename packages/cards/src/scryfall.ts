@@ -188,7 +188,7 @@ function jobSelectAbility(keywords: string[]): CardDef["abilities"] {
 export function parseWard(text: string): CardDef["ward"] {
   // "Ward—Discard a card or pay {2}." (Titania); "Ward—Get five poison counters." (The Serpent Society).
   const orPay = /\bward—discard a card or pay ((?:\{[^}]+\})+)/i.exec(stripReminder(text));
-  if (orPay) return { discard: true, orMana: parseManaCost(orPay[1] as string) };
+  if (orPay) return { discard: true, or: { mana: parseManaCost(orPay[1] as string) } };
   const poison = /\bward—get (one|two|three|four|five|\d+) poison counters?/i.exec(stripReminder(text));
   if (poison) {
     const n = ({ one: 1, two: 2, three: 3, four: 4, five: 5 } as Record<string, number>)[(poison[1] as string).toLowerCase()];

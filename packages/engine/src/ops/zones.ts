@@ -1103,30 +1103,6 @@ export const HANDLERS: OpHandlers = {
     }
     return;
   },
-  exileForManaValue(s, r, e, ctx) {
-    const need = evalAmount(s, ctx, e.atLeast);
-    const mv = (id: ObjectId) => manaValue(s.defs[s.objects[id]?.defId ?? ""]?.manaCost);
-    const options = s.battlefield
-      .filter(
-        (id) =>
-          s.objects[id]?.controller === ctx.controller && matchesObjectFilter(s, ctx.controller, id, e.filter, ctx.sourceId),
-      )
-      .sort((a, b) => mv(a) - mv(b));
-    const chosen: ObjectId[] = [];
-    let total = 0;
-    for (const id of options) {
-      if (total >= need && chosen.length > 0) break;
-      chosen.push(id);
-      total += mv(id);
-    }
-    if (chosen.length === 0 || total < need) {
-      store(r, e.store, 0);
-      return;
-    }
-    for (const id of chosen) moveObject(s, id, "exile");
-    store(r, e.store, 1);
-    return;
-  },
   sacrificeIt(s, _r, e, ctx) {
     for (const id of resolveRef(s, ctx, e.what)) if (onBattlefield(s, id)) sacrifice(s, id);
     return;

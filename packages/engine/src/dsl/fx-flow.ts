@@ -1,24 +1,8 @@
-import { parseManaCost } from "../mana";
-import type { Amount, Condition, Effect, ModeDef, ObjectFilter, Ref, TargetSpec, TriggerSpec } from "../types";
+import type { Amount, Condition, Effect, ModeDef, Ref, TargetSpec, TriggerSpec } from "../types";
 import type { Effects } from "./shared";
 
 /** `fx` builders (dsl.ts) of flow: optional effects, choices, conditions, delayed and reflexive abilities (`ops/flow.ts`). */
 export const flowFx = {
-  /** "You may …": returns a list to spread into the effects. */
-  may: (prompt: string, ...effects: Effects): Effect[] => {
-    const flat = effects.flat();
-    return [{ op: "may", prompt, skip: flat.length }, ...flat];
-  },
-  /** "[That player] may …": the question is asked to another player (a targeted opponent…). */
-  mayFor: (who: Ref, prompt: string, ...effects: Effects): Effect[] => {
-    const flat = effects.flat();
-    return [{ op: "may", prompt, skip: flat.length, who }, ...flat];
-  },
-  /** Like `mayFor`, storing the answer (1 = yes) for an "If [they] don't, …". */
-  mayForStore: (who: Ref, prompt: string, storeAs: string, ...effects: Effects): Effect[] => {
-    const flat = effects.flat();
-    return [{ op: "may", prompt, skip: flat.length, who, store: storeAs }, ...flat];
-  },
   /**
    * "Your choice of" (608.2d): the player chooses a branch during resolution ("gains your choice of double strike or
    * lifelink"); `store`: the name of the variable that holds the chosen rank.
@@ -37,11 +21,6 @@ export const flowFx = {
       return [{ op: "if", cond: c, skip: flat.length } as Effect, ...flat];
     }),
   ],
-  /** "You may behold [filter]. If you do, …" (during resolution; the card from the hand is revealed). */
-  mayBehold: (filter: ObjectFilter, ...effects: Effects): Effect[] => {
-    const flat = effects.flat();
-    return [{ op: "behold", filter, skip: flat.length }, ...flat];
-  },
   /** "If [condition], …": the effects apply only if the condition is true at resolution. */
   /**
    * "For each [designated] player, …": the effects are repeated for each, in the order of `of` (turn order), with `p`
@@ -63,17 +42,6 @@ export const flowFx = {
     const no = otherwise.flat();
     const never: Condition = { kind: "amountAtLeast", amount: 0, n: 1 };
     return [{ op: "if", cond: c, skip: yes.length + 1 }, ...yes, { op: "if", cond: never, skip: no.length }, ...no];
-  },
-  /** "You may pay {X}. If you do, …" */
-  mayPay: (cost: string, prompt: string, ...effects: Effects): Effect[] => {
-    const flat = effects.flat();
-    return [{ op: "mayPay", cost: parseManaCost(cost), prompt, skip: flat.length }, ...flat];
-  },
-  /** "You may pay N life. If you do, …" */
-  mayPayLife: (life: Amount, prompt: string, ...effects: Effects): Effect[] => {
-    const flat = effects.flat();
-    const paid = typeof life === "number" ? { life } : { lifeAmount: life };
-    return [{ op: "mayPay", cost: { generic: 0, colored: {}, x: 0 }, ...paid, prompt, skip: flat.length }, ...flat];
   },
   /** Delayed ability "at the beginning of the next end step". `bind` fixes references now. */
   delayed: (effects: Effects, bind?: Record<string, Ref>, vars?: Record<string, Amount>): Effect => ({
@@ -153,24 +121,4 @@ export const flowFx = {
   }),
   /** "When you do, choose one —": modal reflexive ability, the mode chosen when it is put on the stack (Hylda). */
   reflexiveModal: (modes: ModeDef[]): Effect => ({ op: "reflexive", targets: [], effects: [], modes }),
-  /** "You may forage. If you do, …" (701.61: exile three cards from your graveyard or sacrifice a Food). */
-  mayForage: (_prompt: string, ...effects: Effects): Effect[] => {
-    const flat = effects.flat();
-    return [{ op: "forage", skip: flat.length }, ...flat];
-  },
-  /** "You may collect evidence N. If you do (when you do), …" (701.59). */
-  mayCollectEvidence: (n: Amount, opts: { exclude?: Ref }, ...effects: Effects): Effect[] => {
-    const flat = effects.flat();
-    return [{ op: "collectEvidence", n, skip: flat.length, ...opts }, ...flat];
-  },
-  /** "You may collect evidence X. When you do, … X …": X is stored in `store`. */
-  mayCollectEvidenceX: (store: string, ...effects: Effects): Effect[] => {
-    const flat = effects.flat();
-    return [{ op: "collectEvidence", skip: flat.length, store }, ...flat];
-  },
-  /** "You may pay [mana] and N life. If you do, …" */
-  mayPayWithLife: (mana: string, life: number, prompt: string, ...effects: Effects): Effect[] => {
-    const flat = effects.flat();
-    return [{ op: "mayPay", cost: parseManaCost(mana), life, prompt, skip: flat.length }, ...flat];
-  },
 };

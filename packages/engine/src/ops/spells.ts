@@ -1,42 +1,25 @@
 /** Engine effects: stack and casting permissions (counterspells, copies, casting from another zone). Each key is an `op` of `Effect` (see `runEffect`, effects.ts). */
 
-import { payLife, sacrifice } from "../actions";
 import type { OpHandlers, OpResult } from "../effects";
-import {
-  announceDiscard,
-  announceDiscardBatch,
-  cardRefOf,
-  evalAmount,
-  grantPlay,
-  moveDiscarded,
-  moveWithSpec,
-  nextTurnOf,
-  resolveRef,
-  store,
-  withX,
-} from "../effects";
+import { cardRefOf, evalAmount, grantPlay, moveWithSpec, nextTurnOf, resolveRef, store, withX } from "../effects";
 import { bump } from "../layers";
-import { availableMana, canPay, costToText, manaValue, payMana } from "../mana";
+import { manaValue } from "../mana";
 import {
   castTerms,
-  collectEvidence,
   copyStackItem,
   counterItem,
   dropNowPermissions,
-  evidenceCards,
   exileSpell,
   foretellCard,
   plotCard,
   spellView,
   stackItemSpecs,
   suspendCard,
-  timesCost,
 } from "../stack";
 import { applyRetarget, retargetRequest } from "../stackChoices";
 import {
   alivePlayers,
   apnapOrder,
-  bent,
   chars,
   createObject,
   emit,
@@ -49,7 +32,6 @@ import {
   setPrepared,
   shuffle,
 } from "../state";
-import { payableLife } from "../statics";
 import { legalTargets, matchesCard, matchesObjectFilter, matchesView } from "../targets";
 import { msg } from "../text";
 import type { ChoiceValue, GameState, ManaCost, ObjectId, PlayerId, Resolution, StackItem } from "../types";
@@ -221,222 +203,6 @@ export const HANDLERS: OpHandlers = {
     if (e.storeMoved) r.vars[`$ids:${e.storeMoved}`] = moved;
     return;
   },
-  unlessPay(s, r, e, ctx, key) {
-    const p = resolveRef(s, ctx, e.who).find((x) => isPlayer(s, x));
-    if (!p) return;
-    // "unless its controller pays {X}" (Syncopate): X is the spell's.
-    const extra = e.genericAmount ? evalAmount(s, ctx, e.genericAmount) : 0;
-    const base = e.mana ?? (e.genericAmount ? { generic: 0, colored: {}, x: 0 } : undefined);
-    // Cumulative upkeep (702.24a): the cost paid once per age counter.
-    const times = e.times ? Math.max(0, evalAmount(s, ctx, e.times)) : 1;
-    const mana = base ? timesCost({ ...base, x: 0, generic: base.generic + (base.x ?? 0) * ctx.x + extra }, times) : undefined;
-    // Raubahn: "Ward—Pay life equal to its power".
-    const lifeOnce = e.lifeAmount ? evalAmount(s, ctx, e.lifeAmount) : e.life;
-    const life = lifeOnce === undefined ? undefined : lifeOnce * times;
-    // Ward with a compound cost (Ovika: {3} and 3 life): both parts must be payable.
-    const hand = s.players[p]?.hand ?? [];
-    const sacrificeable = () =>
-      s.battlefield.filter(
-        (id) => s.objects[id]?.controller === p && (!e.sacrificeFilter || matchesObjectFilter(s, p, id, e.sacrificeFilter)),
-      );
-    // Ward "collect evidence N": the cards in the graveyard of the player who pays it.
-    // Ward "waterbend {4}", Waterbending Lesson: untapped artifacts and creatures pay {1} each.
-    const purpose = e.waterbend ? { waterbend: Number.POSITIVE_INFINITY } : undefined;
-    const evidence = e.collectEvidence ? evidenceCards(s, p, "", e.collectEvidence) : undefined;
-    // "unless that player pays {B} or {3}" (Lim-Dûl's Hex): a choice of two mana costs (no discard).
-    const orManaOnly = !e.discard && !!e.orMana && !!mana;
-    const canMana = !mana || canPay(s, p, mana, undefined, purpose);
-    const canOr = orManaOnly && canPay(s, p, e.orMana as ManaCost);
-    const canDo =
-      (canMana || canOr) &&
-      (!life || payableLife(s, p) >= life) &&
-      (!e.discard || hand.length > 0 || (!!e.orMana && canPay(s, p, e.orMana))) &&
-      sacrificeable().length >= (e.sacrifice ?? 0) &&
-      evidence !== null;
-    if (!canDo) return;
-    const answer = r.vars[key("unless")];
-    if (!answer) {
-      const manaText = mana
-        ? orManaOnly
-          ? msg("{cost} or {other}", { cost: costToText(mana), other: costToText(e.orMana as ManaCost) })
-          : costToText(mana)
-        : "";
-      const parts = [
-        mana && e.waterbend ? msg("waterbend {cost}", { cost: manaText }) : manaText,
-        life ? msg("{n} life", { n: life }) : "",
-        e.discard ? (e.orMana ? msg("discard a card or pay {cost}", { cost: costToText(e.orMana) }) : msg("discard a card")) : "",
-        e.poison ? msg("get {n} poison counters", { n: e.poison }) : "",
-        e.sacrifice
-          ? e.sacrificeFilter?.types?.includes("Creature")
-            ? msg("sacrifice {n} creature(s)", { n: e.sacrifice })
-            : e.sacrificeFilter?.notTypes?.includes("Land")
-              ? msg("sacrifice {n} nonland permanents", { n: e.sacrifice })
-              : msg("sacrifice {n} permanents", { n: e.sacrifice })
-          : "",
-        e.collectEvidence ? msg("collect evidence {n}", { n: e.collectEvidence }) : "",
-      ].filter(Boolean);
-      const what = parts.length ? parts.reduce((a, b) => msg("{a} and {b}", { a, b })) : "";
-      return {
-        ask: {
-          player: p,
-          key: key("unless"),
-          request: {
-            type: "yesNo",
-            intent: "unlessPay",
-            prompt: msg("{card}: pay {cost} to avoid it?", { card: cardRefOf(s, ctx.sourceId), cost: what }),
-            suggested: [1],
-          },
-        },
-      };
-    }
-    if (answer[0] !== 1) return;
-    // Titania: "discard a card or pay {2}": the player chooses, if both are possible.
-    let viaMana = false;
-    if (e.discard && e.orMana) {
-      const canMana = canPay(s, p, e.orMana);
-      if (hand.length === 0) viaMana = true;
-      else if (canMana) {
-        const how = r.vars[key("unlessHow")];
-        if (!how) {
-          return {
-            ask: {
-              player: p,
-              key: key("unlessHow"),
-              request: {
-                type: "pick",
-                intent: "unlessPay",
-                prompt: msg("How to pay?"),
-                options: ["discard", "mana"],
-                labels: { discard: msg("ctx:choice|Discard a card"), mana: msg("Pay {cost}", { cost: costToText(e.orMana) }) },
-                min: 1,
-                max: 1,
-                suggested: ["mana"],
-              },
-            },
-          };
-        }
-        viaMana = how[0] === "mana";
-      }
-    }
-    if (viaMana && e.orMana) {
-      if (!canPay(s, p, e.orMana)) return;
-      payMana(s, p, e.orMana);
-    }
-    // Ward "discard a card" (Gideon the Oathless): the player chooses the card.
-    if (e.discard && !viaMana) {
-      // Ward "discard a card at random" (Alpharael, Stonechosen).
-      if (e.discardRandom && !r.vars[key("unlessCard")]) {
-        const pool = [...hand];
-        shuffle(s, pool);
-        r.vars[key("unlessCard")] = pool.slice(0, 1);
-      }
-      const card = r.vars[key("unlessCard")];
-      if (!card) {
-        const cheapest = [...hand].sort(
-          (a, b) =>
-            manaValue(s.defs[s.objects[a]?.defId ?? ""]?.manaCost) - manaValue(s.defs[s.objects[b]?.defId ?? ""]?.manaCost),
-        );
-        return {
-          ask: {
-            player: p,
-            key: key("unlessCard"),
-            request: {
-              type: "pick",
-              intent: "discard",
-              prompt: msg("Choose the card to discard"),
-              options: [...hand],
-              min: 1,
-              max: 1,
-              suggested: cheapest.slice(0, 1),
-            },
-          },
-        };
-      }
-      const id = String(card[0]);
-      if (!hand.includes(id)) return;
-      emit({ type: "discard", player: p, defIds: [s.objects[id]?.defId ?? ""] });
-      announceDiscard(s, p, moveDiscarded(s, p, id, true));
-      announceDiscardBatch(s, p, 1);
-    }
-    // Ward "sacrifice three permanents" (Emrakul, the Exigent Doom).
-    if (e.sacrifice) {
-      const perms = sacrificeable();
-      const chosen = r.vars[key("unlessSac")];
-      if (!chosen) {
-        const cheapest = [...perms].sort(
-          (a, b) =>
-            manaValue(s.defs[s.objects[a]?.defId ?? ""]?.manaCost) - manaValue(s.defs[s.objects[b]?.defId ?? ""]?.manaCost),
-        );
-        return {
-          ask: {
-            player: p,
-            key: key("unlessSac"),
-            request: {
-              type: "pick",
-              intent: "sacrifice",
-              prompt: msg("Sacrifice {n} permanents", { n: e.sacrifice }),
-              options: perms,
-              min: e.sacrifice,
-              max: e.sacrifice,
-              suggested: cheapest.slice(0, e.sacrifice),
-            },
-          },
-        };
-      }
-      const ids = chosen.map(String).filter((id) => perms.includes(id));
-      if (ids.length < e.sacrifice) return;
-      for (const id of ids) sacrifice(s, id);
-    }
-    if (evidence) collectEvidence(s, p, evidence);
-    // Two costs to choose from: the player chooses if they can pay both.
-    let payWith = mana;
-    if (orManaOnly && e.orMana) {
-      if (!canMana) payWith = e.orMana;
-      else if (canOr) {
-        const how = r.vars[key("unlessHow")];
-        if (!how) {
-          return {
-            ask: {
-              player: p,
-              key: key("unlessHow"),
-              request: {
-                type: "pick",
-                intent: "unlessPay",
-                prompt: msg("How to pay?"),
-                options: ["mana", "orMana"],
-                labels: {
-                  mana: msg("Pay {cost}", { cost: costToText(mana as ManaCost) }),
-                  orMana: msg("Pay {cost}", { cost: costToText(e.orMana) }),
-                } as Record<string, string>,
-                min: 1,
-                max: 1,
-                suggested: ["mana"],
-              },
-            },
-          };
-        }
-        if (how[0] === "orMana") payWith = e.orMana;
-      }
-    }
-    if (payWith) {
-      if (!canPay(s, p, payWith, undefined, purpose)) return;
-      payMana(s, p, payWith, undefined, purpose);
-      if (e.waterbend) bent(s, p, "water");
-    }
-    if (life) payLife(s, p, life);
-    // The Serpent Society: "Ward—Get five poison counters".
-    const pl = s.players[p];
-    if (e.poison && pl) {
-      pl.counters ??= {};
-      const counters = pl.counters;
-      counters.poison = (counters.poison ?? 0) + e.poison;
-      bump(s); // corrupted: statics depend on it
-      emit({ type: "poison", player: p, amount: e.poison, total: counters.poison });
-    }
-    // "If they do, …" (Divert Disaster).
-    store(r, e.paidStore, 1);
-    return { skip: e.skip };
-  },
   impulse(s, r, e, ctx, key) {
     const player = s.players[ctx.controller];
     if (!player) return;
@@ -484,31 +250,6 @@ export const HANDLERS: OpHandlers = {
     }
     return;
   },
-  payCostOf(s, r, e, ctx, key) {
-    const id = resolveRef(s, ctx, e.what)[0];
-    const cost = s.defs[s.objects[id ?? ""]?.defId ?? ""]?.manaCost;
-    store(r, e.store, 0);
-    if (!id || !cost || !canPay(s, ctx.controller, cost)) return;
-    const answer = r.vars[key("paycost")];
-    if (!answer) {
-      return {
-        ask: {
-          player: ctx.controller,
-          key: key("paycost"),
-          request: {
-            type: "yesNo",
-            intent: "may",
-            prompt: msg("{card}: {prompt}", { card: cardRefOf(s, ctx.sourceId), prompt: e.prompt }),
-            suggested: [1],
-          },
-        },
-      };
-    }
-    if (answer[0] !== 1 || !canPay(s, ctx.controller, cost)) return;
-    payMana(s, ctx.controller, cost);
-    store(r, e.store, 1);
-    return;
-  },
   exileToCast(s, _r, e, ctx) {
     for (const id of resolveRef(s, ctx, e.what)) {
       if (e.kind === "plot") plotCard(s, id);
@@ -537,49 +278,6 @@ export const HANDLERS: OpHandlers = {
           };
       }
     }
-    return;
-  },
-  payX(s, r, e, ctx, key) {
-    if (r.vars[`$${e.store}`]) return;
-    // "Pay any amount of life" (Necrodominance): at most their life total (119.4). Plague of Vermin: another player
-    // pays.
-    const payer = e.who ? resolveRef(s, ctx, e.who).find((x) => isPlayer(s, x) && !s.players[x]?.lost) : ctx.controller;
-    if (!payer) {
-      store(r, e.store, 0);
-      return;
-    }
-    const life = payableLife(s, payer);
-    const max = Math.min(
-      e.life ? Math.max(0, life) : availableMana(s, payer),
-      e.max !== undefined ? evalAmount(s, ctx, e.max) : Number.POSITIVE_INFINITY,
-    );
-    const answer = r.vars[key("payx")];
-    if (!answer) {
-      return {
-        ask: {
-          player: payer,
-          key: key("payx"),
-          request: {
-            type: "number",
-            intent: "payX",
-            prompt: msg("{card}: {prompt}", { card: cardRefOf(s, ctx.sourceId), prompt: e.prompt }),
-            min: 0,
-            max,
-            suggested: [e.life ? Math.min(max, Math.max(0, life - 10)) : max],
-          },
-        },
-      };
-    }
-    const x = Math.min(Number(answer[0]), max);
-    if (e.life) {
-      if (x > 0) payLife(s, payer, x);
-      store(r, e.store, Math.max(0, x));
-      return;
-    }
-    if (x > 0 && canPay(s, payer, { generic: x, colored: {}, x: 0 })) {
-      payMana(s, payer, { generic: x, colored: {}, x: 0 });
-      store(r, e.store, x);
-    } else store(r, e.store, 0);
     return;
   },
   changeTarget(s, r, e, ctx, key) {

@@ -36,6 +36,7 @@ import type {
   ManaCost,
   ManaRestriction,
   ManaType,
+  ObjectFilter,
   ObjectId,
   PlayerId,
   SacrificeToPay,
@@ -86,6 +87,37 @@ export function costToText(cost: ManaCost | null): string {
   for (const m of cost.phyrexian ?? []) t += `{${m}/P}`;
   for (const m of MANA_TYPES) t += `{${m}}`.repeat(cost.colored[m] ?? 0);
   return t;
+}
+
+/**
+ * Text of a cost paid by a `pay` effect, its parts joined by "and": the "unless" question (`ops/pay.ts`) and the ward
+ * badge (`view.ts`). `mana`, `life` and `discard` come already written (evaluated life, "or" costs, waterbend; short
+ * life, "life equal to its power"); the other parts are written here.
+ */
+export function payCostText(parts: {
+  mana?: string;
+  life?: string;
+  discard?: string;
+  poison?: number;
+  sacrifice?: { count: number; filter?: ObjectFilter };
+  collectEvidence?: number | "X";
+}): string {
+  const sac = parts.sacrifice;
+  const texts = [
+    parts.mana ?? "",
+    parts.life ?? "",
+    parts.discard ?? "",
+    parts.poison ? msg("get {n} poison counters", { n: parts.poison }) : "",
+    sac?.count
+      ? sac.filter?.types?.includes("Creature")
+        ? msg("sacrifice {n} creature(s)", { n: sac.count })
+        : sac.filter?.notTypes?.includes("Land")
+          ? msg("sacrifice {n} nonland permanents", { n: sac.count })
+          : msg("sacrifice {n} permanents", { n: sac.count })
+      : "",
+    parts.collectEvidence ? msg("collect evidence {n}", { n: parts.collectEvidence }) : "",
+  ].filter(Boolean);
+  return texts.length ? texts.reduce((a, b) => msg("{a} and {b}", { a, b })) : "";
 }
 
 /** Total cost to pay: X replaced by its value, additional costs added, generic reduction applied. */

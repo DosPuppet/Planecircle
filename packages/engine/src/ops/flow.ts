@@ -1,160 +1,13 @@
-/** Engine effects: flow control (if, may, reflexive, delayed). Each key is an `op` of `Effect` (see `runEffect`, effects.ts). */
-import { canForage, forage, payLife } from "../actions";
-import { cardRef } from "../choices";
+/** Engine effects: flow control (if, choices, reflexive, delayed; "you may" is a `pay` effect, `ops/pay.ts`). Each key is an `op` of `Effect` (see `runEffect`, effects.ts). */
 import type { OpHandlers } from "../effects";
 import { cardRefOf, concreteSpec, evalAmount, evalCondition, nextTurnOf, resolveRef, store } from "../effects";
 import { RulesError } from "../errors";
-import { canPay, manaValue, payMana } from "../mana";
-import { beholdOptions, collectEvidence, pickEvidence } from "../stack";
-import { emit, isPlayer } from "../state";
-import { payableLife } from "../statics";
+import { isPlayer } from "../state";
 import { msg } from "../text";
 import { createDelayed, pushInline } from "../triggers";
 import type { ChoiceValue } from "../types";
 
 export const HANDLERS: OpHandlers = {
-  mayPay(s, r, e, ctx, key) {
-    if (!canPay(s, ctx.controller, e.cost)) return { skip: e.skip };
-    const answer = r.vars[key("pay")];
-    if (!answer) {
-      return {
-        ask: {
-          player: ctx.controller,
-          key: key("pay"),
-          request: {
-            type: "yesNo",
-            intent: "may",
-            prompt: msg("{card}: {prompt}", { card: cardRefOf(s, ctx.sourceId), prompt: e.prompt }),
-            suggested: [1],
-          },
-        },
-      };
-    }
-    if (answer[0] !== 1 || !canPay(s, ctx.controller, e.cost)) return { skip: e.skip };
-    const life = e.lifeAmount !== undefined ? Math.max(0, evalAmount(s, ctx, e.lifeAmount)) : e.life;
-    if (life && payableLife(s, ctx.controller) < life) return { skip: e.skip };
-    payMana(s, ctx.controller, e.cost);
-    if (life) payLife(s, ctx.controller, life);
-    return;
-  },
-  forage(s, r, e, ctx, key) {
-    // "You may forage. If you do, …" (701.61).
-    if (!canForage(s, ctx.controller)) return { skip: e.skip };
-    const answer = r.vars[key("forage")];
-    if (!answer) {
-      return {
-        ask: {
-          player: ctx.controller,
-          key: key("forage"),
-          request: {
-            type: "yesNo",
-            intent: "may",
-            prompt: msg("{card}: forage (exile three cards from your graveyard or sacrifice a Food)?", {
-              card: cardRefOf(s, ctx.sourceId),
-            }),
-            suggested: [1],
-          },
-        },
-      };
-    }
-    if (answer[0] !== 1 || !forage(s, ctx.controller)) return { skip: e.skip };
-    return;
-  },
-  collectEvidence(s, r, e, ctx, key) {
-    const excluded = new Set(e.exclude ? resolveRef(s, ctx, e.exclude) : []);
-    const mv = (id: string) => manaValue(s.defs[s.objects[id]?.defId ?? ""]?.manaCost);
-    const pool = (s.players[ctx.controller]?.graveyard ?? []).filter((id) => !excluded.has(id)).sort((a, b) => mv(b) - mv(a));
-    const total = pool.reduce((n, id) => n + mv(id), 0);
-    let n: number;
-    if (e.n === undefined) {
-      // Collect evidence X: X is chosen (0: nothing).
-      const answer = r.vars[key("x")];
-      if (!answer) {
-        if (total <= 0) return { skip: e.skip };
-        return {
-          ask: {
-            player: ctx.controller,
-            key: key("x"),
-            request: {
-              type: "number",
-              intent: "payX",
-              prompt: msg("{card}: collect evidence X (0: no)?", { card: cardRefOf(s, ctx.sourceId) }),
-              min: 0,
-              max: total,
-              suggested: [total],
-            },
-          },
-        };
-      }
-      n = Math.min(total, Math.max(0, Number(answer[0])));
-      if (n <= 0) return { skip: e.skip };
-    } else {
-      n = evalAmount(s, ctx, e.n);
-      if (total < n) return { skip: e.skip };
-      const answer = r.vars[key("may")];
-      if (!answer) {
-        return {
-          ask: {
-            player: ctx.controller,
-            key: key("may"),
-            request: {
-              type: "yesNo",
-              intent: "may",
-              prompt: msg(
-                "{card}: collect evidence {n} (exile cards with total mana value {n} or greater from your graveyard)?",
-                { card: cardRefOf(s, ctx.sourceId), n },
-              ),
-              suggested: [1],
-            },
-          },
-        };
-      }
-      if (answer[0] !== 1) return { skip: e.skip };
-    }
-    // The exiled cards are chosen by the player (by default: the cheapest set that suffices); if their total does not
-    // reach N, the engine's choice completes it.
-    const suggested = pickEvidence(s, pool, n) ?? [];
-    let chosen = suggested;
-    if (suggested.length < pool.length) {
-      const answer = r.vars[key("evidence")];
-      if (!answer) {
-        return {
-          ask: {
-            player: ctx.controller,
-            key: key("evidence"),
-            request: {
-              type: "pick",
-              intent: "pickCards",
-              prompt: msg("{card}: collect evidence {n} — cards in your graveyard to exile (total mana value {n} or greater)", {
-                card: cardRefOf(s, ctx.sourceId),
-                n,
-              }),
-              options: pool,
-              min: 1,
-              max: pool.length,
-              suggested,
-            },
-          },
-        };
-      }
-      const picked = [...new Set(answer.map(String).filter((id) => pool.includes(id)))];
-      const total = picked.reduce((t, id) => t + mv(id), 0);
-      chosen =
-        total >= n
-          ? picked
-          : [
-              ...picked,
-              ...(pickEvidence(
-                s,
-                pool.filter((id) => !picked.includes(id)),
-                n - total,
-              ) ?? []),
-            ];
-    }
-    collectEvidence(s, ctx.controller, chosen);
-    store(r, e.store, n);
-    return;
-  },
   if(s, _r, e, ctx) {
     return evalCondition(s, ctx, e.cond) ? undefined : { skip: e.skip };
   },
@@ -199,40 +52,6 @@ export const HANDLERS: OpHandlers = {
     });
     return;
   },
-  behold(s, r, e, ctx, key) {
-    const options = beholdOptions(s, ctx.controller, ctx.sourceId, e.filter);
-    // Noted for "as it enters" (Theorist's Sanctum: "if you don't, it enters tapped").
-    r.vars.$beheld = [0];
-    if (options.length === 0) return { skip: e.skip };
-    const answer = r.vars[key("behold")];
-    if (!answer) {
-      return {
-        ask: {
-          player: ctx.controller,
-          key: key("behold"),
-          request: {
-            type: "pick",
-            intent: "pickCards",
-            prompt: msg("{card}: you may behold (a permanent, or a revealed card from your hand)", {
-              card: cardRefOf(s, ctx.sourceId),
-            }),
-            options,
-            // Named: a card from the hand is not on the board (land played, PLAN-L L5).
-            labels: Object.fromEntries(options.map((id) => [id, cardRef(s.objects[id]?.defId ?? "")])),
-            min: 0,
-            max: 1,
-            suggested: options.slice(0, 1),
-          },
-        },
-      };
-    }
-    const chosen = answer.map(String).find((id) => options.includes(id));
-    if (!chosen) return { skip: e.skip };
-    r.vars.$beheld = [1];
-    if (s.objects[chosen]?.zone === "hand")
-      emit({ type: "reveal", player: ctx.controller, defIds: [s.objects[chosen]?.defId ?? ""] });
-    return;
-  },
   chooseOption(s, r, e, ctx, key) {
     const answer = r.vars[key("option")];
     const options = e.labels.map((_, i) => String(i));
@@ -261,26 +80,5 @@ export const HANDLERS: OpHandlers = {
     if (i < 0) throw new RulesError(msg("Unknown option"));
     store(r, e.store, i + 1);
     return;
-  },
-  may(s, r, e, ctx, key) {
-    // "[That player] may…": the question is asked to the designated player (an opponent, Terrapact Intimidator).
-    const asked = e.who ? (resolveRef(s, ctx, e.who).find((x) => isPlayer(s, x)) ?? ctx.controller) : ctx.controller;
-    const answer = r.vars[key("may")];
-    if (!answer) {
-      return {
-        ask: {
-          player: asked,
-          key: key("may"),
-          request: {
-            type: "yesNo",
-            intent: "may",
-            prompt: msg("{card}: {prompt}", { card: cardRefOf(s, ctx.sourceId), prompt: e.prompt }),
-            suggested: [1],
-          },
-        },
-      };
-    }
-    if (e.store) store(r, e.store, answer[0] === 1 ? 1 : 0);
-    return answer[0] === 1 ? undefined : { skip: e.skip };
   },
 };

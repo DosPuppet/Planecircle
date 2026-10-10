@@ -67,7 +67,6 @@
   "op": {
     "counterAbilitySilence": "Tishana's Tidebinder — operation specific to one card (R4.6)",
     "countersAboveBase": "Sovereign Okinec Ahau — operation specific to one card (R4.6)",
-    "exileForManaValue": "Fabrication Foundry — operation specific to one card (R4.6)",
     "flickerChosen": "Another Round — operation specific to one card (R4.6)",
     "meld": "Vanille, Cheerful l'Cie — generic mechanic, a single card for now",
     "portent": "Portent of Calamity — operation specific to one card (R4.6)",
@@ -173,13 +172,14 @@
     "strictAmongAll": "Selvala, Heart of the Wilds — needs event context that resolveFilter does not have",
     "thenExtraTurn": "Emrakul, the Promised End — op extra gives the turn to the controller, not that player",
     "topDamage": "Clash of Elements — depends on the owner's choice, no result stored",
+    "totalManaValue": "Fabrication Foundry — the pay effect exiles permanents you control with total mana value N or greater, the cheapest first (former exileForManaValue op, PLAN-M M4); to reuse for any \"exile/sacrifice … with total mana value N or greater\" paid during a resolution",
     "triggered": "Koh, the Face Stealer — property of a single card, invisible to the guard until the audit of 2026-10-07 (key written without a value by the builders, or declared away from the start of a line): to attach to a family",
     "whileCrafting": "Market Gnome — \"leaves the battlefield\" trigger limited to exile as craft material (702.167): a field of the `leaves` trigger, no other card"
   },
   "turnFields": {},
   "engineCardLiterals": {},
   "ceilings": {
-    "Single-card values": 134,
+    "Single-card values": 135,
     "CardDef": 91,
     "GameObject": 51,
     "StackItem": 29,
@@ -187,7 +187,7 @@
     "GameState": 38,
     "ObjectFilter": 64,
     "FilterCompare": 3,
-    "CostDef": 27,
+    "CostDef": 30,
     "ActivatedAbilityDef": 19,
     "CastPermissionAbilityDef": 9,
     "PlayFromZone": 21,
@@ -202,8 +202,8 @@
     "AdditionalCost": 12,
     "CastLimit": 9,
     "NextSpell": 9,
-    "Effect": 147,
-    "Effect (fields)": 653,
+    "Effect": 139,
+    "Effect (fields)": 614,
     "TriggerSpec": 41,
     "TriggerSpec (fields)": 146,
     "Condition": 47,
@@ -314,6 +314,7 @@
     "PLAN-M M1 [rules]: monstrosity (701.37) as a generic form — GameObject.monstrous (a designation, not a counter, like solved and harnessed; three cards: Grim Giganotosaurus, Alpha Deathclaw, Maester Seymour) and the monstrosity op with its amount (Effect 148 → 149); discover.exileFirst (Possibility Storm: the spell exiled first, put on the bottom with the others, see singleCardKeys): Effect (fields) 650 → 653; printed blitz read from the text (via=blitz written by Jaxis, the Troublemaker, the only printed blitz card in the catalog; granted blitz sets it in the engine): Single-card values 131 → 132: Single-card values 131 → 132, GameObject 50 → 51, Effect 148 → 149, Effect (fields) 650 → 653",
     "PLAN-M M2: GameState groups setup (mulliganQueue, mulliganTaken, leylineAsked) and batch (eventBatch, leftBatch); importCycleMax 21 → 10 (effect handlers registered by ops/index.ts in opRegistry.ts, syncControl moved to state.ts, copyStackItem to stack.ts): GameState 41 → 38",
     "PLAN-M M3a: small debt merges — Ref.hostOf into Ref.attached { of }; the plot and foretell ops into exileToCast { kind } (special actions and effects); AltCostPay.sacrifice { filter, count } replaces sacrificeCount; CostDef.tapToPay (\"waterbend\" | \"convoke\") replaces CostDef.waterbend and CostDef.convoke; LayerMods.perAffected ({ what: \"sameName\" } | { what: \"ownCreatureTypes\", max }) replaces perSameName and perOwnCreatureTypes; the reduceSpeed and increaseSpeed ops into speed { who?, by }. Single-card values go up by the three values that replace single-card keys (tapToPay=convoke: Heirloom Epic; what=sameName: Mirror Box; what=ownCreatureTypes: Diligent Zookeeper), the convoke, perSameName, perOwnCreatureTypes and sacrificeCount keys, the foretell op and the Ref.hostOf variant leaving the baseline: Single-card values 132 → 135, CostDef 28 → 27, LayerMods 31 → 30, Effect 149 → 147, Effect (fields) 653 → 652, Ref 38 → 37, Ref (fields) 69 → 68",
-    "PLAN-M M3b [rules 197]: Assimilation Aegis as a becomesAttached trigger (who: \"self\") with becomeCopy whileAttached (becomeCopy.attachment, the same duration form as Eriette's gainControl); TriggerSpec.becomesAttached and the attachment key leave the baseline (two cards), duration=whileAttached is no longer a single-card value; copyLinkedExile enters it (Secret Invasion alone): Single-card values 135 → 134, Effect (fields) 652 → 653"
+    "PLAN-M M3b [rules 197]: Assimilation Aegis as a becomesAttached trigger (who: \"self\") with becomeCopy whileAttached (becomeCopy.attachment, the same duration form as Eriette's gainControl); TriggerSpec.becomesAttached and the attachment key leave the baseline (two cards), duration=whileAttached is no longer a single-card value; copyLinkedExile enters it (Secret Invasion alone): Single-card values 135 → 134, Effect (fields) 652 → 653",
+    "PLAN-M M4: the pay family — one pay op (cost: PayCost, a Pick of CostDef; or, who, unless, skip, prompt, x, times, manaOf, exclude, totalManaValue, store) replaces mayPay, unlessPay, payCostOf, forage, collectEvidence, behold, exileForManaValue, payX and may (the fx helpers keep their signatures; the handler dispatches by shape to the former bodies, replays identical); CostDef gains discardRandom, poison and behold (the ward costs and the resolution behold, read only by the pay effect for now: the surface moves from Effect to CostDef); collectEvidence=\"X\" is written by one card (Incinerator of the Guilty: collect evidence X during a resolution, the X form of the other CostDef counts); the exileForManaValue op entry becomes singleCardKeys.totalManaValue; CardDef.ward.orMana becomes ward.or (a PayCost, like the effect's or): Single-card values 134 → 135, CostDef 27 → 30, Effect 147 → 139, Effect (fields) 653 → 614"
   ]
 }

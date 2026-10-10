@@ -273,14 +273,11 @@ export const EDH_RAKDOS: Record<string, CardScript> = {
         fx.forEachPlayer(ref.eachOpponent, (p, n) =>
           fx.when(
             cond.amountAtLeast(amount.refCount(p), 1),
-            {
-              op: "unlessPay",
-              who: p,
-              lifeAmount: amount.manaValueOf(ref.libraryTop(ref.you)),
-              paidStore: `racket${n}`,
-              skip: 1,
-            } as Effect,
-            fx.toHand(ref.libraryTop(ref.you)),
+            fx.unlessPays(
+              p,
+              { life: amount.manaValueOf(ref.libraryTop(ref.you)), paidStore: `racket${n}` },
+              fx.toHand(ref.libraryTop(ref.you)),
+            ),
             fx.when(cond.v(`racket${n}`), fx.exileCard(ref.libraryTop(ref.you))),
           ),
         ),
@@ -523,11 +520,7 @@ export const EDH_RAKDOS: Record<string, CardScript> = {
       loyalty(1, {
         effects: [
           ...fx.forEachPlayer(ref.eachOpponent, (p) =>
-            fx.when(
-              cond.amountAtLeast(amount.refCount(p), 1),
-              { op: "unlessPay", who: p, discard: true, skip: 1 } as Effect,
-              fx.loseLife(2, p),
-            ),
+            fx.when(cond.amountAtLeast(amount.refCount(p), 1), fx.unlessPays(p, { discard: true }, fx.loseLife(2, p))),
           ),
           ...fx.when(cond.controls({ anySubtype: ["Demon", "Devil"] }), fx.gainLife(2)),
         ],
