@@ -20,6 +20,7 @@ import { availableMana, canPay, costToText, manaValue, payMana } from "../mana";
 import {
   castTerms,
   collectEvidence,
+  copyStackItem,
   counterItem,
   dropNowPermissions,
   evidenceCards,
@@ -30,7 +31,7 @@ import {
   suspendCard,
   timesCost,
 } from "../stack";
-import { applyRetarget, copyStackItem, retargetRequest } from "../stackChoices";
+import { applyRetarget, retargetRequest } from "../stackChoices";
 import {
   alivePlayers,
   apnapOrder,

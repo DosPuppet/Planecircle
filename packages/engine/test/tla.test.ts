@@ -6,12 +6,12 @@
 import { card } from "@mtgx/cards";
 import { describe, expect, it } from "vitest";
 import { destroy } from "../src/actions";
-import { addControlEffect, syncControl } from "../src/control";
+import { addControlEffect } from "../src/control";
 import * as dsl from "../src/dsl";
 import { bump } from "../src/layers";
 import { legalActions } from "../src/legal";
 import { manaAbilitiesOf } from "../src/mana";
-import { chars, decider } from "../src/state";
+import { chars, decider, syncControl } from "../src/state";
 import { plainText } from "../src/text";
 import { canBlock } from "../src/turn";
 import type { CardDef, ChoiceRequest, ChoiceValue, GameState, ManaType, PlayerId } from "../src/types";

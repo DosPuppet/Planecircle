@@ -71,7 +71,7 @@ export function createScenario(opts: ScenarioOptions): StepResult {
     bump(s);
     emit({ type: "gameStart", startingPlayer: s.turn.startingPlayer });
     if (opts.mulligan) {
-      s.mulliganQueue = [opts.active, ...others];
+      s.setup.mulliganQueue = [opts.active, ...others];
       s.flow = "mulligan";
     } else {
       s.turn.number = turn;

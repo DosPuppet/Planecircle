@@ -191,7 +191,7 @@
     "GameObject": 51,
     "StackItem": 29,
     "PlayerState": 23,
-    "GameState": 41,
+    "GameState": 38,
     "ObjectFilter": 64,
     "FilterCompare": 3,
     "CostDef": 28,
@@ -220,7 +220,7 @@
     "Ref": 38,
     "Ref (fields)": 69
   },
-  "importCycleMax": 21,
+  "importCycleMax": 10,
   "ceilingNotes": [
     "PLAN-C C6: face-down exile (406.3), field GameObject.exiledFaceDown and faceDown option of exileTop: GameObject 72 → 73, Effect (fields) 648 → 649",
     "PLAN-C C12: \"one or more\" triggers per batch of simultaneous events (GameState.eventBatch, 603.2c): GameState 38 → 39",
@@ -318,6 +318,7 @@
     "PLAN-L L5c [rules 191]: Eriette as a trigger (TriggerSpec becomesAttached, Ref hostOf, gainControl whileAttached + attachment; justified single-card entries), the player static auraStealsCheaper removed; GameObject.counterTimestamps (ability counters in layer 6); changeCounters { by }: Single-card values 130 → 131, GameObject 49 → 50, Effect (fields) 646 → 647, TriggerSpec 40 → 41, TriggerSpec (fields) 142 → 145, Ref 37 → 38, Ref (fields) 67 → 69",
     "Tevesh Szat & Jeska deck [rules 194]: coinFlip.each, a coin for each object (Rakdos, the Showstopper): Effect (fields) 647 → 648",
     "Deadpool deck [rules 195]: LayerMods.textOf (612, layer 3, exchanged text boxes) and perSameName (Mirror Box); ActivatedAbilityDef.activators (602.2: any player, only the opponents); op exchangeTextBox; copyToken pt amounts and attacking a player; zoneChange linked (a card exiled with the source is played): ActivatedAbilityDef 18 → 19, LayerMods 29 → 31, Effect 147 → 148, Effect (fields) 648 → 650, TriggerSpec (fields) 145 → 146",
-    "PLAN-M M1 [rules]: monstrosity (701.37) as a generic form — GameObject.monstrous (a designation, not a counter, like solved and harnessed; three cards: Grim Giganotosaurus, Alpha Deathclaw, Maester Seymour) and the monstrosity op with its amount (Effect 148 → 149); discover.exileFirst (Possibility Storm: the spell exiled first, put on the bottom with the others, see singleCardKeys): Effect (fields) 650 → 653; printed blitz read from the text (via=blitz written by Jaxis, the Troublemaker, the only printed blitz card in the catalog; granted blitz sets it in the engine): Single-card values 131 → 132: Single-card values 131 → 132, GameObject 50 → 51, Effect 148 → 149, Effect (fields) 650 → 653"
+    "PLAN-M M1 [rules]: monstrosity (701.37) as a generic form — GameObject.monstrous (a designation, not a counter, like solved and harnessed; three cards: Grim Giganotosaurus, Alpha Deathclaw, Maester Seymour) and the monstrosity op with its amount (Effect 148 → 149); discover.exileFirst (Possibility Storm: the spell exiled first, put on the bottom with the others, see singleCardKeys): Effect (fields) 650 → 653; printed blitz read from the text (via=blitz written by Jaxis, the Troublemaker, the only printed blitz card in the catalog; granted blitz sets it in the engine): Single-card values 131 → 132: Single-card values 131 → 132, GameObject 50 → 51, Effect 148 → 149, Effect (fields) 650 → 653",
+    "PLAN-M M2: GameState groups setup (mulliganQueue, mulliganTaken, leylineAsked) and batch (eventBatch, leftBatch); importCycleMax 21 → 10 (effect handlers registered by ops/index.ts in opRegistry.ts, syncControl moved to state.ts, copyStackItem to stack.ts): GameState 41 → 38"
   ]
 }

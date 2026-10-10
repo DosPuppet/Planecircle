@@ -73,7 +73,8 @@ export const ART_ENCH_OR_FLYER: ObjectFilter = {
   anyOf: [{ types: ["Artifact"] }, { types: ["Enchantment"] }, { types: ["Creature"], keyword: "flying" }],
 };
 
-const creature = (
+/** A creature token: name, colors, creature types, power and toughness, other characteristics (`extra`). */
+export const creature = (
   name: string,
   colors: TokenSpec["colors"],
   subtypes: string[],

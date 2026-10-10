@@ -4,20 +4,12 @@
  */
 import type { CardScript, Condition, dsl, ObjectFilter, TokenSpec } from "@mtgx/engine";
 import { BASIC_LAND_TYPES, msg } from "@mtgx/engine";
+import { creature } from "../fdn/common";
 import { cond, entersWith, fx, manaAbility, triggered, when } from "../fin/common";
 
 type Effects = dsl.Effects;
 
 export * from "../fin/common";
-
-const creature = (
-  name: string,
-  colors: TokenSpec["colors"],
-  subtypes: string[],
-  power: number,
-  toughness: number,
-  extra: Partial<TokenSpec> = {},
-): TokenSpec => ({ name, colors, types: ["Creature"], subtypes, power, toughness, ...extra });
 
 /** Glimmer: 1/1 white enchantment creature. */
 export const GLIMMER: TokenSpec = creature("Glimmer", ["W"], ["Glimmer"], 1, 1, { types: ["Enchantment", "Creature"] });

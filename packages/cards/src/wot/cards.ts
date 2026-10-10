@@ -1,5 +1,4 @@
-/** Enchanting Tales (WOT): card scripts (PLAN-G). */
-import type { TokenSpec } from "@mtgx/engine";
+import { creature } from "../fdn/common";
 import {
   activated,
   amount,
@@ -21,15 +20,6 @@ import {
   when,
   ZOMBIE,
 } from "../woe/common";
-
-const creature = (
-  name: string,
-  colors: TokenSpec["colors"],
-  subtypes: string[],
-  power: number,
-  toughness: number,
-  extra: Partial<TokenSpec> = {},
-): TokenSpec => ({ name, colors, types: ["Creature"], subtypes, power, toughness, ...extra });
 
 const SOLDIER_LIFELINK = creature("Soldier", ["W"], ["Soldier"], 1, 1, { keywords: ["lifelink"] });
 const GRIFFIN = creature("Griffin", ["W"], ["Griffin"], 2, 2, { keywords: ["flying"] });

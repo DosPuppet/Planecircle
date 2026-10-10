@@ -3,17 +3,19 @@
  * Increment). The DSL and the common tokens come from lci/common.ts.
  */
 import type { Condition, dsl, Effect, TokenSpec, TriggeredAbilityDef, TriggerSpec } from "@mtgx/engine";
+import { creature as creatureToken } from "../fdn/common";
 import { amount, cond, fx, INSTANT_SORCERY, ref, triggered, when } from "../lci/common";
 
 export * from "../lci/common";
 
+/** A creature token whose only creature type is its name. */
 const creature = (
   name: string,
   colors: TokenSpec["colors"],
   power: number,
   toughness: number,
   extra: Partial<TokenSpec> = {},
-): TokenSpec => ({ name, colors, types: ["Creature"], subtypes: [name], power, toughness, ...extra });
+): TokenSpec => creatureToken(name, colors, [name], power, toughness, extra);
 
 /** Pest: 1/1 black and green creature with "Whenever this token attacks, you gain 1 life." */
 export const PEST: TokenSpec = creature("Pest", ["B", "G"], 1, 1, {

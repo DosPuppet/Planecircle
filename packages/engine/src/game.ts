@@ -3,6 +3,8 @@
  * Each call returns a new state (working copy, the received state is never modified) and the events produced.
  */
 
+// The effect handlers (ops/*.ts) register themselves here: effects.ts does not import them (opRegistry.ts).
+import "./ops/index";
 import { drawCard } from "./actions";
 import { divisionOf, validateChoice } from "./choices";
 import { checkDecisionShape } from "./decisionShape";
@@ -114,7 +116,8 @@ export function blankState(opts: {
     combat: null,
     effects: [],
     pending: null,
-    mulliganQueue: [],
+    setup: { mulliganQueue: [] },
+    batch: {},
     resolving: null,
     replacements: [],
     triggers: [],
@@ -174,7 +177,7 @@ export function createGame(opts: GameOptions): StepResult {
     s.turn.active = starting;
     emit({ type: "gameStart", startingPlayer: starting });
     for (const p of s.playerOrder) for (let i = 0; i < 7; i++) drawCard(s, p);
-    s.mulliganQueue = [starting, ...opponentsOf(s, starting)];
+    s.setup.mulliganQueue = [starting, ...opponentsOf(s, starting)];
     advance(s);
     return s;
   });
@@ -189,7 +192,7 @@ function apply(s: GameState, submitter: PlayerId, d: Decision): void {
   checkDecisionShape(s, d);
   // Any decision other than producing or undoing mana makes the mana taps final.
   if (d.type !== "tapForMana" && d.type !== "undoMana") s.manaUndo = undefined;
-  s.leftBatch = undefined;
+  s.batch.leftBatch = undefined;
   if (d.type === "concede") {
     const player = submitter;
     const pl = s.players[player];

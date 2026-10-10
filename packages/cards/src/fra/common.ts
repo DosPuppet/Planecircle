@@ -3,18 +3,9 @@
  * The DSL and the generic filters come from Foundations (fdn/common.ts).
  */
 import { type Amount, dsl, type Effect, type TokenSpec } from "@mtgx/engine";
-import { manaAbility } from "../fdn/common";
+import { creature, manaAbility } from "../fdn/common";
 
 export * from "../fdn/common";
-
-const creature = (
-  name: string,
-  colors: TokenSpec["colors"],
-  subtypes: string[],
-  power: number,
-  toughness: number,
-  extra: Partial<TokenSpec> = {},
-): TokenSpec => ({ name, colors, types: ["Creature"], subtypes, power, toughness, ...extra });
 
 /** "2/2 colorless Wizard Soldier creature token named Cadet" */
 export const CADET = creature("Cadet", [], ["Wizard", "Soldier"], 2, 2);

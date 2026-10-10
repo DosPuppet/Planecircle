@@ -16,7 +16,6 @@ import {
   sourceFromObject,
 } from "./actions";
 import { absentAnswer, ask, cardRef } from "./choices";
-import { syncControl } from "./control";
 import { announceDiscard, announceDiscardBatch, evalAmount, moveDiscarded, staticContext } from "./effects";
 import { rethrowAsRules } from "./errors";
 import { bumpFor, copiedDefId, copiedDefMap, copyingIn, effectivePower, snapshot } from "./layers";
@@ -49,6 +48,7 @@ import {
   P1P1,
   rulesEvent,
   shuffle,
+  syncControl,
   tapObject,
   untapObject,
 } from "./state";
@@ -234,13 +234,13 @@ function suspendUpkeep(s: GameState): void {
 
 function nextMulligan(s: GameState): void {
   // 103.5: end of a round; those who decided to take a mulligan take it together, then decide again.
-  if (s.mulliganQueue.length === 0 && s.mulliganTaken?.length) {
-    const taken = s.mulliganTaken;
-    s.mulliganTaken = [];
+  if (s.setup.mulliganQueue.length === 0 && s.setup.mulliganTaken?.length) {
+    const taken = s.setup.mulliganTaken;
+    s.setup.mulliganTaken = [];
     for (const q of taken) takeMulligan(s, q);
-    s.mulliganQueue = taken;
+    s.setup.mulliganQueue = taken;
   }
-  const p = s.mulliganQueue[0];
+  const p = s.setup.mulliganQueue[0];
   if (!p) {
     if (askLeylines(s)) return;
     s.turn.number = 1;
@@ -266,8 +266,8 @@ function mulliganBottom(s: GameState, mulligans: number): number {
 
 /** "Leyline" cards of the opening hand (103.6), offered in play order. Returns true if a question is asked. */
 function askLeylines(s: GameState): boolean {
-  s.leylineAsked ??= [];
-  const asked = s.leylineAsked;
+  s.setup.leylineAsked ??= [];
+  const asked = s.setup.leylineAsked;
   const start = s.playerOrder.indexOf(s.turn.startingPlayer);
   const order = s.playerOrder.map((_, i) => s.playerOrder[(start + i) % s.playerOrder.length] as PlayerId);
   for (const p of order) {
@@ -340,8 +340,8 @@ export function answerLeylines(s: GameState, player: PlayerId, cards: ObjectId[]
 
 /** 103.5: the player decides to take a mulligan; they will take it with the others at the end of this round. */
 export function declareMulligan(s: GameState, p: PlayerId): void {
-  s.mulliganQueue = s.mulliganQueue.filter((q) => q !== p);
-  s.mulliganTaken = [...(s.mulliganTaken ?? []), p];
+  s.setup.mulliganQueue = s.setup.mulliganQueue.filter((q) => q !== p);
+  s.setup.mulliganTaken = [...(s.setup.mulliganTaken ?? []), p];
 }
 
 export function takeMulligan(s: GameState, p: PlayerId): void {
@@ -362,7 +362,7 @@ export function keepHand(s: GameState, p: PlayerId): void {
     s.pending = { kind: "bottomCards", player: p, count: Math.min(bottom, player.hand.length) };
     return;
   }
-  s.mulliganQueue.shift();
+  s.setup.mulliganQueue.shift();
   emit({ type: "keep", player: p, handSize: player.hand.length });
 }
 
@@ -373,7 +373,7 @@ export function bottomCards(s: GameState, p: PlayerId, cards: ObjectId[], count:
     throw new RulesError(msg("Choose {count} card(s) from your hand", { count }));
   }
   for (const c of cards) moveObject(s, c, "library", { position: "bottom" });
-  s.mulliganQueue.shift();
+  s.setup.mulliganQueue.shift();
   emit({ type: "keep", player: p, handSize: player.hand.length });
 }
 
@@ -1770,8 +1770,8 @@ export function eliminate(s: GameState, losers: PlayerId[]): void {
     return;
   }
   for (const p of losers) removePlayerObjects(s, p);
-  s.mulliganQueue = s.mulliganQueue.filter((q) => !losers.includes(q));
-  if (s.mulliganTaken) s.mulliganTaken = s.mulliganTaken.filter((q) => !losers.includes(q));
+  s.setup.mulliganQueue = s.setup.mulliganQueue.filter((q) => !losers.includes(q));
+  if (s.setup.mulliganTaken) s.setup.mulliganTaken = s.setup.mulliganTaken.filter((q) => !losers.includes(q));
   const pending = s.pending;
   const pendingLeaving = !!pending && losers.includes(pending.player);
   if (pendingLeaving) s.pending = null;

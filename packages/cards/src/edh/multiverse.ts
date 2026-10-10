@@ -4,6 +4,7 @@
  */
 import type { CardScript, Effect, ObjectFilter, TokenSpec } from "@mtgx/engine";
 import { msg } from "@mtgx/engine";
+import { creature } from "../fdn/common";
 import {
   activated,
   amount,
@@ -31,14 +32,6 @@ import {
 
 const CREATURE_YOU: ObjectFilter = { types: ["Creature"], controller: "you" };
 
-const creature = (
-  name: string,
-  colors: TokenSpec["colors"],
-  subtypes: string[],
-  p: number,
-  t: number,
-  extra: Partial<TokenSpec> = {},
-) => ({ name, colors, types: ["Creature"], subtypes, power: p, toughness: t, ...extra }) as TokenSpec;
 const CITIZEN: TokenSpec = creature("Citizen", ["G", "W"], ["Citizen"], 1, 1);
 const WARRIOR: TokenSpec = creature("Warrior", ["W"], ["Warrior"], 1, 1);
 const ANGEL_4_4: TokenSpec = creature("Angel", ["W"], ["Angel"], 4, 4, { keywords: ["flying"] });

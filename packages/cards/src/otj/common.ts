@@ -3,6 +3,7 @@
  * The DSL comes from Foundations (fdn/common.ts).
  */
 import { dsl, type ObjectFilter, type TokenSpec } from "@mtgx/engine";
+import { creature } from "../fdn/common";
 
 export * from "../dft/common";
 
@@ -31,23 +32,6 @@ export const MERCENARY: TokenSpec = {
   ],
   text: "{T}: Target creature you control gets +1/+0 until end of turn. Activate only as a sorcery.",
 };
-
-const creature = (
-  name: string,
-  colors: TokenSpec["colors"],
-  subtypes: string[],
-  power: number,
-  toughness: number,
-  extra: Partial<TokenSpec> = {},
-): TokenSpec => ({
-  name,
-  colors,
-  types: ["Creature"],
-  subtypes,
-  power,
-  toughness,
-  ...extra,
-});
 
 export const OX = creature("Ox", ["W"], ["Ox"], 2, 2);
 export const SHEEP = creature("Sheep", ["W"], ["Sheep"], 1, 1);

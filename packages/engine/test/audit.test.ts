@@ -5,7 +5,6 @@
 import { card, type RawCard, toCardDef } from "@mtgx/cards";
 import { describe, expect, it } from "vitest";
 import { dealDamage, destroy, gainLife } from "../src/actions";
-import { syncControl } from "../src/control";
 import * as dsl from "../src/dsl";
 import { cond, eventReplacement, fx, ref, triggered, when } from "../src/dsl";
 import { addEffect, runEffect } from "../src/effects";
@@ -14,7 +13,7 @@ import { bump, snapshot } from "../src/layers";
 import { legalActions } from "../src/legal";
 import { chooseReplacementOrder } from "../src/modifiers";
 import { spellCost } from "../src/stack";
-import { changeCounters, chars, FACE_DOWN_ID, moveObject } from "../src/state";
+import { changeCounters, chars, FACE_DOWN_ID, moveObject, syncControl } from "../src/state";
 import { legalTargets } from "../src/targets";
 import { plainText } from "../src/text";
 import { simultaneously } from "../src/triggers";

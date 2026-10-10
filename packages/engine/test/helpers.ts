@@ -2,11 +2,11 @@
  * Test tools: build a precise game position and play decisions.
  */
 import { card } from "@mtgx/cards";
-import { addControlEffect, syncControl } from "../src/control";
+import { addControlEffect } from "../src/control";
 import { createGame, submit } from "../src/game";
 import { legalActions } from "../src/legal";
 import { isNameAllowed } from "../src/names";
-import { cloneState, createObject, registerDef } from "../src/state";
+import { cloneState, createObject, registerDef, syncControl } from "../src/state";
 import { advance, emptyCombat, forcedAttacks } from "../src/turn";
 import type { CardDef, CastNowRequest, ChoiceRequest, ChoiceValue, Decision, GameState, PlayerId, Step } from "../src/types";
 
@@ -56,7 +56,7 @@ export function scenario(opts: ScenarioOptions): GameState {
   const s = cloneState(state);
   {
     const turn = opts.turn ?? 3;
-    s.mulliganQueue = [];
+    s.setup.mulliganQueue = [];
     s.pending = null;
     s.turn = {
       number: turn,

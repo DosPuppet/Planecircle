@@ -4,18 +4,10 @@
  */
 import type { AbilityDef, ManaType, TokenSpec } from "@mtgx/engine";
 import { msg } from "@mtgx/engine";
+import { creature } from "../fdn/common";
 import { activated, amount, cond, fx, manaAbility, ref, triggered, when } from "../tdm/common";
 
 export * from "../tdm/common";
-
-const creature = (
-  name: string,
-  colors: TokenSpec["colors"],
-  subtypes: string[],
-  power: number,
-  toughness: number,
-  extra: Partial<TokenSpec> = {},
-): TokenSpec => ({ name, colors, types: ["Creature"], subtypes, power, toughness, ...extra });
 
 /** 1/1 black Vampire (Edgar Markov). */
 export const VAMPIRE_BLACK: TokenSpec = creature("Vampire", ["B"], ["Vampire"], 1, 1);

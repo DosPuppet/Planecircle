@@ -4,18 +4,10 @@
  */
 import type { AbilityDef, dsl, ManaType, ObjectFilter, TargetSpec, TokenSpec } from "@mtgx/engine";
 import { msg } from "@mtgx/engine";
+import { creature } from "../fdn/common";
 import { activated, cond, entersWith, fx, manaAbility, ref, target, triggered, when } from "../lci/common";
 
 export * from "../lci/common";
-
-const creature = (
-  name: string,
-  colors: TokenSpec["colors"],
-  subtypes: string[],
-  power: number,
-  toughness: number,
-  extra: Partial<TokenSpec> = {},
-): TokenSpec => ({ name, colors, types: ["Creature"], subtypes, power, toughness, ...extra });
 
 /** Monk: 1/1 white creature with prowess. */
 export const MONK: TokenSpec = creature("Monk", ["W"], ["Monk"], 1, 1, { keywords: ["prowess"] });

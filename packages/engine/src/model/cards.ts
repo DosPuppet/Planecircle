@@ -1000,6 +1000,7 @@ export interface EventReplacement {
   redirectTo?: "attached" | "source";
   /** Shield: only this source, chosen at creation (`sourceDefIs` for a spell without an object). */
   sourceIs?: ObjectId;
+  /** Set by the engine (`fx.shield`, `ops/damage.ts`), never by a card: the definition of `sourceIs`. */
   sourceDefIs?: string;
   /** Shield: the object that created it (source of the reflexive ability). */
   origin?: { id: ObjectId; defId: string };

@@ -4,20 +4,12 @@
  */
 import { type AbilityDef, type dsl, msg, type ObjectFilter, type TokenSpec } from "@mtgx/engine";
 import { activated, cond, equipAbility, fx, staticAbility, triggered, when } from "../dsk/common";
+import { creature } from "../fdn/common";
 
 type Effects = dsl.Effects;
 type TriggerOpts = NonNullable<Parameters<typeof triggered>[2]>;
 
 export * from "../dsk/common";
-
-const creature = (
-  name: string,
-  colors: TokenSpec["colors"],
-  subtypes: string[],
-  power: number,
-  toughness: number,
-  extra: Partial<TokenSpec> = {},
-): TokenSpec => ({ name, colors, types: ["Creature"], subtypes, power, toughness, ...extra });
 
 /** Otter: 1/1 blue and red creature with prowess. */
 export const OTTER = creature("Otter", ["U", "R"], ["Otter"], 1, 1, { keywords: ["prowess"] });

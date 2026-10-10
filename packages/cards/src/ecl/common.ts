@@ -3,18 +3,10 @@
  * (via lci/common.ts).
  */
 import type { AbilityDef, CardScript, TokenSpec } from "@mtgx/engine";
+import { creature } from "../fdn/common";
 import { activated, fx, manaAbility, ref, triggered, when } from "../lci/common";
 
 export * from "../lci/common";
-
-const creature = (
-  name: string,
-  colors: TokenSpec["colors"],
-  subtypes: string[],
-  power: number,
-  toughness: number,
-  extra: Partial<TokenSpec> = {},
-): TokenSpec => ({ name, colors, types: ["Creature"], subtypes, power, toughness, ...extra });
 
 /** Treefolk (Sapling Nursery): 3/4 green creature with reach. */
 export const TREEFOLK_REACH: TokenSpec = creature("Treefolk", ["G"], ["Treefolk"], 3, 4, { keywords: ["reach"] });

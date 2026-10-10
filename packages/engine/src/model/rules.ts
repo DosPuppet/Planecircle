@@ -69,7 +69,7 @@ export interface TargetSpec {
    * (`concreteSpec`, which replaces it with `ofPlayers`), then again on resolution (608.2b).
    */
   of?: Ref;
-  /** `of` evaluated: the players who may hold the targets. */
+  /** `of` evaluated: the players who may hold the targets. Set by the engine (`concreteSpec`), never by a card. */
   ofPlayers?: PlayerId[];
 }
 

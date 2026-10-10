@@ -3,18 +3,10 @@
  * DSL and the generic tokens come from the previous sets (through lci/common.ts).
  */
 import type { AbilityDef, Condition, dsl, LayerMods, Ref, TokenSpec } from "@mtgx/engine";
+import { creature } from "../fdn/common";
 import { amount, cond, cost, fx, ref, staticAbility, triggered, wardAbility, when } from "../lci/common";
 
 export * from "../lci/common";
-
-const creature = (
-  name: string,
-  colors: TokenSpec["colors"],
-  subtypes: string[],
-  power: number,
-  toughness: number,
-  extra: Partial<TokenSpec> = {},
-): TokenSpec => ({ name, colors, types: ["Creature"], subtypes, power, toughness, ...extra });
 
 /** Knight: 2/2 white creature with vigilance. */
 export const KNIGHT_VIGILANCE: TokenSpec = creature("Knight", ["W"], ["Knight"], 2, 2, { keywords: ["vigilance"] });

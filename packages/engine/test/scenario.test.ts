@@ -23,7 +23,7 @@ describe("createScenario", () => {
         { id: "p2", name: "AI", life: 7, library: [card("Island")], hand: [] },
       ],
     });
-    expect(s.mulliganQueue).toEqual([]);
+    expect(s.setup.mulliganQueue).toEqual([]);
     expect(s.turn.number).toBe(1);
     expect(s.pending).toMatchObject({ kind: "priority", player: "p1" });
     expect(s.turn.step).toBe("upkeep");

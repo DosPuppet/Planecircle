@@ -601,7 +601,10 @@ export interface TurnLogQuery {
   token?: boolean;
   /** Move: entered face down (or not). */
   faceDown?: boolean;
-  /** Attack: against the querying player ("each opponent who attacked you this turn"). */
+  /**
+   * Attack: against the querying player ("each opponent who attacked you this turn"). Set by the engine (`stack.ts`,
+   * `attackedYou` cast limits), never by a card.
+   */
   againstYou?: boolean;
   /** Spell cast for its warp cost. */
   warped?: boolean;
@@ -854,8 +857,17 @@ export interface CommanderState {
 }
 
 export interface GameState {
-  /** Counter of the batches of simultaneous events ("one or more …" triggers). */
-  eventBatch?: number;
+  /** Batches of simultaneous events. */
+  batch: {
+    /** Counter of the batches of simultaneous events ("one or more …" triggers). */
+    eventBatch?: number;
+    /**
+     * Permanents gone from the battlefield during the current decision (their last information in `lki`): those that
+     * leave at the same time see each other (Kraven the Hunter: "the greatest power among creatures that player
+     * controls"). Emptied at the start of each decision.
+     */
+    leftBatch?: ObjectId[];
+  };
   /** Incremented on each change that can affect characteristics (invalidates the layer cache). */
   version: number;
   rng: number;
@@ -914,20 +926,19 @@ export interface GameState {
   combat: CombatState | null;
   effects: ContinuousEffect[];
   pending: PendingDecision | null;
-  mulliganQueue: PlayerId[];
-  /** 103.5: players who decided to take a mulligan in this round; they take it together at the end. */
-  mulliganTaken?: PlayerId[];
+  /** Start of the game: mulligans (103.5) and "leyline" cards (103.6). */
+  setup: {
+    mulliganQueue: PlayerId[];
+    /** 103.5: players who decided to take a mulligan in this round; they take it together at the end. */
+    mulliganTaken?: PlayerId[];
+    /** Players who were offered their "leyline" cards at the start of the game. */
+    leylineAsked?: PlayerId[];
+  };
   /**
    * Mana taps that can still be undone (Arena style): source tapped only for {T}, without a trigger, mana still in the
    * pool. Emptied by any decision other than producing or undoing mana (`undoMana`, mana.ts).
    */
   manaUndo?: { player: PlayerId; source: ObjectId; color: ManaType; amount: number }[];
-  /**
-   * Permanents gone from the battlefield during the current decision (their last information in `lki`): those that
-   * leave at the same time see each other (Kraven the Hunter: "the greatest power among creatures that player
-   * controls"). Emptied at the start of each decision.
-   */
-  leftBatch?: ObjectId[];
   /**
    * 104.4b: passes chained with a non-empty stack, without any other decision, and fingerprints recorded beyond 20
    * (game.ts); the same fingerprint three times, or more than 2,000 passes, and the game is a draw.
@@ -996,8 +1007,6 @@ export interface GameState {
   extraTurns?: PlayerId[];
   /** "End the turn" (Time Stop): the turn goes directly to the cleanup step. */
   endTurnRequested?: boolean;
-  /** Players who were offered their "leyline" cards at the start of the game. */
-  leylineAsked?: PlayerId[];
   /** Cards exiled "until [the source] leaves the battlefield". */
   /** `toHand`: the cards return to their owner's hand (Deep-Cavern Bat). */
   linkedExile: { sourceId: ObjectId; cards: ObjectId[]; toHand?: boolean }[];

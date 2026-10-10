@@ -389,7 +389,7 @@ Grouped by set in sub-lots of about 10 cards. Each card is checked against its O
 |---|---|---|---|
 | M0 | to do | | |
 | M1 | done: printed Blitz read from the text (Jaxis), monstrosity as a generic form (`fx.monstrosity`, `GameObject.monstrous`, action trigger; Grim Giganotosaurus, Alpha Deathclaw, Maester Seymour; proliferate no longer re-fires it), Possibility Storm's spell exiled first and put on the bottom (`discover.exileFirst`; narrower entry left); 4 tests added | | 196 |
-| M2 | to do | | |
+| M2 | done: effect handlers registered by `ops/index.ts` in `opRegistry.ts` (imported by `game.ts`), `syncControl` moved to `state.ts` and `copyStackItem` to `stack.ts` (importCycleMax 21 → 10); `fx` split into `engine/src/dsl/fx-<domain>.ts` (one family per `ops/` domain) with `refs.ts`, `when.ts` and `shared.ts`; one `creature()` token factory in `fdn/common.ts` (14 copies removed, sos and mkm wrappers); `GameState.setup` and `GameState.batch` (GameState 41 → 38); engine-only fields marked; `cards/test/op-handlers.test.ts` (2 tests: every op written by a card has a handler, foretell excepted as a special action; the `Effect` union and the registry match); fuzz prints identical | | 196 |
 | M3a | to do | | |
 | M3b | to do | | |
 | M4 | to do | | |

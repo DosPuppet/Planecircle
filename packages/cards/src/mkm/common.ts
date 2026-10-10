@@ -3,17 +3,19 @@
  * common tokens (Clue, Thopter, Dog…) come from the earlier sets (through lci/common.ts).
  */
 import type { ObjectFilter, TokenSpec } from "@mtgx/engine";
+import { creature as creatureToken } from "../fdn/common";
 import { fx, ref, triggered, when } from "../lci/common";
 
 export * from "../lci/common";
 
+/** A creature token whose only creature type is its name. */
 const creature = (
   name: string,
   colors: TokenSpec["colors"],
   power: number,
   toughness: number,
   extra: Partial<TokenSpec> = {},
-): TokenSpec => ({ name, colors, types: ["Creature"], subtypes: [name], power, toughness, ...extra });
+): TokenSpec => creatureToken(name, colors, [name], power, toughness, extra);
 
 /** Detective: 2/2 white and blue creature. */
 export const DETECTIVE: TokenSpec = creature("Detective", ["W", "U"], 2, 2);

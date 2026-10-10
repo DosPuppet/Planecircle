@@ -3,19 +3,11 @@
  * filter. The DSL comes from Foundations (fdn/common.ts).
  */
 import { type CardScript, dsl, type Keyword, msg, type ObjectFilter, type TokenSpec } from "@mtgx/engine";
+import { creature } from "../fdn/common";
 
 export * from "../otj/common";
 
 const { fx, ref, staticAbility, triggered, when } = dsl;
-
-const creature = (
-  name: string,
-  colors: TokenSpec["colors"],
-  subtypes: string[],
-  power: number,
-  toughness: number,
-  extra: Partial<TokenSpec> = {},
-): TokenSpec => ({ name, colors, types: ["Creature"], subtypes, power, toughness, ...extra });
 
 export const HERO = creature("Hero", [], ["Hero"], 1, 1);
 export const KNIGHT_2 = creature("Knight", ["W"], ["Knight"], 2, 2);

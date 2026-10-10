@@ -173,7 +173,7 @@ function computeLiveSourcesScanned(s: GameState): Source[] {
 // ---------------------------------------------------------------------------
 
 let batchBefore: Source[] | null = null;
-/** Number of the current batch of simultaneous events (`GameState.eventBatch`), null outside a batch. */
+/** Number of the current batch of simultaneous events (`GameState.batch.eventBatch`), null outside a batch. */
 let currentBatch: number | null = null;
 /**
  * Lifelink during a batch of simultaneous events: a single life gain per source (120.3f, 119.9). A creature that
@@ -214,8 +214,8 @@ function checkAmount(
 export function simultaneously<T>(s: GameState, fn: () => T): T {
   if (batchBefore) return fn();
   batchBefore = liveSources(s);
-  s.eventBatch = (s.eventBatch ?? 0) + 1;
-  currentBatch = s.eventBatch;
+  s.batch.eventBatch = (s.batch.eventBatch ?? 0) + 1;
+  currentBatch = s.batch.eventBatch;
   lifelinkBatch = new Map();
   enterBatch = [];
   try {
@@ -344,7 +344,7 @@ export function checkCondition(
         ...s.battlefield
           .filter((x) => x !== id && s.objects[x]?.controller === v.controller && isCreature(s, x))
           .map((x) => chars(s, x).power),
-        ...(s.leftBatch ?? [])
+        ...(s.batch.leftBatch ?? [])
           .filter((x) => x !== id)
           .map((x) => s.lki[x])
           .filter((l) => !!l && l.controller === v.controller && l.types.includes("Creature"))
@@ -1101,7 +1101,7 @@ export function detectTriggers(s: GameState, ev: RulesEvent, only?: (src: Source
       // "one or more …": a single trigger per batch of simultaneous events (an effect of a resolution, a combat damage
       // step, a pass of state-based actions); outside a batch (costs paid while casting), the events share the current
       // number.
-      const batch = currentBatch ?? s.eventBatch ?? 0;
+      const batch = currentBatch ?? s.batch.eventBatch ?? 0;
       if (ab.batched) {
         // The objects and players of the other events of the batch join the pending trigger (`ref.eventObjects`,
         // `ref.eventPlayers`).

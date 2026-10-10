@@ -4,17 +4,9 @@
  */
 import type { Amount, Condition, ObjectFilter, TokenSpec } from "@mtgx/engine";
 import { amount, cond } from "../blb/common";
+import { creature } from "../fdn/common";
 
 export * from "../blb/common";
-
-const creature = (
-  name: string,
-  colors: TokenSpec["colors"],
-  subtypes: string[],
-  power: number,
-  toughness: number,
-  extra: Partial<TokenSpec> = {},
-): TokenSpec => ({ name, colors, types: ["Creature"], subtypes, power, toughness, ...extra });
 
 /** Gnome: 1/1 colorless artifact creature. */
 export const GNOME: TokenSpec = { ...creature("Gnome", [], ["Gnome"], 1, 1), types: ["Artifact", "Creature"] };

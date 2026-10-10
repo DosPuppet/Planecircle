@@ -9,14 +9,7 @@ import { colorIdentity } from "./identity";
 import { copiedDefId, hasType } from "./layers";
 import { manaValue } from "./mana";
 import { nameList, shareName } from "./names";
-import { HANDLERS as COUNTERS_HANDLERS } from "./ops/counters";
-import { HANDLERS as DAMAGE_HANDLERS } from "./ops/damage";
-import { HANDLERS as FLOW_HANDLERS } from "./ops/flow";
-import { HANDLERS as MANA_HANDLERS } from "./ops/mana";
-import { HANDLERS as PERMANENTS_HANDLERS } from "./ops/permanents";
-import { HANDLERS as PLAYERS_HANDLERS } from "./ops/players";
-import { HANDLERS as SPELLS_HANDLERS } from "./ops/spells";
-import { HANDLERS as ZONES_HANDLERS } from "./ops/zones";
+import { opHandler, registeredOps } from "./opRegistry";
 import type { EntersContext } from "./replacement";
 import { spellView } from "./stack";
 import {
@@ -1258,42 +1251,13 @@ export function zoneCards(s: GameState, players: string[], zone: "graveyard" | "
   return players.flatMap((p) => s.players[p]?.[zone] ?? []);
 }
 
+/** `op → handler` table: `opRegistry.ts`, filled by `ops/index.ts`. */
+export type { OpHandlers } from "./opRegistry";
+
 /**
  * Runs an effect. Effects that ask for a choice return `ask`: the resolution is suspended,
  * then the effect is replayed once the answer is stored in `r.vars[key]`.
  */
-/** Handling of an effect `op`: s, resolution, effect (typed by its `op`), context, choice key. */
-type Handler<E extends Effect> = (
-  s: GameState,
-  r: Resolution,
-  e: E,
-  ctx: EffectContext,
-  key: (suffix: string) => string,
-) => OpResult;
-type AnyHandler = Handler<never>;
-/** `op → handler` table, split by domain in `ops/`. */
-export type OpHandlers = { [K in Effect["op"]]?: Handler<Extract<Effect, { op: K }>> };
-
-let allHandlers: OpHandlers | null = null;
-/** Assembled on the first call (the `ops/` modules import effects.ts). */
-function handlers(): OpHandlers {
-  const all: OpHandlers =
-    allHandlers ??
-    Object.assign(
-      {},
-      COUNTERS_HANDLERS,
-      DAMAGE_HANDLERS,
-      FLOW_HANDLERS,
-      MANA_HANDLERS,
-      PERMANENTS_HANDLERS,
-      PLAYERS_HANDLERS,
-      SPELLS_HANDLERS,
-      ZONES_HANDLERS,
-    );
-  allHandlers = all;
-  return all;
-}
-
 export function runEffect(s: GameState, r: Resolution, e: Effect): OpResult {
   return runEffectWith(s, r, e, contextOf(r), (suffix: string) => `${r.pc}:${suffix}`);
 }
@@ -1306,6 +1270,8 @@ export function runEffectWith(
   ctx: EffectContext,
   key: (suffix: string) => string,
 ): OpResult {
-  const handler = (handlers() as Record<string, AnyHandler | undefined>)[e.op];
+  const handler = opHandler(e.op);
+  if (!handler && registeredOps().length === 0)
+    throw new Error("No effect handler registered: import the engine through game.ts (which imports ops/index.ts)");
   return handler ? handler(s, r, e as never, ctx, key) : undefined;
 }

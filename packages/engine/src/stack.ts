@@ -33,7 +33,6 @@ import { MAX_X } from "./limits";
 import { canPay, costToText, type ManaPurpose, manaAbilitiesOf, manaValue, payMana, totalCost } from "./mana";
 import { firstOfEachName, hasName, isNameAllowed } from "./names";
 import { asEntersChoices, ENTERS_PREFIX, withEntersChoices } from "./replacement";
-import { copyStackItem } from "./stackChoices";
 import {
   bent,
   bump,
@@ -115,6 +114,7 @@ import type {
   NextSpell,
   ObjectFilter,
   ObjectId,
+  PendingStackChoice,
   PlayerId,
   PlayFromZone,
   SacrificeToPay,
@@ -4321,4 +4321,78 @@ function spellToRest(s: GameState, item: StackItem, exile = false): void {
   if (item.flashback || exile) moveObject(s, item.sourceId, "exile");
   else if (item.bottomInstead) moveObject(s, item.sourceId, "library", { position: "bottom" });
   else moveObject(s, item.sourceId, "graveyard");
+}
+
+// ---------------------------------------------------------------------------
+// Copies of spells and abilities (707.10); the choices about them are made in stackChoices.ts.
+// ---------------------------------------------------------------------------
+
+/** Spell with a promised gift whose opponent is not chosen yet (regardless of the number of opponents). */
+export function giftChoiceNeeded(s: GameState, item: StackItem): boolean {
+  return (
+    item.kind === "spell" && !!item.kicked && !!item.cast && !item.cast.giftTo && s.defs[item.sourceDefId]?.kickerKind === "gift"
+  );
+}
+
+/**
+ * Opponent of the promised gift already set for a spell: chosen, or the only opponent of its controller (nothing was
+ * asked). Undefined if it remains to be chosen or if nothing is promised.
+ */
+function giftRecipient(s: GameState, item: StackItem): PlayerId | undefined {
+  if (item.cast?.giftTo) return item.cast.giftTo;
+  if (!giftChoiceNeeded(s, item) || item.copy) return undefined;
+  const opponents = opponentsOf(s, item.controller);
+  return opponents.length === 1 ? opponents[0] : undefined;
+}
+
+/**
+ * Copy of a spell or ability on the stack (707.10): same choices (mode, X, kicker, division) and same targets, which
+ * its controller may change. A spell copy is an object on the stack (N11): it can be targeted, and what depends on the
+ * spell's source (hexproof from instants…) sees it. Returns the id of the copy.
+ */
+export function copyStackItem(s: GameState, item: StackItem, controller: PlayerId): string {
+  // "This spell can't be copied" (Choreographed Sparks).
+  if (item.kind === "spell" && s.defs[item.sourceDefId]?.cantBeCopied) return "";
+  let id: string;
+  if (item.kind === "spell") {
+    const src = s.objects[item.sourceId];
+    // 707.10: the copy is owned by the player who puts it on the stack.
+    const o = createObject(s, src?.defId ?? item.sourceDefId, controller, "stack");
+    o.cardCopy = true;
+    if (src?.faceDefId) o.faceDefId = src.faceDefId;
+    if (src?.faceDown) o.faceDown = { ...src.faceDown };
+    id = o.id;
+  } else id = newId(s, "copy");
+  const retarget: PendingStackChoice[] = specsAndEffects(s, item)
+    .specs.filter((spec) => (item.targets[spec.id]?.length ?? 0) > 0)
+    .map((spec) => ({ step: "target", spec: spec.id }));
+  const pending: PendingStackChoice[] = [
+    ...retarget,
+    ...(retarget.length ? [{ step: "announce" } as const] : []),
+    // The original's division is not announced yet (copy made during the cast).
+    ...(item.pendingChoices?.some((c) => c.step === "divide") ? [{ step: "divide" } as const] : []),
+  ];
+  // Gift promised: the copy keeps the opponent chosen for the original (707.10), even if another player controls it.
+  // Not chosen yet (copy made during the cast): the original's answer is carried over to it (`answerStackChoice`).
+  const giftTo = giftRecipient(s, item);
+  const giftPending = !giftTo && giftChoiceNeeded(s, item);
+  if (giftPending) pending.unshift({ step: "gift" });
+  const copy: StackItem = {
+    ...item,
+    id,
+    sourceId: item.kind === "spell" ? id : item.sourceId,
+    controller,
+    copy: true,
+    riders: undefined,
+    // The entering modifications granted to the spell (counters, haste) are not copiable (707.2).
+    arrival: undefined,
+    manaSources: undefined,
+    cast: item.cast ? { ...item.cast, spentFrom: undefined, ...(giftTo ? { giftTo } : {}) } : undefined,
+    targets: { ...item.targets },
+    pendingChoices: pending.length ? pending : undefined,
+  };
+  s.stack.push(copy);
+  emit({ type: "copy", stackId: id, defId: item.sourceDefId, player: controller });
+  if (item.kind === "spell") rulesEvent(s, { e: "copySpell", player: controller, stackId: id });
+  return id;
 }
