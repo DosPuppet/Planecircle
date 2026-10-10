@@ -452,7 +452,17 @@ export const UNIQUE: Record<string, CardScript> = {
         targets: [target.upTo(1, target.creature("t"))],
         label: "Exile a creature",
       }),
-      staticAbility("attached", { copyLinkedExile: true }, { label: "Copy of the exiled creature" }),
+      // "Whenever this Equipment becomes attached to a creature, for as long as this Equipment remains attached to it,
+      // that creature becomes a copy of a creature card exiled with this Equipment" (PLAN-M M3b, Eriette's family).
+      triggered(
+        { on: "becomesAttached", who: "self", to: { types: ["Creature"] } },
+        [
+          fx.becomeCopy(ref.attached, ref.filtered(ref.exiledWith, { types: ["Creature"] }), "whileAttached", {
+            attachment: ref.self,
+          }),
+        ],
+        { label: "The equipped creature becomes a copy of the exiled creature" },
+      ),
     ],
   },
   "Bonny Pall, Clearcutter": {

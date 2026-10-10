@@ -312,6 +312,22 @@ export function syncControl(s: GameState): boolean {
   return changed;
 }
 
+/**
+ * 611.2b: the effects that last "for as long as [an Aura or an Equipment] is attached to it" (Eriette, Assimilation
+ * Aegis) end as soon as it leaves the battlefield or is no longer attached to an affected object; true if one ended.
+ */
+export function endDetachedEffects(s: GameState): boolean {
+  const ended = s.effects.filter(
+    (e) =>
+      e.whileAttached &&
+      (s.objects[e.whileAttached]?.zone !== "battlefield" || !e.affected.includes(s.objects[e.whileAttached]?.attachedTo ?? "")),
+  );
+  if (!ended.length) return false;
+  s.effects = s.effects.filter((e) => !ended.includes(e));
+  bump(s);
+  return true;
+}
+
 /** Controllers imposed on each permanent, with their timestamp. Removes the "for as long as" effects that have ended. */
 function controlClaims(s: GameState): Map<ObjectId, { ts: number; to: PlayerId }[]> {
   const claims = new Map<ObjectId, { ts: number; to: PlayerId }[]>();
@@ -322,12 +338,9 @@ function controlClaims(s: GameState): Map<ObjectId, { ts: number; to: PlayerId }
   };
   // Possession Engine: "for as long as you control [the source]"; the effect ends for good (611.2b).
   // Eriette: "for as long as that Aura is attached to it".
+  endDetachedEffects(s);
   const ended = s.effects.filter(
-    (e) =>
-      (e.whileControlledBy && e.whileSource && s.objects[e.whileSource]?.controller !== e.whileControlledBy) ||
-      (e.whileAttached &&
-        (s.objects[e.whileAttached]?.zone !== "battlefield" ||
-          !e.affected.includes(s.objects[e.whileAttached]?.attachedTo ?? ""))),
+    (e) => e.whileControlledBy && e.whileSource && s.objects[e.whileSource]?.controller !== e.whileControlledBy,
   );
   if (ended.length) {
     s.effects = s.effects.filter((e) => !ended.includes(e));

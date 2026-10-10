@@ -5,7 +5,8 @@
 import { TOKEN_SPECS } from "@mtgx/cards/tokens";
 import { describe, expect, it } from "vitest";
 import { createTokens, destroy } from "../src/actions";
-import { fx, triggered, when } from "../src/dsl";
+import { fx, ref, triggered, when } from "../src/dsl";
+import { runEffect } from "../src/effects";
 import { legalActions } from "../src/legal";
 import { chars, moveObject, random } from "../src/state";
 import { plainText } from "../src/text";
@@ -1136,6 +1137,44 @@ describe("Outlaws of Thunder Junction, lot K8 : mythiques", () => {
     });
     t = settle(cast(t, "p1", "Pyroclasm"), answering({ yes: false }));
     expect(namesIn(t, t.players.p2?.graveyard)).toEqual(["Bear Cub"]);
+  });
+
+  it("Assimilation Aegis: each time it becomes attached, that creature becomes a copy of the exiled creature for as long as it stays attached (PLAN-M M3b)", () => {
+    let s = scenario({
+      p1: { battlefield: ["Bear Cub", "Llanowar Elves", ...lands("Plains", 4)], hand: ["Assimilation Aegis"] },
+      p2: { battlefield: ["Shivan Dragon"] },
+    });
+    const bear = idOf(s, "p1", "battlefield", "Bear Cub");
+    const elves = idOf(s, "p1", "battlefield", "Llanowar Elves");
+    // The exile on entering, linked to the Equipment (put onto the battlefield: its trigger targets the Dragon).
+    const aegis = moveObject(s, idOf(s, "p1", "hand", "Assimilation Aegis"), "battlefield") as string;
+    s = settle(s, (req) => (req.type === "pick" ? [idOf(s, "p2", "battlefield", "Shivan Dragon")] : undefined));
+    expect(s.exile.filter((id) => nameOf(s, id) === "Shivan Dragon")).toHaveLength(1);
+    // Equipped: the Bear becomes a copy of the Dragon (layer 1, 707.2).
+    s = settle(activate(s, aegis, "Equip", { targets: { t: [bear] } }));
+    expect(s.objects[aegis]?.attachedTo).toBe(bear);
+    expect(chars(s, bear).name).toBe("Shivan Dragon");
+    expect(chars(s, bear).power).toBe(5);
+    // Equipped to the Elves: the Bear is a Bear again, the Elves become the copy (a new trigger).
+    s = settle(activate(s, aegis, "Equip", { targets: { t: [elves] } }));
+    expect(s.objects[aegis]?.attachedTo).toBe(elves);
+    expect(chars(s, bear).name).toBe("Bear Cub");
+    expect(chars(s, elves).name).toBe("Shivan Dragon");
+    // Unattached: the copy ends (611.2b).
+    runEffect(
+      s,
+      {
+        item: { id: "x", controller: "p1", sourceId: aegis, sourceDefId: "x", targets: {} },
+        controller: "p1",
+        targets: {},
+        vars: {},
+        pc: 0,
+      } as never,
+      fx.unattach(ref.self),
+    );
+    expect(s.objects[aegis]?.attachedTo).toBeUndefined();
+    expect(chars(s, elves).name).toBe("Llanowar Elves");
+    expect(s.effects.some((e) => e.copyOf)).toBe(false);
   });
 });
 

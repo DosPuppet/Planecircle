@@ -318,8 +318,8 @@ export function copiedDefId(s: GameState, id: ObjectId): string {
   for (const e of s.effects) {
     if (e.copyOf && e.affected.includes(id) && (!best || e.timestamp > best.t)) best = { t: e.timestamp, def: e.copyOf };
   }
-  // Copy carried by a static of an attached permanent (Assimilation Aegis: "equipped creature becomes a copy of the
-  // exiled card"); timestamp of the static: that of the attachment (613.7e).
+  // Copy carried by a static of an attached permanent (Secret Invasion: "enchanted creature becomes a copy of that
+  // creature"); timestamp of the static: that of the attachment (613.7e).
   for (const x of s.battlefield) {
     const src = s.objects[x];
     if (src?.attachedTo !== id) continue;

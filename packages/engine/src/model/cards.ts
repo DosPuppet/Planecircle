@@ -841,7 +841,7 @@ export interface LayerMods {
   loseAllAbilities?: boolean;
   /** Layer 1: becomes a copy of this definition (copiable values; Hall of Echoes). */
   copyOf?: string;
-  /** Assimilation Aegis: copy of the card exiled by the source (linked by "exile until"). */
+  /** Secret Invasion: copy of the card exiled by the source (linked by "exile until"). */
   copyLinkedExile?: boolean;
   /**
    * Has the printed activated (and mana) abilities of other objects: the cards linked to the source (`linked`:

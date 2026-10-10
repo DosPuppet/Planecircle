@@ -20,6 +20,7 @@ import {
   chars,
   commanderOf,
   emit,
+  endDetachedEffects,
   isCreature,
   isPlayer,
   moveObject,
@@ -1123,6 +1124,8 @@ export function attach(s: GameState, what: ObjectId, to: ObjectId): boolean {
   a.attachedTo = to;
   a.timestamp = nextTimestamp(s); // 613.7e: new timestamp
   bump(s);
+  // Attached elsewhere: what lasted "for as long as it remains attached" to the previous host ends (611.2b).
+  endDetachedEffects(s);
   emit({ type: "attach", objectId: what, defId: a.defId, to, toDefId: s.objects[to]?.defId ?? "" });
   if (!isPlayer(s, to)) rulesEvent(s, { e: "attached", objectId: what, to });
   return true;

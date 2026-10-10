@@ -829,7 +829,10 @@ export interface ContinuousEffect extends LayerMods {
   controller?: PlayerId;
   /** "For as long as you control [the source]": the effect ends as soon as that player no longer controls `whileSource` (611.2b). */
   whileControlledBy?: PlayerId;
-  /** "For as long as that Aura is attached to it" (Eriette): ends when `whileAttached` is no longer attached to an affected object. */
+  /**
+   * "For as long as that Aura is attached to it" (Eriette, Assimilation Aegis): ends when `whileAttached` is no longer
+   * attached to an affected object (`endDetachedEffects`).
+   */
   whileAttached?: ObjectId;
 }
 

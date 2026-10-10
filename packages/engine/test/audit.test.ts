@@ -436,9 +436,10 @@ describe("N7, N8, N9, #13: permanent copies", () => {
     expect(chars(s, token).name).toBe("Ajani, Caller of the Pride");
   });
 
-  it("N9: Assimilation Aegis, the equipped creature becomes a copy of the exiled card", () => {
-    const s = scenario({ p1: { battlefield: ["Assimilation Aegis", "Bear Cub"] }, p2: { graveyard: ["Shivan Dragon"] } });
-    const aegis = idOf(s, "p1", "battlefield", "Assimilation Aegis");
+  it("N9: Secret Invasion, the enchanted creature becomes a copy of the exiled card (copyLinkedExile static)", () => {
+    const s = scenario({ p1: { battlefield: ["Bear Cub"], hand: ["Secret Invasion"] }, p2: { graveyard: ["Shivan Dragon"] } });
+    // Put directly onto the battlefield (its exile on entering is replaced by the link below), then attached.
+    const aegis = moveObject(s, idOf(s, "p1", "hand", "Secret Invasion"), "battlefield") as string;
     const bear = idOf(s, "p1", "battlefield", "Bear Cub");
     const dragon = moveObject(s, idOf(s, "p2", "graveyard", "Shivan Dragon"), "exile") as string;
     s.linkedExile.push({ sourceId: aegis, cards: [dragon] });

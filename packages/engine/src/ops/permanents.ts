@@ -24,6 +24,7 @@ import {
   bump,
   chars,
   createObject,
+  endDetachedEffects,
   hasKeyword,
   isPlayer,
   newId,
@@ -964,6 +965,7 @@ export const HANDLERS: OpHandlers = {
       if (hosts && !hosts.includes(o.attachedTo)) continue;
       o.attachedTo = undefined;
       bump(s);
+      endDetachedEffects(s);
     }
     return;
   },
@@ -976,7 +978,14 @@ export const HANDLERS: OpHandlers = {
   },
   becomeCopy(s, _r, e, ctx) {
     const model = resolveRef(s, ctx, e.of).find((id) => !!s.objects[id]);
-    const ids = resolveRef(s, ctx, e.what).filter((id) => onBattlefield(s, id));
+    // "For as long as [the attachment] remains attached to it": nothing for an object it no longer is (611.2b).
+    const attachment = e.duration === "whileAttached" && e.attachment ? resolveRef(s, ctx, e.attachment)[0] : undefined;
+    const ids = resolveRef(s, ctx, e.what).filter(
+      (id) =>
+        onBattlefield(s, id) &&
+        (e.duration !== "whileAttached" ||
+          (!!attachment && onBattlefield(s, attachment) && s.objects[attachment]?.attachedTo === id)),
+    );
     if (!model || ids.length === 0) return;
     const onField = onBattlefield(s, model);
     const defId = onField ? copiedDefId(s, model) : (s.objects[model]?.defId as string);
@@ -988,8 +997,9 @@ export const HANDLERS: OpHandlers = {
       id: newId(s, "e"),
       timestamp: nextTimestamp(s),
       affected: ids,
-      duration: e.duration,
+      duration: e.duration === "whileAttached" ? "permanent" : e.duration,
       ...(e.duration === "untilYourNextTurn" ? { until: ctx.controller } : {}),
+      ...(attachment ? { whileAttached: attachment } : {}),
       copyOf: defId,
       ...(onField ? copiableExceptions(s, model) : {}),
       ...(e.addKeywords?.length || kept.length || e.except

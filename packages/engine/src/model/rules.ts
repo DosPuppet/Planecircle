@@ -502,10 +502,11 @@ export type TriggerSpec =
   /** "Whenever a [creature] becomes blocked" (Norin). */
   | { on: "becomesBlocked"; who: ObjectFilter }
   /**
-   * An Aura or an Equipment matching `who` becomes attached to a permanent matching `to` (relative to the ability's
-   * controller): Eriette. The event object is the attachment, the event player the host's controller.
+   * An Aura or an Equipment matching `who` (`"self"`: this one, Assimilation Aegis) becomes attached to a permanent
+   * matching `to` (relative to the ability's controller): Eriette. The event object is the attachment, the event player
+   * the host's controller.
    */
-  | { on: "becomesAttached"; who: ObjectFilter; to?: ObjectFilter }
+  | { on: "becomesAttached"; who: "self" | ObjectFilter; to?: ObjectFilter }
   /** "When you unlock this door" (Room: `door` is set at import from the face). */
   | { on: "unlockDoor"; door?: number }
   /** Eerie (Duskmourn): "whenever an enchantment you control enters and whenever you fully unlock a Room". */

@@ -784,13 +784,15 @@ export type Effect =
   /**
    * Becomes a copy of a permanent, or of a card in another zone (Likeness Looter: from the graveyard). Exceptions:
    * keywords added, the source's abilities kept (`keepAbilities`: their indexes in its definition); `ifManaValue`:
-   * nothing if the model's mana value differs.
+   * nothing if the model's mana value differs. `whileAttached`: "for as long as [`attachment`] remains attached to it"
+   * (Assimilation Aegis), like `gainControl`.
    */
   | {
       op: "becomeCopy";
       what: Ref;
       of: Ref;
-      duration: "endOfTurn" | "permanent" | "untilYourNextTurn";
+      duration: "endOfTurn" | "permanent" | "untilYourNextTurn" | "whileAttached";
+      attachment?: Ref;
       addKeywords?: Keyword[];
       keepAbilities?: number[];
       ifManaValue?: Amount;

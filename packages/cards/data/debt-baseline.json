@@ -93,14 +93,12 @@
     "Ref.combatPartners": "Ride Down — union variant of a single card, tracked since the audit of 2026-10-07: to attach to a generic form when one exists",
     "Ref.numberChoosers": "Wheel of Misfortune — union variant of a single card, tracked since the audit of 2026-10-07: to attach to a generic form when one exists",
     "Ref.targetsOfEventObject": "Storm, Windrider — union variant of a single card, tracked since the audit of 2026-10-07: to attach to a generic form when one exists",
-    "TriggerSpec.becomesAttached": "Eriette, the Beguiler — \"whenever an Aura you control becomes attached to …, gain control of that permanent for as long as that Aura is attached to it\" (PLAN-L L5, replacing the player static auraStealsCheaper): family of attachment triggers and durations, Assimilation Aegis (in the catalog) is to move onto it: PLAN-M M3b",
     "TriggerSpec.destroyed": "Karmic Justice — union variant of a single card, tracked since the audit of 2026-10-07: to attach to a generic form when one exists"
   },
   "singleCardKeys": {
     "absolute": "Loot, the Anomaly — a unique PowerRule (negative power used as its absolute value); no other card",
     "adventureOnly": "Mosswood Dreadknight — permission to cast from the graveyard limited to the Adventure face (batch K1): family of play permissions (`grantPlay`), to reuse for any permission limited to one face",
     "attachedToTarget": "Fiery Annihilation — target restricted by another target (\"up to one target Equipment attached to that creature\"); Light of Judgment, which also used it, chooses its Equipment on resolution (not targeted, PLAN-D D7): to reuse for any target \"attached to [the target]\"",
-    "attachment": "Eriette, the Beguiler — \"whenever an Aura you control becomes attached to …, gain control of that permanent for as long as that Aura is attached to it\" (PLAN-L L5, replacing the player static auraStealsCheaper): family of attachment triggers and durations, Assimilation Aegis (in the catalog) is to move onto it: PLAN-M M3b",
     "attackedYou": "Sandswirl Wanderglyph — no Condition says \"attacked the static's controller\" from the restricted player's side",
     "base": "Mathemagics — field of the tracked variant Amount.pow (counted twice)",
     "blitz": "Henzie \"Toolbox\" Torre — granted blitz (702.152, altCostAll.blitz, cast via \"blitz\"); printed blitz (Jaxis, the Troublemaker) is read from the text as altCost via \"blitz\" (PLAN-M M1), the same cast information",
@@ -111,6 +109,7 @@
     "cantBeCopied": "Choreographed Sparks — a printed spell property, no other user",
     "collectEvidenceTargetsManaValue": "Urgent Necropsy — property of a single card (audit of 2026-10-02, § 5.1): to attach to a family as soon as another card needs it",
     "control": "Xantcha, Sleeper Agent — \"enters under the control of an opponent of your choice\" (chooseOnEnter player with control: the chosen player becomes its base controller as it enters, 110.2); to reuse for the other permanents that enter under an opponent's control",
+    "copyLinkedExile": "Secret Invasion — \"enchanted creature becomes a copy of that creature until this Aura leaves the battlefield\": a static copy of the card linked by \"exile until\" (layer 1, timestamp of the attachment); Assimilation Aegis, its other user, became a becomesAttached trigger with becomeCopy whileAttached (PLAN-M M3b)",
     "costPerExtraTarget": "Officious Interrogation — a colored surcharge per extra target; Amount cost reductions are generic only",
     "createToken": "Head of the Hunt — property of a single card (audit of 2026-10-02, § 5.1): to attach to a family as soon as another card needs it",
     "discardRandom": "Alpharael, Stonechosen — discard:\"random\" would only trade a key for a single-card value",
@@ -180,7 +179,7 @@
   "turnFields": {},
   "engineCardLiterals": {},
   "ceilings": {
-    "Single-card values": 135,
+    "Single-card values": 134,
     "CardDef": 91,
     "GameObject": 51,
     "StackItem": 29,
@@ -204,7 +203,7 @@
     "CastLimit": 9,
     "NextSpell": 9,
     "Effect": 147,
-    "Effect (fields)": 652,
+    "Effect (fields)": 653,
     "TriggerSpec": 41,
     "TriggerSpec (fields)": 146,
     "Condition": 47,
@@ -314,6 +313,7 @@
     "Deadpool deck [rules 195]: LayerMods.textOf (612, layer 3, exchanged text boxes) and perSameName (Mirror Box); ActivatedAbilityDef.activators (602.2: any player, only the opponents); op exchangeTextBox; copyToken pt amounts and attacking a player; zoneChange linked (a card exiled with the source is played): ActivatedAbilityDef 18 → 19, LayerMods 29 → 31, Effect 147 → 148, Effect (fields) 648 → 650, TriggerSpec (fields) 145 → 146",
     "PLAN-M M1 [rules]: monstrosity (701.37) as a generic form — GameObject.monstrous (a designation, not a counter, like solved and harnessed; three cards: Grim Giganotosaurus, Alpha Deathclaw, Maester Seymour) and the monstrosity op with its amount (Effect 148 → 149); discover.exileFirst (Possibility Storm: the spell exiled first, put on the bottom with the others, see singleCardKeys): Effect (fields) 650 → 653; printed blitz read from the text (via=blitz written by Jaxis, the Troublemaker, the only printed blitz card in the catalog; granted blitz sets it in the engine): Single-card values 131 → 132: Single-card values 131 → 132, GameObject 50 → 51, Effect 148 → 149, Effect (fields) 650 → 653",
     "PLAN-M M2: GameState groups setup (mulliganQueue, mulliganTaken, leylineAsked) and batch (eventBatch, leftBatch); importCycleMax 21 → 10 (effect handlers registered by ops/index.ts in opRegistry.ts, syncControl moved to state.ts, copyStackItem to stack.ts): GameState 41 → 38",
-    "PLAN-M M3a: small debt merges — Ref.hostOf into Ref.attached { of }; the plot and foretell ops into exileToCast { kind } (special actions and effects); AltCostPay.sacrifice { filter, count } replaces sacrificeCount; CostDef.tapToPay (\"waterbend\" | \"convoke\") replaces CostDef.waterbend and CostDef.convoke; LayerMods.perAffected ({ what: \"sameName\" } | { what: \"ownCreatureTypes\", max }) replaces perSameName and perOwnCreatureTypes; the reduceSpeed and increaseSpeed ops into speed { who?, by }. Single-card values go up by the three values that replace single-card keys (tapToPay=convoke: Heirloom Epic; what=sameName: Mirror Box; what=ownCreatureTypes: Diligent Zookeeper), the convoke, perSameName, perOwnCreatureTypes and sacrificeCount keys, the foretell op and the Ref.hostOf variant leaving the baseline: Single-card values 132 → 135, CostDef 28 → 27, LayerMods 31 → 30, Effect 149 → 147, Effect (fields) 653 → 652, Ref 38 → 37, Ref (fields) 69 → 68"
+    "PLAN-M M3a: small debt merges — Ref.hostOf into Ref.attached { of }; the plot and foretell ops into exileToCast { kind } (special actions and effects); AltCostPay.sacrifice { filter, count } replaces sacrificeCount; CostDef.tapToPay (\"waterbend\" | \"convoke\") replaces CostDef.waterbend and CostDef.convoke; LayerMods.perAffected ({ what: \"sameName\" } | { what: \"ownCreatureTypes\", max }) replaces perSameName and perOwnCreatureTypes; the reduceSpeed and increaseSpeed ops into speed { who?, by }. Single-card values go up by the three values that replace single-card keys (tapToPay=convoke: Heirloom Epic; what=sameName: Mirror Box; what=ownCreatureTypes: Diligent Zookeeper), the convoke, perSameName, perOwnCreatureTypes and sacrificeCount keys, the foretell op and the Ref.hostOf variant leaving the baseline: Single-card values 132 → 135, CostDef 28 → 27, LayerMods 31 → 30, Effect 149 → 147, Effect (fields) 653 → 652, Ref 38 → 37, Ref (fields) 69 → 68",
+    "PLAN-M M3b [rules 197]: Assimilation Aegis as a becomesAttached trigger (who: \"self\") with becomeCopy whileAttached (becomeCopy.attachment, the same duration form as Eriette's gainControl); TriggerSpec.becomesAttached and the attachment key leave the baseline (two cards), duration=whileAttached is no longer a single-card value; copyLinkedExile enters it (Secret Invasion alone): Single-card values 135 → 134, Effect (fields) 652 → 653"
   ]
 }

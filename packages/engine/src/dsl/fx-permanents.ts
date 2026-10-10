@@ -241,9 +241,12 @@ export const permanentsFx = {
   becomeCopy: (
     what: Ref,
     of: Ref,
-    duration: "endOfTurn" | "permanent" | "untilYourNextTurn" = "endOfTurn",
-    /** `except`: copy exceptions (707.9b: name, types, P/T…), Absorbing Man, Taskmaster. */
-    opts: { addKeywords?: Keyword[]; keepAbilities?: number[]; ifManaValue?: Amount; except?: LayerMods } = {},
+    duration: "endOfTurn" | "permanent" | "untilYourNextTurn" | "whileAttached" = "endOfTurn",
+    /**
+     * `except`: copy exceptions (707.9b: name, types, P/T…), Absorbing Man, Taskmaster; `attachment`: with
+     * `"whileAttached"`, the Aura or Equipment that must remain attached (Assimilation Aegis).
+     */
+    opts: { addKeywords?: Keyword[]; keepAbilities?: number[]; ifManaValue?: Amount; except?: LayerMods; attachment?: Ref } = {},
   ): Effect => ({
     op: "becomeCopy",
     what,
