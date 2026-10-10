@@ -1,16 +1,6 @@
 /** Engine effects: players (life, drawing, extra turns and steps, winning). Each key is an `op` of `Effect` (see `runEffect`, effects.ts). */
 
-import {
-  createTokens,
-  dealDamage,
-  drawCards,
-  gainLife,
-  increaseSpeed,
-  loseLife,
-  sacrifice,
-  setMonarch,
-  setSpeed,
-} from "../actions";
+import { createTokens, dealDamage, drawCards, gainLife, loseLife, sacrifice, setMonarch, setSpeed } from "../actions";
 import type { OpHandlers } from "../effects";
 import {
   announceDiscard,
@@ -261,16 +251,19 @@ export const HANDLERS: OpHandlers = {
     store(r, e.store, lost);
     return;
   },
-  reduceSpeed(s, _r, e, ctx) {
-    for (const p of resolveRef(s, ctx, e.who).filter((x) => isPlayer(s, x))) {
+  speed(s, _r, e, ctx) {
+    const players = e.who ? resolveRef(s, ctx, e.who).filter((x) => isPlayer(s, x)) : [ctx.controller];
+    for (const p of players) {
       const speed = s.players[p]?.speed ?? 0;
+      if (e.by > 0) {
+        // 702.179: at most 4.
+        if (speed < 4) setSpeed(s, p, Math.min(4, speed + e.by));
+        continue;
+      }
+      // Spikeshell Harrier: only if their speed is greater than each other player's, never below 1.
       const others = s.playerOrder.filter((q) => q !== p && !s.players[q]?.lost).map((q) => s.players[q]?.speed ?? 0);
-      if (speed > 1 && others.every((o) => speed > o)) setSpeed(s, p, speed - 1);
+      if (speed > 1 && others.every((o) => speed > o)) setSpeed(s, p, Math.max(1, speed + e.by));
     }
-    return;
-  },
-  increaseSpeed(s, _r, _e, ctx) {
-    increaseSpeed(s, ctx.controller);
     return;
   },
   radiation(s, _r, _e, ctx) {

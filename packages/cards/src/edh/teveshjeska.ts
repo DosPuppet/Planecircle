@@ -170,7 +170,7 @@ export const EDH_TEVESH_JESKA: Record<string, CardScript> = {
       mana: "{0}",
       condition: cond.all(),
       label: "Pay 6 life and sacrifice three black creatures",
-      pay: { life: 6, sacrifice: { types: ["Creature"], colors: ["B"] }, sacrificeCount: 3 },
+      pay: { life: 6, sacrifice: { filter: { types: ["Creature"], colors: ["B"] }, count: 3 } },
     },
   },
   "Falthis, Shadowcat Familiar": {

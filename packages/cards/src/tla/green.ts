@@ -405,7 +405,7 @@ export const GREEN: Record<string, CardScript> = {
     abilities: [
       staticAbility(
         { types: ["Creature"], controller: "you", notSubtype: "Human" },
-        { power: 1, toughness: 1, perOwnCreatureTypes: 10 },
+        { power: 1, toughness: 1, perAffected: { what: "ownCreatureTypes", max: 10 } },
         { label: "Your non-Human creatures: +1/+1 for each creature type (at most 10)" },
       ),
     ],

@@ -472,7 +472,7 @@ export const EDH_DEADPOOL: Record<string, CardScript> = {
       ),
       staticAbility(
         { ...YOUR_CREATURES, token: false },
-        { power: 1, toughness: 1, perSameName: true },
+        { power: 1, toughness: 1, perAffected: { what: "sameName" } },
         {
           label: "Each nontoken creature you control: +1/+1 for each other creature you control with the same name",
         },

@@ -96,7 +96,7 @@ The scripts are in `packages/cards/src/tla/`: `cards` (meta cards), `white`, `bl
 - **The engine gains:**
   - in P/T defined by an ability: counters on permanents (`countersAmong`, Toph), colors among the permanents of a full filter (`colorsAmong`, "among your Allies"), excluded types and subtypes (`notTypes`, `notSubtype`);
   - `staticAbility(…, { perAmount })`: P/T multiplied by an amount computed like a CDA P/T (Earthen Ally);
-  - `LayerMods.perOwnCreatureTypes`: a bonus multiplied, for each affected object, by its number of creature types, with a cap (Diligent Zookeeper; a changeling is also Human);
+  - `LayerMods.perOwnCreatureTypes`: a bonus multiplied, for each affected object, by its number of creature types, with a cap (Diligent Zookeeper; a changeling is also Human); since PLAN-M M3a, `perAffected { what: "ownCreatureTypes", max }`;
   - the amount `maxSharingCreatureType(filter)` ("the greatest number of creatures that share a creature type", changelings included);
   - the modes of a conditional triggered ability ("up to X modes" written as combinations, each with its condition, like the "one or both" already in place);
   - `fx.scry(n, player)`: scry done by a targeted player.
@@ -109,7 +109,7 @@ The scripts are in `packages/cards/src/tla/`: `cards` (meta cards), `white`, `bl
 
 - **Cards (7):** Redirect Lightning, Sozin's Comet, The Last Agni Kai, Lo and Li, Twin Tutors, Iroh, Grand Lotus, Ozai, the Phoenix King, Planetarium of Wan Shi Tong.
 - **The engine gains:**
-  - foretell (702.143): "Foretell {2}{R}" read from the text, special action during your turn (pay {2}, exile the card from hand), cast on a later turn for the foretell cost (`exiledVia` of kind `foretell`); justified debt entry (a single card);
+  - foretell (702.143): "Foretell {2}{R}" read from the text, special action during your turn (pay {2}, exile the card from hand), cast on a later turn for the foretell cost (`exiledVia` of kind `foretell`); justified debt entry (a single card); since PLAN-M M3a, the special action is the `exileToCast` operation shared with plot (`kind: "foretell"`);
   - "as an additional cost, pay N life or pay {M}" (`kickerCost.life` with `kickerOrPay`, read from the text);
   - `playFrom` with `flashback` and `cost`: flashback given to graveyard cards (Iroh, Grand Lotus: their mana cost, or {1} for Lessons);
   - the top card of the library cast by a permission (`castNow`, Planetarium of Wan Shi Tong);

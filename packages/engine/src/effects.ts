@@ -571,17 +571,17 @@ export function resolveRef(s: GameState, ctx: EffectContext, ref: Ref): string[]
     }
     case "zone":
       return zoneObjects(s, ctx, ref);
-    case "hostOf":
-      // The permanents the designated objects are attached to.
-      return resolveRef(s, ctx, ref.ref).flatMap((id) => {
-        const host = s.objects[id]?.attachedTo;
-        return host && onBattlefield(s, host) ? [host] : [];
-      });
     case "attachmentsOf": {
       const hosts = new Set(resolveRef(s, ctx, ref.ref));
       return s.battlefield.filter((id) => hosts.has(s.objects[id]?.attachedTo ?? ""));
     }
     case "attached": {
+      // With `of`: the permanents the designated objects are attached to.
+      if (ref.of)
+        return resolveRef(s, ctx, ref.of).flatMap((id) => {
+          const host = s.objects[id]?.attachedTo;
+          return host && onBattlefield(s, host) ? [host] : [];
+        });
       const host = s.objects[ctx.sourceId]?.attachedTo ?? s.lki[ctx.sourceId]?.attachedTo;
       // Player Aura (Grievous Wound): the enchanted player.
       return host && (onBattlefield(s, host) || isPlayer(s, host)) ? [host] : [];

@@ -1358,13 +1358,15 @@ function applyLayersScanned(s: GameState, applied: Applied[], defOfId: (id: Obje
     (c, m) => {
       // Diligent Zookeeper: multiplied by the number of creature types of the affected object (changeling: all).
       // Mirror Box: multiplied by the number of other creatures of the same controller with the same name.
-      const k = m.perSameName
-        ? [...out.values()].filter(
-            (x) => x !== c && x.controller === c.controller && x.types.includes("Creature") && shareName(x.name, c.name),
-          ).length
-        : m.perOwnCreatureTypes === undefined
-          ? 1
-          : Math.min(m.perOwnCreatureTypes, c.keywords.includes("changeling") ? m.perOwnCreatureTypes : c.subtypes.length);
+      const per = m.perAffected;
+      const k =
+        per?.what === "sameName"
+          ? [...out.values()].filter(
+              (x) => x !== c && x.controller === c.controller && x.types.includes("Creature") && shareName(x.name, c.name),
+            ).length
+          : per?.what === "ownCreatureTypes"
+            ? Math.min(per.max, c.keywords.includes("changeling") ? per.max : c.subtypes.length)
+            : 1;
       c.power += (m.power ?? 0) * k;
       c.toughness += (m.toughness ?? 0) * k;
     },

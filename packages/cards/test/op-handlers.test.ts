@@ -24,14 +24,8 @@ function writtenOps(): Map<string, Set<string>> {
   return out;
 }
 
-/**
- * Ops applied outside a resolution, by the special action that carries them (`activateAbility`, stack.ts), with no
- * handler: never put on the stack.
- */
-const SPECIAL_ACTION_OPS = new Set(["foretell"]);
-
 describe("effect handlers", () => {
-  const handled = new Set([...registeredOps(), ...SPECIAL_ACTION_OPS]);
+  const handled = new Set(registeredOps());
 
   it("every op written by a handled card has a handler", () => {
     const missing = [...writtenOps()]

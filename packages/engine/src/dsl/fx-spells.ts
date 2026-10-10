@@ -146,7 +146,7 @@ export const spellsFx = {
     ...opts,
   }),
   /** The card or spell is exiled and becomes plotted. */
-  plot: (what: Ref): Effect => ({ op: "plot", what }),
+  plot: (what: Ref): Effect => ({ op: "exileToCast", what, kind: "plot" }),
   plotOnResolve: (what: Ref): Effect => ({ op: "spellFate", fate: "plot", what }),
   payCostOf: (what: Ref, store: string, prompt: string): Effect => ({ op: "payCostOf", what, store, prompt }),
   /** Tishana's Tidebinder: counters the ability; its permanent loses its abilities as long as the source remains. */

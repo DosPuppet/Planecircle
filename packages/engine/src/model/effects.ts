@@ -26,8 +26,6 @@ import type {
 export type Effect =
   /** Airbend (Avatar): exiles the permanent or spell; its owner may cast it for {2} as long as it remains exiled. */
   | { op: "airbend"; what: Ref }
-  /** Foretell (702.143, special action): the card is exiled from the hand, castable on a later turn. */
-  | { op: "foretell"; what: Ref }
   /** "You [element]bend" (after an earthbend or firebend): event and turn log. */
   | { op: "bent"; kind: "water" | "earth" | "fire" | "air" }
   /** "Harness [this Infinity Stone]": its ∞ abilities become active. */
@@ -338,8 +336,11 @@ export type Effect =
   | { op: "exchangeControl"; a: Ref; b: Ref }
   /** Base P/T of each matching permanent equal to the amount, until end of turn (Sita Varma). */
   | { op: "setBasePTAll"; filter: ObjectFilter; amount: Amount; powerOnly?: boolean }
-  /** The card (or spell) is exiled and becomes plotted (702.170). */
-  | { op: "plot"; what: Ref }
+  /**
+   * The card is exiled to be cast on a later turn (`GameObject.exiledVia`): plotted (702.170, the card or spell, face up;
+   * the plot special action and effects) or foretold (702.143a, from the hand, face down; the foretell special action).
+   */
+  | { op: "exileToCast"; what: Ref; kind: "plot" | "foretell" }
   /** Tarnation Vista: one mana of each color among the matching permanents. */
   | { op: "addManaColorsAmong"; filter: ObjectFilter; linked?: boolean }
   /** Each player may shuffle their hand and graveyard into their library, then draws N cards (Step Between Worlds). */
@@ -649,10 +650,12 @@ export type Effect =
    */
   /** `storeAll`: remembers every exiled card (Dazzling Sphinx: "the exiled cards that weren't cast"). */
   | { op: "exileUntil"; filter: ObjectFilter; store: string; who?: Ref; untilTotalManaValue?: number; storeAll?: string }
-  /** Spikeshell Harrier: if their speed is greater than each other player's, it decreases by 1 (not below 1). */
-  | { op: "reduceSpeed"; who: Ref }
-  /** "Increase your speed by 1" (702.179, at most 4): inherent ability of speed (`rulesTrigger`). */
-  | { op: "increaseSpeed" }
+  /**
+   * Speed (702.179) of each player of `who` (default: the controller) changed by `by`: "increase your speed by 1" (at
+   * most 4), the inherent ability of speed (`rulesTrigger`); a decrease only for a player whose speed is greater than
+   * each other player's, never below 1 (Spikeshell Harrier).
+   */
+  | { op: "speed"; who?: Ref; by: number }
   /**
    * Radiation (Fallout, `rulesTrigger`): the controller mills as many cards as they have rad counters; for each nonland
    * card milled, they lose 1 life (they gain it with Strong, the Brutish Thespian) and remove a counter.

@@ -87,8 +87,8 @@ export const ref = {
   attached: { kind: "attached" } as Ref,
   /** The permanents attached to the designated object (filter with `ref.filtered`). */
   attachmentsOf: (r: Ref): Ref => ({ kind: "attachmentsOf", ref: r }),
-  /** The permanents the designated objects are attached to (an Aura's host). */
-  hostOf: (r: Ref): Ref => ({ kind: "hostOf", ref: r }),
+  /** The permanents the designated objects are attached to (an Aura's host): `attached` with `of`. */
+  hostOf: (r: Ref): Ref => ({ kind: "attached", of: r }),
   /** "Its controller" (last known controller of an object that left the battlefield this turn). */
   controllerOf: (r: Ref): Ref => ({ kind: "controllerOf", ref: r }),
   /** "Its owner". */

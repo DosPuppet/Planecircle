@@ -329,11 +329,11 @@ export interface AltCostPay {
    * (automatic choice: the greatest).
    */
   sacrificeReduce?: ObjectFilter;
-  /** A matching permanent you control, sacrificed (the Flares: "sacrifice a nontoken black creature rather than pay";
-   * automatic choice: the lowest mana value). */
-  sacrifice?: ObjectFilter;
-  /** Number of permanents sacrificed for `sacrifice` (1 by default; Demon of Death's Gate: three black creatures). */
-  sacrificeCount?: number;
+  /**
+   * `count` matching permanents you control, sacrificed (the Flares: "sacrifice a nontoken black creature rather than
+   * pay"; Demon of Death's Gate: three black creatures; automatic choice: the lowest mana values).
+   */
+  sacrifice?: { filter: ObjectFilter; count: number };
 }
 
 /** A printing of a card: its set, its number and its art. */
@@ -629,15 +629,14 @@ export interface CostDef {
   /** Collect evidence N (701.59, MKM): graveyard cards with total mana value N or greater (chosen automatically). */
   collectEvidence?: number;
   /**
-   * Waterbend (Avatar): the mana cost is a "waterbend" cost; while paying it, each untapped artifact or creature
-   * you control may be tapped to pay {1} (chosen by the solver, like convoke).
+   * Permanents tapped to help pay the mana of the ability (chosen by the player in full control, otherwise by the
+   * solver):
+   * - `waterbend` (Avatar): the mana cost is a "waterbend" cost; each untapped artifact or creature you control may be
+   *   tapped to pay {1};
+   * - `convoke`: "for each mana in this ability's activation cost, you may tap an untapped creature you control rather
+   *   than pay that mana" (Heirloom Epic): convoke for an ability (702.51).
    */
-  waterbend?: boolean;
-  /**
-   * "For each mana in this ability's activation cost, you may tap an untapped creature you control rather than pay
-   * that mana" (Heirloom Epic): convoke for an ability (702.51).
-   */
-  convoke?: boolean;
+  tapToPay?: "waterbend" | "convoke";
   /** "X can't be 0": smallest allowed value of X (Katara, Water Tribe's Hope; Gogo, Master of Mimicry). */
   minX?: number;
   /** The exiled evidence is linked to the source (Kylox's Voltstrider: "among cards exiled with it"). */
@@ -790,15 +789,12 @@ export interface LayerMods {
    */
   textOf?: string;
   /**
-   * Layer 7c: `power`/`toughness` multiplied, for each affected object, by its number of creature types, at most
-   * this value (Diligent Zookeeper: "+1/+1 for each of its creature types, to a maximum of 10"; changeling: all).
+   * Layer 7c: `power`/`toughness` multiplied by a number relative to each affected object:
+   * - `sameName`: the other creatures its controller controls with the same name (Mirror Box);
+   * - `ownCreatureTypes`: its number of creature types, at most `max` (Diligent Zookeeper: "+1/+1 for each of its
+   *   creature types, to a maximum of 10"; changeling: all).
    */
-  perOwnCreatureTypes?: number;
-  /**
-   * Layer 7c: `power`/`toughness` multiplied, for each affected object, by the number of other creatures its controller
-   * controls with the same name (Mirror Box).
-   */
-  perSameName?: boolean;
+  perAffected?: { what: "sameName" } | { what: "ownCreatureTypes"; max: number };
   /** Layer 6: "uses its toughness for" rules granted. */
   addPowerRules?: PowerRule[];
   /** Layer 6: protections and hexproof "from [filter]" granted. */

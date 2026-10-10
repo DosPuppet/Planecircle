@@ -414,7 +414,7 @@ export const EDH_SEPHIROTH: Record<string, CardScript> = {
       mana: "{0}",
       condition: cond.all(),
       label: "Sacrifice a nontoken black creature",
-      pay: { sacrifice: { types: ["Creature"], colors: ["B"], token: false } },
+      pay: { sacrifice: { filter: { types: ["Creature"], colors: ["B"], token: false }, count: 1 } },
     },
     spell: spell([], [fx.sacrifice(ref.eachOpponent, { types: ["Creature", "Planeswalker"] }, 1, { greatestManaValue: true })]),
   },

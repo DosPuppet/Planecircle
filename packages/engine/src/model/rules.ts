@@ -692,12 +692,13 @@ export type Ref =
   | { kind: "eventObjects" }
   /** "Those players" of a "one or more" batch: the players of all its events (Breeches: "each of those opponents"). */
   | { kind: "eventPlayers" }
-  /** The permanent the source is attached to ("equipped / enchanted creature"). */
-  | { kind: "attached" }
+  /**
+   * The permanent the source is attached to ("equipped / enchanted creature"); with `of`, the permanents the designated
+   * objects are attached to ("that permanent", the host of an Aura: Eriette).
+   */
+  | { kind: "attached"; of?: Ref }
   /** The permanents attached to the designated object ("an Equipment attached to that creature", Light of Judgment). */
   | { kind: "attachmentsOf"; ref: Ref }
-  /** The permanents the designated objects are attached to ("that permanent", the host of an Aura: Eriette). */
-  | { kind: "hostOf"; ref: Ref }
   /** "This card", wherever it is now (follows the physical identity: Angelic Destiny). */
   | { kind: "selfCard" }
   /** Cards linked to the source (Hoarding Dragon). */

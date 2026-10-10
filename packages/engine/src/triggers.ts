@@ -1378,7 +1378,7 @@ const RULES_TRIGGERS = {
       "inférieure à 4, augmentez votre vitesse de 1. Cette capacité ne se déclenche qu'une fois par tour.",
     ability: {
       targets: [],
-      effects: [{ op: "increaseSpeed" }],
+      effects: [{ op: "speed", by: 1 }],
       condition: { kind: "not", cond: { kind: "maxSpeed" } },
       label: msg("Speed: increase your speed by 1"),
     },

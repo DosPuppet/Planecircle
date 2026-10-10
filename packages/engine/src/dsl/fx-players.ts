@@ -71,7 +71,8 @@ export const playersFx = {
     ...(afterStep ? { after: "step" as const } : {}),
   }),
   copyNextExhaust: { op: "playerEffect", ability: { copyNextExhaust: true }, once: true } as Effect,
-  reduceSpeed: (who: Ref): Effect => ({ op: "reduceSpeed", who }),
+  /** Spikeshell Harrier: "if that opponent's speed is greater than each other player's speed, reduce it by 1". */
+  reduceSpeed: (who: Ref): Effect => ({ op: "speed", who, by: -1 }),
   poison: (who: Ref, n: Amount): Effect => ({ op: "poison", who, n }),
   /** "[The player] gets N rad counters" (Fallout). */
   rad: (who: Ref, n: Amount): Effect => ({ op: "poison", who, n, counter: "rad" }),

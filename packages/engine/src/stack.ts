@@ -869,7 +869,7 @@ export function altCostPayment(
   const sacrifice = pay.sacrificeReduce
     ? emergeVictims(s, player, pay.sacrificeReduce)
     : pay.sacrifice
-      ? emergeVictims(s, player, pay.sacrifice, "lowest", pay.sacrificeCount)
+      ? emergeVictims(s, player, pay.sacrifice.filter, "lowest", pay.sacrifice.count)
       : undefined;
   if ((pay.sacrificeReduce || pay.sacrifice) && !sacrifice) return null;
   return { exile, ...(bounce ? { bounce } : {}), ...(sacrifice ? { sacrifice } : {}) };
@@ -1218,7 +1218,7 @@ export function isAbilityKind(ab: ActivatedAbilityDef, kind: AbilityKind): boole
     case "turnFaceUp":
       return !!ab.specialAction && ab.effects.some((e) => e.op === "turnFaceUp");
     case "plot":
-      return ab.effects.some((e) => e.op === "plot");
+      return ab.effects.some((e) => e.op === "exileToCast" && e.kind === "plot");
     case "powerUp":
       return !!ab.powerUp;
   }
@@ -1233,8 +1233,8 @@ export function abilityPurpose(source: ObjectId, ab: ActivatedAbilityDef): ManaP
   return {
     abilitySource: source,
     ...(kinds.length ? { abilityKinds: kinds } : {}),
-    ...(ab.cost.waterbend ? { waterbend: Number.POSITIVE_INFINITY } : {}),
-    ...(ab.cost.convoke ? { convoke: true } : {}),
+    ...(ab.cost.tapToPay === "waterbend" ? { waterbend: Number.POSITIVE_INFINITY } : {}),
+    ...(ab.cost.tapToPay === "convoke" ? { convoke: true } : {}),
   };
 }
 
@@ -3265,8 +3265,7 @@ export function activationPicks(
         suggested: options.slice(0, 1),
       });
   }
-  if (c.waterbend) out.push(...manaHelperPicks(s, player, source, { waterbend: true }));
-  if (c.convoke) out.push(...manaHelperPicks(s, player, source, { convoke: true }));
+  if (c.tapToPay) out.push(...manaHelperPicks(s, player, source, { [c.tapToPay]: true }));
   if (c.collectEvidence) {
     const options = (s.players[player]?.graveyard ?? []).filter((id) => id !== source);
     const suggested = evidenceCards(s, player, source, c.collectEvidence);
@@ -3605,8 +3604,10 @@ export function activateAbility(s: GameState, player: PlayerId, source: ObjectId
         if (ab.cost.mana?.x) o.x = x;
         turnFaceUp(s, source);
       }
-      if (e.op === "plot") plotCard(s, source);
-      if (e.op === "foretell") foretellCard(s, source);
+      if (e.op === "exileToCast") {
+        if (e.kind === "plot") plotCard(s, source);
+        else foretellCard(s, source);
+      }
       // Suspend (702.62a): a special action from the hand.
       if (e.op === "suspend") suspendCard(s, source, e.time);
     }
@@ -3679,11 +3680,9 @@ export function activateAbility(s: GameState, player: PlayerId, source: ObjectId
       const purpose0 = abilityPurpose(source, ab);
       // Waterbend, convoke: the objects chosen by the player (checked), otherwise the automatic payment.
       const only =
-        ab.cost.waterbend && choices.picks?.waterbend
-          ? { waterbend: pickNow(s, player, source, ab, x, "waterbend", choices) }
-          : ab.cost.convoke && choices.picks?.convoke
-            ? { convoke: pickNow(s, player, source, ab, x, "convoke", choices) }
-            : undefined;
+        ab.cost.tapToPay && choices.picks?.[ab.cost.tapToPay]
+          ? { [ab.cost.tapToPay]: pickNow(s, player, source, ab, x, ab.cost.tapToPay, choices) }
+          : undefined;
       const purpose = {
         ...purpose0,
         ...(only ? { only } : {}),
@@ -3692,7 +3691,7 @@ export function activateAbility(s: GameState, player: PlayerId, source: ObjectId
       if (choices.phyrexianLife && choices.phyrexianLife > (cost.phyrexian?.length ?? 0))
         throw new RulesError(msg("Not that many Phyrexian mana symbols to pay with life"));
       payMana(s, player, cost, reserved, sacrificed.length ? { ...purpose, sacrificedForCost: new Set(sacrificed) } : purpose);
-      if (ab.cost.waterbend) bent(s, player, "water");
+      if (ab.cost.tapToPay === "waterbend") bent(s, player, "water");
     } catch (e) {
       rethrowAsRules(e, msg("Not enough mana"));
     }

@@ -390,7 +390,7 @@ Added on 2026-10-10 at the user's request with the "Add a Commander deck" recipe
 - **Engine** (rules 194, details in `docs/engine.md`):
   - Auras that enchant a card in a graveyard (`enchant.graveyard`, Animate Dead): the spell targets the card, which returns under the Aura's controller as the Aura enters attached to it, the creature linked to the Aura ("when it leaves, sacrifice that creature");
   - static abilities that work from the graveyard (`staticAbility(…, { fromGraveyard })`, 113.6: Anger);
-  - an alternative cost that sacrifices several permanents (`AltCostPay.sacrificeCount`, Demon of Death's Gate);
+  - an alternative cost that sacrifices several permanents (`AltCostPay.sacrificeCount`, Demon of Death's Gate; `AltCostPay.sacrifice { filter, count }` since PLAN-M M3a);
   - a coin for each object (`fx.coinFlipEach`, Rakdos, the Showstopper: the objects whose coin comes up tails are stored);
   - P/T counters other than +1/+1 and −1/−1 (122.1a: "+2/+2" of Soul Exchange) count in layer 7c;
   - the filter of discover and cascade is resolved during the resolution (`withX`), and `withX` resolves a designated object inside `not` (Tibalt's Trickery: "with a different name than that spell");

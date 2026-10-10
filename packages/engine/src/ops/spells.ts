@@ -25,6 +25,7 @@ import {
   dropNowPermissions,
   evidenceCards,
   exileSpell,
+  foretellCard,
   plotCard,
   spellView,
   stackItemSpecs,
@@ -508,8 +509,11 @@ export const HANDLERS: OpHandlers = {
     store(r, e.store, 1);
     return;
   },
-  plot(s, _r, e, ctx) {
-    for (const id of resolveRef(s, ctx, e.what)) plotCard(s, id);
+  exileToCast(s, _r, e, ctx) {
+    for (const id of resolveRef(s, ctx, e.what)) {
+      if (e.kind === "plot") plotCard(s, id);
+      else foretellCard(s, id);
+    }
     return;
   },
   copySpell(s, _r, e, ctx) {

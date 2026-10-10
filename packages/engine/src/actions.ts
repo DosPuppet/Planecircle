@@ -251,12 +251,6 @@ export function loseLife(s: GameState, p: PlayerId, amount: number, damage = fal
 /** Speed trigger this turn (702.179: once per turn), in `s.turn.onceFired`. */
 const SPEED_KEY = "rules:speed";
 
-/** Increases a player's speed by 1 (702.179: at most 4). */
-export function increaseSpeed(s: GameState, p: PlayerId): void {
-  const speed = s.players[p]?.speed ?? 0;
-  if (speed < 4) setSpeed(s, p, speed + 1);
-}
-
 /** Sets a player's speed (702.179). */
 export function setSpeed(s: GameState, p: PlayerId, speed: number): void {
   const player = s.players[p];
