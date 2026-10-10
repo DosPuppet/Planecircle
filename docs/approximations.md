@@ -18,8 +18,7 @@ Each entry carries its nature:
   - a static ability granted by a resolution effect applies (Roar of the Fifth People), but not a static ability granted by another static ability (a test in `layers.test.ts` checks that no card needs it).
 - `timing` **Division (601.2d), opponent of the promised gift (702.174a) and new targets of a copy (707.10c):** asked right after the spell is put on the stack (costs paid), before anyone receives priority, and not during announcement; a copy made during a resolution chooses its targets at the end of it. A copy made before the original announced its division announces its own (`stackChoices.ts`); the gift's opponent, for its part, is always the original's (707.10), carried over to the copy once chosen.
 - `auto choice` **Aura that enters without being cast, outside a resolution** (return from a linked exile, state-based actions): the first possible host is chosen for the player. During a resolution (`moveTo`), the choice is asked (303.4f).
-- `rule` **Convoke:** a creature that has a mana ability is not used for convoke (it pays through its mana ability).
-- `auto choice` **"Enters" effects outside a resolution** (return from a linked exile, ninjutsu, sneak, state-based actions; 614.1c, 614.12): only the choices are made (type, color, name, mode, model of a copy), with the suggested answer; the other "enters" effects are not (Sin removes no counters, Mox Diamond enters without a discard, devour sacrifices nothing), and riot takes the default choice. A permanent spell that resolves, a land played (the first question comes with the decision, the following ones take the suggestion) a permanent put onto the battlefield by an effect (`moveTo`, `arrivalChoices`) and a token copy created by an effect (`copyToken`, PLAN-L L5) ask the player the questions (`asEntersChoices`, PLAN-H H9).
+- `auto choice` **"Enters" effects outside a resolution** (return from a linked exile, state-based actions; 614.1c, 614.12): only the choices are made (type, color, name, mode, model of a copy), with the suggested answer; the other "enters" effects are not (Sin removes no counters, Mox Diamond enters without a discard, devour sacrifices nothing), and riot takes the default choice. A permanent spell that resolves, a land played (the first question comes with the decision, the following ones take the suggestion) a permanent put onto the battlefield by an effect (`moveTo`, `arrivalChoices`) a token copy created by an effect (`copyToken`, PLAN-L L5), ninjutsu (an effect of its ability) and sneak (a cast spell) ask the player the questions (`asEntersChoices`, PLAN-H H9).
 - `auto choice` **Untap up to N lands:** the lands are chosen automatically.
 - `auto choice` **Mana abilities with a cost (605.1a):** they resolve without the stack, but only when activated by hand: the automatic payment does not use them (Ramos, Capital City, Loot, the Pathfinder, Phyrexian Altar, Phyrexian Tower, Sunken Ruins...; the automatic payment never sacrifices a creature).
 - `auto choice` **Amass (701.47a):** the counters go on your first Army (no choice when you control several).
@@ -87,7 +86,6 @@ In the order they were added, set by set.
 - **The Lost Caverns of Ixalan (`docs/extensions/lci.md`):**
   - `rule` Cavern mana (Bat Colony) and "using mana produced by [source]" (Tecutlan, The Myriad Pools): only the mana committed by the automatic payment;
   - `rule` The Myriad Pools: the permanent becomes a copy of the spell on the stack;
-  - `timing` Thousand Moons Infantry: untaps at the beginning of each opponent's upkeep (and not during their untap step);
   - `rule` Locus of Enlightenment: the gained abilities are not limited to one activation per turn;
   - `timing` Ojer Kaslem: the creature card is put onto the battlefield just before the land card (and not at the same time);
 - **Reality Fracture (`docs/extensions/fra.md`):**
@@ -142,7 +140,6 @@ In the order they were added, set by set.
   - `rule` Azula, Cunning Usurper: the exiled cards are cast during your turn with mana of any type, but without flash;
   - `rule` Bumi, Unleashed: "only land creatures can attack this combat" forbids the nonland creatures present at resolution from attacking, until end of turn;
   - `rule` Zuko, Conflicted (fourth chapter): Zuko returns under your control, then passes under the control of the chosen opponent;
-  - `timing` Bender's Waterskin: it untaps at the beginning of each other player's upkeep (triggered ability), and not during their untap step;
   - `rule` Aang's Journey (kicked): two searches, hence two shuffles;
   - `rule` Secret of Bloodbending: without waterbend, the control applies to one combat phase of the opponent's next turn; if that turn has none, it is not carried over to a later turn;
   - `rule` Firebender Ascension: "that ability" is the creature's most recent ability on the stack; if it has already resolved, nothing is copied;
@@ -178,7 +175,7 @@ In the order they were added, set by set.
 - **Reprints, "Unlimited" (`docs/extensions/reprints.md`):**
   - `rule` Ragavan, Nimble Pilferer: "you may cast this card": a modal double-faced card whose back face is a land could be played by that back face;
   - `auto choice` Gemstone Caverns: the card exiled from hand is the nonland card of lowest mana value (a land if there is none);
-  - `rule` Reflecting Pool: the types that lands of the same kind (Reflecting Pool, Exotic Orchard) or Command Tower would produce do not count;
+  - `rule` Reflecting Pool: the types that Command Tower would produce do not count (ignoring lands of the same kind, Reflecting Pool and Exotic Orchard, is the rule: 106.7);
   - `rule` Drown in the Loch: "mana value less than or equal to the number of cards in its controller's graveyard" is checked at resolution, not at targeting;
   - `rule` Green Sun's Zenith: it is shuffled into the library whenever it would go to the graveyard, not only when resolving;
   - `rule` Hindering Light: only spells that target a permanent you control are recognized, not those that target only you;
@@ -187,7 +184,6 @@ In the order they were added, set by set.
   - `rule` Grim Giganotosaurus: "monstrous" is noted by a counter (visible);
   - `rule` Henry Wu: the draw and the Treasure are part of the exploit ability it gives (they only happen if he is on the battlefield when it resolves);
   - `rule` Laboratory Maniac: the win that replaces the draw is noted with the state-based actions that follow (like the loss it replaces);
-  - `rule` Nyxbloom Ancient: the "additional" mana of another type (Utopia Sprawl, Shimmerwilds Growth) is not tripled;
   - `rule` Mirri, Weatherlight Duelist: "this combat" lasts the turn (an extra combat stays limited);
   - `rule` Shared Animosity: a changeling attacker is counted as sharing a type with every other attacking creature, even without a creature type;
   - `rule` Outlaws' Merriment: the token "chosen at random" is drawn by a three-sided die (shown in the log);
@@ -233,7 +229,7 @@ In the order they were added, set by set.
   - `auto choice` Scorched Ruins: the two untapped lands sacrificed on entering are chosen by the engine (the first ones on the battlefield), without asking the player;
   - `rule` Helm of the Host: "that token gains haste" is written as an exception of the copy (707.9b): a copy of that token also has haste;
   - `rule` Cover of Darkness, Shizo, Death's Storehouse: fear (702.36) is a blocking rule ("can't be blocked except by artifact and/or black creatures"), not a keyword: no card can read that a creature "has fear".
-  - `timing` Tivit, Seller of Secrets: each vote takes effect as soon as it is cast (same result: nothing reads the votes); "you may vote an additional time" only applies to Tivit's own votes (no other vote in the catalog);
+  - `timing` Tivit, Seller of Secrets: each vote takes effect as soon as it is cast (same result: nothing reads the votes); "you may vote an additional time" only applies to Tivit's own votes (the other votes of the catalog, Expropriate and Mob Verdict, have no shared vote helper yet: PLAN-M M10b);
   - `timing` Breach the Multiverse: the chosen cards enter one graveyard after the other (not simultaneously);
   - `rule` Sphinx Ambassador: the search of the opponent's library is a choice among its cards (no "search" event: "whenever a player searches" doesn't trigger); the named card is remembered by the Sphinx;
   - `rule` Sphinx of the Second Sun: only the second main phase of the turn is "postcombat" (not a main phase added after an additional combat).
