@@ -484,15 +484,15 @@ export const EDH_DEADPOOL: Record<string, CardScript> = {
       triggered(
         { on: "castSpell", by: "any", fromHand: true },
         [
-          // The types are read while the spell is still on the stack (then it is exiled).
+          // The spell is exiled first (its types read on the stack), then goes to the bottom with the other exiled cards.
           {
             op: "discover",
             n: Number.MAX_SAFE_INTEGER,
             who: ref.eventPlayer,
             cascade: true,
             filter: { shares: { what: "cardType", with: ref.eventObject } },
+            exileFirst: ref.eventObject,
           } as Effect,
-          fx.exile(ref.eventObject),
         ],
         { label: "A spell cast from a hand is exiled; its caster may cast a card sharing a type with it, for free" },
       ),

@@ -268,6 +268,24 @@ describe("Deadpool (EDH)", () => {
       expect(s.players.p1?.hand).toHaveLength(1);
     });
 
+    it("Jaxis, the Troublemaker: printed blitz {1}{R}: haste, draws when it dies, sacrificed at the next end step", () => {
+      let s = scenario({
+        p1: { battlefield: lands("Mountain", 2), hand: ["Jaxis, the Troublemaker"], library: lands("Swamp", 3) },
+      });
+      const jaxis = idOf(s, "p1", "hand", "Jaxis, the Troublemaker");
+      // {3}{R} is not payable with two lands: only the blitz cost is.
+      const opt = legalActions(s, "p1").find((a) => a.type === "cast" && a.card === jaxis);
+      expect(opt?.type === "cast" && opt.altAvailable).toBe(true);
+      s = settle(castIt(s, "p1", "Jaxis, the Troublemaker", { alternative: true }));
+      const j = idOf(s, "p1", "battlefield", "Jaxis, the Troublemaker");
+      expect(s.objects[j]?.cast?.via).toBe("blitz");
+      expect(chars(s, j).keywords).toContain("haste");
+      // Sacrificed at the beginning of the end step: it dies, its controller draws a card.
+      s = advanceUntil(s, (x) => x.turn.active === "p2");
+      expect(graveyardNames(s, "p1")).toEqual(["Jaxis, the Troublemaker"]);
+      expect(s.players.p1?.hand).toHaveLength(1);
+    });
+
     it("Echoing Assault: a 1/1 copy of an attacking nontoken creature, tapped and attacking; tokens have menace", () => {
       let s = scenario({ p1: { battlefield: ["Echoing Assault", "Abyssal Persecutor"] } });
       const p = idOf(s, "p1", "battlefield", "Abyssal Persecutor");
@@ -426,22 +444,50 @@ describe("Deadpool (EDH)", () => {
       expect(legalActions(s, "p1").some((a) => a.type === "playLand" && a.card === mountain)).toBe(true);
     });
 
-    it("Possibility Storm: a spell cast from a hand is exiled; its caster may cast a card sharing a type, for free", () => {
+    it("Possibility Storm: the spell is exiled, a card sharing a type may be cast for free, all exiled cards to the bottom", () => {
       let s = scenario({
         p1: {
           battlefield: ["Possibility Storm", ...lands("Swamp", 2)],
           hand: ["Sign in Blood"],
-          library: ["Forest", "Night's Whisper", "Forest"],
+          library: ["Forest", "Night's Whisper", "Swamp", "Swamp", "Swamp"],
         },
       });
       s = act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Sign in Blood"), targets: { p: ["p1"] } } as never);
       s = untilCastNow(s);
+      // The spell left the stack (exiled first) and never resolves.
+      expect(s.stack.some((x) => x.kind === "spell")).toBe(false);
       const found = castNowOf(s)?.cards[0] ?? "";
       expect(nameOf(s, found)).toBe("Night's Whisper");
       s = settle(act(s, "p1", { type: "cast", card: found } as never));
-      expect(s.players.p1?.hand).toHaveLength(2);
+      // Only Night's Whisper resolved: two Swamps drawn, 2 life lost.
+      expect(namesIn(s, s.players.p1?.hand)).toEqual(["Swamp", "Swamp"]);
       expect(s.players.p1?.life).toBe(18);
-      expect(namesIn(s, s.exile)).toContain("Sign in Blood");
+      // The spell and the Forest went to the bottom, in a random order (official ruling).
+      expect(s.exile).toHaveLength(0);
+      const library = namesIn(s, s.players.p1?.library);
+      expect(library[0]).toBe("Swamp");
+      expect(library.slice(1).sort()).toEqual(["Forest", "Sign in Blood"]);
+    });
+
+    it("Possibility Storm: the card not cast goes to the bottom too; the search uses the spell's card types", () => {
+      let s = scenario({
+        p1: {
+          battlefield: ["Possibility Storm", ...lands("Forest", 2)],
+          hand: ["Bear Cub"],
+          library: ["Night's Whisper", "Forest", "Bear Cub", "Swamp"],
+        },
+      });
+      s = castIt(s, "p1", "Bear Cub");
+      s = untilCastNow(s);
+      const found = castNowOf(s)?.cards[0] ?? "";
+      expect(nameOf(s, found)).toBe("Bear Cub");
+      // Declined: Night's Whisper, the Forest, the found Bear Cub and the cast one all go to the bottom.
+      s = settle(act(s, "p1", { type: "pass" }));
+      expect(s.exile).toHaveLength(0);
+      expect(battlefieldNames(s, "p1")).not.toContain("Bear Cub");
+      const library = namesIn(s, s.players.p1?.library);
+      expect(library[0]).toBe("Swamp");
+      expect(library.slice(1).sort()).toEqual(["Bear Cub", "Bear Cub", "Forest", "Night's Whisper"]);
     });
 
     it("Share the Spoils: the top card of each library is exiled; each player may play them; when they do, another one", () => {

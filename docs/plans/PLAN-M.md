@@ -140,7 +140,7 @@ One Effect `{ op: "pay"; cost: PayCost; or?; who?; unless?; skip; prompt?; x?; t
   - prompts;
   - payment order.
 
-  Quirks (the Titania and Lim-Dûl question order) are not fixed here.
+  Quirks (the Titania and Lim-Dûl's Hex question order) are not fixed here.
 - **Other readers:** `view.ts:487-509` `wardCost` reads `pay.cost`, through a `payCostText` helper shared with the `unless` prompt. `replacement.ts:161,220` `CHOICE_OPS` becomes a predicate.
 - **Sub-lots:**
   - **M4a:** record the fuzz prints;
@@ -388,7 +388,7 @@ Grouped by set in sub-lots of about 10 cards. Each card is checked against its O
 | Lot | State | Commit | Rules |
 |---|---|---|---|
 | M0 | to do | | |
-| M1 | to do | | |
+| M1 | done: printed Blitz read from the text (Jaxis), monstrosity as a generic form (`fx.monstrosity`, `GameObject.monstrous`, action trigger; Grim Giganotosaurus, Alpha Deathclaw, Maester Seymour; proliferate no longer re-fires it), Possibility Storm's spell exiled first and put on the bottom (`discover.exileFirst`; narrower entry left); 4 tests added | | 196 |
 | M2 | to do | | |
 | M3a | to do | | |
 | M3b | to do | | |

@@ -163,6 +163,29 @@ describe("Mutant Menace (EDH)", () => {
       expect(idsOf(s, "p2", "graveyard", "Plains")).toHaveLength(1);
     });
 
+    it("Alpha Deathclaw: monstrosity 4; when it becomes monstrous, destroys a targeted permanent; only once", () => {
+      let s = scenario({
+        p1: { battlefield: ["Alpha Deathclaw", ...lands("Swamp", 7), ...lands("Forest", 7)] },
+        p2: { battlefield: ["Plains", "Bear Cub"] },
+      });
+      const claw = idOf(s, "p1", "battlefield", "Alpha Deathclaw");
+      const monstrosity = (x: GameState) => {
+        const ab = legalActions(x, "p1").find((a) => a.type === "activate" && a.source === claw);
+        if (ab?.type !== "activate") throw new Error("no monstrosity");
+        return act(x, "p1", { type: "activate", source: claw, ability: ab.ability });
+      };
+      const bear = idOf(s, "p2", "battlefield", "Bear Cub");
+      s = settle(monstrosity(s), picking([bear]));
+      expect(s.objects[claw]?.counters["+1/+1"]).toBe(4);
+      expect(s.objects[claw]?.monstrous).toBe(true);
+      expect(idsOf(s, "p2", "graveyard", "Bear Cub")).toHaveLength(1);
+      // A second activation: no counters, no trigger.
+      const plains = idOf(s, "p2", "battlefield", "Plains");
+      s = settle(monstrosity(s), picking([plains]));
+      expect(s.objects[claw]?.counters["+1/+1"]).toBe(4);
+      expect(s.objects[plains]?.zone).toBe("battlefield");
+    });
+
     it("Glowing One: it gives four rad counters to the player it damages", () => {
       let s = scenario({ p1: { battlefield: ["Glowing One"] } });
       s = throughCombat(attack(s, [idOf(s, "p1", "battlefield", "Glowing One")]));

@@ -309,7 +309,8 @@ export type ActionEvent =
   | "saddled"
   | "plotted"
   | "cycled"
-  | "transformed";
+  | "transformed"
+  | "monstrous";
 
 /**
  * Trigger event (603). "self": the source itself; otherwise an object matching the filter, seen from the source's
@@ -326,7 +327,8 @@ export type TriggerSpec =
    * activate an exhaust ability"), expend (`n`: "whenever you expend your Nth total mana", Bloomburrow). `self`: an
    * action on the source itself: saddled (702.171), plotted ("when this card becomes plotted"), cycled (from the
    * graveyard; the event amount is the X of the cycling cost), transformed ("when this permanent transforms into
-   * [this face]": carried by that face, read after the transformation).
+   * [this face]": carried by that face, read after the transformation), monstrous ("when this creature becomes
+   * monstrous", 701.37b).
    */
   /** `whose: "chosen"`: the source's chosen player (`chosen.player`: "when the chosen player loses the game", Shinryu). */
   | { on: "action"; action: ActionEvent; whose?: "you" | "opponent" | "any" | "chosen"; self?: boolean; n?: number }

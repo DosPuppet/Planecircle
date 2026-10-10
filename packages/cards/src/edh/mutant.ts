@@ -79,22 +79,16 @@ export const EDH_MUTANT: Record<string, CardScript> = {
       ...[when.entersSelf, when.attacksSelf].map((w) => triggered(w, [fx.proliferate(2)], { label: "Proliferate twice" })),
     ],
   },
-  // Menace, trample: read from the text. Monstrosity 4: only once.
+  // Menace, trample: read from the text.
   "Alpha Deathclaw": {
     abilities: [
-      triggered(when.entersSelf, [fx.destroy(ref.target())], {
-        targets: [target.permanent("t", [], {}, "permanent")],
-        label: "Destroy a permanent",
-      }),
-      activated({
-        mana: "{5}{B}{G}",
-        once: true,
-        effects: [
-          fx.addCounters(ref.self, 4),
-          fx.reflexive([target.permanent("t", [], {}, "permanent")], [fx.destroy(ref.target())]),
-        ],
-        label: "Monstrosity 4: becomes monstrous, destroy a permanent",
-      }),
+      ...[when.entersSelf, when.becomesMonstrous].map((w) =>
+        triggered(w, [fx.destroy(ref.target())], {
+          targets: [target.permanent("t", [], {}, "permanent")],
+          label: "Enters or becomes monstrous: destroy a permanent",
+        }),
+      ),
+      activated({ mana: "{5}{B}{G}", effects: [fx.monstrosity(4)], label: "Monstrosity 4" }),
     ],
   },
   "Hancock, Ghoulish Mayor": {

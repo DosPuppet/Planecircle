@@ -181,7 +181,6 @@ In the order they were added, set by set.
   - `rule` Hindering Light: only spells that target a permanent you control are recognized, not those that target only you;
   - `rule` All Will Be One: only counters put on permanents trigger the ability;
   - `auto choice` Force of Will, Force of Vigor, Daze: the card exiled from hand is the cheapest that fits; the returned Island, a tapped one first;
-  - `rule` Grim Giganotosaurus: "monstrous" is noted by a counter (visible);
   - `rule` Henry Wu: the draw and the Treasure are part of the exploit ability it gives (they only happen if he is on the battlefield when it resolves);
   - `rule` Laboratory Maniac: the win that replaces the draw is noted with the state-based actions that follow (like the loss it replaces);
   - `rule` Mirri, Weatherlight Duelist: "this combat" lasts the turn (an extra combat stays limited);
@@ -249,7 +248,7 @@ In the order they were added, set by set.
   - `auto choice` Demon of Death's Gate: the three black creatures sacrificed instead of paying are chosen by the engine (the lowest mana values).
   - `rule` Elturel Survivors: X counts the lands of all opponents (the defending player's in a duel);
   - `rule` Echoing Assault: it triggers once per attack (not once for each player attacked), and the copy attacks the player its controller chooses;
-  - `rule` Possibility Storm: the cast spell is exiled after the card is found (its types read while it is on the stack) and stays in exile instead of going to the bottom with the others;
+  - `rule` Possibility Storm: a spell that already left the stack when the ability resolves (countered, exiled by another Possibility Storm) leads to no search (the ruling still has its caster search with its card types); a land card sharing a type with the spell (artifact land) doesn't stop the search, as for cascade; the cards exiled before the one found go to the bottom before it is cast;
   - `timing` Mob Verdict, Prisoner's Dilemma: the "secret" votes and choices are made one after the other, in turn order, each seen by the next players;
   - `rule` Vislor Turlough: the creature stays goaded for the rest of the game (not only while the opponent controls it);
   - `rule` Slicer, Hired Muscle: "More Than Meets the Eye" (casting it converted for {2}{R}) is not handled: it is only cast for its mana cost;

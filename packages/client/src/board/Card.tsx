@@ -244,6 +244,11 @@ const CardView = memo(function CardView({
                 {t("Suspected")}
               </div>
             )}
+            {obj.monstrous && (
+              <div className="monstrous-badge" title={t("Monstrous: its monstrosity ability no longer does anything")}>
+                {t("Monstrous")}
+              </div>
+            )}
             {obj.sick && obj.types.includes("Creature") && (
               <div className="sick-badge" title={t("Summoning sickness")}>
                 z

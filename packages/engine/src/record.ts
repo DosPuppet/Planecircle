@@ -547,8 +547,12 @@ export const RECORD_VERSION = 1;
  *   Master, Multiplied's token shield; Opposition Agent's control of the opponents' searches; token copies with P/T
  *   amounts or attacking a designated player; a `modify` with a P/T amount no longer leaves a stale characteristics
  *   cache; multi-word creature types ("Time Lord") kept whole by the import; an announced X above a million is refused
+ * - 196: PLAN-M M1: printed blitz read from the text (Jaxis, the Troublemaker); monstrosity (701.37) as a designation,
+ *   not a counter (`fx.monstrosity`, "becomes monstrous" action trigger: proliferate no longer fires Grim
+ *   Giganotosaurus again; Alpha Deathclaw and Maester Seymour can be activated again, doing nothing once monstrous);
+ *   Possibility Storm exiles the spell first and puts it on the bottom with the other exiled cards
  */
-export const RULES_VERSION = 195;
+export const RULES_VERSION = 196;
 
 /** One checkpoint every N decisions (plus the last one of the game). */
 export const CHECKPOINT_EVERY = 25;

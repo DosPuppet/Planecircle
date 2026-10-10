@@ -700,6 +700,8 @@ export const fx = {
   blight: (n: Amount, who: Ref = ref.you, store?: string): Effect => ({ op: "blight", who, amount: n, store }),
   /** "Harness [this Infinity Stone]" (Harness). */
   harness: { op: "harness" } as Effect,
+  /** "Monstrosity N" (701.37): if this permanent isn't monstrous, N +1/+1 counters on it and it becomes monstrous. */
+  monstrosity: (n: Amount): Effect => ({ op: "monstrosity", amount: n }),
   /** "[That player] amasses [Goblins] X" (701.47). */
   amass: (who: Ref, subtype: string, n: Amount): Effect => ({
     op: "counterOnOrCreate",
@@ -2412,6 +2414,8 @@ export const when = {
   entersSelf: { on: "enters", who: "self" } as TriggerSpec,
   /** "When it transforms into [this face]" (to put on the face concerned). */
   transformsSelf: { on: "action", action: "transformed", self: true } as TriggerSpec,
+  /** "When this creature becomes monstrous" (701.37b). */
+  becomesMonstrous: { on: "action", action: "monstrous", self: true } as TriggerSpec,
   /** "Whenever a(n) [filter] enters the battlefield" */
   enters: (filter: ObjectFilter): TriggerSpec => ({ on: "enters", who: filter }),
   diesSelf: { on: "dies", who: "self" } as TriggerSpec,

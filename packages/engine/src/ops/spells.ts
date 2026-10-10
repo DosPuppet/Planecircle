@@ -23,6 +23,7 @@ import {
   counterItem,
   dropNowPermissions,
   evidenceCards,
+  exileSpell,
   plotCard,
   spellView,
   stackItemSpecs,
@@ -63,9 +64,20 @@ export const HANDLERS: OpHandlers = {
     // The resolution can resume after the question: the exiling happens only once.
     if (!r.vars[key("done")]) {
       const n = evalAmount(s, ctx, e.n);
+      // The filter is resolved first: Possibility Storm reads the card types of the spell while it is on the stack.
       const filter = e.filter ? withX(s, e.filter, ctx) : undefined;
       const lib = s.players[p]?.library ?? [];
       const rest: ObjectId[] = [];
+      // Possibility Storm: the spell is exiled before the search, then goes to the bottom with the other exiled cards.
+      // A spell that already left the stack (countered, exiled by another Possibility Storm): nothing is done.
+      if (e.exileFirst) {
+        const spells = resolveRef(s, ctx, e.exileFirst).filter((id) => s.stack.some((x) => x.id === id && x.kind === "spell"));
+        if (spells.length === 0) return;
+        for (const id of spells) {
+          const moved = exileSpell(s, id);
+          if (moved) rest.push(moved);
+        }
+      }
       let hit: ObjectId | undefined;
       while (lib.length && !hit) {
         const d = s.defs[s.objects[lib[0] as string]?.defId ?? ""];

@@ -189,11 +189,10 @@ export const EDH_COUNTER_BLITZ: Record<string, CardScript> = {
         targets: [target.creature("t", { controller: "you", other: true })],
         label: "+1/+1 counters equal to its power on another of your creatures",
       }),
-      // Monstrosity X: only once ("if it isn't monstrous").
+      // Monstrosity X: X counted as the ability resolves.
       activated({
         mana: "{3}{G}{G}",
-        once: true,
-        effects: [fx.addCounters(ref.self, amount.countersAmong(CREATURE_YOU, "any"))],
+        effects: [fx.monstrosity(amount.countersAmong(CREATURE_YOU, "any"))],
         label: "Monstrosity X (X: counters among your creatures)",
       }),
     ],

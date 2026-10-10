@@ -530,6 +530,7 @@ function matchAction(
     case "plotted":
       return t.self && ev.card === src.id ? { objectId: src.id, player: me } : null;
     case "transformed":
+    case "monstrous":
       return t.self && ev.objectId === src.id ? { objectId: src.id, player: me } : null;
     case "cycled":
       return t.self && ev.card === src.id ? { objectId: src.id, player: ev.player, amount: ev.x } : null;

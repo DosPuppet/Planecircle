@@ -105,7 +105,7 @@
     "attachment": "Eriette, the Beguiler — \"whenever an Aura you control becomes attached to …, gain control of that permanent for as long as that Aura is attached to it\" (PLAN-L L5, replacing the player static auraStealsCheaper): family of attachment triggers and durations, Assimilation Aegis (in the catalog) is to move onto it: PLAN-M M3b",
     "attackedYou": "Sandswirl Wanderglyph — no Condition says \"attacked the static's controller\" from the restricted player's side",
     "base": "Mathemagics — field of the tracked variant Amount.pow (counted twice)",
-    "blitz": "Henzie \"Toolbox\" Torre — granted blitz (702.152, altCostAll.blitz, cast via \"blitz\"); printed blitz (SNC) will read the same form from the text",
+    "blitz": "Henzie \"Toolbox\" Torre — granted blitz (702.152, altCostAll.blitz, cast via \"blitz\"); printed blitz (Jaxis, the Troublemaker) is read from the text as altCost via \"blitz\" (PLAN-M M1), the same cast information",
     "blocked": "Throatseeker — \"blocked / unblocked attacking creature\" filter (509.1h, ObjectFilter): family of combat filters (`attacking`, `blocking`), to reuse for any card that mentions blocked or unblocked attackers",
     "bottom": "Grenzo, Dungeon Warden — the bottom card of a library (Ref libraryTop with bottom); to reuse for any \"bottom card of your library\" text",
     "cantBeBlockedByPlayer": "The Black Gate — blocking rule \"can't be blocked by creatures that player controls\" (BlockRule, player fixed on resolution): family of blocking rules (R4.1)",
@@ -128,6 +128,7 @@
     "exceptTurnDraw": "Orcish Bowmasters — rule-backed (\"except the first one they draw in each of their draw steps\", PLAN-E E12)",
     "excess": "Magmatic Galleon — \"are dealt excess [noncombat] damage\" (120.4a) on the isDealtDamage trigger; replaces the TriggerSpec.excessDamage variant (PLAN-J J2)",
     "exchange": "Mister Negative — life exchange (701.12b)",
+    "exileFirst": "Possibility Storm — discover (cascade form) that exiles the cast spell before the search and puts it on the bottom with the other exiled cards (PLAN-M M1); to reuse for any \"exile it, then exile cards until …\" text",
     "exileFromLibrary": "Ashiok, Wicked Manipulator — a unique payLife replacement",
     "exileGraveyardSymbols": "Baron Helmut Zemo — a unique cost (exile black cards by their {B} symbols)",
     "exileIfLeaves": "Unearth (702.84a, read from the text: Cityscape Leveler): \"if it would leave the battlefield, exile it instead\"; family of temporary returns (unearth, Whip of Erebos…)",
@@ -185,9 +186,9 @@
   "turnFields": {},
   "engineCardLiterals": {},
   "ceilings": {
-    "Single-card values": 131,
+    "Single-card values": 132,
     "CardDef": 91,
-    "GameObject": 50,
+    "GameObject": 51,
     "StackItem": 29,
     "PlayerState": 23,
     "GameState": 41,
@@ -208,8 +209,8 @@
     "AdditionalCost": 12,
     "CastLimit": 9,
     "NextSpell": 9,
-    "Effect": 148,
-    "Effect (fields)": 650,
+    "Effect": 149,
+    "Effect (fields)": 653,
     "TriggerSpec": 41,
     "TriggerSpec (fields)": 146,
     "Condition": 47,
@@ -316,6 +317,7 @@
     "PLAN-L L5a [rules 189]: Hawkeye (payX max), Nuka-Nuke Launcher (a delayed ability that lasts until the end of the watched player's next turn: delayed until \"theirNextTurn\"; intimidate as a block rule), Kíli (AbilityCostMod free: the whole equip cost), Abuelo's Awakening (MoveSpec.mods: the base P/T in place as it enters), Heirloom Epic (CostDef.convoke: convoke for an ability, single-card key justified): CostDef 27 → 28, MoveSpec 17 → 18, Effect (fields) 644 → 646",
     "PLAN-L L5c [rules 191]: Eriette as a trigger (TriggerSpec becomesAttached, Ref hostOf, gainControl whileAttached + attachment; justified single-card entries), the player static auraStealsCheaper removed; GameObject.counterTimestamps (ability counters in layer 6); changeCounters { by }: Single-card values 130 → 131, GameObject 49 → 50, Effect (fields) 646 → 647, TriggerSpec 40 → 41, TriggerSpec (fields) 142 → 145, Ref 37 → 38, Ref (fields) 67 → 69",
     "Tevesh Szat & Jeska deck [rules 194]: coinFlip.each, a coin for each object (Rakdos, the Showstopper): Effect (fields) 647 → 648",
-    "Deadpool deck [rules 195]: LayerMods.textOf (612, layer 3, exchanged text boxes) and perSameName (Mirror Box); ActivatedAbilityDef.activators (602.2: any player, only the opponents); op exchangeTextBox; copyToken pt amounts and attacking a player; zoneChange linked (a card exiled with the source is played): ActivatedAbilityDef 18 → 19, LayerMods 29 → 31, Effect 147 → 148, Effect (fields) 648 → 650, TriggerSpec (fields) 145 → 146"
+    "Deadpool deck [rules 195]: LayerMods.textOf (612, layer 3, exchanged text boxes) and perSameName (Mirror Box); ActivatedAbilityDef.activators (602.2: any player, only the opponents); op exchangeTextBox; copyToken pt amounts and attacking a player; zoneChange linked (a card exiled with the source is played): ActivatedAbilityDef 18 → 19, LayerMods 29 → 31, Effect 147 → 148, Effect (fields) 648 → 650, TriggerSpec (fields) 145 → 146",
+    "PLAN-M M1 [rules]: monstrosity (701.37) as a generic form — GameObject.monstrous (a designation, not a counter, like solved and harnessed; three cards: Grim Giganotosaurus, Alpha Deathclaw, Maester Seymour) and the monstrosity op with its amount (Effect 148 → 149); discover.exileFirst (Possibility Storm: the spell exiled first, put on the bottom with the others, see singleCardKeys): Effect (fields) 650 → 653; printed blitz read from the text (via=blitz written by Jaxis, the Troublemaker, the only printed blitz card in the catalog; granted blitz sets it in the engine): Single-card values 131 → 132: Single-card values 131 → 132, GameObject 50 → 51, Effect 148 → 149, Effect (fields) 650 → 653"
   ]
 }

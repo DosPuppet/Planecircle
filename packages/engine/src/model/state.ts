@@ -148,6 +148,8 @@ export interface GameObject {
   classLevel?: number;
   /** Case (719): solved. */
   solved?: boolean;
+  /** Monstrous (701.37b): a designation, not a counter (proliferate doesn't touch it); lost when it leaves the battlefield. */
+  monstrous?: boolean;
   /** Room (709.5): unlocked doors (face indexes). */
   unlocked?: number[];
   /** Melded permanent (701.42): the two cards that form it; it becomes these cards again as it leaves the battlefield. */

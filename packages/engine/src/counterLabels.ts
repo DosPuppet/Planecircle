@@ -79,8 +79,6 @@ export const COUNTER_LABELS: Readonly<Record<string, string>> = {
   vow: msg("Vow"),
   story: msg("Story"),
   burden: msg("Burden"),
-  // Not a printed counter: the engine records monstrosity this way (701.37, Grim Giganotosaurus).
-  monstrous: msg("Monstrous"),
 };
 
 /** Name of a kind of counter ("+1/+1" and the unknown kinds: as they are). */

@@ -407,6 +407,18 @@ export const HANDLERS: OpHandlers = {
     rulesEvent(s, { e: "caseSolved", player: o.controller, objectId: o.id });
     return;
   },
+  monstrosity(s, _r, e, ctx) {
+    // 701.37a: "if this permanent isn't monstrous, put N +1/+1 counters on it and it becomes monstrous"; it becomes
+    // monstrous even if the counters are not all put (N is 0, or a replacement changes them).
+    const o = s.objects[ctx.sourceId];
+    if (o?.zone !== "battlefield" || o.monstrous) return;
+    const n = evalAmount(s, ctx, e.amount);
+    if (n > 0) changeCounters(s, o, P1P1, n);
+    o.monstrous = true;
+    bump(s);
+    rulesEvent(s, { e: "monstrous", objectId: o.id });
+    return;
+  },
   moveCounter(s, r, e, ctx, key) {
     const from = resolveRef(s, ctx, e.from)
       .map((id) => s.objects[id])

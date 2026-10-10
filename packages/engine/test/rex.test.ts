@@ -4,6 +4,8 @@ import { destroy, drawCards } from "../src/actions";
 import { legalActions } from "../src/legal";
 import { chars } from "../src/state";
 import { canBlock } from "../src/turn";
+import type { GameState } from "../src/types";
+import { objectView } from "../src/view";
 import { act, advanceUntil, attack, customCard, idOf, idsOf, lands, nameOf, scenario, settle, throughCombat } from "./helpers";
 
 type S = ReturnType<typeof scenario>;
@@ -95,10 +97,40 @@ describe("Jurassic World Collection", () => {
       const ab = legalActions(s, "p1").find((a) => a.type === "activate" && a.source === giga);
       s = settle(act(s, "p1", { type: "activate", source: giga, ability: ab?.type === "activate" ? ab.ability : 0 }));
       expect(s.objects[giga]?.counters["+1/+1"]).toBe(10);
+      // Monstrous is a designation (701.37b), not a counter; the view shows it.
+      expect(s.objects[giga]?.monstrous).toBe(true);
+      expect(Object.keys(s.objects[giga]?.counters ?? {})).toEqual(["+1/+1"]);
+      expect(objectView(s, giga).monstrous).toBe(true);
       expect(
         s.battlefield.filter((id) => !s.defs[s.objects[id]?.defId ?? ""]?.types.includes("Land")).map((id) => nameOf(s, id)),
       ).toEqual(["Grim Giganotosaurus"]);
-      expect(legalActions(s, "p1").some((a) => a.type === "activate" && a.source === giga)).toBe(false);
+    });
+
+    it("Grim Giganotosaurus: proliferating it doesn't make it monstrous again; activating it again does nothing", () => {
+      let s = scenario({
+        p1: { battlefield: ["Grim Giganotosaurus", ...lands("Swamp", 8), ...lands("Forest", 10)], hand: ["Bear Cub", "Atomize"] },
+        p2: { battlefield: ["Inexorable Tide"] },
+      });
+      const giga = idOf(s, "p1", "battlefield", "Grim Giganotosaurus");
+      const monstrosity = (x: GameState) => {
+        const ab = legalActions(x, "p1").find((a) => a.type === "activate" && a.source === giga);
+        if (ab?.type !== "activate") throw new Error("no monstrosity");
+        return settle(act(x, "p1", { type: "activate", source: giga, ability: ab.ability }));
+      };
+      s = monstrosity(s);
+      s = advanceUntil(s, (x) => x.turn.active === "p1" && x.turn.step === "main1" && x.turn.number > 3);
+      s = settle(act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Bear Cub") }));
+      const bear = idOf(s, "p1", "battlefield", "Bear Cub");
+      const tide = idOf(s, "p2", "battlefield", "Inexorable Tide");
+      s = settle(act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Atomize"), targets: { t: [tide] } }), (req) =>
+        req.type === "pick" && req.intent === "proliferate" ? [giga] : undefined,
+      );
+      expect(s.objects[giga]?.counters["+1/+1"]).toBe(11);
+      expect(s.objects[bear]?.zone).toBe("battlefield");
+      // Already monstrous: the ability can be activated (701.37c), but it does nothing.
+      s = monstrosity(s);
+      expect(s.objects[giga]?.counters["+1/+1"]).toBe(11);
+      expect(s.objects[bear]?.zone).toBe("battlefield");
     });
 
     it("Indoraptor: bloodthirst, as many counters as damage dealt to opponents this turn", () => {

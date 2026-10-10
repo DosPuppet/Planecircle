@@ -137,6 +137,8 @@ export type RulesEvent =
   | { e: "collectEvidence"; player: PlayerId }
   /** A Case is solved (Case File Auditor). */
   | { e: "caseSolved"; player: PlayerId; objectId: ObjectId }
+  /** A permanent becomes monstrous (701.37b). */
+  | { e: "monstrous"; objectId: ObjectId }
   /** A player gives a gift (702.174). */
   | { e: "gift"; player: PlayerId }
   /** A Room door is unlocked. */

@@ -233,7 +233,8 @@ its artwork (51 cards). Details in the plan's follow-up.
 - **Alternative costs paid differently ✅:** `altCost.pay` (life, cards exiled from hand, permanent returned, chosen
   automatically: the cheapest cards, a tapped permanent first). Cards: Force of Will, Daze (SOA), Force of Vigor (OTP).
   Tests: `altcosts.test.ts` (4).
-- **A card's own keywords ✅:** Grim Giganotosaurus (monstrosity noted by a "monstrous" counter, `countersPut` trigger),
+- **A card's own keywords ✅:** Grim Giganotosaurus (monstrosity; since PLAN-M M1, rules 196: `fx.monstrosity`, the
+  `GameObject.monstrous` designation and `when.becomesMonstrous`, no longer a counter that proliferate re-fired),
   Indoraptor (bloodthirst: `entersWith` of the damage dealt to opponents this turn; the "random" opponent:
   `fx.chooseOpponent(…, { random: true })`, PLAN-H H4), Henry Wu (exploit given to Humans, the draw and the Treasure in
   the same ability). Tests: `rex.test.ts` (+3).

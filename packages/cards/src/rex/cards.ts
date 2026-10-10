@@ -170,16 +170,15 @@ export const CARDS: Record<string, CardScript> = {
   // — G4e: hard sub-lot —
   "Grim Giganotosaurus": {
     abilities: [
-      // Monstrosity 10 (701.37): "monstrous" is noted by a counter, which triggers the next ability.
+      // Monstrosity 10 (701.37).
       activated({
         mana: "{10}{B}{G}",
         reduction: { generic: amount.count({ types: ["Creature"], controller: "opponent", minPower: 4 }) },
-        activationCondition: cond.not(cond.amountAtLeast(amount.countersOn(ref.self, "monstrous"), 1)),
-        effects: [fx.addCounters(ref.self, 10), fx.counters(ref.self, "monstrous")],
+        effects: [fx.monstrosity(10)],
         label: "Monstrosity 10",
       }),
       triggered(
-        { on: "countersPut", who: "self", kind: "monstrous" },
+        when.becomesMonstrous,
         [fx.destroyAll({ anyOf: [{ types: ["Artifact"] }, { types: ["Creature"] }], other: true })],
         {
           label: "Becomes monstrous: destroy all other artifacts and creatures",

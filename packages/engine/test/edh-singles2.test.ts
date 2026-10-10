@@ -355,9 +355,11 @@ describe("Commander (EDH): single cards, L to Z (L11)", () => {
       s = settle(activate(s, "p1", seymour));
       // One counter among your creatures: Monstrosity 1.
       expect(plusOne(s, seymour)).toBe(1);
-      // Already monstrous: not a second time.
+      expect(s.objects[seymour]?.monstrous).toBe(true);
+      // Already monstrous: it can be activated again (701.37c), but nothing happens.
       s = advanceUntil(s, (x) => x.turn.active === "p1" && x.turn.step === "main1" && x.turn.number > 3);
-      expect(activations(s, "p1", seymour)).toEqual([]);
+      s = settle(activate(s, "p1", seymour));
+      expect(plusOne(s, seymour)).toBe(1);
     });
 
     it("Marcus, Mutant Mayor: combat damage to a player, draw if the creature has a +1/+1 counter, otherwise a counter", () => {

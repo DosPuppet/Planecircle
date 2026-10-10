@@ -988,8 +988,11 @@ function singleDef(raw: RawCard, script: CardScript | undefined, set: string): C
   // The Hobbit: Storied; Teenage Mutant Ninja Turtles: Sneak; Spider-Man: Mayhem; Strixhaven: Paradigm.
   const storied = /^Storied\b/m.test(raw.oracleText);
   const sneak = /^Sneak ((?:\{[^}]+\})+)/m.exec(raw.oracleText)?.[1];
-  // Dash (702.109) and spectacle (702.137): alternative costs.
+  // Dash (702.109), blitz (702.152) and spectacle (702.137): alternative costs.
   const dash = /^Dash ((?:\{[^}]+\})+)/m.exec(raw.oracleText)?.[1];
+  // Blitz: haste, "when this creature dies, draw a card" and the sacrifice at the next end step come from the cast
+  // (`via: "blitz"`, `stack.ts`), as for granted blitz.
+  const blitz = /^Blitz ((?:\{[^}]+\})+)/m.exec(raw.oracleText)?.[1];
   // Emerge (702.119): by sacrificing a creature, cost reduced by its mana value; "Emerge from artifact" (702.119a,
   // Crabomination): by sacrificing an artifact.
   const emergeMatch = /^Emerge (?:from (artifact) )?((?:\{[^}]+\})+)/m.exec(raw.oracleText);
@@ -1300,29 +1303,36 @@ function singleDef(raw: RawCard, script: CardScript | undefined, set: string): C
                   label: msg("Dash — {cost}", { cost: dash }),
                   via: "dash" as const,
                 }
-              : emerge
+              : blitz
                 ? {
-                    mana: parseManaCost(emerge),
-                    condition: dsl.cond.controls({ types: [emergeFrom] }),
-                    label:
-                      emergeFrom === "Artifact"
-                        ? msg("Emerge from artifact — {cost}", { cost: emerge })
-                        : msg("Emerge — {cost}", { cost: emerge }),
-                    pay: { sacrificeReduce: { types: [emergeFrom] } },
+                    mana: parseManaCost(blitz),
+                    condition: dsl.cond.all(),
+                    label: msg("Blitz — {cost}", { cost: blitz }),
+                    via: "blitz" as const,
                   }
-                : spectacle
+                : emerge
                   ? {
-                      mana: parseManaCost(spectacle),
-                      condition: dsl.cond.opponentLostLife,
-                      label: msg("Spectacle — {cost}", { cost: spectacle }),
+                      mana: parseManaCost(emerge),
+                      condition: dsl.cond.controls({ types: [emergeFrom] }),
+                      label:
+                        emergeFrom === "Artifact"
+                          ? msg("Emerge from artifact — {cost}", { cost: emerge })
+                          : msg("Emerge — {cost}", { cost: emerge }),
+                      pay: { sacrificeReduce: { types: [emergeFrom] } },
                     }
-                  : webSlinging
+                  : spectacle
                     ? {
-                        mana: parseManaCost(webSlinging),
-                        condition: dsl.cond.controls({ types: ["Creature"], tapped: true }),
-                        label: msg("Web-slinging — {cost}", { cost: webSlinging }),
+                        mana: parseManaCost(spectacle),
+                        condition: dsl.cond.opponentLostLife,
+                        label: msg("Spectacle — {cost}", { cost: spectacle }),
                       }
-                    : impendingAltCost(raw.oracleText),
+                    : webSlinging
+                      ? {
+                          mana: parseManaCost(webSlinging),
+                          condition: dsl.cond.controls({ types: ["Creature"], tapped: true }),
+                          label: msg("Web-slinging — {cost}", { cost: webSlinging }),
+                        }
+                      : impendingAltCost(raw.oracleText),
     forageOrPay: script?.forageOrPay ? parseManaCost(script.forageOrPay) : undefined,
     impending: parseImpending(raw.oracleText)?.n,
     cdaPT: script?.cdaPT,

@@ -107,6 +107,8 @@ export interface ObjectView extends CardFace {
   prepared?: boolean;
   /** Murders at Karlov Manor: suspected creature (menace, can't block). */
   suspected?: boolean;
+  /** Monstrous (701.37b): a designation, shown as a badge. */
+  monstrous?: boolean;
   /** Class: level reached (beyond 1); Case: solved. */
   classLevel?: number;
   solved?: boolean;
@@ -449,6 +451,7 @@ export function objectView(s: GameState, id: ObjectId): ObjectView {
     name: c.name,
     ...(o.preparedCopy && s.objects[o.preparedCopy] ? { prepared: true } : {}),
     ...(o.suspected && o.zone === "battlefield" ? { suspected: true } : {}),
+    ...(o.monstrous && o.zone === "battlefield" ? { monstrous: true } : {}),
     ...(o.classLevel && o.classLevel > 1 ? { classLevel: o.classLevel } : {}),
     ...(o.solved ? { solved: true } : {}),
     ...(c.keywords.includes("ward") ? { ward: wardCost(c.abilities) } : {}),

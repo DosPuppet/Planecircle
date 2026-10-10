@@ -709,7 +709,11 @@ export type Effect =
    * goes to the bottom with the others (instead of the hand).
    */
   /** `filter`: the card found must also match it (Jodah, the Unifier: a legendary card). */
-  | { op: "discover"; n: Amount; who?: Ref; store?: string; cascade?: boolean; filter?: ObjectFilter }
+  /**
+   * `exileFirst`: spells exiled before the search, which go to the bottom with the other exiled cards (Possibility
+   * Storm: "that player exiles it, then exiles cards …"); `filter` is resolved while they are still on the stack.
+   */
+  | { op: "discover"; n: Amount; who?: Ref; store?: string; cascade?: boolean; filter?: ObjectFilter; exileFirst?: Ref }
   /**
    * 608.2g: "you may cast [these cards]" during the resolution. The player casts one of the cards right away (then
    * another one if `many`), or declines. `free`: without paying their mana cost; `after`: exiled (`exile`) or put on
@@ -761,6 +765,11 @@ export type Effect =
   | { op: "setClassLevel"; level: number }
   /** The source Case becomes solved (719.2). */
   | { op: "solveCase" }
+  /**
+   * Monstrosity N (701.37): if the source permanent isn't monstrous, N +1/+1 counters on it and it becomes monstrous
+   * (`GameObject.monstrous`, event `monstrous`); otherwise nothing.
+   */
+  | { op: "monstrosity"; amount: Amount }
   /** Unlocks door N of a Room (709.5e). */
   | { op: "unlockDoor"; what: Ref; door: number }
   /**
