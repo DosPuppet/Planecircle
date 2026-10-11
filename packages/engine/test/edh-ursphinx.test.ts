@@ -24,6 +24,7 @@ import {
   picking,
   scenario,
   settle,
+  settleLogged,
   settleNoBlocks,
   stepTrail,
   throughCombat,
@@ -420,6 +421,46 @@ describe("The Ur-Sphinx, Stolen Futures (EDH)", () => {
       );
       expect(tokensNamed(s, "p1", "Treasure")).toHaveLength(2);
       expect(tokensNamed(s, "p1", "Clue")).toHaveLength(1);
+    });
+
+    it("Tivit (PLAN-M M10b): all the votes first, each announced as cast, in turn order starting with you; then the tokens", () => {
+      const s0 = scenario({
+        players: 3,
+        p1: {
+          battlefield: [...lands("Plains", 2), ...lands("Island", 2), ...lands("Swamp", 2)],
+          hand: ["Tivit, Seller of Secrets"],
+        },
+      });
+      const { s, events, asked } = settleLogged(castIt(s0, "p1", "Tivit, Seller of Secrets"), (req, p) =>
+        req.type === "pick" && req.labels
+          ? req.prompt.includes("additional")
+            ? []
+            : labeled(p === "p3" ? "Evidence (investigate)" : "Bribery (a Treasure)")(req)
+          : undefined,
+      );
+      expect(asked.map((a) => a.player)).toEqual(["p1", "p1", "p2", "p3"]);
+      // p2 votes knowing p1's vote (701.38a: votes are public).
+      const p2Asked = asked[2];
+      expect(p2Asked?.before.filter((e) => e.type === "chose").map((e) => (e.type === "chose" ? e.player : ""))).toEqual(["p1"]);
+      // Every vote is cast before the first token is created.
+      const firstToken = events.findIndex((e) => e.type === "token");
+      const lastVote = events.map((e) => e.type).lastIndexOf("chose");
+      expect(lastVote).toBeLessThan(firstToken);
+      expect(events.filter((e) => e.type === "chose").every((e) => e.type === "chose" && e.vote && !e.revealed)).toBe(true);
+      expect(tokensNamed(s, "p1", "Treasure")).toHaveLength(2);
+      expect(tokensNamed(s, "p1", "Clue")).toHaveLength(1);
+    });
+
+    it('Tivit (PLAN-M M10b): "you may vote an additional time" in another card\'s vote (Expropriate: two time votes)', () => {
+      let s = scenario({
+        p1: { battlefield: [...lands("Island", 9), "Tivit, Seller of Secrets"], hand: ["Expropriate"] },
+        p2: { battlefield: ["Bear Cub"] },
+      });
+      const cub = idOf(s, "p2", "battlefield", "Bear Cub");
+      s = settle(castIt(s, "p1", "Expropriate"), (req) => (req.type === "pick" && req.options.includes("0") ? ["0"] : undefined));
+      // p1: time twice; p2: time; no money vote, the Bear Cub stays.
+      expect(s.extraTurns).toEqual(["p1", "p1", "p1"]);
+      expect(s.objects[cub]?.controller).toBe("p2");
     });
 
     it("Unesh, Criosphinx Sovereign: Sphinx spells cost {2} less; a Sphinx entering reveals four cards in two piles", () => {

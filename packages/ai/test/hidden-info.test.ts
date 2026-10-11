@@ -7,10 +7,13 @@ import { implementedCards, toCardDef } from "@mtgx/cards";
 import {
   type CardDef,
   type ChoiceRequest,
+  type ChoiceValue,
   type Color,
   createGame,
+  type Decision,
   fallbackDecision,
   filterEvents,
+  type GameEvent,
   type GameState,
   projectView,
   RulesError,
@@ -19,7 +22,8 @@ import {
 } from "@mtgx/engine";
 import { describe, expect, it } from "vitest";
 import { randomCommanderDeck } from "../../../tools/random-deck";
-import { mulberry32, randomAgent } from "../src";
+import { idOf, scenario } from "../../engine/test/helpers";
+import { aiAgent, forAgent, mulberry32, randomAgent } from "../src";
 
 const ALL = implementedCards();
 const BASICS: Record<Color, string> = { W: "Plains", U: "Island", B: "Swamp", R: "Mountain", G: "Forest" };
@@ -282,4 +286,84 @@ describe("hidden information: face-down cards (708)", () => {
     expect(faceDownSeen).toBeGreaterThan(0);
     expect(leaks).toBe(0);
   }, 120_000);
+});
+
+/** Plays until `player` is asked a question of `type`, answering the others with `answer`. */
+function untilAsked(
+  s: GameState,
+  player: string,
+  type: ChoiceRequest["type"],
+  answer: (req: ChoiceRequest, p: string) => ChoiceValue[] | undefined,
+): { s: GameState; events: GameEvent[] } {
+  let cur = s;
+  const events: GameEvent[] = [];
+  for (let i = 0; i < 100; i++) {
+    const p = cur.pending;
+    if (p?.kind === "choice" && p.player === player && p.request.type === type) break;
+    const d: Decision =
+      p?.kind === "choice" ? { type: "choose", values: answer(p.request, p.player) ?? p.request.suggested } : { type: "pass" };
+    const r = submit(cur, p?.player ?? "", d);
+    events.push(...r.events);
+    cur = r.state;
+  }
+  return { s: cur, events };
+}
+
+describe("hidden information: secret choices (PLAN-M M10b, 701.38c)", () => {
+  const start = () =>
+    scenario({
+      players: 3,
+      p1: { battlefield: ["Mountain", "Mountain", "Mountain"], hand: ["Wheel of Misfortune"], library: Array(10).fill("Swamp") },
+      p2: { hand: ["Opt"], library: Array(10).fill("Swamp") },
+      p3: { library: Array(10).fill("Swamp") },
+    });
+  const cast = (s: GameState) => submit(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Wheel of Misfortune") }).state;
+
+  it("Wheel of Misfortune: what the next players receive and what their AI knows doesn't depend on the earlier numbers", () => {
+    const at = (n: number) =>
+      untilAsked(cast(start()), "p2", "number", (req, p) => (req.type === "number" && p === "p1" ? [n] : undefined));
+    const low = at(0);
+    const high = at(20);
+    for (const v of ["p2", "p3"]) {
+      // The view and the events: nothing about p1's number (the question is asked to p2 alike).
+      expect(projectView(low.s, v)).toEqual(projectView(high.s, v));
+      expect(filterEvents(low.events, v)).toEqual(filterEvents(high.events, v));
+      expect(filterEvents(high.events, v).some((e) => e.type === "chose")).toBe(false);
+    }
+    // The state the AI of p2 decides on holds no answer of p1, and its decision is the same.
+    const known = (x: GameState) => forAgent(x, "p2", mulberry32(5));
+    expect(known(low.s).resolving?.vars).toEqual(known(high.s).resolving?.vars);
+    const decide = (x: GameState) => aiAgent("medium", { seed: 3, fair: true, players: 3 })(x, "p2");
+    expect(decide(low.s)).toEqual(decide(high.s));
+  });
+
+  it("A Killer Among Us: the opponent's view and AI don't hold the secretly chosen type", () => {
+    let s = scenario({
+      p1: { battlefield: ["Forest", "Forest", "Forest", "Forest", "Forest"], hand: ["A Killer Among Us"] },
+    });
+    s = submit(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "A Killer Among Us") }).state;
+    const r = untilAsked(s, "p1", "pick", () => undefined);
+    let cur = r.s;
+    const events = [...r.events];
+    for (let i = 0; i < 20 && cur.pending; i++) {
+      const p = cur.pending;
+      const d: Decision =
+        p.kind === "choice"
+          ? {
+              type: "choose",
+              values: p.request.type === "pick" && p.request.options.includes("Goblin") ? ["Goblin"] : p.request.suggested,
+            }
+          : { type: "pass" };
+      const x = submit(cur, p.player, d);
+      events.push(...x.events);
+      cur = x.state;
+      if (cur.stack.length === 0 && cur.triggers.length === 0 && cur.pending?.kind === "priority") break;
+    }
+    const killer = idOf(cur, "p1", "battlefield", "A Killer Among Us");
+    expect(cur.objects[killer]?.chosen?.creatureType).toBe("Goblin");
+    expect(projectView(cur, "p2").battlefield.find((o) => o.id === killer)?.chosen).toBeNull();
+    expect(filterEvents(events, "p2").some((e) => e.type === "chose")).toBe(false);
+    expect(forAgent(cur, "p2", mulberry32(1)).objects[killer]?.chosen?.creatureType).toBeUndefined();
+    expect(forAgent(cur, "p1", mulberry32(1)).objects[killer]?.chosen?.creatureType).toBe("Goblin");
+  });
 });

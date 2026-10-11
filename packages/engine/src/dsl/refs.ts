@@ -108,8 +108,11 @@ export const ref = {
   union: (...of: Ref[]): Ref => ({ kind: "union", of }),
   /** "The creatures blocked by [it] / blocking [it]" during this combat. */
   combatPartners: (r: Ref): Ref => ({ kind: "combatPartners", ref: r }),
-  /** The players who chose the highest number, the lowest, or not the lowest (`fx.chooseNumbers`). */
-  numberChoosers: (store: string, which: "highest" | "lowest" | "notLowest"): Ref => ({ kind: "numberChoosers", store, which }),
+  /**
+   * The players who chose (`fx.chooseNumbers`, `fx.eachChooses`): the highest number, the lowest, not the lowest, or the
+   * option of that rank (from 1).
+   */
+  choosers: (store: string, which: "highest" | "lowest" | "notLowest" | number): Ref => ({ kind: "choosers", store, which }),
   /** The n-th (from 0) of the designated objects or players. */
   nth: (of: Ref, n: number): Ref => ({ kind: "nth", of, n }),
   /** Commander: the commanders of the designated players (you by default), wherever they are. */

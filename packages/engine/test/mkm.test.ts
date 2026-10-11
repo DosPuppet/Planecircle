@@ -9,17 +9,19 @@ import { describe, expect, it } from "vitest";
 import { CLUE, SPIRIT_WB, SUSPECTED } from "../../cards/src/mkm/common";
 import { createTokens, destroy } from "../src/actions";
 import { castOption } from "../src/cardDef";
+import { forgetSecrets } from "../src/choices";
 import * as dsl from "../src/dsl";
 import { addEffect, evalAmount, putFaceDown } from "../src/effects";
 import { RulesError } from "../src/errors";
+import { submit } from "../src/game";
 import { bump } from "../src/layers";
 import { legalActions } from "../src/legal";
-import { chars, FACE_DOWN_ID, moveObject, turnFaceUp } from "../src/state";
+import { chars, cloneState, FACE_DOWN_ID, moveObject, turnFaceUp } from "../src/state";
 import { isLegalTarget, matchesObjectFilter } from "../src/targets";
 import { msg } from "../src/text";
 import { canBlock, requiredBlocks } from "../src/turn";
 import type { ChoiceRequest, ChoiceValue, Decision, GameState } from "../src/types";
-import { projectView } from "../src/view";
+import { filterEvents, projectView } from "../src/view";
 import {
   type Answer,
   act,
@@ -5585,6 +5587,43 @@ describe("Murders at Karlov Manor, lot C3: unique cards", () => {
     s = settle(activateLabel(s, killer, "Sacrifice it", { targets: { t: [goblin] } }));
     expect(s.objects[goblin]?.counters["+1/+1"]).toBe(3);
     expect(chars(s, goblin).keywords).toContain("deathtouch");
+  });
+
+  it("A Killer Among Us (PLAN-M M10b): only the player who chose the type sees it and can reveal it; activating reveals it", () => {
+    let s = scenario({ p1: { battlefield: lands("Forest", 5), hand: ["A Killer Among Us"] } });
+    s = settle(cast(s, "p1", "A Killer Among Us"), (req) =>
+      req.type === "pick" && req.options.includes("Merfolk") ? ["Merfolk"] : undefined,
+    );
+    const killer = idOf(s, "p1", "battlefield", "A Killer Among Us");
+    // The AI's state of p2 doesn't hold the type either.
+    const known = cloneState(s);
+    forgetSecrets(known, "p2");
+    expect(known.objects[killer]?.chosen?.creatureType).toBeUndefined();
+    // Another player who gains control of it can neither see the type nor activate it.
+    const stolen = steal(cloneState(s), killer, "p2");
+    expect(projectView(stolen, "p2").battlefield.find((o) => o.id === killer)?.chosen).toBeNull();
+    expect(projectView(stolen, "p1").battlefield.find((o) => o.id === killer)?.chosen?.creatureType).toBe("Merfolk");
+    expect(legalActions(stolen, "p2").some((a) => a.type === "activate" && a.source === killer)).toBe(false);
+    // Its chooser activates it: the type is revealed to everyone as the cost is paid.
+    s = advanceUntil(s, (x) => x.turn.number === 5 && x.pending?.kind === "declareAttackers");
+    const merfolk = idOf(s, "p1", "battlefield", "Merfolk");
+    s = act(s, "p1", { type: "declareAttackers", attackers: [{ id: merfolk, defender: "p2" }] });
+    s = advanceUntil(s, (x) => x.turn.step === "declareAttackers" && x.pending?.kind === "priority" && x.pending.player === "p1");
+    const a = legalActions(s, "p1").find((x) => x.type === "activate" && x.source === killer);
+    const r = submit(s, "p1", {
+      type: "activate",
+      source: killer,
+      ability: a?.type === "activate" ? a.ability : -1,
+      targets: { t: [merfolk] },
+    });
+    const revealed = filterEvents(r.events, "p2").find((e) => e.type === "chose");
+    expect(revealed?.type === "chose" && [revealed.player, revealed.values, revealed.revealed]).toEqual([
+      "p1",
+      ["Merfolk"],
+      true,
+    ]);
+    s = settle(r.state);
+    expect(s.objects[merfolk]?.counters["+1/+1"]).toBe(3);
   });
 
   it("Kylox's Voltstrider: collect evidence 6 (tied to it); when attacking, cast an instant among them, then on the bottom of the library", () => {

@@ -26,6 +26,7 @@ import {
   picking,
   scenario,
   settle,
+  settleLogged,
   steal,
   stepTrail,
   throughCombat,
@@ -1299,6 +1300,35 @@ describe("Special Guests: approximations lifted (PLAN-H, H2c)", () => {
     expect(s.objects[cub]?.controller).toBe("p1");
     expect(s.objects[elves]?.controller).toBe("p1");
     expect(s.extraTurns).toEqual(["p1"]);
+  });
+});
+
+describe("Special Guests: votes (PLAN-M M10b)", () => {
+  it("Expropriate: the votes are cast and announced first; then each money vote takes a permanent of the voter", () => {
+    const s0 = scenario({
+      p1: { battlefield: [...lands("Island", 9), "Bear Cub"], hand: ["Expropriate"] },
+      p2: { battlefield: ["Llanowar Elves", "Savannah Lions"] },
+    });
+    const lions = idOf(s0, "p2", "battlefield", "Savannah Lions");
+    const cub = idOf(s0, "p1", "battlefield", "Bear Cub");
+    const { s, events, asked } = settleLogged(
+      act(s0, "p1", { type: "cast", card: idOf(s0, "p1", "hand", "Expropriate") }),
+      (req) => {
+        if (req.type !== "pick") return undefined;
+        if (req.options.includes("0")) return ["1"];
+        return [req.options.includes(lions) ? lions : cub];
+      },
+    );
+    // Both votes before the choice of the permanents (p1's money vote: a permanent p1 owns; p2's: one p2 owns).
+    expect(asked.map((a) => a.player)).toEqual(["p1", "p2", "p1", "p1"]);
+    expect(
+      events.filter((e) => e.type === "chose").map((e) => (e.type === "chose" ? [e.player, e.values[0], e.vote] : [])),
+    ).toEqual([
+      ["p1", "Money (the caster takes a permanent of the voter)", true],
+      ["p2", "Money (the caster takes a permanent of the voter)", true],
+    ]);
+    expect(s.objects[lions]?.controller).toBe("p1");
+    expect(s.extraTurns ?? []).toEqual([]);
   });
 });
 

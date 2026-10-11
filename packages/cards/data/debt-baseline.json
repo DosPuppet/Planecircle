@@ -49,7 +49,8 @@
     "lookAt": "family O, information (R4.5): look at any time at the top card of one's library (libraryTop) or at opposing face-down creatures (faceDown, Found Footage), a single mayLookAt evaluator (PLAN-H H8b)",
     "skips": "family J (500.11): skip one's next turn (turn, Ral Zarek), draw step (drawStep, Necropotence, Necrodominance) or extra turns (extraTurns, Trouble in Pairs), a single skips evaluator (PLAN-H H8b)",
     "searchControl": "Opposition Agent — family K, control of another player (R4.2): \"you control your opponents while they're searching their libraries\"; the found cards are exiled, linked to the source (searches of `ops/zones.ts`); to reuse for Praetor's Grasp-like effects",
-    "tokenShield": "The Master, Multiplied — family J, rules exceptions (R4.5): \"triggered abilities you control can't cause you to sacrifice or exile creature tokens you control\" (`tokenShielded`, read by sacrifice and exile)"
+    "tokenShield": "The Master, Multiplied — family J, rules exceptions (R4.5): \"triggered abilities you control can't cause you to sacrifice or exile creature tokens you control\" (`tokenShielded`, read by sacrifice and exile)",
+    "extraVotes": "Tivit, Seller of Secrets — \"while voting, you may vote an additional time\" (701.38): additional votes in any vote of `eachChooses` (PLAN-M M10b); to reuse for any card that grants votes"
   },
   "keyword": {
     "attacksDespiteDefender": "keyword rule, several cards",
@@ -88,7 +89,6 @@
     "Ref.attachmentsOf": "Light of Judgment — union variant of a single card, tracked since the audit of 2026-10-07: to attach to a generic form when one exists",
     "Ref.chosenPlayer": "Saskia the Unyielding — \"the chosen player\" (chooseForSelf \"player\", 702: \"as it enters, choose a player\"); every \"choose a player/opponent as it enters\" card shares it",
     "Ref.combatPartners": "Ride Down — union variant of a single card, tracked since the audit of 2026-10-07: to attach to a generic form when one exists",
-    "Ref.numberChoosers": "Wheel of Misfortune — union variant of a single card, tracked since the audit of 2026-10-07: to attach to a generic form when one exists",
     "Ref.targetsOfEventObject": "Storm, Windrider — union variant of a single card, tracked since the audit of 2026-10-07: to attach to a generic form when one exists",
     "TriggerSpec.destroyed": "Karmic Justice — union variant of a single card, tracked since the audit of 2026-10-07: to attach to a generic form when one exists"
   },
@@ -162,7 +162,6 @@
     "removeSupertypes": "Shuri, Wakandan Inventor — property of a single card (audit of 2026-10-02, § 5.1): to attach to a family as soon as another card needs it",
     "replacePrevious": "Superior Foes of Spider-Man — a unique permission chaining",
     "revealFirstUpkeep": "Chancellor of the Spires — opening-hand reveal (CardDef.leyline, 103.6): the Chancellor cycle (Annex, Dross, Forge, Tangle) uses the same form",
-    "secret": "A Killer Among Us — a hidden choice",
     "sneak": "Ninja Teen — granted sneak (PlayFromZone.sneak, a Class level: \"creature cards in your graveyard have sneak\"); printed sneak is an alternative cast option via \"sneak\" since PLAN-M M5, which made this key visible",
     "sourceControlledBy": "Vislor Turlough — ModifyWhile `sourceControlledBy`: \"for as long as [that player] controls it\" (PLAN-M M9a), next to `youControlSource`; to reuse for any effect tied to another player's control",
     "spellsTargetingYou": "Hindering Light — TargetFilter: a spell that targets you, next to `spellsTargeting` (a permanent you control), PLAN-M M9a; to reuse for any \"spell that targets you\"",
@@ -171,7 +170,7 @@
     "storeGraveyard": "Intrude on the Mind — piles count output",
     "strictAmongAll": "Selvala, Heart of the Wilds — needs event context that resolveFilter does not have",
     "suggest": "Stinging Study — chooseAmong `suggest: \"manaValue\"`: the suggested object is the one with the greatest mana value (the engine's former pick, PLAN-M M9a); to reuse for any choice whose best option is the most expensive",
-    "suggested": "Expel the Interlopers — the suggested answer of a number chosen as a spell resolves (`chooseNumbers`, \"choose a number between 0 and 10\": one more than the greatest power among your creatures, so none of them is destroyed; the AI tries only small ranges, PLAN-M M8a): to reuse for any number chosen at resolution whose default isn't 0",
+    "suggested": "Expel the Interlopers — the suggested answer of a number chosen as a spell resolves (`eachChooses`, `fx.chooseNumbers`, \"choose a number between 0 and 10\": one more than the greatest power among your creatures, so none of them is destroyed; the AI tries only small ranges, PLAN-M M8a): to reuse for any number chosen at resolution whose default isn't 0",
     "thenExtraTurn": "Emrakul, the Promised End — op extra gives the turn to the controller, not that player",
     "topDamage": "Clash of Elements — depends on the owner's choice, no result stored",
     "totalManaValue": "Fabrication Foundry — the pay effect exiles permanents you control with total mana value N or greater, the cheapest first (former exileForManaValue op, PLAN-M M4); to reuse for any \"exile/sacrifice … with total mana value N or greater\" paid during a resolution",
@@ -181,7 +180,8 @@
     "withSpellsCast": "First Family — aggregate `distinct` colors also counting the colors of the spells you've cast this turn (turn log), PLAN-M M9a; to reuse for any \"among permanents you control and spells you've cast this turn\"",
     "sourceRef": "Jeska, Thrice Reborn: \"if that creature would deal …\" in a damage replacement set by an effect (family E, R1), the designated object frozen as the effect resolves (sourceIs, like a shield's chosen source); the recipient is seen from the effect's player (PLAN-M M9b)",
     "fromCost": "Jeweled Amulet: \"note the type of mana spent to pay this activation cost\", a manaType choice among the types recorded on the cost paid (CostPaid.manaTypes); generic form for any \"type of mana spent\" note (PLAN-M M9b)",
-    "playerEffect": "Yuna, Grand Summoner: a mana ability that also sets a player effect until end of turn (605.3b), here \"when you next cast a creature spell this turn\" (family N, nextSpell); the spell paid by it is that next spell (PLAN-M M9b)"
+    "playerEffect": "Yuna, Grand Summoner: a mana ability that also sets a player effect until end of turn (605.3b), here \"when you next cast a creature spell this turn\" (family N, nextSpell); the spell paid by it is that next spell (PLAN-M M9b)",
+    "revealChosen": "A Killer Among Us — CostDef.revealChosen, \"reveal the creature type you chose\": only the player who made the secret choice (`chosen.secret`) can pay it, then everyone sees it (PLAN-M M10b); to reuse for any cost that reveals a secret choice"
   },
   "turnFields": {},
   "engineCardLiterals": {},
@@ -194,7 +194,7 @@
     "GameState": 38,
     "ObjectFilter": 65,
     "FilterCompare": 3,
-    "CostDef": 30,
+    "CostDef": 31,
     "ActivatedAbilityDef": 19,
     "CastPermissionAbilityDef": 9,
     "PlayFromZone": 23,
@@ -211,14 +211,14 @@
     "NextSpell": 9,
     "KickerDef": 5,
     "CardRules": 13,
-    "Effect": 138,
-    "Effect (fields)": 626,
+    "Effect": 139,
+    "Effect (fields)": 631,
     "TriggerSpec": 41,
     "TriggerSpec (fields)": 150,
     "Condition": 46,
     "Condition (fields)": 87,
     "Amount": 32,
-    "Amount (fields)": 78,
+    "Amount (fields)": 81,
     "Ref": 37,
     "Ref (fields)": 69,
     "CastOption": 10,
@@ -333,6 +333,7 @@
     "PLAN-M M8b: Single-card values 137 → 146 (CastLimit.abilities powerUp and playerEffect duration nextTurn: Kang; from elsewhere: Avatar's Wrath; spellFrom elsewhere / exile: Mm'menon, Interdimensional Web Watch; costReduction fromZones library and command: Bilbo; dealsDamage eventObject damaged: Spider-Slayer; grantPlay castOnly adventure: Mosswood Dreadknight; counter flying left to Inventive Wingsmith once Acrobatic Cheerleader triggers only once); PlayFromZone 21 → 22 (anyTime: Azula's flash); EventReplacement 19 → 20 (exceptTurnDraw: Bard, King of Dale, the key of Orcish Bowmasters); MoveSpec 18 → 19 (controller: Zuko); Effect (fields) 617 → 621 (transform.may, draw.store, castNow.afterFilter, lookAtTop.distinctPower); TriggerSpec (fields) 147 → 148 (dealsDamage.eventObject, the key of Skewer Slinger); CastLimit 9 → 8 (faceUp replaced by the cantBeTurnedFaceUp restriction): Single-card values 137 → 146, PlayFromZone 21 → 22, EventReplacement 19 → 20, MoveSpec 18 → 19, CastLimit 9 → 8, Effect (fields) 617 → 621, TriggerSpec (fields) 147 → 148",
     "PLAN-M M9a: small card lifts — ModifyWhile sourceControlledBy (Vislor), search.library (Sphinx Ambassador), chooseAmong.suggest (Stinging Study), countersPut.each (Fathom Mage), aggregate.withSpellsCast (First Family), Ref zone owned (Expropriate), ObjectFilter.drawnThisTurn (Sylvan Library), PlayFromZone.during (Share the Spoils), durations thisCombat (Mirri) and untilYourNextUpkeep (Xenic Poltergeist): Single-card values 146 → 148, ObjectFilter 64 → 65, PlayFromZone 22 → 23, Effect (fields) 621 → 623, TriggerSpec (fields) 148 → 149, Amount (fields) 77 → 78, Ref (fields) 68 → 69",
     "PLAN-M M9b: EventReplacement.sourceRef (Jeska: \"that creature\" in an effect's damage replacement), countersDivided.from (moving any number of counters: Forgotten Ancient, Resourceful Defense) and chooseOnEnter.fromCost (Jeweled Amulet's noted mana type), attackWith.eachPlayer (\"whenever you attack a player\": Echoing Assault, Bitter Work): EventReplacement 20 → 21, Effect (fields) 623 → 625, TriggerSpec (fields) 149 → 150",
-    "PLAN-M M10a: search.each (one filter per card: Aang's Journey, Agency Outfitter) and search.alsoFrom replacing alsoGraveyard; Condition.beholdSharingType removed (Celestial Reunion's behold of a chosen type is now a cost): Effect (fields) 625 → 626, Condition 47 → 46, Condition (fields) 90 → 87"
+    "PLAN-M M10a: search.each (one filter per card: Aang's Journey, Agency Outfitter) and search.alsoFrom replacing alsoGraveyard; Condition.beholdSharingType removed (Celestial Reunion's behold of a chosen type is now a cost): Effect (fields) 625 → 626, Condition 47 → 46, Condition (fields) 90 → 87",
+    "PLAN-M M10b [rules 204]: choices by each player in turn (op eachChooses replaces chooseNumbers: among number/labels/players, secret answers revealed together, vote with extraVotes) and the repeat op (\"for each … vote\": Expropriate, Mob Verdict); Amount numberChosen generalized into chosen (highest, or the votes for an option or a player, by voters); CostDef.revealChosen (A Killer Among Us): CostDef 30 → 31, Effect 138 → 139, Effect (fields) 626 → 631, Amount (fields) 78 → 81; Ref.numberChoosers became choosers (Wheel of Misfortune, Prisoner's Dilemma) and the secret key has four cards"
   ]
 }

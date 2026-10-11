@@ -794,8 +794,11 @@ export type Ref =
   | { kind: "combatPartners"; ref: Ref }
   /** Commander (903.3): the commanders of the designated players, wherever they are ("your commander", Path of Ancestry). */
   | { kind: "commanders"; who: Ref }
-  /** The players who chose the highest number, the lowest, or not the lowest (`fx.chooseNumbers`). */
-  | { kind: "numberChoosers"; store: string; which: "highest" | "lowest" | "notLowest" }
+  /**
+   * The players who chose (`fx.eachChooses`): the highest number, the lowest, not the lowest, or the option of that rank
+   * (from 1).
+   */
+  | { kind: "choosers"; store: string; which: "highest" | "lowest" | "notLowest" | number }
   /** The nth (from 0) of the designated objects or players, nothing if there aren't that many (`fx.forEachPlayer`). */
   | { kind: "nth"; of: Ref; n: number };
 
@@ -889,8 +892,11 @@ export type Amount =
   /** Your poison counters (corrupted: `amount.maxOverPlayers(ref.eachOpponent, amount.poison)`). */
   /** Poison counters of your controller; `counter: "rad"`: their rad counters (Mariposa Military Base). */
   | { kind: "poison"; counter?: "rad" }
-  /** The highest number chosen (`fx.chooseNumbers`, Wheel of Misfortune). */
-  | { kind: "numberChosen"; store: string }
+  /**
+   * The answers of `fx.eachChooses`: the highest number chosen (`highest`: Wheel of Misfortune), otherwise the number of
+   * answers (votes) for `value` (an option rank from 1, or the designated players), made by `by` (everyone by default).
+   */
+  | { kind: "chosen"; store: string; highest?: boolean; value?: number | Ref; by?: Ref }
   /** Number of graveyards that contain at least N cards (Master's Councillors, The Master of Lake-town). */
   | { kind: "graveyardsWithAtLeast"; n: number }
   /** Designated objects still in exile (Dragonhawk: "those of these cards still exiled"). */

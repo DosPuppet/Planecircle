@@ -1,6 +1,7 @@
 /** Engine effects: players (life, drawing, extra turns and steps, winning). Each key is an `op` of `Effect` (see `runEffect`, effects.ts). */
 
 import { createTokens, dealDamage, drawCards, gainLife, loseLife, sacrifice, setMonarch, setSpeed } from "../actions";
+import { secretAnswerKey } from "../choices";
 import type { OpHandlers } from "../effects";
 import {
   announceDiscard,
@@ -15,6 +16,7 @@ import {
   resolveRef,
   store,
 } from "../effects";
+import { RulesError } from "../errors";
 import {
   apnapOrder,
   bump,
@@ -28,11 +30,11 @@ import {
   rulesEvent,
   shuffle,
 } from "../state";
-import { addPlayerEffect, cantLose, playerStatic } from "../statics";
+import { addPlayerEffect, cantLose, playerStatic, playerStaticTotal } from "../statics";
 import { matchesObjectFilter } from "../targets";
 import { msg } from "../text";
 import { eliminate, endTheTurn } from "../turn";
-import type { Step } from "../types";
+import type { ChoiceRequest, ChoiceValue, Step } from "../types";
 import { askCopiesInstead } from "./permanents";
 
 export const HANDLERS: OpHandlers = {
@@ -317,35 +319,108 @@ export const HANDLERS: OpHandlers = {
     if (p) setMonarch(s, p);
     return;
   },
-  chooseNumbers(s, r, e, ctx, key) {
-    const who = resolveRef(s, ctx, e.who);
-    for (const p of apnapOrder(s).filter((x) => who.includes(x))) {
-      const k = `$num:${e.store}:${p}`;
-      if (r.vars[k]) continue;
-      const answer = r.vars[key(`num-${p}`)];
-      if (!answer)
-        return {
-          ask: {
-            player: p,
-            key: key(`num-${p}`),
-            request: {
-              type: "number",
-              intent: "other",
-              prompt: e.prompt
-                ? msg("{card}: {prompt}", { card: cardRefOf(s, ctx.sourceId), prompt: e.prompt })
-                : msg("{card}: secretly choose a number", { card: cardRefOf(s, ctx.sourceId) }),
-              min: 0,
-              max: e.max,
-              suggested: [
-                e.suggested === undefined
-                  ? 0
-                  : Math.min(e.max, Math.max(0, evalAmount(s, { ...ctx, controller: p }, e.suggested))),
-              ],
-            },
-          },
-        };
-      r.vars[k] = [Math.min(e.max, Math.max(0, Number(answer[0] ?? 0)))];
+  eachChooses(s, r, e, ctx, key) {
+    const designated = new Set(resolveRef(s, ctx, e.who));
+    // In turn order, starting with the controller (701.38a); a player who has left the game doesn't choose.
+    const order = [ctx.controller, ...opponentsOf(s, ctx.controller)].filter(
+      (p) => designated.has(p) && isPlayer(s, p) && isAlive(s, p),
+    );
+    const among = e.among;
+    const card = cardRefOf(s, ctx.sourceId);
+    const result = (p: string) => `$ch:${e.store}:${p}`;
+    const rawKey = (p: string, i: number) => key(e.secret ? secretAnswerKey(p, i) : `ch|${p}|${i}`);
+    /** The options of `p` (ids of the answers), none for a number. */
+    const optionsOf = (p: string): string[] =>
+      "labels" in among
+        ? among.labels.map((_, i) => String(i))
+        : "players" in among
+          ? resolveRef(s, ctx, among.players).filter((x) => x !== p && isPlayer(s, x) && isAlive(s, x))
+          : [];
+    const suggestedOf = (p: string, options: string[]): ChoiceValue => {
+      if ("max" in among) {
+        const n = e.suggested === undefined ? 0 : evalAmount(s, { ...ctx, controller: p }, e.suggested);
+        return Math.min(among.max, Math.max(0, n));
+      }
+      const i = e.suggested === undefined ? 0 : evalAmount(s, { ...ctx, controller: p }, e.suggested) - 1;
+      return options[Math.min(options.length - 1, Math.max(0, i))] as string;
+    };
+    /** The answers of `p` (several with additional votes), or a question still to ask. */
+    const answersOf = (
+      p: string,
+    ): { values: ChoiceValue[] } | { ask: { player: string; key: string; request: ChoiceRequest } } => {
+      const options = optionsOf(p);
+      if (!("max" in among) && options.length === 0) return { values: [] };
+      const extra = e.vote ? playerStaticTotal(s, p, "extraVotes") : 0;
+      const values: ChoiceValue[] = [];
+      for (let i = 0; i <= extra; i++) {
+        // "Never asked with a single option": a mandatory vote for the only other player.
+        if (i === 0 && options.length === 1) {
+          values.push(options[0] as string);
+          continue;
+        }
+        const answer = r.vars[rawKey(p, i)];
+        if (!answer) {
+          const prompt =
+            i > 0
+              ? msg("{card}: you may vote an additional time", { card })
+              : e.prompt
+                ? msg("{card}: {prompt}", { card, prompt: e.prompt })
+                : e.secret
+                  ? msg("{card}: secretly choose a number", { card })
+                  : msg("{card}: choose a number", { card });
+          const suggested = suggestedOf(p, options);
+          const request: ChoiceRequest =
+            "max" in among
+              ? { type: "number", intent: "other", prompt, min: 0, max: among.max, suggested: [suggested] }
+              : {
+                  type: "pick",
+                  intent: "other",
+                  prompt,
+                  options,
+                  ...("labels" in among ? { labels: Object.fromEntries(among.labels.map((l, j) => [String(j), l])) } : {}),
+                  min: i > 0 ? 0 : 1,
+                  max: 1,
+                  suggested: [suggested],
+                };
+          return { ask: { player: p, key: rawKey(p, i), request } };
+        }
+        // An additional vote declined: no more of them.
+        if (answer.length === 0) break;
+        if ("max" in among) values.push(Math.min(among.max, Math.max(0, Number(answer[0] ?? 0))));
+        else {
+          const v = String(answer[0]);
+          if (!options.includes(v)) throw new RulesError(msg("Unknown option"));
+          values.push(v);
+        }
+      }
+      return { values };
+    };
+    /** Stores and announces `p`'s answers (option labels by their rank, from 1). */
+    const record = (p: string, values: ChoiceValue[], revealed: boolean) => {
+      r.vars[result(p)] = "labels" in among ? values.map((v) => Number(v) + 1) : values;
+      if (values.length)
+        emit({
+          type: "chose",
+          player: p,
+          defId: ctx.sourceDefId,
+          values: values.map((v) => ("labels" in among ? (among.labels[Number(v)] ?? "") : String(v))),
+          ...(e.vote ? { vote: true } : {}),
+          ...(revealed ? { revealed: true } : {}),
+        });
+    };
+    const secret: [string, ChoiceValue[]][] = [];
+    for (const p of order) {
+      if (r.vars[result(p)]) continue;
+      const a = answersOf(p);
+      if ("ask" in a) return a;
+      // A public choice is announced as it is made (each player knows the votes cast before theirs); a secret one
+      // waits for the others.
+      if (e.secret) secret.push([p, a.values]);
+      else record(p, a.values, false);
     }
+    // All the secret answers are revealed together.
+    for (const [p, values] of secret) record(p, values, true);
+    for (const k of Object.keys(r.vars)) if (k.startsWith(key("secret|"))) delete r.vars[k];
     return;
   },
   controlNextTurn(s, _r, e, ctx) {

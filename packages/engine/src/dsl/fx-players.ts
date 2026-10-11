@@ -63,13 +63,43 @@ export const playersFx = {
   /** "You control [the player] during their next turn" (722). */
   /** "You become the monarch" (724). */
   becomeMonarch: (who?: Ref): Effect => ({ op: "becomeMonarch", ...(who ? { who } : {}) }),
-  /** Each designated player secretly chooses a number from 0 to `max` (Wheel of Misfortune). */
-  chooseNumbers: (who: Ref, store: string, max = 20, opts: { prompt?: string; suggested?: Amount } = {}): Effect => ({
-    op: "chooseNumbers",
-    who,
+  /**
+   * Each designated player chooses a number from 0 to `max` (`secret`: "secretly", Wheel of Misfortune; alone: Expel
+   * the Interlopers); read by `amount.numberChosen` and `ref.choosers`.
+   */
+  chooseNumbers: (
+    who: Ref,
+    store: string,
+    max = 20,
+    opts: { prompt?: string; suggested?: Amount; secret?: boolean } = {},
+  ): Effect => ({ op: "eachChooses", who, store, among: { max }, ...opts }),
+  /**
+   * Each designated player chooses one of the options (`labels`) or another player (`players`), in turn order starting
+   * with you; `secret`: revealed together once all have chosen (Prisoner's Dilemma).
+   */
+  eachChooses: (
+    who: Ref,
+    store: string,
+    among: { labels: string[] } | { players: Ref },
+    opts: { prompt?: string; suggested?: Amount; secret?: boolean } = {},
+  ): Effect => ({ op: "eachChooses", who, store, among, ...opts }),
+  /**
+   * "Starting with you, each player votes for …" (701.38): one vote each, in turn order, plus the additional votes of
+   * `extraVotes` (Tivit); `secret`: "secretly votes", revealed together (secret council). Read the votes with
+   * `amount.votes` (then `fx.repeat` for "for each … vote, …").
+   */
+  vote: (
+    store: string,
+    among: { labels: string[] } | { players: Ref },
+    opts: { prompt?: string; secret?: boolean; who?: Ref } = {},
+  ): Effect => ({
+    op: "eachChooses",
+    who: opts.who ?? ref.eachPlayer,
     store,
-    max,
-    ...opts,
+    among,
+    vote: true,
+    ...(opts.prompt ? { prompt: opts.prompt } : {}),
+    ...(opts.secret ? { secret: true } : {}),
   }),
   /** `thenExtraTurn`: "after that turn, that player takes an extra turn" (Emrakul, the Promised End). */
   controlNextTurn: (who: Ref, combatOnly?: boolean, thenExtraTurn?: boolean): Effect => ({

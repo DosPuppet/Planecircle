@@ -265,7 +265,17 @@ export const amount = {
   /** Your rad counters (Fallout). */
   rad: { kind: "poison", counter: "rad" } as Amount,
   /** The highest number chosen (`fx.chooseNumbers`). */
-  numberChosen: (store: string): Amount => ({ kind: "numberChosen", store }),
+  numberChosen: (store: string): Amount => ({ kind: "chosen", store, highest: true }),
+  /**
+   * The votes (or answers) of `fx.vote` / `fx.eachChooses`: for the option of rank `value` (from 1) or for the designated
+   * players, made by `by` (everyone by default).
+   */
+  votes: (store: string, value?: number | Ref, by?: Ref): Amount => ({
+    kind: "chosen",
+    store,
+    ...(value !== undefined ? { value } : {}),
+    ...(by ? { by } : {}),
+  }),
   /** The greatest value of the amount, seen from each of the designated players ("… an opponent controls"). */
   maxOverPlayers: (players: Ref, of: Amount): Amount => ({ kind: "maxOverPlayers", players, amount: of }),
   /** The total of an amount among the designated players (seen from each). */
@@ -801,6 +811,8 @@ export function activated(opts: {
   craft?: NonNullable<ActivatedAbilityDef["cost"]["craft"]>;
   /** Power-up: only once, cost reduced by the mana cost of the source if it entered this turn. */
   powerUp?: boolean;
+  /** "Reveal the creature type you chose" (A Killer Among Us): its secret choice, by the player who made it. */
+  revealChosen?: boolean;
   label?: string;
 }): ActivatedAbilityDef {
   return {
@@ -833,6 +845,7 @@ export function activated(opts: {
       removeCounters: opts.removeCountersX ? { kind: opts.removeCountersX, n: "X" } : opts.removeCounters,
       tapOthers: opts.tapX ? { filter: opts.tapX, count: "X" } : opts.tapOthers,
       ...(opts.grantor ? { grantor: opts.grantor } : {}),
+      ...(opts.revealChosen ? { revealChosen: true } : {}),
       payLife: opts.payLifeX ? { kind: "x" } : opts.payLife,
       addCounters: opts.addCounters,
       exileFromGraveyard: opts.exileFromGraveyardX

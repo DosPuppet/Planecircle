@@ -116,13 +116,7 @@ const BIRD_ILLUSION: TokenSpec = {
 };
 const INSTANT_OR_SORCERY = { types: ["Instant" as const, "Sorcery" as const] };
 /** Expropriate: the two options of the vote (their effects come after all the votes). */
-const VOTES = [
-  { label: msg("Time (an extra turn for the caster)"), effects: [] },
-  { label: msg("Money (the caster takes a permanent of the voter)"), effects: [] },
-];
-const VOTE_PROMPT = "Vote: time or money";
-/** The player voted for the option of rank `i` (1: time, 2: money). */
-const votedFor = (store: string, i: number) => cond.all(cond.v(store, i), cond.not(cond.v(store, i + 1)));
+const VOTES = [msg("Time (an extra turn for the caster)"), msg("Money (the caster takes a permanent of the voter)")];
 /** "Activate only if you have exactly seven cards in hand" (Library of Alexandria). */
 const SEVEN_IN_HAND = cond.all(
   cond.amountAtLeast(amount.countIn("hand", {}), 7),
@@ -1380,25 +1374,18 @@ export const CARDS: Record<string, CardScript> = {
       }),
     ],
   },
-  // Council's dilemma: each player votes, starting with you and in turn order; then an extra turn for each vote for time,
-  // and a permanent owned by the voter (whoever controls it) for each vote for money.
+  // Council's dilemma (701.38): each player votes, starting with you and in turn order; then an extra turn for each vote
+  // for time, and a permanent owned by the voter (whoever controls it) for each vote for money.
   Expropriate: {
     exileOnResolve: true,
     spell: spell(
       [],
       [
-        ...fx.yourChoice(VOTE_PROMPT, "v", VOTES),
-        ...fx.forEachPlayer(ref.eachOpponent, (p, n) => fx.yourChoice(VOTE_PROMPT, `v${n}`, VOTES, p)),
-        ...fx.when(votedFor("v", 1), fx.extraTurn),
-        ...fx.forEachPlayer(ref.eachOpponent, (_p, n) => fx.when(votedFor(`v${n}`, 1), fx.extraTurn)),
-        ...fx.when(
-          votedFor("v", 2),
-          fx.chooseAmong(ref.permanentsOwnedBy(ref.you), ref.you, "m"),
-          fx.giveControl(ref.stored("m"), ref.you),
-        ),
-        ...fx.forEachPlayer(ref.eachOpponent, (p, n) =>
-          fx.when(
-            votedFor(`v${n}`, 2),
+        fx.vote("v", { labels: VOTES }, { prompt: "Vote: time or money" }),
+        ...fx.repeat(amount.votes("v", 1), fx.extraTurn),
+        ...fx.forEachPlayer(ref.eachPlayer, (p, n) =>
+          fx.repeat(
+            amount.votes("v", 2, p),
             fx.chooseAmong(ref.permanentsOwnedBy(p), ref.you, `m${n}`),
             fx.giveControl(ref.stored(`m${n}`), ref.you),
           ),

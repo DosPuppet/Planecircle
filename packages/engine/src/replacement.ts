@@ -204,7 +204,8 @@ function collectEntering(
 ): void {
   if (e.op === "chooseOnEnter") {
     const [kind, value] = (diff.$chosen ?? []).map(String);
-    if (kind && value) out.chosen = { ...out.chosen, ...chosenValue(kind, value), ...(e.secret ? { secret: true } : {}) };
+    if (kind && value)
+      out.chosen = { ...out.chosen, ...chosenValue(kind, value), ...(e.secret ? { secret: ctx.controller } : {}) };
     if (kind === "player" && value && e.control) out.enterController = value;
   } else if (e.op === "chooseCopy") {
     const [defId, model] = (diff.$copyOf ?? []).map(String);

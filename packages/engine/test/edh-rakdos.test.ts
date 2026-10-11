@@ -6,10 +6,12 @@
 import { card } from "@mtgx/cards";
 import { describe, expect, it } from "vitest";
 import { castOption } from "../src/cardDef";
+import { forgetSecrets } from "../src/choices";
 import { eventReplacement } from "../src/dsl";
 import { bump, chars } from "../src/layers";
 import { legalActions } from "../src/legal";
 import { manaAbilitiesOf } from "../src/mana";
+import { cloneState } from "../src/state";
 import type { GameState, PlayerId } from "../src/types";
 import {
   act,
@@ -24,6 +26,7 @@ import {
   picking,
   scenario,
   settle,
+  settleLogged,
   throughCombat,
 } from "./helpers";
 
@@ -113,6 +116,39 @@ describe("Rakdos, Lord of Riots (EDH)", () => {
       // p1 did not choose the lowest: they discard and draw seven cards; p2 keeps their hand.
       expect(hand(s, "p1")).toBe(7);
       expect(hand(s, "p2")).toBe(2);
+    });
+
+    it("secretly chosen (PLAN-M M10b): hidden from the others until all have chosen, then revealed together; ties share the damage", () => {
+      const s0 = scenario({
+        players: 3,
+        p1: { battlefield: lands("Mountain", 3), hand: ["Wheel of Misfortune"], library: lands("Swamp", 10) },
+        p2: { hand: ["Opt"], library: lands("Swamp", 10) },
+        p3: { hand: ["Opt", "Opt"], library: lands("Swamp", 10) },
+      });
+      const numbers: Record<PlayerId, number> = { p1: 7, p2: 7, p3: 4 };
+      const { s, events, asked } = settleLogged(castIt(s0, "p1", "Wheel of Misfortune"), (req, p) =>
+        req.type === "number" ? [numbers[p] ?? 0] : undefined,
+      );
+      // Asked in turn order; the next players see neither an event nor a stored answer of the earlier ones.
+      const numberAsked = asked.filter((a) => a.state.pending?.kind === "choice" && a.state.pending.request.type === "number");
+      expect(numberAsked.map((a) => a.player)).toEqual(["p1", "p2", "p3"]);
+      for (const a of numberAsked) {
+        expect(a.before.some((e) => e.type === "chose")).toBe(false);
+        const kept = cloneState(a.state);
+        forgetSecrets(kept, a.player);
+        const vars = Object.keys(kept.resolving?.vars ?? {});
+        expect(vars.some((k) => k.includes("secret|") && !k.includes(`secret|${a.player}|`))).toBe(false);
+      }
+      // Then all revealed together.
+      const chose = events.filter((e) => e.type === "chose");
+      expect(chose.map((e) => (e.type === "chose" ? [e.player, e.values[0], e.revealed] : []))).toEqual([
+        ["p1", "7", true],
+        ["p2", "7", true],
+        ["p3", "4", true],
+      ]);
+      // The highest number (7) deals 7 damage to each player who chose it; they refresh their hand, p3 keeps theirs.
+      expect([life(s, "p1"), life(s, "p2"), life(s, "p3")]).toEqual([13, 13, 20]);
+      expect([hand(s, "p1"), hand(s, "p2"), hand(s, "p3")]).toEqual([7, 7, 2]);
     });
   });
 

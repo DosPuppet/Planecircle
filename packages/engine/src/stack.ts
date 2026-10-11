@@ -3359,6 +3359,8 @@ export function canPayNonManaCost(s: GameState, source: ObjectId, ab: ActivatedA
   if (ab.oncePerTurn && activatedThisTurn(s, source, { index })) return false;
   const who = o.zone !== "battlefield" ? o.owner : o.controller;
   if (ab.activationCondition && !checkCondition(s, ab.activationCondition, who, source)) return false;
+  // "Reveal the [creature type] you chose" (A Killer Among Us): only the player who made the secret choice can.
+  if (ab.cost.revealChosen && o.chosen?.secret !== who) return false;
   // Sorcerous Spyglass: the (non-mana) abilities of sources with the chosen name can't be activated.
   if (spyglassed(s, source)) return false;
   // "Can't be turned face up" (Unable to Scream; Karlov Watchdog: "permanents your opponents control … during your turn").
@@ -4233,6 +4235,7 @@ export function activateAbility(s: GameState, player: PlayerId, source: ObjectId
   if (fc.payLife) payLife_(s, player, lifeCost(s, player, source, fc.payLife));
   if (xc.payLife && x > 0) payLife_(s, player, x);
   for (const id of tapOthers) tapObject(s, obj(s, id));
+  if (ab.cost.revealChosen) revealSecretChoice(s, source, player);
   // The sacrificed permanents remain readable (last known information: "its toughness").
   const spentTypes = MANA_TYPES.filter((m) => (manaSpent[m] ?? 0) > 0);
   item.paid = {
@@ -4559,6 +4562,16 @@ export function continueResolution(s: GameState): boolean {
   finishResolution(s, r.item, r.targets, r.vars);
   s.resolving = null;
   return true;
+}
+
+/** The source's secret choice is revealed to everyone (a cost: "reveal the creature type you chose"). */
+function revealSecretChoice(s: GameState, source: ObjectId, player: PlayerId): void {
+  const o = s.objects[source];
+  if (!o?.chosen?.secret) return;
+  const { secret: _secret, ...chosen } = o.chosen;
+  o.chosen = chosen;
+  const values = Object.values(chosen).map(String);
+  emit({ type: "chose", player, defId: o.defId, values, revealed: true });
 }
 
 /** Answer to a choice asked during the resolution. */

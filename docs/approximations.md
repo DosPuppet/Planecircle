@@ -28,7 +28,7 @@ Each entry carries its nature:
 - `timing` **Costs paid before the mana:** a permanent exiled, returned or sacrificed for an additional or alternative cost leaves the battlefield before the mana is paid: its mana abilities and its mana replacements (Lavaleaper) no longer help pay for that spell (601.2g-h would allow committing mana earlier). For an activated ability, the mana abilities of the permanents sacrificed for the cost are used first.
 - `auto choice` **Controlling another player's turn** (Mindslaver, The Dominion Bracelet): an AI that controls another player's turn contents itself with the default decisions (pass, do not attack).
 - `rule` **Token copies created attacking (508.4):** a single choice of defender for all the token copies that one effect creates for one player (Calamity), whereas each could attack a different defender; the copies beyond a doubler keep the defender chosen for their player (myriad). The other tokens created attacking (mobilize…) are divided among the defenders since PLAN-L L5.
-- `rule` **Safety caps:** a single event creates at most 100 tokens, and none when the battlefield already holds 400 objects; a replaced amount (damage, counters, life, cards) is capped at one million, and so is an announced X (a larger X is refused: squad paid a billion times built a cost of a billion symbols before failing). Token doublers that multiply (copies of Exalted Sunborn) otherwise gave an infinite number and a blocked game (`engine/src/limits.ts`). Each cut is noted in the game log ("Safety cap reached").
+- `rule` **Safety caps:** a single event creates at most 100 tokens, and none when the battlefield already holds 400 objects; a replaced amount (damage, counters, life, cards) is capped at one million, and so is an announced X (a larger X is refused: squad paid a billion times built a cost of a billion symbols before failing); "for each [vote], [do this]" (`fx.repeat`) is done 100 times at most. Token doublers that multiply (copies of Exalted Sunborn) otherwise gave an infinite number and a blocked game (`engine/src/limits.ts`). Each cut is noted in the game log ("Safety cap reached").
 
 ### Outside the game rules
 
@@ -84,8 +84,7 @@ In the order they were added, set by set.
   - `rule` Lorehold, the Historian: the granted miracle is a triggered ability on the first draw of the turn (the card is not revealed), which offers to cast it for {2}.
 - **Murders at Karlov Manor (`docs/extensions/mkm.md`):**
   - `rule` Living Conundrum: "if your library is empty" is judged once for a multi-card draw;
-  - `rule` Expose the Culprit: the exiled cards are not shuffled into a face-down pile before being cloaked (you know each of your face-down cards);
-  - `rule` A Killer Among Us: the chosen type is not revealed separately; the ability checks the type at resolution.
+  - `rule` Expose the Culprit: the exiled cards are not shuffled into a face-down pile before being cloaked (you know each of your face-down cards).
 - **Avatar: The Last Airbender (`docs/extensions/tla.md`):**
   - `rule` Raucous Audience: two mana abilities, each under its condition;
   - `rule` Bumi, Unleashed: "only land creatures can attack this combat" forbids the nonland creatures present at resolution from attacking, until end of turn;
@@ -125,7 +124,7 @@ In the order they were added, set by set.
   - `rule` New Blood: the text change (612, "replace all instances of a creature type with Vampire") is not done; the stolen creature becomes a Vampire in addition to its other types;
   - `auto choice` Foreboding Ruins, Fortified Village, Port Town, Vineglimmer Snarl: a card of the right type in hand is revealed automatically if possible;
   - `rule` Pandemonium: the target of the damage is chosen by Pandemonium's controller, not by the controller of the creature that enters (exact when it is the same person);
-  - `rule` Wheel of Misfortune: the numbers are chosen one after the other (in APNAP order, without seeing those of the others), from 0 to 20;
+  - `rule` Wheel of Misfortune: the secret numbers go from 0 to 20 (not any number 0 or greater);
   - `rule` Incubate (701.53): the transformation is a permanent modification (Phyrexian artifact creature 0/0), not a switch to the back face; the token keeps its name;
   - `rule` Vigor: "when it is put into a graveyard from anywhere, shuffle it into the library" is a replacement: it is shuffled without going through the graveyard (like the Eldrazi);
   - `rule` Coin of Mastery: the excess mana produced by sources (Sol Ring for a single {1}) is first removed from the artifacts' mana.
@@ -134,7 +133,6 @@ In the order they were added, set by set.
   - `rule` Young Deathclaws: the granted scavenge is an ability of Young Deathclaws that costs {4} (and not the exiled card's mana cost);
   - `auto choice` Scorched Ruins: the two untapped lands sacrificed on entering are chosen by the engine (the first ones on the battlefield), without asking the player;
   - `rule` Cover of Darkness, Shizo, Death's Storehouse: fear (702.36) is a blocking rule ("can't be blocked except by artifact and/or black creatures"), not a keyword: no card can read that a creature "has fear".
-  - `timing` Tivit, Seller of Secrets: each vote takes effect as soon as it is cast (same result: nothing reads the votes); "you may vote an additional time" only applies to Tivit's own votes (the other votes of the catalog, Expropriate and Mob Verdict, have no shared vote helper yet: PLAN-M M10b);
   - `rule` Desperate Ritual: splice onto Arcane is not done (no other Arcane spell in the deck; two in the catalog: We Say Thee Nay!, Hex Magic);
   - `rule` Tandem Lookout (soulbond, 702.95e): a pair breaks when state-based actions are checked, not at the very moment one of the creatures leaves, changes controller or stops being a creature;
   - `timing` Final Fortune, Last Chance, Warrior's Oath: you lose at the end step of your next turn (the extra turn, unless another one is inserted before it).
@@ -145,7 +143,6 @@ In the order they were added, set by set.
   - `rule` Kardur, Doomscourge: the attack requirements are a goad until your next turn (same requirements; the creatures count as goaded);
   - `rule` Tibalt's Trickery: "choose 1, 2, or 3 at random" is a three-sided die roll (shown as such in the log); the card found is offered with the cascade prompt (cast for free, otherwise to the bottom);
   - `rule` Possibility Storm: a spell that already left the stack when the ability resolves (countered, exiled by another Possibility Storm) leads to no search (the ruling still has its caster search with its card types); a land card sharing a type with the spell (artifact land) doesn't stop the search, as for cascade; the cards exiled before the one found go to the bottom before it is cast;
-  - `timing` Mob Verdict, Prisoner's Dilemma: the "secret" votes and choices are made one after the other, in turn order, each seen by the next players;
   - `rule` Slicer, Hired Muscle: "More Than Meets the Eye" (casting it converted for {2}{R}) is not handled: it is only cast for its mana cost;
   - `rule` Delina, Wild Mage: "you may roll again" is offered ten times at most;
   - `auto choice` Opposition Agent: you choose what the opponent finds, but the other decisions of the search (a "may" in its spell) stay theirs.

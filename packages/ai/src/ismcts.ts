@@ -14,6 +14,7 @@ import {
   commanderOf,
   type Decision,
   fallbackDecision,
+  forgetSecrets,
   type GameState,
   mayLookAt,
   opponentsOf,
@@ -130,6 +131,8 @@ export function determinize(s: GameState, me: PlayerId, rand: () => number, keep
     shuffleInPlace(canonical, rand);
     mine.library = [...top, ...canonical];
   }
+  // Secret choices (701.38c): the other players' answers not yet revealed, and the secret choice of their permanents.
+  forgetSecrets(d, me);
   // The engine's randomness (coin flips…) must not be known in advance either.
   d.rng = Math.floor(rand() * 2 ** 31);
   d.version += 1;

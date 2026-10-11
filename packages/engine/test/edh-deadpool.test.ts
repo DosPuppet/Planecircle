@@ -3,8 +3,10 @@
  * exchange of text boxes (612, layer 3), token copies, creatures given to the opponents, chaos.
  */
 import { describe, expect, it } from "vitest";
+import { forgetSecrets } from "../src/choices";
 import { chars } from "../src/layers";
 import { legalActions } from "../src/legal";
+import { cloneState } from "../src/state";
 import type { ActionOption, ChoiceRequest, GameState, ObjectId, PlayerId } from "../src/types";
 import { objectView } from "../src/view";
 import {
@@ -19,6 +21,7 @@ import {
   namesIn,
   scenario,
   settle,
+  settleLogged,
   settleNoBlocks,
   steal,
   throughCombat,
@@ -537,6 +540,60 @@ describe("Deadpool (EDH)", () => {
       expect([s.players.p2?.life, s.players.p3?.life]).toEqual([12, 12]);
       s = play({ p2: 0, p3: 1 });
       expect([s.players.p2?.life, s.players.p3?.life]).toEqual([8, 20]);
+    });
+
+    it("Mob Verdict (PLAN-M M10b): secret votes, revealed together; Tivit's additional vote; one 2-damage event per vote", () => {
+      const s0 = scenario({
+        players: 3,
+        p1: {
+          battlefield: [...lands("Mountain", 4), "Tivit, Seller of Secrets"],
+          hand: ["Mob Verdict"],
+          library: lands("Swamp", 3),
+        },
+        p2: { battlefield: ["Bear Cub"] },
+      });
+      // p1 votes twice for p2 (Tivit: "while voting, you may vote an additional time"); p2 for p1, p3 for p2.
+      const votes: Record<PlayerId, PlayerId> = { p1: "p2", p2: "p1", p3: "p2" };
+      const { s, events, asked } = settleLogged(castIt(s0, "p1", "Mob Verdict"), (req, p) =>
+        req.type === "pick" && req.options.includes(votes[p] ?? "") ? [votes[p] ?? ""] : undefined,
+      );
+      const prompts = asked.map((a) => (a.state.pending?.kind === "choice" ? [a.player, a.state.pending.request.prompt] : []));
+      expect(prompts.map(([p]) => p)).toEqual(["p1", "p1", "p2", "p3"]);
+      expect(String(prompts[1]?.[1])).toContain("additional");
+      // Nothing is said before the last vote; then the votes are revealed.
+      expect(asked.every((a) => !a.before.some((e) => e.type === "chose"))).toBe(true);
+      const chose = events.filter((e) => e.type === "chose");
+      expect(chose.map((e) => (e.type === "chose" ? [e.player, e.values, e.vote, e.revealed] : []))).toEqual([
+        ["p1", ["p2", "p2"], true, true],
+        ["p2", ["p1"], true, true],
+        ["p3", ["p2"], true, true],
+      ]);
+      // Three votes for p2: 2 damage three times to p2 and to the Bear Cub (it dies at the first); one vote for p1: a card.
+      expect(s.players.p2?.life).toBe(14);
+      const toP2 = events.filter((e) => e.type === "damage" && e.target === "p2");
+      expect(toP2.map((e) => (e.type === "damage" ? e.amount : 0))).toEqual([2, 2, 2]);
+      expect(graveyardNames(s, "p2")).toEqual(["Bear Cub"]);
+      expect(s.players.p1?.hand).toHaveLength(1);
+      expect(s.players.p3?.life).toBe(20);
+    });
+
+    it("Prisoner's Dilemma (PLAN-M M10b): the choices are secret until all opponents have chosen", () => {
+      const s0 = scenario({ players: 3, p1: { battlefield: lands("Mountain", 5), hand: ["Prisoner's Dilemma"] } });
+      const { s, events, asked } = settleLogged(castIt(s0, "p1", "Prisoner's Dilemma"), (req, p) =>
+        rank(p === "p2" ? 1 : 0)(req),
+      );
+      expect(asked.map((a) => a.player)).toEqual(["p2", "p3"]);
+      // p3 chooses without any trace of p2's choice: no event, and the AI's state of p3 doesn't hold it.
+      const third = asked[1];
+      expect(third?.before.some((e) => e.type === "chose")).toBe(false);
+      const known = cloneState(third?.state as GameState);
+      forgetSecrets(known, "p3");
+      expect(Object.keys(known.resolving?.vars ?? {}).some((k) => k.includes("secret|p2|"))).toBe(false);
+      expect(events.filter((e) => e.type === "chose").map((e) => (e.type === "chose" ? [e.player, e.values[0]] : []))).toEqual([
+        ["p2", "Snitch"],
+        ["p3", "Silence"],
+      ]);
+      expect([s.players.p2?.life, s.players.p3?.life]).toEqual([20, 8]);
     });
 
     it("Ensnared by the Mara: villainous choice, a free spell for the caster or damage equal to four cards' mana value", () => {

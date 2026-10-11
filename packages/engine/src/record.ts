@@ -623,8 +623,13 @@ export const RECORD_VERSION = 1;
  *   hand and the library in one choice (Say Its Name, Agency Outfitter: shuffled only if the library was searched) and
  *   Worldsoul's Rage's lands chosen among the hand and the graveyard together; Opposition Agent exiles only the cards
  *   found in the library
+ * - 204: PLAN-M M10b: choices made by each player in turn (`eachChooses`): secret ones (Wheel of Misfortune, Mob
+ *   Verdict, Prisoner's Dilemma) are hidden until all are made, then revealed together; votes (701.38: Tivit,
+ *   Expropriate, Mob Verdict) are all cast, starting with the controller, before their effects, each announced; Tivit's
+ *   "you may vote an additional time" applies to any vote; "for each … vote" repeats its effects (one event per vote);
+ *   A Killer Among Us's type is known only to the player who chose it, who alone can reveal it by activating it.
  */
-export const RULES_VERSION = 203;
+export const RULES_VERSION = 204;
 
 /** One checkpoint every N decisions (plus the last one of the game). */
 export const CHECKPOINT_EVERY = 25;

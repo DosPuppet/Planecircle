@@ -440,8 +440,10 @@ export const GREEN: Record<string, CardScript> = {
         ],
         { label: "A Human, a Merfolk and a Goblin; secretly choose one of those types" },
       ),
+      // "Reveal the creature type you chose": only the player who chose it, who shows it to everyone.
       activated({
         sacrifice: true,
+        revealChosen: true,
         targets: [
           {
             id: "t",

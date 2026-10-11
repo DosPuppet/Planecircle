@@ -121,8 +121,11 @@ export interface GameObject {
     player?: PlayerId;
     /** A type of mana, noted (Jeweled Amulet: "the type of mana spent to pay this activation cost"). */
     manaType?: ManaType;
-    /** Secret choice (A Killer Among Us): hidden from opponents until it is revealed. */
-    secret?: boolean;
+    /**
+     * Secret choice (A Killer Among Us): the player who made it, the only one who knows it (view, `forgetSecrets`) until
+     * they reveal it (`CostDef.revealChosen`).
+     */
+    secret?: PlayerId;
   };
   /** Prepared (Reality Fracture): id of the copy of its spell, in exile. */
   preparedCopy?: ObjectId;

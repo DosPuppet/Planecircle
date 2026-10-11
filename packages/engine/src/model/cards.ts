@@ -685,6 +685,11 @@ export interface CostDef {
    *   than pay that mana" (Heirloom Epic): convoke for an ability (702.51).
    */
   tapToPay?: "waterbend" | "convoke";
+  /**
+   * "Reveal the [creature type] you chose" (A Killer Among Us): only the player who secretly chose it (`chosen.secret`)
+   * can pay it; the choice is then shown to everyone.
+   */
+  revealChosen?: boolean;
   /** "X can't be 0": smallest allowed value of X (Katara, Water Tribe's Hope; Gogo, Master of Mimicry). */
   minX?: number;
   /** The exiled evidence is linked to the source (Kylox's Voltstrider: "among cards exiled with it"). */
@@ -1326,6 +1331,11 @@ export interface PlayerStaticAbilityDef {
   phyrexianMana?: ManaType;
   /** Pit Automaton: your next exhaust ability is copied (single use). */
   copyNextExhaust?: boolean;
+  /**
+   * "While voting, you may vote an additional time" (Tivit, Seller of Secrets): that many additional votes, cast
+   * together with this player's vote, in any vote (701.38, `fx.vote`); cumulative.
+   */
+  extraVotes?: number;
   /**
    * This player's creatures can't attack `of` or their planeswalkers (Sandswirl Wanderglyph); with `subtype`,
    * only their planeswalkers of that subtype (Jace, Multiverse Architect: "your Jaces"). In an effect

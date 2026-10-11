@@ -181,3 +181,7 @@ Three rules tests in `engine/test/mkm.test.ts`.
 - **Archdruid's Charm, Flourishing Bloom-Kin:** the search holds the cards found in the library (`fx.searchHold`, revealed), then routes them: the land onto the battlefield tapped, a creature into the hand (Archdruid's Charm); the player chooses which Forest enters tapped, the other goes into the hand (Bloom-Kin; a single Forest found enters); then shuffle. Nothing goes through the hand any more. Test added (Bloom-Kin) and extended (Archdruid's Charm).
 - **Agency Outfitter:** one search over the graveyard, the hand and the library (`search.alsoFrom`), up to one card of each name (`search.each`, one filter per card); the library is shuffled (and the search event emitted) only if a card comes from it or nothing is found. Test added.
 - **Worldsoul's Rage:** the up to X land cards are chosen among the hand and the graveyard together (`pickFromZone` over `ref.union` of the two zones). Test rewritten.
+
+## PLAN-M M10b (rules 204)
+
+- **A Killer Among Us:** the secret type is known only to the player who chose it (`chosen.secret` holds that player): the view hides it from everyone else, whoever controls the enchantment, and so does the AI's state (`forgetSecrets`). "Reveal the creature type you chose" is a cost (`revealChosen`): only that player can activate the ability (ruling: another controller can't), and paying it shows the type to everyone (`chose` event). Test added.

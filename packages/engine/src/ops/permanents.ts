@@ -233,14 +233,15 @@ function chooseOnEnterDone(
   ctx: EffectContext,
   kind: Extract<Effect, { op: "chooseOnEnter" }>["kind"],
   value: string,
-  secret?: boolean,
+  /** A secret choice: the player who made it (A Killer Among Us). */
+  secret?: PlayerId,
 ): undefined {
   r.vars.$chosen = [kind, value];
   // Triggered ability of a permanent already in play (Petrified Hamlet: "when this land enters, choose…") or a
   // resolving spell (Harmonized Crescendo: "choose a creature type; draw a card for each…").
   const src = s.objects[ctx.sourceId];
   if (src?.zone === "battlefield" || src?.zone === "stack") {
-    src.chosen = { ...src.chosen, ...(secret ? { secret: true } : {}), ...chosenValue(kind, value) };
+    src.chosen = { ...src.chosen, ...(secret ? { secret } : {}), ...chosenValue(kind, value) };
     bump(s);
   }
   return undefined;
@@ -913,6 +914,9 @@ export const HANDLERS: OpHandlers = {
     if (r.vars.$chosen) return;
     const answer = r.vars[key("chosen")];
     const kind = e.kind;
+    // Sphinx Ambassador: "that player chooses a card name" (the choice still belongs to the source).
+    const chooser = (e.who && resolveRef(s, ctx, e.who).find((p) => isPlayer(s, p) && !s.players[p]?.lost)) || ctx.controller;
+    const secret = e.secret ? chooser : undefined;
     if (!answer) {
       let preset: string[] | undefined;
       if (e.options) preset = [...e.options];
@@ -920,7 +924,7 @@ export const HANDLERS: OpHandlers = {
         // Jeweled Amulet: the types of mana spent on the cost (none: nothing is noted).
         preset = [...(ctx.paid?.manaTypes ?? [])];
         if (preset.length === 0) return;
-        if (preset.length === 1) return chooseOnEnterDone(s, r, ctx, kind, preset[0] as string, e.secret);
+        if (preset.length === 1) return chooseOnEnterDone(s, r, ctx, kind, preset[0] as string, secret);
       } else if (e.optionsFrom && kind === "player") {
         // "Choose an opponent" (Shinryu): among the designated players still in the game; no question for a single one.
         preset = resolveRef(s, ctx, e.optionsFrom).filter((p) => isPlayer(s, p) && !s.players[p]?.lost);
@@ -931,9 +935,7 @@ export const HANDLERS: OpHandlers = {
         preset = [...new Set(names)];
         if (preset.length === 0) return;
       }
-      // Sphinx Ambassador: "that player chooses a card name" (the choice still belongs to the source).
-      const chooser = (e.who && resolveRef(s, ctx, e.who).find((p) => isPlayer(s, p) && !s.players[p]?.lost)) || ctx.controller;
-      if (kind === "player" && preset?.length === 1) return chooseOnEnterDone(s, r, ctx, kind, preset[0] as string, e.secret);
+      if (kind === "player" && preset?.length === 1) return chooseOnEnterDone(s, r, ctx, kind, preset[0] as string, secret);
       return {
         ask: {
           player: chooser,
@@ -942,7 +944,7 @@ export const HANDLERS: OpHandlers = {
         },
       };
     }
-    return chooseOnEnterDone(s, r, ctx, kind, String(answer[0]), e.secret);
+    return chooseOnEnterDone(s, r, ctx, kind, String(answer[0]), secret);
   },
   exchangeControl(s, _r, e, ctx) {
     const a = resolveRef(s, ctx, e.a)[0];

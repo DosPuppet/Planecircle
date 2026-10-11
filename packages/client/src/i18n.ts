@@ -485,6 +485,34 @@ export function describeEvents(
         );
         break;
       }
+      case "chose": {
+        // A vote or a choice said to everyone: as it is made, or revealed (secret choices, 701.38c).
+        const args = {
+          card: name(e.defId),
+          player: player(e.player),
+          choice: literal(e.values.map((v) => (view.players[v] ? whom(v) : localizeText(v, faces, lang))).join(", ")),
+        };
+        const mine = e.player === me;
+        let text: string;
+        if (e.vote)
+          text = e.revealed
+            ? mine
+              ? msg("{card}: you voted for {choice}.", args)
+              : msg("{card}: {player} voted for {choice}.", args)
+            : mine
+              ? msg("{card}: you vote for {choice}.", args)
+              : msg("{card}: {player} votes for {choice}.", args);
+        else
+          text = e.revealed
+            ? mine
+              ? msg("{card}: you chose {choice}.", args)
+              : msg("{card}: {player} chose {choice}.", args)
+            : mine
+              ? msg("{card}: you choose {choice}.", args)
+              : msg("{card}: {player} chooses {choice}.", args);
+        add(text, kind(e.player));
+        break;
+      }
       case "dieRoll":
         add(
           e.player === me

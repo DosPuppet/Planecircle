@@ -314,3 +314,7 @@ its artwork (51 cards). Details in the plan's follow-up.
 - **Gix, Yawgmoth Praetor:** "its controller may pay 1 life" is a payment (`fx.mayPayLifeFor`, the `pay` op's `who` as payer): impossible with 0 life (119.4); a life payment that can't be made is no longer asked.
 - **Notion Thief:** the thief's draw goes through `drawCards` (its replacements apply), and an opposing Notion Thief may replace it in turn, but not one that already did (614.5).
 - **Tests:** `spg.test.ts` (+4: Expropriate, Mirri, Sylvan Library, Notion Thief; Codie rewritten), `pza.test.ts` (Plague of Vermin: two tests rewritten), `otp.test.ts` (+1: Hindering Light), `fca.test.ts` (+1: Gix).
+
+## PLAN-M M10b (rules 204)
+
+- **Expropriate (SPG):** the shared vote (`fx.vote`): starting with you, each vote is announced as it is cast; then an extra turn per time vote (`fx.repeat`), then for each money vote a permanent owned by the voter (`amount.votes(store, 2, voter)`); Tivit's additional vote applies to it. Test added (`spg.test.ts`), and one in `edh-ursphinx.test.ts` (Tivit's additional votes for time).

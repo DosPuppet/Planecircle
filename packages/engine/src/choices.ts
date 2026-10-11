@@ -114,3 +114,29 @@ export function divisionOf(req: Extract<ChoiceRequest, { type: "divide" }>, valu
   });
   return out;
 }
+
+/**
+ * Secret choices (701.38c "secretly", `eachChooses` with `secret`): the key suffix of a player's answer still hidden
+ * (`i`: their additional votes). The answers stay under these keys until all are made, then they are revealed.
+ */
+export function secretAnswerKey(player: PlayerId, i: number): string {
+  return `secret|${player}|${i}`;
+}
+
+/**
+ * The state as `viewer` may know it, for secret choices (the AI's state, `forAgent`): the answers of the other players
+ * not yet revealed are removed (the resolution asks them again in a simulation), and so is the value of a secret choice
+ * of a permanent made by another player (A Killer Among Us). Modifies `s` (a copy).
+ */
+export function forgetSecrets(s: GameState, viewer: PlayerId): void {
+  const vars = s.resolving?.vars;
+  if (vars)
+    for (const k of Object.keys(vars)) {
+      const m = /(?:^|:)secret\|([^|]+)\|\d+$/.exec(k);
+      if (m && m[1] !== viewer) delete vars[k];
+    }
+  for (const id of s.battlefield) {
+    const o = s.objects[id];
+    if (o?.chosen?.secret && o.chosen.secret !== viewer) o.chosen = { secret: o.chosen.secret };
+  }
+}

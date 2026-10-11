@@ -691,8 +691,9 @@ export function projectView(s: GameState, viewer: PlayerId): GameView {
     controlling: actor === viewer && who !== viewer ? who : undefined,
     battlefield: s.battlefield.map((id) => {
       const o0 = withFaceDownCard(s, objectView(s, id), viewer);
-      // A Killer Among Us: a secret choice is shown only to its controller.
-      const o = s.objects[id]?.chosen?.secret && s.objects[id]?.controller !== viewer ? { ...o0, chosen: null } : o0;
+      // A Killer Among Us: a secret choice is shown only to the player who made it (whoever controls the permanent).
+      const secret = s.objects[id]?.chosen?.secret;
+      const o = secret && secret !== viewer ? { ...o0, chosen: null } : o0;
       return s.manaUndo?.some((u) => u.player === viewer && u.source === id) ? { ...o, undoMana: true } : o;
     }),
     stack,

@@ -2,6 +2,7 @@
 import type { OpHandlers } from "../effects";
 import { cardRefOf, concreteSpec, evalAmount, evalCondition, nextTurnOf, resolveRef, store } from "../effects";
 import { RulesError } from "../errors";
+import { capReached, MAX_REPEATS } from "../limits";
 import { isPlayer } from "../state";
 import { msg } from "../text";
 import { createDelayed, pushInline } from "../triggers";
@@ -50,6 +51,22 @@ export const HANDLERS: OpHandlers = {
       ...(vars ? { vars } : {}),
       ...(e.modes ? { modes: e.modes } : {}),
     });
+    return;
+  },
+  repeat(s, r, e, ctx) {
+    // Only in a resolution's list of effects, where the copies are inserted after this one.
+    if (r.effects[r.pc] !== e) throw new Error("repeat: outside a resolution's list of effects");
+    let n = Math.max(0, evalAmount(s, ctx, e.times));
+    if (n > MAX_REPEATS) {
+      n = MAX_REPEATS;
+      capReached("amount");
+    }
+    if (n === 0) return { skip: e.count };
+    const end = r.pc + 1 + e.count;
+    const body = r.effects.slice(r.pc + 1, end);
+    // The resolution's own copy of the list (never the definition's): the copies follow the first pass of the effects.
+    if (n > 1)
+      r.effects = [...r.effects.slice(0, end), ...Array.from({ length: n - 1 }, () => body).flat(), ...r.effects.slice(end)];
     return;
   },
   chooseOption(s, r, e, ctx, key) {

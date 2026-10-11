@@ -436,13 +436,17 @@ export function resolveRef(s: GameState, ctx: EffectContext, ref: Ref): string[]
     }
     case "union":
       return [...new Set(ref.of.flatMap((r) => resolveRef(s, ctx, r)))];
-    case "numberChoosers": {
-      const chosen = numbersChosen(ctx, ref.store);
-      if (!chosen.length) return [];
-      const hi = Math.max(...chosen.map(([, n]) => n));
-      const lo = Math.min(...chosen.map(([, n]) => n));
+    case "choosers": {
+      const chosen = answersChosen(ctx, ref.store);
+      const numbers = chosen.flatMap(([, v]) => v.map(Number));
+      if (typeof ref.which === "number") return chosen.filter(([, v]) => v.includes(ref.which as number)).map(([p]) => p);
+      if (!numbers.length) return [];
+      const hi = Math.max(...numbers);
+      const lo = Math.min(...numbers);
+      const n = (v: (string | number)[]) => Number(v[0] ?? 0);
       return chosen
-        .filter(([, n]) => (ref.which === "highest" ? n === hi : ref.which === "lowest" ? n === lo : n !== lo))
+        .filter(([, v]) => v.length > 0)
+        .filter(([, v]) => (ref.which === "highest" ? n(v) === hi : ref.which === "lowest" ? n(v) === lo : n(v) !== lo))
         .map(([p]) => p);
     }
     case "nth": {
@@ -582,12 +586,12 @@ export function resolveRef(s: GameState, ctx: EffectContext, ref: Ref): string[]
   }
 }
 
-/** Chosen numbers (`fx.chooseNumbers`): [player, number], stored under `$num:<store>:<player>`. */
-function numbersChosen(ctx: EffectContext, store: string): [string, number][] {
-  const prefix = `$num:${store}:`;
+/** The answers of `eachChooses` (numbers, option ranks from 1, player ids), by player, under `$ch:<store>:<player>`. */
+function answersChosen(ctx: EffectContext, store: string): [string, (string | number)[]][] {
+  const prefix = `$ch:${store}:`;
   return Object.entries(ctx.vars ?? {})
     .filter(([k]) => k.startsWith(prefix))
-    .map(([k, v]) => [k.slice(prefix.length), Number(v[0] ?? 0)]);
+    .map(([k, v]) => [k.slice(prefix.length), v as (string | number)[]]);
 }
 
 export function evalAmount(s: GameState, ctx: EffectContext, a: Amount): number {
@@ -705,8 +709,22 @@ export function evalAmount(s: GameState, ctx: EffectContext, a: Amount): number 
     }
     case "poison":
       return s.players[ctx.controller]?.counters?.[a.counter ?? "poison"] ?? 0;
-    case "numberChosen":
-      return Math.max(0, ...numbersChosen(ctx, a.store).map(([, n]) => n));
+    case "chosen": {
+      const chosen = answersChosen(ctx, a.store);
+      if (a.highest) return Math.max(0, ...chosen.flatMap(([, v]) => v.map(Number)));
+      const by = a.by ? new Set(resolveRef(s, ctx, a.by)) : null;
+      const value = a.value;
+      const matches =
+        value === undefined
+          ? () => true
+          : typeof value === "number"
+            ? (v: string | number) => v === value
+            : (
+                (ids) => (v: string | number) =>
+                  ids.has(String(v))
+              )(new Set(resolveRef(s, ctx, value)));
+      return chosen.filter(([p]) => !by || by.has(p)).reduce((n, [, v]) => n + v.filter(matches).length, 0);
+    }
     case "maxOverPlayers": {
       const values = resolveRef(s, ctx, a.players)
         .filter((p) => isPlayer(s, p))

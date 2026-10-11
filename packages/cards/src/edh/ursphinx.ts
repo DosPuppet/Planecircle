@@ -18,6 +18,7 @@ import {
   FOOD,
   fx,
   manaAbility,
+  playerStatic,
   ref,
   spell,
   staticAbility,
@@ -224,10 +225,13 @@ export const EDH_UR_SPHINX: Record<string, CardScript> = {
     ],
   },
   "Tivit, Seller of Secrets": {
-    // Ward {3}: read from the text. Council's dilemma (vote, 701.38): each vote takes effect as it is cast.
+    // Ward {3}: read from the text. Council's dilemma (701.38): the votes first, in turn order starting with you, then a
+    // Clue per evidence vote and a Treasure per bribery vote. "While voting, you may vote an additional time": in any
+    // vote (`extraVotes`).
     abilities: [
       triggered(when.entersSelf, tivitVote(), { label: "Council's dilemma — evidence (Clue) or bribery (Treasure)" }),
       triggered(when.combatDamageToPlayer, tivitVote(), { label: "Council's dilemma — evidence (Clue) or bribery (Treasure)" }),
+      playerStatic({ extraVotes: 1, label: "While voting, you may vote an additional time" }),
     ],
   },
   "Unesh, Criosphinx Sovereign": {
@@ -346,14 +350,11 @@ export const EDH_UR_SPHINX: Record<string, CardScript> = {
   },
 };
 
-/** Tivit: each player votes for evidence (investigate) or bribery (a Treasure); you may vote an additional time. */
+/** Tivit: each player votes for evidence (investigate) or bribery (a Treasure). */
 function tivitVote() {
-  const choices = [
-    { label: "Evidence (investigate)", effects: [fx.createTokens(CLUE)] },
-    { label: "Bribery (a Treasure)", effects: [fx.createTokens(TREASURE)] },
-  ];
   return [
-    ...fx.forEachPlayer(ref.eachPlayer, (p, n) => fx.yourChoice("Vote for evidence or bribery", `vote${n}`, choices, p)),
-    ...fx.yourChoice("You may vote an additional time", "voteExtra", [...choices, { label: "No additional vote", effects: [] }]),
+    fx.vote("tivit", { labels: ["Evidence (investigate)", "Bribery (a Treasure)"] }, { prompt: "Vote for evidence or bribery" }),
+    fx.createTokens(CLUE, amount.votes("tivit", 1)),
+    fx.createTokens(TREASURE, amount.votes("tivit", 2)),
   ];
 }

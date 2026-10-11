@@ -1,7 +1,7 @@
 export { createTokens } from "./actions";
 export { type AutopilotSettings, autopilotDecision, autoTarget, DEFAULT_AUTOPILOT } from "./autopilot";
 export { type CastOptionOf, cardRule, castOption } from "./cardDef";
-export { cardRef, divisionOf, validateChoice } from "./choices";
+export { cardRef, divisionOf, forgetSecrets, validateChoice } from "./choices";
 export { COUNTER_LABELS, counterLabel } from "./counterLabels";
 export type { CardScript } from "./dsl";
 export * as dsl from "./dsl";

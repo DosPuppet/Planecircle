@@ -30,6 +30,8 @@ export const MAX_AMOUNT = 1_000_000;
 export const MAX_X = 1_000_000;
 /** Numeric replacements of a single event whose orders are all tried (616.1); beyond, the order of the code. */
 export const MAX_PERMUTED = 5;
+/** Repetitions of `repeat` ("for each vote, …"): each one copies its effects into the resolution. */
+export const MAX_REPEATS = 100;
 /** Applications of the layers to resolve dependencies (613.8, fixed point). */
 export const MAX_LAYER_PASSES = 3;
 

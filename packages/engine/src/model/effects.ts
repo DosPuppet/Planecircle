@@ -319,6 +319,11 @@ export type Effect =
   /** If the condition is false, the next `skip` effects are skipped. */
   | { op: "if"; cond: Condition; skip: number }
   /**
+   * "For each [vote, …], [do this]": the next `count` effects are done `times` times in a row (read once, now); none if
+   * it is 0. The repeated effects are copied into the resolution, each copy with its own choices (`fx.repeat`).
+   */
+  | { op: "repeat"; times: Amount; count: number }
+  /**
    * Look at the top N cards: take up to `count` matching the filter (to `to`), the rest goes to the bottom (random
    * order) or to the graveyard; `top`: it stays on top, in the same order; `reorder`: it is put back on top in the
    * order chosen by the one looking ("then put them back in any order": Ponder, Portent, Sensei's Divining Top; with
@@ -743,11 +748,25 @@ export type Effect =
   /** The designated player (you by default) becomes the monarch (724). */
   | { op: "becomeMonarch"; who?: Ref }
   /**
-   * Each designated player secretly chooses a number (from 0 to `max`), in APNAP order, without seeing the others';
-   * stored under `store`, read by `ref.numberChoosers` and `amount.numberChosen` (Wheel of Misfortune). `prompt`: the
-   * question ("choose a number", not secret: Expel the Interlopers); `suggested`: the suggested number (0 by default).
+   * Each designated player chooses (608.2d), in turn order starting with the controller (701.38a; a player who has left
+   * the game is skipped): a number from 0 to `max`, one of the `labels` (stored as its rank, from 1), or one of the
+   * players of `players` other than themselves ("votes for another player"). Answers under `store`, read by
+   * `ref.choosers` and `amount.chosen`. `secret` ("secretly choose", "secret council", 701.38c): each answer is hidden
+   * from the other players (view, events, the AI's state: `forgetSecrets`) until all are made, then all are revealed
+   * together; otherwise each answer is announced as it is made. `vote` (701.38): each answer is a vote, and a player
+   * with `extraVotes` (Tivit) may vote that many additional times, together with their vote. `suggested`: the suggested
+   * number or rank (0 / the first option by default; Expel the Interlopers).
    */
-  | { op: "chooseNumbers"; who: Ref; store: string; max: number; prompt?: string; suggested?: Amount }
+  | {
+      op: "eachChooses";
+      who: Ref;
+      store: string;
+      among: { max: number } | { labels: string[] } | { players: Ref };
+      prompt?: string;
+      suggested?: Amount;
+      secret?: boolean;
+      vote?: boolean;
+    }
   /** `thenExtraTurn`: after that turn, that player takes an extra turn (Emrakul, the Promised End). */
   | { op: "controlNextTurn"; who: Ref; combatOnly?: boolean; thenExtraTurn?: boolean }
   /** "Your life total becomes N" (The Endstone). */

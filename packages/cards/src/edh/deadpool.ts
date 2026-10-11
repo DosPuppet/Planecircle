@@ -4,7 +4,7 @@
  * (Xantcha, Humble Defector, Oft-Nabbed Goat, Alexios, Vislor Turlough, Slicer) and chaos (Possibility Storm, Share the
  * Spoils, Mob Verdict, Prisoner's Dilemma).
  */
-import { type Amount, type CardScript, type Condition, type Effect, msg, type Ref } from "@mtgx/engine";
+import { type Amount, type CardScript, type Effect, msg, type Ref } from "@mtgx/engine";
 import {
   activated,
   amount,
@@ -25,8 +25,6 @@ import {
 
 /** `fx.forEachPlayer` goes through six seats: this one is a player in the game. */
 const seated = (p: Ref) => cond.amountAtLeast(amount.refCount(p), 1);
-/** The n-th opponent (`fx.forEachPlayer` order). */
-const nthOpponent = (n: number): Ref => ({ kind: "nth", of: ref.eachOpponent, n });
 const SEATS = [0, 1, 2, 3, 4, 5];
 /** Total mana value of the designated cards. */
 const totalManaValueOf = (r: Ref): Amount => ({ kind: "aggregate", fn: "sum", property: "manaValue", of: r });
@@ -54,33 +52,25 @@ const delinaRoll = (depth: number): Effect[] => [
     : []),
 ];
 
-/** Prisoner's Dilemma: the choice of the n-th opponent (1: silence, 2: snitch). */
-const silence = (n: number): Condition => cond.all(cond.v(`pd${n}`, 1), cond.not(cond.v(`pd${n}`, 2)));
-const snitch = (n: number): Condition => cond.v(`pd${n}`, 2);
-/** Every opponent still in the game made this choice. */
-const everyOpponent = (c: (n: number) => Condition): Condition =>
-  cond.all(...SEATS.map((n) => cond.any(cond.not(seated(nthOpponent(n))), c(n))));
-
+/**
+ * Prisoner's Dilemma: each opponent secretly chooses silence (1) or snitch (2), revealed together; all silence: 4 damage
+ * to each of them; all snitch: 8; otherwise 12 to each one who chose silence.
+ */
 const prisonersDilemma: Effect[] = [
-  ...fx.forEachPlayer(ref.eachOpponent, (p, n) =>
-    fx.when(
-      seated(p),
-      fx.yourChoice(
-        "Silence or snitch?",
-        `pd${n}`,
-        [
-          { label: "Silence", effects: [] },
-          { label: "Snitch", effects: [] },
-        ],
-        p,
-      ),
-    ),
+  fx.eachChooses(
+    ref.eachOpponent,
+    "pd",
+    { labels: ["Silence", "Snitch"] },
+    { prompt: "Secretly choose silence or snitch", secret: true },
   ),
-  ...fx.when(everyOpponent(silence), fx.damage(4, ref.eachOpponent)),
-  ...fx.when(everyOpponent(snitch), fx.damage(8, ref.eachOpponent)),
-  ...fx.when(
-    cond.not(cond.any(everyOpponent(silence), everyOpponent(snitch))),
-    ...SEATS.map((n) => fx.when(cond.all(seated(nthOpponent(n)), silence(n)), fx.damage(12, nthOpponent(n)))),
+  ...fx.ifElse(
+    cond.not(cond.amountAtLeast(amount.votes("pd", 2), 1)),
+    [fx.damage(4, ref.eachOpponent)],
+    fx.ifElse(
+      cond.not(cond.amountAtLeast(amount.votes("pd", 1), 1)),
+      [fx.damage(8, ref.eachOpponent)],
+      [fx.damage(12, ref.choosers("pd", 1))],
+    ),
   ),
 ];
 
@@ -574,25 +564,21 @@ export const EDH_DEADPOOL: Record<string, CardScript> = {
       [{ op: "addMana", mana: ["R"], times: amount.count({ types: ["Land"], controller: "opponent", tapped: true }) }],
     ),
   },
-  // Secret council (approximation): the votes are cast one after the other, in turn order, each seen by the next.
+  // Secret council (701.38c): the votes are cast secretly, then revealed together; for each vote an opponent received,
+  // 2 damage to them and to each of their creatures (one event per vote), a card for each vote you received.
   "Mob Verdict": {
     spell: spell(
       [],
       [
-        ...fx.forEachPlayer(ref.eachPlayer, (p, n) =>
-          fx.when(seated(p), fx.chooseAmong(ref.except(ref.eachPlayer, p), p, `vote${n}`, { prompt: "Vote for another player" })),
+        fx.vote("mob", { players: ref.eachPlayer }, { prompt: "Vote secretly for another player", secret: true }),
+        ...fx.forEachPlayer(ref.eachOpponent, (p) =>
+          fx.repeat(amount.votes("mob", p), fx.damage(2, ref.union(p, ref.permanentsOf(p, { types: ["Creature"] })))),
         ),
-        ...SEATS.flatMap((n) => {
-          const voted = ref.except(ref.stored(`vote${n}`), ref.you);
-          return [
-            fx.damage(2, ref.union(voted, ref.permanentsOf(voted, { types: ["Creature"] }))),
-            fx.draw(amount.refCount(ref.except(ref.stored(`vote${n}`), ref.eachOpponent))),
-          ];
-        }),
+        fx.draw(amount.votes("mob", ref.you)),
       ],
     ),
   },
-  // Flashback {5}{R}{R}: read from the text. The choices are made one after the other (approximation of "secretly").
+  // Flashback {5}{R}{R}: read from the text.
   "Prisoner's Dilemma": { spell: spell([], prisonersDilemma) },
   "Saw in Half": {
     spell: spell(

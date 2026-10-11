@@ -543,6 +543,12 @@ export type GameEvent =
   | { type: "moved"; owner: PlayerId; objectId?: ObjectId; defId?: string; from: Zone; to: Zone; faceDown?: PlayerId[] }
   | { type: "scry"; player: PlayerId; top: number; bottom: number }
   | { type: "choice"; player: PlayerId; intent: ChoiceIntent }
+  /**
+   * What a player chose, said to everyone (`eachChooses`): a vote or a public choice as it is made, a secret choice when
+   * it is revealed (`revealed`: all the secret answers together; A Killer Among Us's type as its ability is activated).
+   * `values`: option labels, numbers or player ids.
+   */
+  | { type: "chose"; player: PlayerId; defId: string; values: string[]; vote?: boolean; revealed?: boolean }
   | { type: "trigger"; player: PlayerId; stackId: string; defId: string; targets: string[] }
   /** `commander`: 21 combat damage from the same commander (704.6c). */
   | { type: "lose"; player: PlayerId; reason: "life" | "draw" | "poison" | "concede" | "commander" }

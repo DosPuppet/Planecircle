@@ -493,10 +493,11 @@ export const EDH_RAKDOS: Record<string, CardScript> = {
     spell: spell(
       [],
       [
-        fx.chooseNumbers(ref.eachPlayer, "wheel"),
-        fx.damage(amount.numberChosen("wheel"), ref.numberChoosers("wheel", "highest")),
-        fx.discard(99, ref.numberChoosers("wheel", "notLowest")),
-        fx.draw(7, ref.numberChoosers("wheel", "notLowest")),
+        // Secretly chosen, then revealed together (from 0 to 20).
+        fx.chooseNumbers(ref.eachPlayer, "wheel", 20, { secret: true }),
+        fx.damage(amount.numberChosen("wheel"), ref.choosers("wheel", "highest")),
+        fx.discard(99, ref.choosers("wheel", "notLowest")),
+        fx.draw(7, ref.choosers("wheel", "notLowest")),
       ],
     ),
   },

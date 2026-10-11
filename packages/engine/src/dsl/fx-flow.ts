@@ -29,6 +29,11 @@ export const flowFx = {
    */
   forEachPlayer: (of: Ref, build: (p: Ref, n: number) => Effects): Effect[] =>
     Array.from({ length: 6 }, (_, n) => build({ kind: "nth", of, n }, n).flat()).flat(),
+  /** "For each [vote, …], [do this]": the effects done `times` times in a row (read once); none for 0. */
+  repeat: (times: Amount, ...effects: Effects): Effect[] => {
+    const flat = effects.flat();
+    return [{ op: "repeat", times, count: flat.length }, ...flat];
+  },
   when: (c: Condition, ...effects: Effects): Effect[] => {
     const flat = effects.flat();
     return [{ op: "if", cond: c, skip: flat.length }, ...flat];

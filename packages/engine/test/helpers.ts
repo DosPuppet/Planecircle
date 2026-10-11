@@ -9,7 +9,17 @@ import { isNameAllowed } from "../src/names";
 import { cloneState, createObject, registerDef, syncControl } from "../src/state";
 import { advance, emptyCombat, forcedAttacks } from "../src/turn";
 import { zoneEntry } from "../src/turnlog";
-import type { CardDef, CastNowRequest, ChoiceRequest, ChoiceValue, Decision, GameState, PlayerId, Step } from "../src/types";
+import type {
+  CardDef,
+  CastNowRequest,
+  ChoiceRequest,
+  ChoiceValue,
+  Decision,
+  GameEvent,
+  GameState,
+  PlayerId,
+  Step,
+} from "../src/types";
 
 export interface Permanent {
   name: string | CardDef;
@@ -267,6 +277,33 @@ function settleWith(s: GameState, answer: Answer, noBlocks: boolean): GameState 
     else break;
   }
   return cur;
+}
+
+/**
+ * Like `settle`, keeping what happened: the events of each decision, and before each answer, the state with its question
+ * (`asked`: who is asked, and the events seen so far).
+ */
+export function settleLogged(
+  s: GameState,
+  answer: Answer = () => undefined,
+): { s: GameState; events: GameEvent[]; asked: { player: PlayerId; state: GameState; before: GameEvent[] }[] } {
+  let cur = s;
+  const events: GameEvent[] = [];
+  const asked: { player: PlayerId; state: GameState; before: GameEvent[] }[] = [];
+  for (let i = 0; i < 300; i++) {
+    const p = cur.pending;
+    if (p?.kind === "priority" && cur.stack.length === 0 && cur.triggers.length === 0 && i > 0) break;
+    let d: Decision;
+    if (p?.kind === "priority") d = { type: "pass" };
+    else if (p?.kind === "choice") {
+      asked.push({ player: p.player, state: cur, before: [...events] });
+      d = { type: "choose", values: answer(p.request, p.player, cur) ?? p.request.suggested };
+    } else break;
+    const r = submit(cur, p.player, d);
+    events.push(...r.events);
+    cur = r.state;
+  }
+  return { s: cur, events, asked };
 }
 
 /** Passes and answers choices (suggested answer by default) until an empty stack, with no pending trigger. */
