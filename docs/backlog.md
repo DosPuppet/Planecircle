@@ -1,6 +1,6 @@
 # Backlog: everything still open
 
-What is still open after the finished plans (R, P4, C, D, S, G, A, E, H, J, L) and the two archived audits (2026-09-29, 2026-09-30), condensed from their "deferred", "reports" and "leftovers" sections. What was done is told in `docs/history.md`. The open items of the current audits are in `docs/audits/2026-10-02.md`, `docs/audits/2026-10-03-cards.md` and `docs/audits/2026-10-07-debt.md`. Per-card approximations are not repeated here: they live in `docs/approximations.md` (an approximation lifted is removed from there; a new one is added there).
+What is still open after the finished plans (R, P4, C, D, S, G, A, E, H, J, L, M) and the two archived audits (2026-09-29, 2026-09-30), condensed from their "deferred", "reports" and "leftovers" sections. What was done is told in `docs/history.md`. The open items of the current audits are in `docs/audits/2026-10-02.md`, `docs/audits/2026-10-03-cards.md` and `docs/audits/2026-10-07-debt.md`. Per-card approximations are not repeated here: they live in `docs/approximations.md` (an approximation lifted is removed from there; a new one is added there).
 
 Each item cites its origin (plan, lot). "Status checked" means compared with the later plans; where an item may have been done by a later plan without the text saying so, it says "check".
 
@@ -77,6 +77,14 @@ Per card, in `docs/approximations.md`. Cards the plans left explicitly documente
 - **Measured and dropped:** the attackers weighed against the attacked player in multiplayer (47.8 % ± 2.8 over 1,198 games, L1b).
 - **Left documented:** 903.9b timing (L5c); Moonlit Meditation for token copies created by an effect (L5b); Kíli's {0} always used (offered in full control since PLAN-M M6); tokens created attacking keep one defender per player.
 - **Official-ruling tests:** none added by L11 (continuous item, "Card tests" above).
+
+## PLAN-M: not done (2026-10-11)
+
+- **Found small but not done** (M11c report): Young Deathclaws (scavenge granted by a permanent to graveyard cards needs a static grant read by `graveyardGrants`); The Death of Gwen Stacy and Worlds Within Worlds (choices in turn order then actions together: the `punisher` and `pickFromZone` handlers would need a choose phase and an act phase); Cursecloth Wrappings' token keeps a mana cost (no "has no mana cost" copy exception); Ob Nixilis, the Adversary's casualty X (the `copyCost` form only has a fixed N); conspire and casualty from two sources (one cost slot per instance).
+- **Narrowed, still documented:** Possibility Storm (no search when the spell already left the stack; a land does not stop the search), Celestial Reunion (types offered are those printed on your creatures), Marvin (granted abilities whose cost names their grantor), Wheel of Misfortune (numbers 0 to 20), Plague of Vermin (20 rounds), Raiding Schemes and Silverquill (one conspire or casualty per spell), the arrivals inside other operations (Another Round's flicker, a discarded card put onto the battlefield, Animate Dead, a leyline).
+- **AI and fuzz:** the conspire and casualty cost slots default to "none": the AI and the strict fuzz never pay them (tests only). The Commander strict fuzz reports one illegal random-AI decision (seed set of `--format commander --pool commander`), present before PLAN-M.
+- **Kept by decision:** payment details automatic outside full control (Relic of Legends, Gene Pollinator, Kíli's {0}, delve, convoke and waterbend sources, Haunted Screen); the rules deferred until a card requires them; the large approximations listed in `docs/plans/PLAN-M.md` ("Out of scope").
+- **Official rulings:** Scryfall answered 403 to the agents; the lots followed the Comprehensive Rules and the Oracle texts. Rulings tests to recheck when the API is reachable.
 
 ## AI
 
