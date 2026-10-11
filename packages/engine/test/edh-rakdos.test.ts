@@ -5,6 +5,7 @@
  */
 import { card } from "@mtgx/cards";
 import { describe, expect, it } from "vitest";
+import { castOption } from "../src/cardDef";
 import { bump, chars } from "../src/layers";
 import { legalActions } from "../src/legal";
 import { manaAbilitiesOf } from "../src/mana";
@@ -222,7 +223,7 @@ describe("Rakdos, Lord of Riots (EDH)", () => {
     });
 
     it("Emrakul, the World Anew: gain control of the targeted player's creatures; madness: pay six {C}", () => {
-      expect(card("Emrakul, the World Anew").madness).toMatchObject({ colored: { C: 6 } });
+      expect(castOption(card("Emrakul, the World Anew"), "madness")?.cost).toMatchObject({ colored: { C: 6 } });
       let s = scenario({
         p1: { battlefield: lands("Wastes", 12), hand: ["Emrakul, the World Anew"] },
         p2: { battlefield: ["Bear Cub", "Savannah Lions"] },

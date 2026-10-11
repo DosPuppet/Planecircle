@@ -65,7 +65,7 @@ if (cardName !== undefined) {
         abilities: script.abilities,
         spell: script.spell,
         kicker: script.kicker,
-        flashback: script.flashback,
+        castOptions: script.castOptions,
         additionalCost: script.additionalCost,
         costReduction: script.costReduction,
       },

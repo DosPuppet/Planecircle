@@ -3474,7 +3474,7 @@ describe("lot A, multicolores", () => {
     });
 
     it("Tokka & Rahzar, Terrible Twos: can't be countered; menace", () => {
-      expect(card("Tokka & Rahzar, Terrible Twos").cantBeCountered).toBe(true);
+      expect(card("Tokka & Rahzar, Terrible Twos").rules?.cantBeCountered).toBe(true);
       const s = scenario({ p1: { battlefield: ["Tokka & Rahzar, Terrible Twos"] } });
       expect(chars(s, idOf(s, "p1", "battlefield", "Tokka & Rahzar, Terrible Twos")).keywords).toContain("menace");
     });

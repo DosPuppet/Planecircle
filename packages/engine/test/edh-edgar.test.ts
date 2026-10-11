@@ -4,6 +4,7 @@
  */
 import { card } from "@mtgx/cards";
 import { describe, expect, it } from "vitest";
+import { castOption } from "../src/cardDef";
 import { chars } from "../src/layers";
 import { legalActions } from "../src/legal";
 import type { GameState, PlayerId } from "../src/types";
@@ -166,7 +167,7 @@ describe("Commander (EDH): Edgar Markov's Vampires", () => {
       expect(pt(s, idOf(s, "p1", "battlefield", "Savannah Lions"))).toEqual([2, 1]);
       expect(pt(s, idOf(s, "p2", "battlefield", DIRE_MOON))).toEqual([1, 1]);
       expect(card("Markov Baron").keywords).toEqual(expect.arrayContaining(["convoke", "lifelink"]));
-      expect(card("Markov Baron").madness).toBeDefined();
+      expect(castOption(card("Markov Baron"), "madness")).toBeDefined();
     });
 
     it("Bloodline Keeper: {T} creates a 2/2 flying Vampire; {B}: transform only with five Vampires; Lord of Lineage gives +2/+2", () => {

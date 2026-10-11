@@ -38,67 +38,8 @@ export interface CardDef {
   abilities: AbilityDef[];
   /** Effect on resolution of an instant or a sorcery. */
   spell?: SpellDef;
-  kicker?: ManaCost;
-  /** Kicker without mana (FIN): "sacrifice an artifact or creature", "return a land you control". */
-  /**
-   * Kicker without mana: sacrifice (FIN, Bargain) or return a permanent, blight N (`blight`, Lorwyn Eclipsed:
-   * N -1/-1 counters on a creature you control), or tap creatures with total power N (`tapPower`,
-   * Teamwork, Marvel Super Heroes).
-   */
-  kickerCost?: {
-    sacrifice?: ObjectFilter;
-    bounce?: ObjectFilter;
-    blight?: number;
-    tapPower?: number;
-    collectEvidence?: number;
-    /** "Exile N cards from your graveyard or pay [mana]" (Soaring Stoneglider), with `kickerOrPay`. */
-    exileGraveyard?: number;
-    /** "Pay N life or pay [mana]" (Redirect Lightning), with `kickerOrPay`. */
-    life?: number;
-  };
-  /**
-   * X of the spell paid other than with mana, as an additional cost: "pay X life" (`life`, Vicious Rivalry),
-   * "blight X" (`blight`, Soul Immolation: X at most the greatest toughness among your creatures; the creature
-   * is chosen as for an ability cost, `blightTarget`).
-   */
-  xCost?: "life" | "blight" | "waterbend";
-  /**
-   * Waterbend as an additional cost of the spell (Avatar): "waterbend {N}" (`waterbend: N`), "waterbend {X}"
-   * (`xCost: "waterbend"`), or optional "you may waterbend {N}" (the kicker, `kickerKind: "waterbend"`). That mana
-   * may be paid by tapping untapped artifacts and creatures ({1} each).
-   */
-  waterbend?: number;
-  /**
-   * Mandatory additional cost "blight N or pay [mana]" (Wild Unraveling, Bogslither's Embrace): the kicker without
-   * mana (`kickerCost.blight`) or, if it isn't paid, this mana.
-   */
-  kickerOrPay?: ManaCost;
-  /** Web-slinging (Spider-Man): alternative cost (in `altCost`), by returning a tapped creature to hand. */
-  webSlinging?: ManaCost;
-  /** Storied (The Hobbit): its controller may gain an enduring story (see `stateBasedActions`). */
-  storied?: boolean;
-  /** Sneak (Teenage Mutant Ninja Turtles): alternative cost (in `altCost`), by returning an unblocked attacker. */
-  sneak?: ManaCost;
-  /** Mayhem (Spider-Man): castable from the graveyard for this cost if it was discarded this turn. */
-  mayhem?: ManaCost;
-  /** Paradigm (Strixhaven): exiled on resolution; a free copy at the beginning of each of your main phases. */
-  paradigm?: boolean;
-  /** Evoke (702.74): alternative cost (in `altCost`); the creature is sacrificed when it enters. */
-  evoke?: ManaCost;
-  /** Flashback cost: may be cast from the graveyard, then exiled (702.34). */
-  /** Harmonize (702.180): its cost is also stored here (same casting from the graveyard, then exile), with `harmonize`. */
-  flashback?: ManaCost;
-  /**
-   * Harmonize (702.180): cast from the graveyard for `flashback`, you may tap a creature you control to
-   * reduce that cost by {X}, X being its power.
-   */
-  harmonize?: boolean;
-  /** "This spell can't be countered." */
-  cantBeCountered?: boolean;
-  /** "This spell can't be copied" (Choreographed Sparks). */
-  cantBeCopied?: boolean;
-  /** "This spell costs [mana] more to cast for each target beyond the first" (Officious Interrogation). */
-  costPerExtraTarget?: ManaCost;
+  /** Kicker (702.33) and the optional costs read like one (offspring, gift, Bargain, blight, teamwork…). */
+  kicker?: KickerDef;
   /** Planeswalker: starting loyalty (306.5b). */
   loyalty?: number;
   /**
@@ -134,22 +75,24 @@ export interface CardDef {
     /** "Ward—Discard a card or pay [mana]" (Titania): `discard` or this cost (`mana`), as chosen. */
     or?: PayCost;
   };
-  /** Costs in addition to the flashback cost (Twinned Vision: "discard a card"; Group Project: "tap three creatures"). */
-  flashbackCost?: AdditionalCost;
   /** "As an additional cost to cast this spell, …" (601.2b, 601.2h). */
   additionalCost?: AdditionalCost;
+  /**
+   * Other ways to cast the card (PLAN-M M5): flashback, from the graveyard, mayhem, madness, warp, plot, foretell, flash
+   * for a surcharge, an alternative cost, face down. At most one of each kind, read by kind (`castOption(d, kind)`,
+   * `cardDef.ts`), never by position.
+   */
+  castOptions?: CastOption[];
+  /** Rules printed on the card about how it is cast, resolves or behaves (PLAN-M M5), read by `cardRule(d, key)`. */
+  rules?: CardRules;
   /** "This spell costs {N} less to cast [if…]" (601.2f). */
   /** "This spell costs {N} less if…"; `colored`: colored symbols removed too (Brush Off: {1}{U}). */
   costReduction?: { generic: Amount; colored?: ManaCost["colored"]; condition?: Condition };
-  /** Alternative cost ("you may pay {B} rather than pay this spell's mana cost if…"). */
-  /** `via`: name of the cost, recorded at cast time (`CastInfo.via`) and read by `cond.castVia` (blitz). */
   /**
-   * `pay`: other things paid along with the alternative mana (Force of Will: 1 life and a blue card exiled from hand;
-   * Daze: an Island you control returned to hand); the objects are chosen automatically.
+   * P/T defined by an ability (604.3, layer 7a): both (`pt`, e.g. cards in opponents' graveyards), only the power
+   * (`power`, Enigma Drake) or only the toughness (`toughness`, Tarmogoyf with `power`).
    */
-  altCost?: { mana: ManaCost; condition: Condition; label: string; forage?: boolean; via?: CastVia; pay?: AltCostPay };
-  /** P/T defined by an ability (604.3, layer 7a), e.g. cards in opponents' graveyards. */
-  cdaPT?: Amount;
+  cda?: { pt?: Amount; power?: Amount; toughness?: Amount };
   /**
    * "As it enters" (614.1c, 614.12, PLAN-H H9): the effects done while the permanent enters, before the enter event,
    * by a single loop (`asEntersChoices`, `replacement.ts`) whatever the path (permanent spell resolving, land played,
@@ -158,61 +101,11 @@ export interface CardDef {
    * effect is written there too (Sin: remove counters); counters put on `ref.self` are the ones it enters with.
    */
   asEnters?: Effect[];
-  /** Cloud, Planet's Champion: "equip abilities you activate that target it cost {N} less to activate". */
-  equipDiscountWhenTargeted?: number;
-  /** "If this card would be put into a graveyard from anywhere, shuffle it into its owner's library instead." */
-  shuffleIntoLibrary?: boolean;
-  /** "[This card] has flash as long as …" (Take for a Ride, Colossal Rattlewurm). */
-  flashIf?: Condition;
-  /**
-   * "… if you controlled a Faerie as you cast this spell" (Faerie Fencing, Steer Clear): evaluated at cast time,
-   * remembered by the spell (`cond.metWhenCast`).
-   */
-  whenCast?: Condition;
-  /** "Exile [this spell]" on resolution, instead of the graveyard (Step Between Worlds). */
-  exileOnResolve?: boolean;
-  /** Plot (702.170): cost of the special action "plot this card" (read from the text). */
-  plot?: ManaCost;
   /**
    * "As this creature is turned face up, put N [kind] counters on it" (Bubble Smuggler; Crowd-Control Warden: an amount
    * evaluated for it): put before it is turned face up, no ability on the stack.
    */
   faceUpCounters?: { kind: string; n: Amount };
-  /** Foretell (702.143): cost to cast the foretold card on a later turn (read from the text). */
-  foretell?: ManaCost;
-  /**
-   * Activated abilities of sources with the chosen name (`GameObject.chosen.cardName`): cost {N} more (Skyseer's
-   * Chariot), or can't be activated unless they're mana abilities (`"forbid"`: Sorcerous Spyglass, Petrified
-   * Hamlet).
-   */
-  chosenNameAbilities?: number | "forbid";
-  /** "You may cast this card from your graveyard [if…]" (Lightwheel Enhancements: max speed). */
-  /**
-   * Castable from the graveyard; `discard`: by discarding that many additional cards (Alien Symbiosis), matching
-   * `discardFilter` (retrace, 702.81: a land card, read from the text); `removeCountersAmong`: by removing N counters
-   * from among your creatures (Quilled Greatwurm, same key as `PlayFromZone`).
-   */
-  castFromGraveyard?: {
-    condition?: Condition;
-    payLife?: number;
-    sacrifice?: ObjectFilter;
-    discard?: number;
-    discardFilter?: ObjectFilter;
-    finality?: boolean;
-    removeCountersAmong?: number;
-  };
-  /** "You can't cast this spell unless…" (Proft, Sinister Mastermind: threshold). */
-  castCondition?: Condition;
-  /** Only toughness is defined by an ability (Tarmogoyf, with `cdaPower`). */
-  cdaToughness?: Amount;
-  /** Only power is defined by an ability (Enigma Drake). */
-  cdaPower?: Amount;
-  /** "You may cast this spell as though it had flash if you pay {2} more to cast it." */
-  flashExtraCost?: ManaCost;
-  /** Aura: "You control enchanted permanent" (Confiscate). */
-  controlsEnchanted?: boolean;
-  /** Wilt-Leaf Liege: discarded by a spell or ability an opponent controls, it goes to the battlefield. */
-  opponentDiscardToBattlefield?: boolean;
   /** Crew N (Vehicle). */
   crew?: number;
   text: string;
@@ -235,25 +128,13 @@ export interface CardDef {
   faceDefs?: CardDef[];
   /** "As it enters, you may pay N life; if you don't, it enters tapped" (shock lands). */
   shockLand?: number;
-  /** Warp (702.185): cost, additional life, and also castable from the graveyard (Timeline Culler). */
-  warp?: { cost: ManaCost; life?: number; fromGraveyard?: boolean };
   /**
    * Station (702.184): "N+ | …" thresholds (keywords read from the text, other abilities in the script) and the
    * threshold at which the Spacecraft becomes an artifact creature.
    */
   station?: { creatureAt?: number; thresholds: { n: number; keywords: Keyword[]; abilities: AbilityDef[] }[] };
-  /** Impending N (702.176): time counters on entering if the impending cost (`altCost`) was paid. */
-  impending?: number;
-  /** Disguise (702.168): cost to turn face up a card cast face down for {3}. */
-  disguise?: ManaCost;
-  /** Morph (702.37): `disguise` carries the morph cost; the face-down creature doesn't have ward {2}. */
-  morph?: true;
-  /** Madness (702.35): when discarded, the card goes to exile and may be cast for this cost (read from the text). */
-  madness?: ManaCost;
   /** Toxic N (702.164): the number of poison counters (the keyword is in `keywords`). */
   toxic?: number;
-  /** "This cost is reduced by {1} for each…" (Fugitive Codebreaker): reduction of the disguise cost. */
-  disguiseReduction?: Amount;
   /** Saga (714): number of the final chapter (read from the text). */
   saga?: { chapters: number };
   /** Class (716): abilities of levels 2, 3… (level cost and added abilities). */
@@ -262,27 +143,6 @@ export interface CardDef {
   caseSolved?: AbilityDef[];
   /** Meld (701.42): the two parts and the melded card, by name. */
   meld?: { parts: string[]; result?: string };
-  /** Kicker label: Offspring (702.175) or Gift (702.174), read from the text (Bloomburrow). */
-  kickerKind?:
-    | "offspring"
-    | "gift"
-    | "bargain"
-    | "blight"
-    | "teamwork"
-    | "evidence"
-    | "exileGraveyard"
-    | "waterbend"
-    | "life"
-    /** Replicate (702.56): the kicker is paid X times (X of the spell); the spell is copied X times. */
-    | "replicate"
-    /** Squad (702.157): the kicker is paid X times; as it enters, the permanent creates X tokens that are copies of it. */
-    | "squad"
-    /** Multikicker (702.33c): the kicker is paid X times (X of the spell, read by `amount.x`). */
-    | "multikicker";
-  /** Gift (702.174): what the chosen opponent gets if the gift is promised. */
-  gift?: GiftKind;
-  /** "As an additional cost, forage or pay [mana]" (Feed the Cycle): the "Forage" alternative cost avoids it. */
-  forageOrPay?: ManaCost;
   /** Melded card (shared back face of two cards): it doesn't go into a deck. */
   meldResult?: boolean;
   /** Definition of the melded card, registered in the game with the card (part of a meld pair). */
@@ -335,6 +195,147 @@ export interface AltCostPay {
    * pay"; Demon of Death's Gate: three black creatures; automatic choice: the lowest mana values).
    */
   sacrifice?: { filter: ObjectFilter; count: number };
+}
+
+/**
+ * Kicker (702.33) and the optional costs read like one, paid as the spell is cast (`CastChoices.kicked`, read by
+ * `cond.kicked`).
+ */
+export interface KickerDef {
+  /** Mana of the kicker; `{0}` for a kicker without mana (gift, Bargain, blight, teamwork, collect evidence…). */
+  mana: ManaCost;
+  /** Label of the kicker: Offspring (702.175) or Gift (702.174), read from the text (Bloomburrow)… */
+  kind?:
+    | "offspring"
+    | "gift"
+    | "bargain"
+    | "blight"
+    | "teamwork"
+    | "evidence"
+    | "exileGraveyard"
+    | "waterbend"
+    | "life"
+    /** Replicate (702.56): the kicker is paid X times (X of the spell); the spell is copied X times. */
+    | "replicate"
+    /** Squad (702.157): the kicker is paid X times; as it enters, the permanent creates X tokens that are copies of it. */
+    | "squad"
+    /** Multikicker (702.33c): the kicker is paid X times (X of the spell, read by `amount.x`). */
+    | "multikicker";
+  /**
+   * Kicker without mana: sacrifice (FIN, Bargain) or return a permanent, blight N (`blight`, Lorwyn Eclipsed:
+   * N -1/-1 counters on a creature you control), or tap creatures with total power N (`tapPower`,
+   * Teamwork, Marvel Super Heroes).
+   */
+  pay?: {
+    sacrifice?: ObjectFilter;
+    bounce?: ObjectFilter;
+    blight?: number;
+    tapPower?: number;
+    collectEvidence?: number;
+    /** "Exile N cards from your graveyard or pay [mana]" (Soaring Stoneglider), with `orPay`. */
+    exileGraveyard?: number;
+    /** "Pay N life or pay [mana]" (Redirect Lightning), with `orPay`. */
+    life?: number;
+  };
+  /**
+   * Mandatory additional cost "blight N or pay [mana]" (Wild Unraveling, Bogslither's Embrace): the kicker without
+   * mana (`pay.blight`) or, if it isn't paid, this mana.
+   */
+  orPay?: ManaCost;
+  /** Gift (702.174): what the chosen opponent gets if the gift is promised. */
+  gift?: GiftKind;
+}
+
+/**
+ * A way to cast a card other than for its mana cost from the hand (`CardDef.castOptions`, PLAN-M M5), by `kind`:
+ * - `flashback` (702.34): from the graveyard for `cost`, then exiled; `extra`: costs in addition to it (Twinned Vision:
+ *   "discard a card"; Group Project: "tap three creatures"; Deep Analysis: "pay 3 life"); `harmonize` (702.180): the
+ *   same casting for the harmonize cost, a tapped creature you control reducing it by {X}, X being its power;
+ * - `graveyard`: "you may cast this card from your graveyard [if…]" (Lightwheel Enhancements: max speed); `discard`: by
+ *   discarding that many additional cards (Alien Symbiosis), matching `discardFilter` (retrace, 702.81: a land card,
+ *   read from the text); `removeCountersAmong`: by removing N counters from among your creatures (Quilled Greatwurm,
+ *   same key as `PlayFromZone`);
+ * - `mayhem` (Spider-Man): castable from the graveyard for `cost` if it was discarded this turn;
+ * - `madness` (702.35): when discarded, the card goes to exile and may be cast for `cost` (read from the text);
+ * - `warp` (702.185): `cost`, additional `life`, and also castable from the graveyard (`fromGraveyard`, Timeline Culler);
+ * - `plot` (702.170): cost of the special action "plot this card" (read from the text);
+ * - `foretell` (702.143): cost to cast the foretold card on a later turn (read from the text);
+ * - `flash`: "you may cast this spell as though it had flash if you pay `cost` more to cast it";
+ * - `alternative`: "you may pay `mana` rather than pay this spell's mana cost [if…]" (118.9); `via`: the name of the
+ *   cost, recorded at cast time (`CastInfo.via`) and read by `cond.castVia` and the rules: evoke (702.74, the creature
+ *   is sacrificed when it enters), sneak (702.190, an unblocked attacker returned), web-slinging (a tapped creature
+ *   returned), impending (702.176, `impending` time counters as it enters), dash, blitz; `pay`: other things paid
+ *   along with the mana (Force of Will: 1 life and a blue card exiled from hand; Daze: an Island you control returned
+ *   to hand; emerge: a creature sacrificed), the objects chosen automatically; `forage`: "forage" instead of the mana
+ *   (Feed the Cycle);
+ * - `faceDown`: disguise (702.168), cast face down as a 2/2 creature for {3}, `cost` turning it face up; `morph`
+ *   (702.37): the same without ward {2}; `reducedBy`: "this cost is reduced by {1} for each…" (Fugitive Codebreaker).
+ */
+export type CastOption =
+  | { kind: "flashback"; cost: ManaCost; extra?: AdditionalCost; harmonize?: boolean }
+  | {
+      kind: "graveyard";
+      condition?: Condition;
+      payLife?: number;
+      sacrifice?: ObjectFilter;
+      discard?: number;
+      discardFilter?: ObjectFilter;
+      finality?: boolean;
+      removeCountersAmong?: number;
+    }
+  | { kind: "mayhem"; cost: ManaCost }
+  | { kind: "madness"; cost: ManaCost }
+  | { kind: "warp"; cost: ManaCost; life?: number; fromGraveyard?: boolean }
+  | { kind: "plot"; cost: ManaCost }
+  | { kind: "foretell"; cost: ManaCost }
+  | { kind: "flash"; cost: ManaCost }
+  | {
+      kind: "alternative";
+      mana: ManaCost;
+      condition: Condition;
+      label: string;
+      forage?: boolean;
+      via?: CastVia;
+      pay?: AltCostPay;
+      impending?: number;
+    }
+  | { kind: "faceDown"; cost: ManaCost; morph?: true; reducedBy?: Amount };
+
+/** Rules printed on a card about how it is cast, resolves or behaves (`CardDef.rules`, PLAN-M M5). */
+export interface CardRules {
+  /** "This spell can't be countered." */
+  cantBeCountered?: boolean;
+  /** "This spell can't be copied" (Choreographed Sparks). */
+  cantBeCopied?: boolean;
+  /** "Exile [this spell]" on resolution, instead of the graveyard (Step Between Worlds). */
+  exileOnResolve?: boolean;
+  /** "If this card would be put into a graveyard from anywhere, shuffle it into its owner's library instead." */
+  shuffleIntoLibrary?: boolean;
+  /** Paradigm (Strixhaven): exiled on resolution; a free copy at the beginning of each of your main phases. */
+  paradigm?: boolean;
+  /** Storied (The Hobbit): its controller may gain an enduring story (see `stateBasedActions`). */
+  storied?: boolean;
+  /** Aura: "You control enchanted permanent" (Confiscate). */
+  controlsEnchanted?: boolean;
+  /** Wilt-Leaf Liege: discarded by a spell or ability an opponent controls, it goes to the battlefield. */
+  opponentDiscardToBattlefield?: boolean;
+  /** Cloud, Planet's Champion: "equip abilities you activate that target it cost {N} less to activate". */
+  equipDiscountWhenTargeted?: number;
+  /**
+   * Activated abilities of sources with the chosen name (`GameObject.chosen.cardName`): cost {N} more (Skyseer's
+   * Chariot), or can't be activated unless they're mana abilities (`"forbid"`: Sorcerous Spyglass, Petrified
+   * Hamlet).
+   */
+  chosenNameAbilities?: number | "forbid";
+  /** "You can't cast this spell unless…" (Proft, Sinister Mastermind: threshold). */
+  castCondition?: Condition;
+  /** "[This card] has flash as long as …" (Take for a Ride, Colossal Rattlewurm). */
+  flashIf?: Condition;
+  /**
+   * "… if you controlled a Faerie as you cast this spell" (Faerie Fencing, Steer Clear): evaluated at cast time,
+   * remembered by the spell (`cond.metWhenCast`).
+   */
+  whenCast?: Condition;
 }
 
 /** A printing of a card: its set, its number and its art. */
@@ -395,7 +396,7 @@ export type AbilityDef =
 
 export interface AdditionalCost {
   discard?: number;
-  /** "Pay N life" (Deep Analysis: "Flashback—{1}{U}, Pay 3 life", in `flashbackCost`). */
+  /** "Pay N life" (Deep Analysis: "Flashback—{1}{U}, Pay 3 life", in the `extra` of the flashback option). */
   payLife?: number;
   /** Only matching cards (retrace, 702.81: a land card). */
   discardFilter?: ObjectFilter;
@@ -434,6 +435,22 @@ export interface AdditionalCost {
    * player chooses (otherwise as few as possible).
    */
   sacrificeToPay?: SacrificeToPay;
+  /**
+   * X of the spell paid other than with mana, as an additional cost: "pay X life" (`life`, Vicious Rivalry),
+   * "blight X" (`blight`, Soul Immolation: X at most the greatest toughness among your creatures; the creature
+   * is chosen as for an ability cost, `blightTarget`).
+   */
+  xCost?: "life" | "blight" | "waterbend";
+  /**
+   * Waterbend as an additional cost of the spell (Avatar): "waterbend {N}" (`waterbend: N`), "waterbend {X}"
+   * (`xCost: "waterbend"`), or optional "you may waterbend {N}" (the kicker, `kicker.kind: "waterbend"`). That mana
+   * may be paid by tapping untapped artifacts and creatures ({1} each).
+   */
+  waterbend?: number;
+  /** "This spell costs [mana] more to cast for each target beyond the first" (Officious Interrogation). */
+  costPerExtraTarget?: ManaCost;
+  /** "As an additional cost, forage or pay [mana]" (Feed the Cycle): the "Forage" alternative cost avoids it. */
+  forageOrPay?: ManaCost;
 }
 
 /** Sacrifice as an additional cost that pays part of the generic cost (`AdditionalCost.sacrificeToPay`). */

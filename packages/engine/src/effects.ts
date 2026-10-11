@@ -4,6 +4,7 @@
  */
 
 import { type DamageSource, payLife, removeFromCombat, sourceFromObject } from "./actions";
+import { castOption } from "./cardDef";
 import { cardRef } from "./choices";
 import { colorIdentity } from "./identity";
 import { copiedDefId, hasType } from "./layers";
@@ -1138,18 +1139,19 @@ export function attach(s: GameState, what: ObjectId, to: ObjectId): boolean {
  */
 export function moveDiscarded(s: GameState, player: PlayerId, card: ObjectId, byEffect = false): ObjectId | null {
   const d = s.defs[s.objects[card]?.defId ?? ""];
+  const madness = castOption(d, "madness")?.cost;
   // Library of Leng: discarded by an effect, the card can go on top of the library (automatic choice: yes, except a
   // card with madness).
-  if (byEffect && !d?.madness && playerStatic(s, player, "discardToLibraryTop"))
+  if (byEffect && !madness && playerStatic(s, player, "discardToLibraryTop"))
     return moveObject(s, card, "library", { position: "top" });
-  if (!d?.madness) return moveObject(s, card, "graveyard");
+  if (!d || !madness) return moveObject(s, card, "graveyard");
   const exiled = moveObject(s, card, "exile");
   if (exiled) {
     const c: Ref = { kind: "target", id: "c" };
     pushInline(s, player, exiled, d.id, {
       targets: [],
       effects: [
-        { op: "castNow", what: c, cost: d.madness },
+        { op: "castNow", what: c, cost: madness },
         { op: "moveTo", what: c, spec: { to: "graveyard" } },
       ],
       bound: { c: [exiled] },
@@ -1244,7 +1246,8 @@ export function putFaceDown(s: GameState, controller: PlayerId, id: ObjectId, wa
   const o = s.objects[id];
   if (!o || o.zone === "battlefield") return null;
   const d = s.defs[o.defId];
-  const upCosts = [...(d?.disguise ? [d.disguise] : []), ...(d?.types.includes("Creature") && d.manaCost ? [d.manaCost] : [])];
+  const disguise = castOption(d, "faceDown")?.cost;
+  const upCosts = [...(disguise ? [disguise] : []), ...(d?.types.includes("Creature") && d.manaCost ? [d.manaCost] : [])];
   emit({ type: "moved", owner: o.owner, from: o.zone, to: "battlefield" });
   return moveObject(s, id, "battlefield", { controller, faceDown: { ward, upCosts } });
 }

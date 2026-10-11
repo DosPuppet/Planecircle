@@ -1,6 +1,7 @@
 /** Engine effects: moves between zones (destroy, exile, sacrifice, search, mill, discard…). Each key is an `op` of `Effect` (see `runEffect`, effects.ts). */
 
 import { dealDamage, destroy, drawCards, removeFromCombat, sacrifice } from "../actions";
+import { cardRule } from "../cardDef";
 import { cardRef } from "../choices";
 import type { EffectContext, OpHandlers, OpResult } from "../effects";
 import {
@@ -972,7 +973,7 @@ export const HANDLERS: OpHandlers = {
       emit({ type: "discard", player: p, defIds: chosen.map((id) => s.objects[id]?.defId ?? "") });
       for (const id of chosen) {
         // Wilt-Leaf Liege: discarded by an opposing effect, it goes onto the battlefield.
-        const toField = p !== ctx.controller && !!s.defs[s.objects[id]?.defId ?? ""]?.opponentDiscardToBattlefield;
+        const toField = p !== ctx.controller && !!cardRule(s.defs[s.objects[id]?.defId ?? ""], "opponentDiscardToBattlefield");
         const moved = toField ? moveObject(s, id, "battlefield") : moveDiscarded(s, p, id, true);
         if (!toField) announceDiscard(s, p, moved);
         // The discarded cards, for `ref.stored` (Ninja's Blades: "the discarded card's mana value").

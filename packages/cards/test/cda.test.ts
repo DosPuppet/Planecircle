@@ -18,7 +18,7 @@ describe("amounts of ability-defined P/T", () => {
   it("all the kinds used are computed by cdaValue", () => {
     const bad: string[] = [];
     for (const c of implementedCards()) {
-      const amounts: (Amount | undefined)[] = [c.cdaPT, c.cdaPower, c.cdaToughness];
+      const amounts: (Amount | undefined)[] = [c.cda?.pt, c.cda?.power, c.cda?.toughness];
       for (const ab of c.abilities) if (ab.kind === "static" && ab.perAmount !== undefined) amounts.push(ab.perAmount);
       for (const a of amounts) for (const k of kinds(a)) if (!CDA_AMOUNT_KINDS.has(k)) bad.push(`${c.name}: ${k}`);
     }

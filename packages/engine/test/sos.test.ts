@@ -4722,7 +4722,7 @@ describe("Secrets of Strixhaven, lot C2: free spell once each turn, copies", () 
     expect(mode).toBeDefined();
     s = settle(act(s, "p1", { type: "cast", card, mode: mode?.index, targets: { a: [strike] } }));
     expect(s.players.p2?.life).toBe(14);
-    expect(Object.values(s.defs).find((d) => d.name === "Choreographed Sparks")?.cantBeCopied).toBe(true);
+    expect(Object.values(s.defs).find((d) => d.name === "Choreographed Sparks")?.rules?.cantBeCopied).toBe(true);
   });
 
   it("Choreographed Sparks: the copy of a creature spell has haste and is sacrificed at the beginning of the end step", () => {

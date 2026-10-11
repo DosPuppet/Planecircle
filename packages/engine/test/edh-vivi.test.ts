@@ -4,6 +4,7 @@
  * the game, Chain of Vapor's copies, Intuition.
  */
 import { describe, expect, it } from "vitest";
+import { castOption } from "../src/cardDef";
 import { submit } from "../src/game";
 import { chars } from "../src/layers";
 import { legalActions } from "../src/legal";
@@ -493,7 +494,8 @@ describe("Vivi Ornitier, Storm (EDH)", () => {
     const s = scenario({
       p1: { battlefield: lands("Mountain", 3), graveyard: ["Faithless Looting", "Strike It Rich", "Lingering Souls"] },
     });
-    const cost = (name: string) => s.defs[s.objects[idOf(s, "p1", "graveyard", name)]?.defId ?? ""]?.flashback;
+    const cost = (name: string) =>
+      castOption(s.defs[s.objects[idOf(s, "p1", "graveyard", name)]?.defId ?? ""], "flashback")?.cost;
     expect(cost("Faithless Looting")).toMatchObject({ generic: 2, colored: { R: 1 } });
     expect(cost("Strike It Rich")).toMatchObject({ generic: 2, colored: { R: 1 } });
     expect(cost("Lingering Souls")).toMatchObject({ generic: 1, colored: { B: 1 } });

@@ -15,6 +15,7 @@ import {
   setSpeed,
   sourceFromObject,
 } from "./actions";
+import { cardRule } from "./cardDef";
 import { absentAnswer, ask, cardRef } from "./choices";
 import { announceDiscard, announceDiscardBatch, evalAmount, moveDiscarded, staticContext } from "./effects";
 import { rethrowAsRules } from "./errors";
@@ -1919,7 +1920,7 @@ function stateBasedActionsOnce(s: GameState): boolean {
     for (const id of s.battlefield) {
       const p = obj(s, id).controller;
       const pl = s.players[p];
-      if (!pl || !s.defs[obj(s, id).defId]?.storied || pl.designations?.includes("enduringStory")) continue;
+      if (!pl || !cardRule(s.defs[obj(s, id).defId], "storied") || pl.designations?.includes("enduringStory")) continue;
       const n = s.battlefield.filter((x) => {
         if (obj(s, x).controller !== p) return false;
         const c = chars(s, x);

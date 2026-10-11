@@ -2,15 +2,19 @@
  * Conversion of the Scryfall data (data/*.json) into engine card definitions.
  */
 import {
+  type AdditionalCost,
   type CardDef,
+  type CardRules,
   type CardScript,
   type CardType,
+  type CastOption,
   type Color,
   CREATURE_TYPES,
   cardRef,
   dsl,
   type Effect,
   type Keyword,
+  type KickerDef,
   type ManaCost,
   msg,
   type ObjectFilter,
@@ -293,11 +297,12 @@ function asEntersOf(script: Effect[] | undefined, text: string): Effect[] | unde
 }
 
 /** Warp (702.185): "Warp {1}{W}" or "Warp—{B}, Pay 2 life."; "…from your graveyard using its warp ability". */
-export function parseWarp(text: string): CardDef["warp"] {
+export function parseWarp(text: string): Extract<CastOption, { kind: "warp" }> | undefined {
   const t = stripReminder(text);
   const m = /^Warp(?: |—)((?:\{[^}]+\})+)(?:, [Pp]ay (\d+) life)?/m.exec(t);
   if (!m) return undefined;
   return {
+    kind: "warp",
     cost: parseManaCost(m[1] as string),
     life: m[2] ? Number(m[2]) : undefined,
     fromGraveyard: /You may cast this card from your graveyard using its warp ability/.test(t) || undefined,
@@ -311,13 +316,16 @@ export function parseImpending(text: string): { n: number; cost: string } | unde
   return m ? { n: Number(m[1]), cost: m[2] as string } : undefined;
 }
 
-function impendingAltCost(text: string): CardDef["altCost"] {
+function impendingAltCost(text: string): AlternativeCost | undefined {
   const imp = parseImpending(text);
   return imp
     ? {
+        kind: "alternative",
         mana: parseManaCost(imp.cost),
         condition: { kind: "all", of: [] },
         label: msg("Impending {n} — {cost}", { n: imp.n, cost: imp.cost }),
+        via: "impending",
+        impending: imp.n,
       }
     : undefined;
 }
@@ -352,7 +360,7 @@ function parseMadnessPay(text: string): ManaCost | undefined {
 }
 
 /** Disguise (702.168) or morph (702.37, Grim Haruspex): the cost to turn the card face up. */
-export function parseDisguise(text: string): CardDef["disguise"] {
+export function parseDisguise(text: string): ManaCost | undefined {
   const m = /^(?:Disguise|Morph) ((?:\{[^}]+\})+)/m.exec(stripReminder(text));
   return m ? parseManaCost(m[1] as string) : undefined;
 }
@@ -489,7 +497,7 @@ export function parseOffspring(text: string): string | undefined {
   return /^Offspring ((?:\{[^}]+\})+)/m.exec(text)?.[1];
 }
 
-const GIFTS: Record<string, NonNullable<CardDef["gift"]>> = {
+const GIFTS: Record<string, NonNullable<KickerDef["gift"]>> = {
   card: "card",
   Food: "food",
   "tapped Fish": "fish",
@@ -497,7 +505,7 @@ const GIFTS: Record<string, NonNullable<CardDef["gift"]>> = {
 };
 
 /** Gift (702.174): "Gift a card", "Gift a Food", "Gift a tapped Fish", "Gift a Treasure". */
-export function parseGift(text: string): CardDef["gift"] {
+export function parseGift(text: string): KickerDef["gift"] {
   const m = /^Gift an? (card|Food|tapped Fish|Treasure)\b/m.exec(text);
   return m ? GIFTS[m[1] as string] : undefined;
 }
@@ -505,7 +513,7 @@ export function parseGift(text: string): CardDef["gift"] {
 const GIFT_TOKENS = { food: FOOD, fish: FISH, treasure: TREASURE } as const;
 
 /** The effect of the promised gift (702.174b: the opponent gets it before the spell's other effects). */
-function giftEffects(kind: NonNullable<CardDef["gift"]>): Effect[] {
+function giftEffects(kind: NonNullable<KickerDef["gift"]>): Effect[] {
   const token = kind === "card" ? undefined : GIFT_TOKENS[kind];
   return [
     { op: "if", cond: { kind: "kicked" }, skip: 1 },
@@ -925,6 +933,85 @@ function splitSubtypes(right: string): string[] {
   return out;
 }
 
+/**
+ * Additional costs of the spell (PLAN-M M5): the script's, X paid other than with mana and waterbending read from the
+ * text, the surcharge per extra target and "forage or pay" of the script.
+ */
+function additionalCostOf(
+  script: CardScript | undefined,
+  xCost: AdditionalCost["xCost"],
+  waterbend: number | undefined,
+): AdditionalCost | undefined {
+  const add: AdditionalCost = {
+    ...script?.additionalCost,
+    ...(xCost ? { xCost } : {}),
+    ...(waterbend !== undefined ? { waterbend } : {}),
+    ...(script?.costPerExtraTarget ? { costPerExtraTarget: parseManaCost(script.costPerExtraTarget) } : {}),
+    ...(script?.forageOrPay ? { forageOrPay: parseManaCost(script.forageOrPay) } : {}),
+  };
+  return script?.additionalCost || Object.keys(add).length ? add : undefined;
+}
+
+/** The card's rules (PLAN-M M5): only those it has; none, no object. */
+function cardRulesOf(rules: CardRules): CardRules | undefined {
+  const out = Object.fromEntries(Object.entries(rules).filter(([, v]) => v !== undefined)) as CardRules;
+  return Object.keys(out).length ? out : undefined;
+}
+
+/** The alternative cost of a card (`CastOption` of kind `alternative`). */
+type AlternativeCost = Extract<CastOption, { kind: "alternative" }>;
+
+/**
+ * The other ways to cast the card (PLAN-M M5), read from the text or written by the script: flashback (or harmonize,
+ * the same casting for the harmonize cost), from the graveyard (retrace: by discarding a land card in addition),
+ * mayhem, madness, warp, plot, foretell, flash for a surcharge, the alternative cost, face down (disguise, morph).
+ */
+function castOptionsOf(
+  raw: RawCard,
+  script: CardScript | undefined,
+  flashback: string | undefined,
+  harmonize: boolean,
+  mayhem: string | undefined,
+  alternative: AlternativeCost | undefined,
+): CastOption[] | undefined {
+  const text = raw.oracleText;
+  const flashbackCost = script?.flashback ?? flashback;
+  const graveyard =
+    script?.castFromGraveyard ?? (/^Retrace\b/m.test(text) ? { discard: 1, discardFilter: { types: ["Land"] } } : undefined);
+  const madness = parseKeywordCost(text, "Madness") ?? parseMadnessPay(text);
+  const plot = parsePlot(text);
+  const foretell = parseForetell(text);
+  const disguise = parseDisguise(text);
+  const options: (CastOption | undefined)[] = [
+    flashbackCost
+      ? {
+          kind: "flashback",
+          cost: parseManaCost(flashbackCost),
+          ...(script?.flashbackCost ? { extra: script.flashbackCost } : {}),
+          ...(harmonize ? { harmonize: true } : {}),
+        }
+      : undefined,
+    graveyard ? { kind: "graveyard", ...graveyard } : undefined,
+    mayhem ? { kind: "mayhem", cost: parseManaCost(mayhem) } : undefined,
+    madness ? { kind: "madness", cost: madness } : undefined,
+    parseWarp(text),
+    plot ? { kind: "plot", cost: plot } : undefined,
+    foretell ? { kind: "foretell", cost: foretell } : undefined,
+    script?.flashExtraCost ? { kind: "flash", cost: parseManaCost(script.flashExtraCost) } : undefined,
+    alternative,
+    disguise
+      ? {
+          kind: "faceDown",
+          cost: disguise,
+          ...(/^Morph \{/m.test(stripReminder(text)) ? { morph: true as const } : {}),
+          ...(script?.disguiseReduction ? { reducedBy: script.disguiseReduction } : {}),
+        }
+      : undefined,
+  ];
+  const out = options.filter((o): o is CastOption => !!o);
+  return out.length ? out : undefined;
+}
+
 function singleDef(raw: RawCard, script: CardScript | undefined, set: string): CardDef {
   const [left = "", right = ""] = raw.typeLine.split(" — ");
   const words = left.split(" ").filter(Boolean);
@@ -1228,6 +1315,142 @@ function singleDef(raw: RawCard, script: CardScript | undefined, set: string): C
       : script?.spell;
   // Station: a threshold whose abilities (other than keywords) are not scripted makes the card unhandled.
   if (stationIncomplete) implemented = false;
+  const kickerMana = script?.kicker
+    ? parseManaCost(script.kicker)
+    : replicate || squad || multikicker
+      ? parseManaCost(replicate ?? squad ?? multikicker ?? "")
+      : offspring
+        ? parseManaCost(offspring)
+        : waterbendKicker
+          ? parseManaCost(waterbendKicker)
+          : gift || bargain || lifeOrPay || blight || teamwork || evidence || exileGraveyard
+            ? parseManaCost("{0}")
+            : undefined;
+  const kickerKind: KickerDef["kind"] = replicate
+    ? "replicate"
+    : squad
+      ? "squad"
+      : multikicker
+        ? "multikicker"
+        : offspring
+          ? "offspring"
+          : waterbendKicker
+            ? "waterbend"
+            : lifeOrPay
+              ? "life"
+              : gift
+                ? "gift"
+                : bargain
+                  ? "bargain"
+                  : blight
+                    ? "blight"
+                    : teamwork
+                      ? "teamwork"
+                      : evidence
+                        ? "evidence"
+                        : exileGraveyard
+                          ? "exileGraveyard"
+                          : undefined;
+  const kickerPay: KickerDef["pay"] =
+    script?.kickerCost ??
+    (bargain
+      ? { sacrifice: BARGAIN_FILTER }
+      : blight
+        ? { blight }
+        : teamwork
+          ? { tapPower: teamwork }
+          : evidence
+            ? { collectEvidence: evidence }
+            : exileGraveyard
+              ? { exileGraveyard }
+              : lifeOrPay
+                ? { life: Number(lifeOrPay[1]) }
+                : undefined);
+  const kickerOrPay = blightOrPay
+    ? parseManaCost(blightOrPay)
+    : exileOrPay
+      ? parseManaCost(exileOrPay[2] as string)
+      : lifeOrPay
+        ? parseManaCost(lifeOrPay[2] as string)
+        : undefined;
+  const kickerDef: KickerDef | undefined = kickerMana
+    ? { mana: kickerMana, kind: kickerKind, pay: kickerPay, orPay: kickerOrPay, gift }
+    : undefined;
+  const alternative: AlternativeCost | undefined = script?.altCost
+    ? {
+        kind: "alternative",
+        mana: parseManaCost(script.altCost.mana),
+        condition: script.altCost.condition,
+        label: script.altCost.label,
+        ...(script.altCost.pay ? { pay: script.altCost.pay } : {}),
+      }
+    : script?.forageOrPay && manaCost
+      ? {
+          kind: "alternative",
+          mana: manaCost,
+          condition: dsl.cond.canForage,
+          label: msg("Forage — {cost}", { cost: raw.manaCost }),
+          forage: true,
+        }
+      : evoke
+        ? {
+            kind: "alternative",
+            mana: parseManaCost(evoke),
+            condition: dsl.cond.all(),
+            label: msg("Evoke — {cost}", { cost: evoke }),
+            via: "evoke",
+          }
+        : sneak
+          ? {
+              kind: "alternative",
+              mana: parseManaCost(sneak),
+              condition: dsl.cond.sneakWindow,
+              label: msg("Sneak — {cost}", { cost: sneak }),
+              via: "sneak",
+            }
+          : dash
+            ? {
+                kind: "alternative",
+                mana: parseManaCost(dash),
+                condition: dsl.cond.all(),
+                label: msg("Dash — {cost}", { cost: dash }),
+                via: "dash",
+              }
+            : blitz
+              ? {
+                  kind: "alternative",
+                  mana: parseManaCost(blitz),
+                  condition: dsl.cond.all(),
+                  label: msg("Blitz — {cost}", { cost: blitz }),
+                  via: "blitz",
+                }
+              : emerge
+                ? {
+                    kind: "alternative",
+                    mana: parseManaCost(emerge),
+                    condition: dsl.cond.controls({ types: [emergeFrom] }),
+                    label:
+                      emergeFrom === "Artifact"
+                        ? msg("Emerge from artifact — {cost}", { cost: emerge })
+                        : msg("Emerge — {cost}", { cost: emerge }),
+                    pay: { sacrificeReduce: { types: [emergeFrom] } },
+                  }
+                : spectacle
+                  ? {
+                      kind: "alternative",
+                      mana: parseManaCost(spectacle),
+                      condition: dsl.cond.opponentLostLife,
+                      label: msg("Spectacle — {cost}", { cost: spectacle }),
+                    }
+                  : webSlinging
+                    ? {
+                        kind: "alternative",
+                        mana: parseManaCost(webSlinging),
+                        condition: dsl.cond.controls({ types: ["Creature"], tapped: true }),
+                        label: msg("Web-slinging — {cost}", { cost: webSlinging }),
+                        via: "webSlinging",
+                      }
+                    : impendingAltCost(raw.oracleText);
   const def: CardDef = {
     id: slug(raw.name),
     name: raw.name,
@@ -1268,176 +1491,40 @@ function singleDef(raw: RawCard, script: CardScript | undefined, set: string): C
       ...bloomburrowAbilities,
     ],
     ...levelFields,
-    cdaPower: script?.cdaPower,
-    cdaToughness: script?.cdaToughness,
-    castCondition: script?.castCondition,
-    whenCast: script?.whenCast,
-    flashExtraCost: script?.flashExtraCost ? parseManaCost(script.flashExtraCost) : undefined,
-    opponentDiscardToBattlefield: script?.opponentDiscardToBattlefield,
-    controlsEnchanted: script?.controlsEnchanted,
     enchant: script?.enchant,
     loyalty: raw.loyalty ? Number(raw.loyalty) : undefined,
     leyline: script?.leyline,
-    altCost: script?.altCost
-      ? {
-          mana: parseManaCost(script.altCost.mana),
-          condition: script.altCost.condition,
-          label: script.altCost.label,
-          ...(script.altCost.pay ? { pay: script.altCost.pay } : {}),
-        }
-      : script?.forageOrPay && manaCost
-        ? {
-            mana: manaCost,
-            condition: dsl.cond.canForage,
-            label: msg("Forage — {cost}", { cost: raw.manaCost }),
-            forage: true,
-          }
-        : evoke
-          ? { mana: parseManaCost(evoke), condition: dsl.cond.all(), label: msg("Evoke — {cost}", { cost: evoke }) }
-          : sneak
-            ? { mana: parseManaCost(sneak), condition: dsl.cond.sneakWindow, label: msg("Sneak — {cost}", { cost: sneak }) }
-            : dash
-              ? {
-                  mana: parseManaCost(dash),
-                  condition: dsl.cond.all(),
-                  label: msg("Dash — {cost}", { cost: dash }),
-                  via: "dash" as const,
-                }
-              : blitz
-                ? {
-                    mana: parseManaCost(blitz),
-                    condition: dsl.cond.all(),
-                    label: msg("Blitz — {cost}", { cost: blitz }),
-                    via: "blitz" as const,
-                  }
-                : emerge
-                  ? {
-                      mana: parseManaCost(emerge),
-                      condition: dsl.cond.controls({ types: [emergeFrom] }),
-                      label:
-                        emergeFrom === "Artifact"
-                          ? msg("Emerge from artifact — {cost}", { cost: emerge })
-                          : msg("Emerge — {cost}", { cost: emerge }),
-                      pay: { sacrificeReduce: { types: [emergeFrom] } },
-                    }
-                  : spectacle
-                    ? {
-                        mana: parseManaCost(spectacle),
-                        condition: dsl.cond.opponentLostLife,
-                        label: msg("Spectacle — {cost}", { cost: spectacle }),
-                      }
-                    : webSlinging
-                      ? {
-                          mana: parseManaCost(webSlinging),
-                          condition: dsl.cond.controls({ types: ["Creature"], tapped: true }),
-                          label: msg("Web-slinging — {cost}", { cost: webSlinging }),
-                        }
-                      : impendingAltCost(raw.oracleText),
-    forageOrPay: script?.forageOrPay ? parseManaCost(script.forageOrPay) : undefined,
-    impending: parseImpending(raw.oracleText)?.n,
-    cdaPT: script?.cdaPT,
-    shuffleIntoLibrary: script?.shuffleIntoLibrary,
-    // Retrace (702.81): from the graveyard, by discarding a land card in addition.
-    castFromGraveyard:
-      script?.castFromGraveyard ??
-      (/^Retrace\b/m.test(raw.oracleText) ? { discard: 1, discardFilter: { types: ["Land"] } } : undefined),
-    flashIf: script?.flashIf,
-    exileOnResolve: script?.exileOnResolve,
-    chosenNameAbilities: script?.chosenNameAbilities,
+    cda:
+      script?.cdaPT !== undefined || script?.cdaPower !== undefined || script?.cdaToughness !== undefined
+        ? { pt: script?.cdaPT, power: script?.cdaPower, toughness: script?.cdaToughness }
+        : undefined,
     ward,
-    cantBeCountered: script?.cantBeCountered,
-    cantBeCopied: /This spell can't be copied\./.test(raw.oracleText) || undefined,
-    costPerExtraTarget: script?.costPerExtraTarget ? parseManaCost(script.costPerExtraTarget) : undefined,
     spell,
-    kicker: script?.kicker
-      ? parseManaCost(script.kicker)
-      : replicate || squad || multikicker
-        ? parseManaCost(replicate ?? squad ?? multikicker ?? "")
-        : offspring
-          ? parseManaCost(offspring)
-          : waterbendKicker
-            ? parseManaCost(waterbendKicker)
-            : gift || bargain || lifeOrPay || blight || teamwork || evidence || exileGraveyard
-              ? parseManaCost("{0}")
-              : undefined,
-    kickerKind: replicate
-      ? "replicate"
-      : squad
-        ? "squad"
-        : multikicker
-          ? "multikicker"
-          : offspring
-            ? "offspring"
-            : waterbendKicker
-              ? "waterbend"
-              : lifeOrPay
-                ? "life"
-                : gift
-                  ? "gift"
-                  : bargain
-                    ? "bargain"
-                    : blight
-                      ? "blight"
-                      : teamwork
-                        ? "teamwork"
-                        : evidence
-                          ? "evidence"
-                          : exileGraveyard
-                            ? "exileGraveyard"
-                            : undefined,
-    gift,
-    kickerCost:
-      script?.kickerCost ??
-      (bargain
-        ? { sacrifice: BARGAIN_FILTER }
-        : blight
-          ? { blight }
-          : teamwork
-            ? { tapPower: teamwork }
-            : evidence
-              ? { collectEvidence: evidence }
-              : exileGraveyard
-                ? { exileGraveyard }
-                : lifeOrPay
-                  ? { life: Number(lifeOrPay[1]) }
-                  : undefined),
-    // Harmonize (702.180): cast from the graveyard like flashback, for its harmonize cost.
-    flashback: script?.flashback
-      ? parseManaCost(script.flashback)
-      : harmonize
-        ? parseManaCost(harmonize)
-        : flashbackMana
-          ? parseManaCost(flashbackMana)
-          : undefined,
-    harmonize: harmonize ? true : undefined,
-    flashbackCost: script?.flashbackCost,
-    disguise: parseDisguise(raw.oracleText),
-    morph: /^Morph \{/m.test(stripReminder(raw.oracleText)) ? true : undefined,
-    madness: parseKeywordCost(raw.oracleText, "Madness") ?? parseMadnessPay(raw.oracleText),
-    disguiseReduction: script?.disguiseReduction,
-    warp: parseWarp(raw.oracleText),
-    plot: parsePlot(raw.oracleText),
-    foretell: parseForetell(raw.oracleText),
+    kicker: kickerDef,
+    rules: cardRulesOf({
+      cantBeCountered: script?.cantBeCountered,
+      cantBeCopied: /This spell can't be copied\./.test(raw.oracleText) || undefined,
+      exileOnResolve: script?.exileOnResolve,
+      shuffleIntoLibrary: script?.shuffleIntoLibrary,
+      paradigm: paradigm || undefined,
+      storied: storied || undefined,
+      controlsEnchanted: script?.controlsEnchanted,
+      opponentDiscardToBattlefield: script?.opponentDiscardToBattlefield,
+      equipDiscountWhenTargeted: script?.equipDiscountWhenTargeted,
+      chosenNameAbilities: script?.chosenNameAbilities,
+      castCondition: script?.castCondition,
+      flashIf: script?.flashIf,
+      whenCast: script?.whenCast,
+    }),
+    castOptions: castOptionsOf(raw, script, harmonize ?? flashbackMana, !!harmonize, mayhem, alternative),
     faceUpCounters: script?.faceUpCounters,
     asEnters: asEntersOf(script?.asEnters, raw.oracleText),
-    equipDiscountWhenTargeted: script?.equipDiscountWhenTargeted,
-    evoke: evoke ? parseManaCost(evoke) : undefined,
-    storied: storied || undefined,
-    sneak: sneak ? parseManaCost(sneak) : undefined,
-    mayhem: mayhem ? parseManaCost(mayhem) : undefined,
-    paradigm: paradigm || undefined,
-    webSlinging: webSlinging ? parseManaCost(webSlinging) : undefined,
-    xCost: payLifeX ? "life" : blightX ? "blight" : waterbendX ? "waterbend" : undefined,
-    waterbend: waterbendN,
-    kickerOrPay: blightOrPay
-      ? parseManaCost(blightOrPay)
-      : exileOrPay
-        ? parseManaCost(exileOrPay[2] as string)
-        : lifeOrPay
-          ? parseManaCost(lifeOrPay[2] as string)
-          : undefined,
     shockLand: shockLand || undefined,
-    additionalCost: script?.additionalCost,
+    additionalCost: additionalCostOf(
+      script,
+      payLifeX ? "life" : blightX ? "blight" : waterbendX ? "waterbend" : undefined,
+      waterbendN,
+    ),
     costReduction:
       script?.costReduction ??
       (affinityArtifacts ? { generic: dsl.amount.count({ types: ["Artifact"], controller: "you" }) } : undefined),

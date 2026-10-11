@@ -3,6 +3,7 @@
  * Hidden information (opponent's hand, libraries) never leaves the engine.
  */
 
+import { castOption } from "./cardDef";
 import { copiedDefId, FACE_DOWN_WARD, textBoxOf } from "./layers";
 import { legalActions } from "./legal";
 import { costToText, manaValue, payCostText, totalCost } from "./mana";
@@ -814,7 +815,7 @@ function withCastCost(s: GameState, player: PlayerId, v: ObjectView): ObjectView
   });
   if (terms.extraCost) cost = totalCost(cost, 0, { generic: terms.extraCost, colored: {}, x: 0 });
   // X is still to be chosen: it is shown as is.
-  const shown = { ...cost, x: terms.free ? 0 : ((flashback ? d.flashback : d.manaCost)?.x ?? 0) };
+  const shown = { ...cost, x: terms.free ? 0 : ((flashback ? castOption(d, "flashback")?.cost : d.manaCost)?.x ?? 0) };
   const text = costToText(shown);
   if (text === costToText(d.manaCost)) return v;
   return { ...v, castCost: { text, delta: manaValue(shown) - manaValue(d.manaCost) } };

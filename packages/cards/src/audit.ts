@@ -159,9 +159,25 @@ const IDENTITY_FIELDS = new Set([
   "prepareFace",
 ]);
 
-/** Ability fields (costs, permissions, entering…) filled in a definition. */
+/** Qualifiers of a cast option that carry a sentence of their own (flashback's extra costs, morph…). */
+const CAST_OPTION_EXTRAS = ["extra", "harmonize", "via", "impending", "morph", "reducedBy"] as const;
+
+/**
+ * Ability fields (costs, permissions, entering…) filled in a definition. The groups of PLAN-M M5 count by member, as
+ * when their members were fields of their own: the card rules, the kicker, the P/T defined by an ability, each cast
+ * option and its qualifiers.
+ */
 function abilityFields(d: CardDef): number {
-  return Object.entries(d).filter(([k, v]) => v !== undefined && !IDENTITY_FIELDS.has(k)).length;
+  let n = 0;
+  for (const [k, v] of Object.entries(d)) {
+    if (v === undefined || IDENTITY_FIELDS.has(k)) continue;
+    if (k === "rules" || k === "kicker" || k === "cda") n += Object.values(v as object).filter((x) => x !== undefined).length;
+    else if (k === "castOptions")
+      for (const o of d.castOptions ?? [])
+        n += 1 + CAST_OPTION_EXTRAS.filter((q) => (o as Record<string, unknown>)[q] !== undefined).length;
+    else n += 1;
+  }
+  return n;
 }
 
 /**

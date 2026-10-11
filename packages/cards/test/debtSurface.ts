@@ -257,7 +257,8 @@ export function engineLiterals(): string[] {
 /**
  * Surfaces measured by the debt guard (`debt.test.ts`, `ceilings` section, and `tools/debt-ceilings.ts`):
  * model interfaces (number of fields) and unions with a discriminant (variants, and fields of all variants).
- * PLAN-H H0: ten structures added, which were growing untracked; H10: `FilterCompare`.
+ * PLAN-H H0: ten structures added, which were growing untracked; H10: `FilterCompare`; PLAN-M M5: the `CardDef` groups
+ * (`KickerDef`, `CardRules`, the `CastOption` union).
  */
 export const INTERFACE_SURFACES = [
   "CardDef",
@@ -282,6 +283,8 @@ export const INTERFACE_SURFACES = [
   "AdditionalCost",
   "CastLimit",
   "NextSpell",
+  "KickerDef",
+  "CardRules",
 ] as const;
 export const UNION_SURFACES = [
   ["Effect", "op"],
@@ -289,6 +292,7 @@ export const UNION_SURFACES = [
   ["Condition", "kind"],
   ["Amount", "kind"],
   ["Ref", "kind"],
+  ["CastOption", "kind"],
 ] as const;
 
 /** Size of each model surface: fields of an interface, variants of a union, fields of all its variants. */
@@ -360,6 +364,9 @@ const NOT_MODEL_VALUES = new Set([
   "rarity",
 ]);
 
+/** Parent keys whose `kind` field is a closed list of values rather than a union discriminant (`KickerDef.kind`). */
+const QUALIFIED_KINDS = new Set(["kicker"]);
+
 /**
  * Closed model union values (`attached: "toHost"`, `spellFate.fate: "rebound"`…) that a single handled card
  * writes, counted per field and value pair: single-card debt that the keys do not show (audit of
@@ -368,15 +375,19 @@ const NOT_MODEL_VALUES = new Set([
 export function singleCardValues(cards: readonly { name: string }[]): number {
   const literals = modelLiterals();
   const users = new Map<string, Set<string>>();
-  const walk = (v: unknown, card: string, key: string): void => {
-    if (Array.isArray(v)) for (const x of v) walk(x, card, key);
+  const walk = (v: unknown, card: string, key: string, parent: string): void => {
+    if (Array.isArray(v)) for (const x of v) walk(x, card, key, parent);
     else if (v && typeof v === "object") {
       // Player-facing texts (labels, prompts; English since PLAN-I) are not model values, even when they read like one.
       if (key === "labels") return;
-      for (const [k, x] of Object.entries(v as Record<string, unknown>)) walk(x, card, k);
-    } else if (typeof v === "string" && !NOT_MODEL_VALUES.has(key) && !PLAYER_TEXT.has(key) && literals.has(v))
-      users.set(`${key}=${v}`, (users.get(`${key}=${v}`) ?? new Set()).add(card));
+      for (const [k, x] of Object.entries(v as Record<string, unknown>)) walk(x, card, k, key);
+    } else if (typeof v === "string") {
+      // A `kind` that is not a union discriminant (`KickerDef.kind`, PLAN-M M5) is a model value, qualified by its parent.
+      const field = key === "kind" && QUALIFIED_KINDS.has(parent) ? `${parent}.kind` : key;
+      if (!NOT_MODEL_VALUES.has(field) && !PLAYER_TEXT.has(field) && literals.has(v))
+        users.set(`${field}=${v}`, (users.get(`${field}=${v}`) ?? new Set()).add(card));
+    }
   };
-  for (const c of cards) walk(c, c.name, "");
+  for (const c of cards) walk(c, c.name, "", "");
   return [...users.values()].filter((u) => u.size === 1).length;
 }

@@ -457,7 +457,7 @@ export interface CastInfo {
   sneakDefender?: string;
   /** Behold as an additional cost (`cond.beheld`). */
   beheld?: boolean;
-  /** `CardDef.whenCast` met on cast ("if you controlled a Faerie as you cast this spell"). */
+  /** `CardDef.rules.whenCast` met on cast ("if you controlled a Faerie as you cast this spell"). */
   metWhenCast?: boolean;
   /**
    * Promised gift (702.174a): the opponent chosen as the spell is cast, announced like a division (`announceNext`);

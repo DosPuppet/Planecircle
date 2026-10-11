@@ -2,6 +2,7 @@
  * State manipulation primitives: ids, deterministic randomness,
  * events, zones and computed characteristics (layers).
  */
+import { cardRule } from "./cardDef";
 import { colorIdentity } from "./identity";
 import type {
   AbilityDef,
@@ -356,7 +357,7 @@ function controlClaims(s: GameState): Map<ObjectId, { ts: number; to: PlayerId }
     if (!aura || host?.zone !== "battlefield" || !inGame(s, aura.controller)) continue;
     const d = s.defs[aura.defId];
     // Confiscate: "you control enchanted permanent".
-    if (d?.controlsEnchanted) claim(host.id, aura.timestamp, aura.controller);
+    if (cardRule(d, "controlsEnchanted")) claim(host.id, aura.timestamp, aura.controller);
   }
   return claims;
 }
@@ -964,4 +965,4 @@ export {
  * (702.33c).
  */
 export const kickerPaidTimes = (d: CardDef): boolean =>
-  d.kickerKind === "replicate" || d.kickerKind === "squad" || d.kickerKind === "multikicker";
+  d.kicker?.kind === "replicate" || d.kicker?.kind === "squad" || d.kicker?.kind === "multikicker";

@@ -2789,7 +2789,7 @@ describe("Reality Fracture, batch K8: mythic, rare and uncommon cards", () => {
     it("Ruric Thar, Magecrusher: can't be countered; reach, vigilance, trample; hexproof as long as it hasn't dealt combat damage", () => {
       let s = scenario({ p1: { battlefield: ["Ruric Thar, Magecrusher"] } });
       const ruric = idOf(s, "p1", "battlefield", "Ruric Thar, Magecrusher");
-      expect(s.defs[s.objects[ruric]?.defId ?? ""]?.cantBeCountered).toBe(true);
+      expect(s.defs[s.objects[ruric]?.defId ?? ""]?.rules?.cantBeCountered).toBe(true);
       expect(chars(s, ruric).keywords).toEqual(expect.arrayContaining(["reach", "vigilance", "trample", "hexproof"]));
       s = attackThrough(s, [ruric]);
       expect(life(s, "p2")).toBe(13);

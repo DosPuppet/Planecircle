@@ -81,6 +81,7 @@
   "variant": {
     "Amount.numberChosen": "Wheel of Misfortune — union variant of a single card, tracked since the audit of 2026-10-07: to attach to a generic form when one exists",
     "Amount.pow": "Mathemagics — union variant of a single card, tracked since the audit of 2026-10-07: to attach to a generic form when one exists",
+    "CastOption.foretell": "Sozin's Comet — foretell (702.143, read from the text; the special action is the shared exileToCast op with kind foretell, PLAN-M M3a): the foretell cast option of CardDef.castOptions (PLAN-M M5, former CardDef.foretell key); a single Standard card for now",
     "Condition.behold": "Molten Exhale — \"as though it had flash if you behold a Dragon\": can a Dragon be beheld now (flashIf); Theorist's Sanctum, its other user, became a real \"as it enters\" behold (PLAN-L L5)",
     "Condition.beholdSharingType": "Celestial Reunion — union variant of a single card, tracked since the audit of 2026-10-07: to attach to a generic form when one exists",
     "Condition.extraTurn": "Medomai the Ageless — \"during extra turns\" (500.7, TurnState.extra); generic condition for every \"extra turn\" text, a single card for now",
@@ -112,7 +113,7 @@
     "costPerExtraTarget": "Officious Interrogation — a colored surcharge per extra target; Amount cost reductions are generic only",
     "createToken": "Head of the Hunt — property of a single card (audit of 2026-10-02, § 5.1): to attach to a family as soon as another card needs it",
     "discardRandom": "Alpharael, Stonechosen — discard:\"random\" would only trade a key for a single-card value",
-    "disguiseReduction": "Fugitive Codebreaker — the face-down 2/2 has no abilities, so abilityCost on itself cannot apply (layers.ts)",
+    "disguise": "Expose the Culprit — ObjectFilter.disguise (\"face-up creatures you control with disguise\"); the card's own disguise is a faceDown cast option since PLAN-M M5, which made this key visible",
     "distinctColors": "Sunbird Standard // Sunbird Effigy — property of a single card (audit of 2026-10-02, § 5.1): to attach to a family as soon as another card needs it",
     "effectOnly": "Doubling Season — a unique counter qualifier (counters put by effects only)",
     "emblems": "The Masamune — generic field of the triggerMod family (R4.5): abilities of the player's emblems (PLAN-C, C14)",
@@ -131,7 +132,6 @@
     "firstOf": "Alania, Divergent Storm — the turn log cannot exclude the source itself",
     "forageOrPay": "Feed the Cycle — property of a single card, invisible to the guard until the audit of 2026-10-07 (key written without a value by the builders, or declared away from the start of a line): to attach to a family",
     "forbidKeywords": "Archetype of Courage — \"loses [keyword] and can't have or gain it\" (LayerMods, removed at the end of layer 6): family of layer 6 abilities, to reuse for the other Archetypes",
-    "foretell": "Sozin's Comet — CardDef.foretell, the foretell cost (702.143, read from the text; the special action is the shared exileToCast op with kind foretell, PLAN-M M3a): a single Standard card for now; the field moves to castOptions in PLAN-M M5",
     "gainLife": "The Darkness Crystal — property of a single card (audit of 2026-10-02, § 5.1): to attach to a family as soon as another card needs it",
     "graveyard": "Animate Dead — \"enchant creature card in a graveyard\" (CardDef.enchant.graveyard): the Aura spell targets a card in a graveyard, which returns under the Aura's controller as the Aura enters attached to it; family of reanimation Auras (Necromancy, Dance of the Dead), to reuse for them",
     "graveyardPermanentTypes": "Muldrotha, the Gravetide — a per-type budget, no other card",
@@ -141,6 +141,7 @@
     "land": "Nicanzil, Current Conductor — an explore result qualifier",
     "linkEvidence": "Kylox's Voltstrider — the link must happen at payment, not on resolution",
     "maxCount": "Baron Helmut Zemo — a cap on copies cast",
+    "mayhem": "Norman Osborn // Green Goblin — granted mayhem (PlayFromZone.mayhem: \"each nonland card in your graveyard has mayhem\"); printed mayhem is a cast option since PLAN-M M5, which made this key visible",
     "minRemoved": "Way of the Mind Sculptor — a loyalty-paid threshold",
     "modal": "Riku of Many Paths — ObjectFilter.modal was deleted in PLAN-S S1; the trigger keeps its own flag",
     "mustBlockAttacker": "Tolsimir, Midnight's Light: \"blocks that creature if able\" (the event's object, fixed on resolution; PLAN-H H3 merged mustBlockEventObject into mustBlockAttacker); family of combat requirements (BlockRule)",
@@ -160,11 +161,13 @@
     "poison": "The Serpent Society — a ward cost kind",
     "preferHighManaValue": "Jade Seedstones // Jadeheart Attendant — property of a single card (audit of 2026-10-02, § 5.1): to attach to a family as soon as another card needs it",
     "preparedSpell": "Codie, Ravenous Codex — marker of the prepared copy",
+    "reducedBy": "Fugitive Codebreaker — \"this cost is reduced by {1} for each…\" on its disguise cost (the faceDown cast option, PLAN-M M5; former CardDef.disguiseReduction): the face-down 2/2 has no abilities, so abilityCost on itself cannot apply (layers.ts)",
     "removeCounter": "Ojer Pakpatiq, Deepest Epoch // Temple of Cyclical Time — property of a single card, invisible to the guard until the audit of 2026-10-07 (key written without a value by the builders, or declared away from the start of a line): to attach to a family",
     "removeSupertypes": "Shuri, Wakandan Inventor — property of a single card (audit of 2026-10-02, § 5.1): to attach to a family as soon as another card needs it",
     "replacePrevious": "Superior Foes of Spider-Man — a unique permission chaining",
     "revealFirstUpkeep": "Chancellor of the Spires — opening-hand reveal (CardDef.leyline, 103.6): the Chancellor cycle (Annex, Dross, Forge, Tangle) uses the same form",
     "secret": "A Killer Among Us — a hidden choice",
+    "sneak": "Ninja Teen — granted sneak (PlayFromZone.sneak, a Class level: \"creature cards in your graveyard have sneak\"); printed sneak is an alternative cast option via \"sneak\" since PLAN-M M5, which made this key visible",
     "spellToSoleTarget": "Imodane, the Pyrohammer — unique",
     "stash": "Tinybones, Bauble Burglar — property of a single card (audit of 2026-10-02, § 5.1): to attach to a family as soon as another card needs it",
     "storeAll": "Dazzling Sphinx — exileUntil remembers every exiled card (\"the exiled cards that weren't cast\"); to reuse for any \"exile until … put the rest\" text",
@@ -174,13 +177,14 @@
     "topDamage": "Clash of Elements — depends on the owner's choice, no result stored",
     "totalManaValue": "Fabrication Foundry — the pay effect exiles permanents you control with total mana value N or greater, the cheapest first (former exileForManaValue op, PLAN-M M4); to reuse for any \"exile/sacrifice … with total mana value N or greater\" paid during a resolution",
     "triggered": "Koh, the Face Stealer — property of a single card, invisible to the guard until the audit of 2026-10-07 (key written without a value by the builders, or declared away from the start of a line): to attach to a family",
+    "webSlinging": "Peter Parker // Amazing Spider-Man — granted web-slinging (altCostAll.webSlinging: \"your colored legendary spells have web-slinging\"); printed web-slinging is an alternative cast option via \"webSlinging\" since PLAN-M M5, which made this key visible",
     "whileCrafting": "Market Gnome — \"leaves the battlefield\" trigger limited to exile as craft material (702.167): a field of the `leaves` trigger, no other card"
   },
   "turnFields": {},
   "engineCardLiterals": {},
   "ceilings": {
     "Single-card values": 135,
-    "CardDef": 91,
+    "CardDef": 52,
     "GameObject": 51,
     "StackItem": 29,
     "PlayerState": 23,
@@ -199,9 +203,11 @@
     "MoveSpec": 18,
     "BlockRule": 15,
     "TargetSpec": 23,
-    "AdditionalCost": 12,
+    "AdditionalCost": 16,
     "CastLimit": 9,
     "NextSpell": 9,
+    "KickerDef": 5,
+    "CardRules": 13,
     "Effect": 139,
     "Effect (fields)": 614,
     "TriggerSpec": 41,
@@ -211,7 +217,9 @@
     "Amount": 32,
     "Amount (fields)": 77,
     "Ref": 37,
-    "Ref (fields)": 68
+    "Ref (fields)": 68,
+    "CastOption": 10,
+    "CastOption (fields)": 38
   },
   "importCycleMax": 10,
   "ceilingNotes": [
@@ -315,6 +323,7 @@
     "PLAN-M M2: GameState groups setup (mulliganQueue, mulliganTaken, leylineAsked) and batch (eventBatch, leftBatch); importCycleMax 21 → 10 (effect handlers registered by ops/index.ts in opRegistry.ts, syncControl moved to state.ts, copyStackItem to stack.ts): GameState 41 → 38",
     "PLAN-M M3a: small debt merges — Ref.hostOf into Ref.attached { of }; the plot and foretell ops into exileToCast { kind } (special actions and effects); AltCostPay.sacrifice { filter, count } replaces sacrificeCount; CostDef.tapToPay (\"waterbend\" | \"convoke\") replaces CostDef.waterbend and CostDef.convoke; LayerMods.perAffected ({ what: \"sameName\" } | { what: \"ownCreatureTypes\", max }) replaces perSameName and perOwnCreatureTypes; the reduceSpeed and increaseSpeed ops into speed { who?, by }. Single-card values go up by the three values that replace single-card keys (tapToPay=convoke: Heirloom Epic; what=sameName: Mirror Box; what=ownCreatureTypes: Diligent Zookeeper), the convoke, perSameName, perOwnCreatureTypes and sacrificeCount keys, the foretell op and the Ref.hostOf variant leaving the baseline: Single-card values 132 → 135, CostDef 28 → 27, LayerMods 31 → 30, Effect 149 → 147, Effect (fields) 653 → 652, Ref 38 → 37, Ref (fields) 69 → 68",
     "PLAN-M M3b [rules 197]: Assimilation Aegis as a becomesAttached trigger (who: \"self\") with becomeCopy whileAttached (becomeCopy.attachment, the same duration form as Eriette's gainControl); TriggerSpec.becomesAttached and the attachment key leave the baseline (two cards), duration=whileAttached is no longer a single-card value; copyLinkedExile enters it (Secret Invasion alone): Single-card values 135 → 134, Effect (fields) 652 → 653",
-    "PLAN-M M4: the pay family — one pay op (cost: PayCost, a Pick of CostDef; or, who, unless, skip, prompt, x, times, manaOf, exclude, totalManaValue, store) replaces mayPay, unlessPay, payCostOf, forage, collectEvidence, behold, exileForManaValue, payX and may (the fx helpers keep their signatures; the handler dispatches by shape to the former bodies, replays identical); CostDef gains discardRandom, poison and behold (the ward costs and the resolution behold, read only by the pay effect for now: the surface moves from Effect to CostDef); collectEvidence=\"X\" is written by one card (Incinerator of the Guilty: collect evidence X during a resolution, the X form of the other CostDef counts); the exileForManaValue op entry becomes singleCardKeys.totalManaValue; CardDef.ward.orMana becomes ward.or (a PayCost, like the effect's or): Single-card values 134 → 135, CostDef 27 → 30, Effect 147 → 139, Effect (fields) 653 → 614"
+    "PLAN-M M4: the pay family — one pay op (cost: PayCost, a Pick of CostDef; or, who, unless, skip, prompt, x, times, manaOf, exclude, totalManaValue, store) replaces mayPay, unlessPay, payCostOf, forage, collectEvidence, behold, exileForManaValue, payX and may (the fx helpers keep their signatures; the handler dispatches by shape to the former bodies, replays identical); CostDef gains discardRandom, poison and behold (the ward costs and the resolution behold, read only by the pay effect for now: the surface moves from Effect to CostDef); collectEvidence=\"X\" is written by one card (Incinerator of the Guilty: collect evidence X during a resolution, the X form of the other CostDef counts); the exileForManaValue op entry becomes singleCardKeys.totalManaValue; CardDef.ward.orMana becomes ward.or (a PayCost, like the effect's or): Single-card values 134 → 135, CostDef 27 → 30, Effect 147 → 139, Effect (fields) 653 → 614",
+    "PLAN-M M5: CardDef rework (cda, kicker, additional costs, cast options, card rules); KickerDef, CardRules and the CastOption union measured: CardDef 91 → 52, AdditionalCost 12 → 16, KickerDef — → 5, CardRules — → 13, CastOption — → 10, CastOption (fields) — → 38"
   ]
 }

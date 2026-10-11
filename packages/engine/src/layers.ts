@@ -13,6 +13,7 @@
  * is computed separately (`control.ts`). Dependencies (613.8): by fixed point (`computeBattlefield`); limit: a static
  * granted by another static isn't handled.
  */
+import { castOption } from "./cardDef";
 import { capReached, MAX_LAYER_PASSES } from "./limits";
 import { manaValue } from "./mana";
 import { hasName, isCreatureType, printedName, shareName } from "./names";
@@ -452,9 +453,9 @@ function base(s: GameState, o: GameObject, defId = o.defId): Characteristics {
   if (!d) throw new Error(`Unknown definition: ${o.defId}`);
   if (o.zone === "battlefield" && d.layout === "split" && d.faceDefs) return roomBase(o, d);
   if (o.faceDown) return faceDownBase(o, s.defs[o.faceDown.card]);
-  const cda = d.cdaPT === undefined ? undefined : cdaValue(s, o, d.cdaPT);
-  const cdaPower = d.cdaPower === undefined ? undefined : cdaValue(s, o, d.cdaPower);
-  const cdaToughness = d.cdaToughness === undefined ? undefined : cdaValue(s, o, d.cdaToughness);
+  const cda = d.cda?.pt === undefined ? undefined : cdaValue(s, o, d.cda.pt);
+  const cdaPower = d.cda?.power === undefined ? undefined : cdaValue(s, o, d.cda.power);
+  const cdaToughness = d.cda?.toughness === undefined ? undefined : cdaValue(s, o, d.cda.toughness);
   const station = stationTraits(o, d);
   // Impending (702.176a): it isn't a creature as long as it has a time counter (nor its creature types).
   const impending = o.cast?.via === "impending" && o.zone === "battlefield" && (o.counters.time ?? 0) > 0;
@@ -499,11 +500,11 @@ function applyTextBox(s: GameState, c: Characteristics, o: GameObject, ownDefId:
   if (!d || !own) return;
   c.abilities = [...d.abilities];
   c.keywords = [...d.keywords];
-  const hasCda = (x: CardDef) => x.cdaPT !== undefined || x.cdaPower !== undefined || x.cdaToughness !== undefined;
+  const hasCda = (x: CardDef) => x.cda?.pt !== undefined || x.cda?.power !== undefined || x.cda?.toughness !== undefined;
   if (!hasCda(d) && !hasCda(own)) return;
-  const cda = d.cdaPT === undefined ? undefined : cdaValue(s, o, d.cdaPT);
-  c.power = (d.cdaPower === undefined ? undefined : cdaValue(s, o, d.cdaPower)) ?? cda ?? own.power ?? 0;
-  c.toughness = (d.cdaToughness === undefined ? undefined : cdaValue(s, o, d.cdaToughness)) ?? cda ?? own.toughness ?? 0;
+  const cda = d.cda?.pt === undefined ? undefined : cdaValue(s, o, d.cda.pt);
+  c.power = (d.cda?.power === undefined ? undefined : cdaValue(s, o, d.cda.power)) ?? cda ?? own.power ?? 0;
+  c.toughness = (d.cda?.toughness === undefined ? undefined : cdaValue(s, o, d.cda.toughness)) ?? cda ?? own.toughness ?? 0;
 }
 
 /** Printed abilities of a permanent: levels reached by a Class (716), "Solved" abilities of a Case (719). */
@@ -547,7 +548,8 @@ export const FACE_DOWN_WARD: AbilityDef = {
 function faceDownBase(o: GameObject, card?: CardDef): Characteristics {
   const fd = o.faceDown as NonNullable<GameObject["faceDown"]>;
   // Fugitive Codebreaker: "this [disguise] cost is reduced by {1} for each…" (the first cost, if there is one).
-  const disguiseReduction = card?.disguise && card.disguiseReduction ? { generic: card.disguiseReduction } : undefined;
+  const reducedBy = castOption(card, "faceDown")?.reducedBy;
+  const disguiseReduction = reducedBy ? { generic: reducedBy } : undefined;
   return {
     name: "",
     types: ["Creature"],
@@ -676,7 +678,7 @@ function depsOf(x: object, pick?: (x: object) => unknown): CacheDeps {
 
 const cdaOf = (d: object) => {
   const c = d as CardDef;
-  return [c.cdaPT, c.cdaPower, c.cdaToughness];
+  return [c.cda?.pt, c.cda?.power, c.cda?.toughness];
 };
 
 function cacheDeps(s: GameState, map: Map<ObjectId, Characteristics>): CacheDeps {
@@ -915,9 +917,10 @@ function collectStatics(s: GameState, defOfId: (id: ObjectId) => string, previou
   // P/T defined by an ability that count permanents (types, basic land types).
   for (const id of s.battlefield) {
     const d = s.defs[defOfId(id)];
-    if (!d || (d.cdaPT === undefined && d.cdaPower === undefined && d.cdaToughness === undefined)) continue;
+    const cda = d?.cda;
+    if (!cda || (cda.pt === undefined && cda.power === undefined && cda.toughness === undefined)) continue;
     const o = obj(s, id);
-    for (const a of [d.cdaPT, d.cdaPower, d.cdaToughness]) {
+    for (const a of [cda.pt, cda.power, cda.toughness]) {
       if (a === undefined || !readsBattlefield(a)) continue;
       dependent = true;
       sig.push(`${id}:${cdaValue(s, o, a)}`);

@@ -10,6 +10,7 @@
  */
 
 import { gainLife } from "./actions";
+import { cardRule } from "./cardDef";
 import { boardAmount, type EffectContext, evalAmount, type OpResult, runEffectWith, staticContext } from "./effects";
 import { copiableExceptions, copiedDefId, mergeMods, textBoxOf } from "./layers";
 import { manaValue } from "./mana";
@@ -491,7 +492,7 @@ function graveyardCandidates(s: GameState, o: GameObject): GraveyardCandidate[] 
  * the others no longer apply (616.1f).
  */
 export function replaceGraveyard(s: GameState, o: GameObject): GraveyardOutcome {
-  if (!o.isToken && s.defs[o.defId]?.shuffleIntoLibrary) return { to: "library", shuffle: true };
+  if (!o.isToken && cardRule(s.defs[o.defId], "shuffleIntoLibrary")) return { to: "library", shuffle: true };
   const candidates = graveyardCandidates(s, o);
   if (candidates.length === 0) return { to: "graveyard" };
   const chooser = o.zone === "battlefield" ? o.controller : o.owner;

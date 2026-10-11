@@ -4,6 +4,7 @@
 import { type RawCard, toCardDef } from "@mtgx/cards";
 import { describe, expect, it } from "vitest";
 import { destroy } from "../src/actions";
+import { castOption } from "../src/cardDef";
 import { fx, triggered, when } from "../src/dsl";
 import { runEffect } from "../src/effects";
 import { legalActions } from "../src/legal";
@@ -43,7 +44,7 @@ const resolution = (_s: GameState, controller: string) => ({
 
 describe("disguise (702.168)", () => {
   it("cast face down for {3}: a nameless 2/2 creature with ward {2}; turned face up for its disguise cost", () => {
-    expect(DISGUISED.disguise).toBeDefined();
+    expect(castOption(DISGUISED, "faceDown")).toBeDefined();
     let s = scenario({ p1: { battlefield: ["Plains", "Plains", "Plains", "Plains", "Plains"], hand: [DISGUISED] } });
     const card = idOf(s, "p1", "hand", DISGUISED.name);
     const faceDownOption = legalActions(s, "p1").find((a) => a.type === "cast" && a.card === card && a.faceDown);

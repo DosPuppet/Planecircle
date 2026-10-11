@@ -1,6 +1,7 @@
 /**
  * Target legality (rule 115).
  */
+import { castOption } from "./cardDef";
 import { resolveCompare } from "./effects";
 import { RulesError } from "./errors";
 import { chars, hasKeyword, snapshot } from "./layers";
@@ -338,7 +339,7 @@ export function matchesObjectFilter(
   if (f.enteredThisTurn && o.controlledSince !== s.turn.number) return false;
   // Treacherous Greed: "a creature that dealt damage this turn".
   if (f.dealtDamageThisTurn && !dealtDamageThisTurn(s, id)) return false;
-  if (f.disguise !== undefined && !!s.defs[o.defId]?.disguise !== f.disguise) return false;
+  if (f.disguise !== undefined && !!castOption(s.defs[o.defId], "faceDown") !== f.disguise) return false;
   // Fractal Tender: "if you put a counter on this creature this turn".
   if (f.countersPutByYouThisTurn && !countersPutBy(countersPutThisTurn(s, id), controller, f.countersPutByYouThisTurn))
     return false;
@@ -372,7 +373,7 @@ export function matchesExiled(s: GameState, controller: PlayerId, id: ObjectId, 
   const o = s.objects[id];
   if (o?.zone !== "exile" || o.faceDown || o.cardCopy || o.preparedFor) return false;
   // "With warp" (Blade of the Swarm), "with flashback" (Sorceress's Schemes): the card has that cost.
-  if (ex.withCost && !s.defs[o.defId]?.[ex.withCost]) return false;
+  if (ex.withCost && !castOption(s.defs[o.defId], ex.withCost)) return false;
   if (ex.warped && o.exiledVia?.kind !== "warp") return false;
   if (ex.own !== undefined && (o.owner === controller) !== ex.own) return false;
   if (

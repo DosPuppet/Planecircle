@@ -1,6 +1,7 @@
 /** Breaking News (OTP): card rules tests (PLAN-G). */
 import { describe, expect, it } from "vitest";
 import { dealDamage, destroy, gainLife, loseLife } from "../src/actions";
+import { castOption as defOption } from "../src/cardDef";
 import { fx, ref, spell, target } from "../src/dsl";
 import { legalActions } from "../src/legal";
 import { chars, decider } from "../src/state";
@@ -1019,7 +1020,10 @@ describe("Breaking News: gaps found by L11 (PLAN-L)", () => {
   it("Siphon Insight: flashback {1}{U}{B}, read from the Oracle text", () => {
     const s = scenario({ p1: { battlefield: ["Island", "Island", "Swamp"], graveyard: ["Siphon Insight"] } });
     const card = idOf(s, "p1", "graveyard", "Siphon Insight");
-    expect(s.defs[s.objects[card]?.defId ?? ""]?.flashback).toMatchObject({ generic: 1, colored: { U: 1, B: 1 } });
+    expect(defOption(s.defs[s.objects[card]?.defId ?? ""], "flashback")?.cost).toMatchObject({
+      generic: 1,
+      colored: { U: 1, B: 1 },
+    });
     expect(castOption(s, card)).toBeDefined();
     const t = settle(act(s, "p1", { type: "cast", card, targets: { t: ["p2"] } }));
     expect(exiled(t, "Siphon Insight")).toHaveLength(1);

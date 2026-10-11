@@ -810,7 +810,7 @@ export function createTokens(
       subtypes: t.subtypes,
       power: t.power,
       toughness: t.toughness,
-      cdaPT: t.cdaPT,
+      cda: t.cdaPT === undefined ? undefined : { pt: t.cdaPT },
       enchant: t.enchant,
       keywords: t.toxic ? [...new Set([...(t.keywords ?? []), "toxic" as const])] : (t.keywords ?? []),
       ...(t.toxic ? { toxic: t.toxic } : {}),

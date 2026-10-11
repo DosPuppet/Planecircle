@@ -8,6 +8,7 @@ import { toCardDef } from "@mtgx/cards";
 import { describe, expect, it } from "vitest";
 import { CLUE, SPIRIT_WB, SUSPECTED } from "../../cards/src/mkm/common";
 import { createTokens, destroy } from "../src/actions";
+import { castOption } from "../src/cardDef";
 import * as dsl from "../src/dsl";
 import { evalAmount, putFaceDown } from "../src/effects";
 import { RulesError } from "../src/errors";
@@ -1943,7 +1944,7 @@ describe("Murders at Karlov Manor, lot A — black", () => {
     expect(() => cast(s, "p1", "Long Goodbye", { t: [angel] })).toThrow();
     s = settle(cast(s, "p1", "Long Goodbye", { t: [idOf(s, "p2", "battlefield", "Bear Cub")] }));
     expect(idsOf(s, "p2", "graveyard", "Bear Cub")).toHaveLength(1);
-    expect(s.defs[s.objects[idOf(s, "p1", "graveyard", "Long Goodbye")]?.defId ?? ""]?.cantBeCountered).toBe(true);
+    expect(s.defs[s.objects[idOf(s, "p1", "graveyard", "Long Goodbye")]?.defId ?? ""]?.rules?.cantBeCountered).toBe(true);
   });
 
   it("Macabre Reconstruction: {2} less if a creature card went to your graveyard this turn", () => {
@@ -2235,7 +2236,7 @@ describe("Murders at Karlov Manor, lot A — red", () => {
       const s = scenario({ p1: { battlefield: ["Bolrac-Clan Basher"] } });
       const id = idOf(s, "p1", "battlefield", "Bolrac-Clan Basher");
       expect(chars(s, id).keywords).toEqual(expect.arrayContaining(["doubleStrike", "trample"]));
-      expect(s.defs[s.objects[id]?.defId ?? ""]?.disguise).toBeDefined();
+      expect(castOption(s.defs[s.objects[id]?.defId ?? ""], "faceDown")).toBeDefined();
     });
   });
 
@@ -2281,7 +2282,7 @@ describe("Murders at Karlov Manor, lot A — red", () => {
         p2: { battlefield: [{ name: "Bear Cub", tapped: true }] },
       });
       const bear = idOf(s, "p2", "battlefield", "Bear Cub");
-      expect(s.defs[s.objects[idOf(s, "p1", "hand", "Caught Red-Handed")]?.defId ?? ""]?.cantBeCountered).toBe(true);
+      expect(s.defs[s.objects[idOf(s, "p1", "hand", "Caught Red-Handed")]?.defId ?? ""]?.rules?.cantBeCountered).toBe(true);
       s = settle(cast(s, "p1", "Caught Red-Handed", { t: [bear] }));
       expect(s.objects[bear]?.controller).toBe("p1");
       expect(s.objects[bear]?.tapped).toBe(false);
@@ -2778,7 +2779,7 @@ describe("Murders at Karlov Manor, lot A — red", () => {
       });
       const el = idOf(s, "p2", "battlefield", "Fire Elemental");
       const card = idOf(s, "p1", "hand", "Suspicious Detonation");
-      expect(s.defs[s.objects[card]?.defId ?? ""]?.cantBeCountered).toBe(true);
+      expect(s.defs[s.objects[card]?.defId ?? ""]?.rules?.cantBeCountered).toBe(true);
       // Four lands: not enough for {4}{R}.
       expect(() => cast(s, "p1", "Suspicious Detonation", { t: [el] })).toThrow();
       const dup = idOf(s, "p1", "battlefield", "Esoteric Duplicator");

@@ -3,6 +3,7 @@
  * The interface highlights only these options; the AI and the autopilot use them too.
  */
 
+import { castOption } from "./cardDef";
 import { concreteSpec, staticContext } from "./effects";
 import {
   availableMana,
@@ -131,75 +132,77 @@ const GIFT_TEXT = {
 
 /** Labels of the kicker question: Offspring (702.175), Gift (702.174), Bargain (702.166). */
 function kickerPrompt(d: CardDef): { title: string; without: string; with: string } | undefined {
-  if (d.kickerKind === "offspring" && d.kicker) {
-    const c = costToText(d.kicker);
+  const k = d.kicker;
+  if (!k) return undefined;
+  if (k.kind === "offspring") {
+    const c = costToText(k.mana);
     return {
       title: msg("Pay the offspring cost {cost}?", { cost: c }),
       without: msg("Without offspring"),
       with: msg("Offspring {cost}", { cost: c }),
     };
   }
-  if (d.kickerKind === "life" && d.kickerCost?.life) {
-    const pay = d.kickerOrPay ? costToText(d.kickerOrPay) : "";
+  if (k.kind === "life" && k.pay?.life) {
+    const pay = k.orPay ? costToText(k.orPay) : "";
     return {
-      title: msg("Pay {life} life rather than {cost}?", { life: d.kickerCost.life, cost: pay }),
+      title: msg("Pay {life} life rather than {cost}?", { life: k.pay.life, cost: pay }),
       without: msg("Pay {cost}", { cost: pay }),
-      with: msg("Pay {life} life", { life: d.kickerCost.life }),
+      with: msg("Pay {life} life", { life: k.pay.life }),
     };
   }
-  if (d.kickerKind === "waterbend" && d.kicker) {
-    const c = costToText(d.kicker);
+  if (k.kind === "waterbend") {
+    const c = costToText(k.mana);
     return {
       title: msg("Waterbend {cost} (your untapped artifacts and creatures can each pay {1})?", { cost: c }),
       without: msg("Without waterbending"),
       with: msg("Waterbend {cost}", { cost: c }),
     };
   }
-  if (d.kickerKind === "blight" && d.kickerCost?.blight) {
-    const n = d.kickerCost.blight;
+  if (k.kind === "blight" && k.pay?.blight) {
+    const n = k.pay.blight;
     return {
       title: msg("Blight {n}: put {n} -1/-1 counter(s) on one of your creatures?", { n }),
       without: msg("Without blighting"),
       with: msg("Blight {n}", { n }),
     };
   }
-  if (d.kickerKind === "teamwork" && d.kickerCost?.tapPower) {
-    const n = d.kickerCost.tapPower;
+  if (k.kind === "teamwork" && k.pay?.tapPower) {
+    const n = k.pay.tapPower;
     return {
       title: msg("Teamwork {n}: tap creatures with total power {n} or more?", { n }),
       without: msg("Without teamwork"),
       with: msg("Teamwork {n}", { n }),
     };
   }
-  if (d.kickerKind === "exileGraveyard" && d.kickerCost?.exileGraveyard) {
-    const n = d.kickerCost.exileGraveyard;
-    const pay = d.kickerOrPay ? costToText(d.kickerOrPay) : "";
+  if (k.kind === "exileGraveyard" && k.pay?.exileGraveyard) {
+    const n = k.pay.exileGraveyard;
+    const pay = k.orPay ? costToText(k.orPay) : "";
     return {
       title: msg("Exile {n} card(s) from your graveyard rather than pay {cost}?", { n, cost: pay }),
       without: msg("Pay {cost}", { cost: pay }),
       with: msg("Exile {n} card(s)", { n }),
     };
   }
-  if (d.kickerKind === "evidence" && d.kickerCost?.collectEvidence) {
-    const n = d.kickerCost.collectEvidence;
+  if (k.kind === "evidence" && k.pay?.collectEvidence) {
+    const n = k.pay.collectEvidence;
     return {
       title: msg("Collect evidence {n}: exile cards with total mana value {n} or more from your graveyard?", { n }),
       without: msg("Without evidence"),
       with: msg("Collect evidence {n}", { n }),
     };
   }
-  if (d.kickerKind === "bargain") {
+  if (k.kind === "bargain") {
     return {
       title: msg("Bargain: sacrifice an artifact, an enchantment or a token?"),
       without: msg("Without bargaining"),
       with: msg("Bargain"),
     };
   }
-  if (d.kickerKind === "gift" && d.gift) {
+  if (k.kind === "gift" && k.gift) {
     return {
       title: msg("Promise a gift to an opponent?"),
       without: msg("Without gift"),
-      with: GIFT_TEXT[d.gift],
+      with: GIFT_TEXT[k.gift],
     };
   }
   return undefined;
@@ -421,7 +424,7 @@ export function legalActions(s: GameState, player: PlayerId): ActionOption[] {
         }
       }
       // Adventure town: the Adventure stays castable; a land with disguise, face down (Branch of Vitu-Ghazi).
-      if (land === d && d.layout !== "adventure" && !d.disguise) continue;
+      if (land === d && d.layout !== "adventure" && !castOption(d, "faceDown")) continue;
     }
     const terms = castTerms(s, player, card);
     if (!terms || !d.implemented) continue;
@@ -430,17 +433,17 @@ export function legalActions(s: GameState, player: PlayerId): ActionOption[] {
       for (const [face, faceDef] of castableFaces(s, card, d))
         if (!terms.adventureOnly || (face === 1 && faceDef.subtypes.includes("Adventure")))
           for (const v of modesOf(faceDef).some((m) => m.cost) ? [undefined, "modeCost" as const] : [undefined])
-            castOption(card, face, faceDef, terms, v);
-    if (d.disguise) castOption(card, undefined, FACE_DOWN_SPELL, terms, "faceDown");
+            offerCast(card, face, faceDef, terms, v);
+    if (castOption(d, "faceDown")) offerCast(card, undefined, FACE_DOWN_SPELL, terms, "faceDown");
     // Warp (702.185): from the hand, or the graveyard if the card allows it.
     const warp = warpOf(s, player, card, d);
     const life = payableLife(s, player);
     if (warp && (terms.source === "hand" || terms.warpOnly) && life >= (warp.life ?? 0)) {
-      castOption(card, undefined, { ...d, manaCost: warp.cost }, terms, "warp");
+      offerCast(card, undefined, { ...d, manaCost: warp.cost }, terms, "warp");
     }
   }
 
-  function castOption(
+  function offerCast(
     card: ObjectId,
     face: number | undefined,
     d: CardDef,
@@ -452,8 +455,9 @@ export function legalActions(s: GameState, player: PlayerId): ActionOption[] {
     // Sneak: outside its usual timing, the spell can only be cast for its sneak cost.
     const sneakOnly = !onTime && !terms.free && sneakTiming(s, player, d);
     // A "any time you could cast a sorcery" permission (plotted card) beats the paid flash (Mystical Tether).
-    if (!onTime && (!d.flashExtraCost || terms.sorceryTiming) && !sneakOnly) return;
-    const timingExtra = onTime || sneakOnly ? undefined : d.flashExtraCost;
+    const flashCost = castOption(d, "flash")?.cost;
+    if (!onTime && (!flashCost || terms.sorceryTiming) && !sneakOnly) return;
+    const timingExtra = onTime || sneakOnly ? undefined : flashCost;
     const flashback = terms.source === "flashback";
     // Condition of a mode read with and without the additional cost ("if it was paid, choose both instead").
     const kickerNeeds = (c: Condition | undefined): { ok: boolean; requiresKicker?: true; forbidsKicker?: true } => {
@@ -548,7 +552,7 @@ export function legalActions(s: GameState, player: PlayerId): ActionOption[] {
     };
     // Harmonize: also payable by tapping a creature (which then isn't used to pay the mana).
     const harmony =
-      flashback && (d.harmonize || terms.harmonize)
+      flashback && (castOption(d, "flashback")?.harmonize || terms.harmonize)
         ? harmonizeOptions(s, player, card, withExtra(spellCost(s, player, d, base)).generic)
         : undefined;
     const payableWith = (c: ManaCost) =>
@@ -584,7 +588,8 @@ export function legalActions(s: GameState, player: PlayerId): ActionOption[] {
       );
     // Payable kicker ("costs {2} less if it's bargained": Hamlet Glutton may be payable only when bargained).
     // Teamwork: the creatures tapped for the kicker don't pay the mana.
-    const kickerCrew = d.kickerCost?.tapPower !== undefined ? suggestedCrew(s, player, card, d.kickerCost.tapPower) : [];
+    const kickerPay = d.kicker?.pay;
+    const kickerCrew = kickerPay?.tapPower !== undefined ? suggestedCrew(s, player, card, kickerPay.tapPower) : [];
     // Replicate (702.56), squad (702.157): the cost is paid X times (X chosen as for an X spell), not as a kicker.
     const replicate = kickerPaidTimes(d);
     const kickerAffordable =
@@ -592,15 +597,15 @@ export function legalActions(s: GameState, player: PlayerId): ActionOption[] {
       !!d.kicker &&
       !replicate &&
       !flashback &&
-      (!d.kickerCost ||
-        (d.kickerCost.tapPower !== undefined
+      (!kickerPay ||
+        (kickerPay.tapPower !== undefined
           ? kickerCrew.length > 0
-          : d.kickerCost.collectEvidence !== undefined
-            ? !!evidenceCards(s, player, card, d.kickerCost.collectEvidence)
-            : d.kickerCost.life !== undefined
-              ? payableLife(s, player) >= d.kickerCost.life
-              : d.kickerCost.exileGraveyard !== undefined
-                ? !!graveyardToExile(s, player, card, d.kickerCost.exileGraveyard)
+          : kickerPay.collectEvidence !== undefined
+            ? !!evidenceCards(s, player, card, kickerPay.collectEvidence)
+            : kickerPay.life !== undefined
+              ? payableLife(s, player) >= kickerPay.life
+              : kickerPay.exileGraveyard !== undefined
+                ? !!graveyardToExile(s, player, card, kickerPay.exileGraveyard)
                 : !!kickerCostPermanent(s, player, card, d))) &&
       canPay(
         s,
@@ -636,7 +641,7 @@ export function legalActions(s: GameState, player: PlayerId): ActionOption[] {
     if (modes.length === 0) return;
     // "This spell costs {W}{U} more for each target beyond the first" (Officious Interrogation): no more targets than
     // the available mana allows.
-    if (d.costPerExtraTarget && normal && !freeAvailable && !altAvailable)
+    if (d.additionalCost?.costPerExtraTarget && normal && !freeAvailable && !altAvailable)
       for (const m of modes)
         for (const t of m.targets) {
           let n = t.count ?? 1;
@@ -681,14 +686,16 @@ export function legalActions(s: GameState, player: PlayerId): ActionOption[] {
       );
     }
     const hasX =
-      (!terms.free && !!(flashback ? (d.flashback ?? d.manaCost)?.x : d.manaCost?.x)) || d.xCost === "waterbend" || replicate;
+      (!terms.free && !!(flashback ? (castOption(d, "flashback")?.cost ?? d.manaCost)?.x : d.manaCost?.x)) ||
+      d.additionalCost?.xCost === "waterbend" ||
+      replicate;
     // Vicious Rivalry: X is paid in life.
     // Soul Immolation: X blighted, at most the greatest toughness among your creatures.
     const lifeX = !normal
       ? null
-      : d.xCost === "life"
+      : d.additionalCost?.xCost === "life"
         ? payableLife(s, player)
-        : d.xCost === "blight"
+        : d.additionalCost?.xCost === "blight"
           ? greatestToughness(s, player)
           : null;
     const xMax =
@@ -742,14 +749,14 @@ export function legalActions(s: GameState, player: PlayerId): ActionOption[] {
         ? undefined
         : isWebSlinging(s, player, d)
           ? webSlingingOptions(s, player)
-          : d.sneak
+          : castOption(d, "alternative")?.via === "sneak"
             ? sneakOptions(s, player)
             : undefined,
       kickerPermanents:
-        d.kickerCost && !d.kickerCost.tapPower && !d.kickerCost.collectEvidence && !d.kickerCost.exileGraveyard
+        kickerPay && !kickerPay.tapPower && !kickerPay.collectEvidence && !kickerPay.exileGraveyard
           ? kickerCostOptions(s, player, card, d)
           : undefined,
-      kickerTap: d.kickerCost?.tapPower ? crewSpec(s, player, card, d.kickerCost.tapPower) : undefined,
+      kickerTap: kickerPay?.tapPower ? crewSpec(s, player, card, kickerPay.tapPower) : undefined,
       // Objects paid as a cost (evidence, exile from the graveyard, blight X), when the player has a choice to make.
       ...(() => {
         const picks = spellPicks(s, player, card, d, undefined, flashback, terms.removeCounters).filter(

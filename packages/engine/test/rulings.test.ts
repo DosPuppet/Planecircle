@@ -411,7 +411,7 @@ describe("fixes of lot A6 of Marvel Super Heroes", () => {
       name: "Test Adaptoid",
       power: 0,
       toughness: 4,
-      cdaPower: { kind: "count", filter: { types: ["Creature"], controller: "you", legendary: true } },
+      cda: { power: { kind: "count", filter: { types: ["Creature"], controller: "you", legendary: true } } },
     });
     const hero = customCard({ name: "Test Legend", supertypes: ["Legendary"], power: 1, toughness: 1 });
     const s = scenario({ p1: { battlefield: [adaptoid, hero, "Bear Cub"] } });

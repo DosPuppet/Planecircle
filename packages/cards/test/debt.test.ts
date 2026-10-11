@@ -57,8 +57,9 @@ function singleCardOps(): string[] {
 }
 
 /**
- * Variants of the Condition, Amount, Ref (discriminant `kind`) and TriggerSpec (`on`) unions written by a single
- * implemented card, noted "Union.variant" (audit of 2026-10-07: like the ops, they escaped the guard).
+ * Variants of the Condition, Amount, Ref, CastOption (discriminant `kind`) and TriggerSpec (`on`) unions written by a
+ * single implemented card, noted "Union.variant" (audit of 2026-10-07: like the ops, they escaped the guard; PLAN-M M5:
+ * the cast options of `CardDef`).
  */
 function singleCardVariants(): string[] {
   const unions = [
@@ -66,6 +67,7 @@ function singleCardVariants(): string[] {
     ["Amount", "kind"],
     ["Ref", "kind"],
     ["TriggerSpec", "on"],
+    ["CastOption", "kind"],
   ] as const;
   const declared = unions.map(([name, d]) => [name, d, new Set(unionVariants(name, d).keys())] as const);
   const users = new Map<string, Set<string>>();

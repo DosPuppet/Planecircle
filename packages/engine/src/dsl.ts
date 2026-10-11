@@ -26,6 +26,7 @@ import type {
   Amount,
   BlockRule,
   CardDef,
+  CastOption,
   CastPermissionAbilityDef,
   CastVia,
   Color,
@@ -116,7 +117,7 @@ export interface CardScript {
   whenCast?: Condition;
   exileOnResolve?: boolean;
   /** "You may cast this card from your graveyard [if…]" */
-  castFromGraveyard?: CardDef["castFromGraveyard"];
+  castFromGraveyard?: Omit<Extract<CastOption, { kind: "graveyard" }>, "kind">;
   /** Only the power is variable (Enigma Drake). */
   cdaPower?: Amount;
   /** Only the toughness is variable (Tarmogoyf, with `cdaPower`). */

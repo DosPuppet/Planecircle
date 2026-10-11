@@ -12,6 +12,7 @@ import {
   removeFromCombat,
   sacrifice as sacrificePermanent,
 } from "./actions";
+import { cardRule, castOption } from "./cardDef";
 import { absentAnswer, ask } from "./choices";
 import { counterLabel } from "./counterLabels";
 import {
@@ -158,7 +159,8 @@ export function altCostFor(
       pay?: AltCostPay;
     }
   | undefined {
-  if (d.altCost && checkCondition(s, d.altCost.condition, player)) return d.altCost;
+  const own = castOption(d, "alternative");
+  if (own && checkCondition(s, own.condition, player)) return own;
   for (const { id, ab } of playerStatics(s, player, "altCostAll")) {
     const a = ab.altCostAll;
     if (!a || (a.filter && !matchesView(spellView(d, player), a.filter, player))) continue;
@@ -272,7 +274,8 @@ export function sorceryTiming(s: GameState, player: PlayerId): boolean {
 
 export function canCastTiming(s: GameState, player: PlayerId, d: CardDef): boolean {
   if (d.types.includes("Instant") || d.keywords.includes("flash")) return true;
-  if (d.flashIf && checkCondition(s, d.flashIf, player)) return true;
+  const flashIf = cardRule(d, "flashIf");
+  if (flashIf && checkCondition(s, flashIf, player)) return true;
   if (sorceryTiming(s, player)) return true;
   // Valley Floodcaller: "you may cast noncreature spells as though they had flash".
   if (spellHasKeyword(s, player, d, "flash")) return true;
@@ -290,7 +293,11 @@ function sneakDefenderStill(s: GameState, defender: string): boolean {
 
 /** Sneak (702.190a): the spell is cast for its sneak cost during the declare blockers step. */
 export function sneakTiming(s: GameState, player: PlayerId, d: CardDef): boolean {
-  return !!d.sneak && sneakOptions(s, player).length > 0 && checkCondition(s, { kind: "sneakWindow" }, player);
+  return (
+    castOption(d, "alternative")?.via === "sneak" &&
+    sneakOptions(s, player).length > 0 &&
+    checkCondition(s, { kind: "sneakWindow" }, player)
+  );
 }
 
 /** Sneak: the unblocked attackers you can return, weakest first (the default choice). */
@@ -390,7 +397,7 @@ export function landPermitted(s: GameState, player: PlayerId, card: ObjectId): b
       (graveyardTypeAvailable(s, player, card) === "Land" ||
         playFromRules(s, player, card, "graveyard", "lands").length > 0 ||
         // Mayhem of a land (Oscorp Industries): discarded this turn, it is played from the graveyard.
-        (!!d.mayhem && objectDidThisTurn(s, o.id, "discard"))))
+        (!!castOption(d, "mayhem") && objectDidThisTurn(s, o.id, "discard"))))
   );
 }
 
@@ -398,7 +405,7 @@ export function landPermitted(s: GameState, player: PlayerId, card: ObjectId): b
 
 /** The spell's alternative cost is web-slinging: printed, or given (Amazing Spider-Man). */
 export function isWebSlinging(s: GameState, player: PlayerId, d: CardDef): boolean {
-  return !!d.webSlinging || !!altCostFor(s, player, d)?.webSlinging;
+  return castOption(d, "alternative")?.via === "webSlinging" || !!altCostFor(s, player, d)?.webSlinging;
 }
 
 /** Will the creature spell have riot as it enters: printed, or given by one of your permanents (Spider-Punk)? */
@@ -649,7 +656,7 @@ function consumeNextSpells(s: GameState, player: PlayerId, d: CardDef): NextSpel
 /** Cloud, Planet's Champion: reduction of an equip ability that targets the creature. */
 export function equipDiscount(s: GameState, player: PlayerId, ab: ActivatedAbilityDef, target: ObjectId | undefined): number {
   if (!target || !ab.equip || s.objects[target]?.controller !== player) return 0;
-  return s.defs[copiedDefId(s, target)]?.equipDiscountWhenTargeted ?? 0;
+  return cardRule(s.defs[copiedDefId(s, target)], "equipDiscountWhenTargeted") ?? 0;
 }
 
 /**
@@ -727,15 +734,15 @@ export function kickerCostOptions(
   targeted: ObjectId[] = [],
 ): ObjectId[] {
   const f =
-    d.kickerCost?.sacrifice ??
-    d.kickerCost?.bounce ??
-    (d.kickerCost?.blight ? ({ types: ["Creature"] } as ObjectFilter) : undefined);
+    d.kicker?.pay?.sacrifice ??
+    d.kicker?.pay?.bounce ??
+    (d.kicker?.pay?.blight ? ({ types: ["Creature"] } as ObjectFilter) : undefined);
   if (!f) return [];
   // A cost is paid after targets are chosen (601.2h): a target can pay it. Targets come last (default choice), then the
   // cheapest, tokens first.
   const mv = (id: ObjectId) => (s.objects[id]?.isToken ? -1 : manaValue(s.defs[s.objects[id]?.defId ?? ""]?.manaCost));
   // Blight: like `blightTarget`, first a creature that survives (the toughest), otherwise the least valuable.
-  const n = d.kickerCost?.blight ?? 0;
+  const n = d.kicker?.pay?.blight ?? 0;
   const left = (id: ObjectId) => chars(s, id).toughness - (s.objects[id]?.damage ?? 0) - n;
   const value = (id: ObjectId) => (n > 0 ? (left(id) > 0 ? -left(id) - 100 : mv(id)) : mv(id));
   const rank = (id: ObjectId) => (targeted.includes(id) ? 1000 : 0) + value(id);
@@ -959,9 +966,9 @@ export function spellCost(
     : alt
       ? (altMana as ManaCost)
       : opts.flashback
-        ? (opts.costOverride ?? d.flashback ?? d.manaCost)
+        ? (opts.costOverride ?? castOption(d, "flashback")?.cost ?? d.manaCost)
         : opts.mayhem
-          ? (d.mayhem ?? d.manaCost)
+          ? (castOption(d, "mayhem")?.cost ?? d.manaCost)
           : (opts.costOverride ?? d.manaCost);
   // "This spell costs {1}{U} less to cast" (Brush Off): the colored symbols removed from the base cost.
   const ownColored = d.costReduction?.colored;
@@ -970,11 +977,12 @@ export function spellCost(
       ? withoutColored(base, ownColored)
       : base;
   // Waterbend as an additional cost (Avatar): {N} or {X} more, to pay even without paying the mana cost.
-  const bend = (d.waterbend ?? 0) + (d.xCost === "waterbend" ? Math.max(0, opts.x ?? 0) : 0);
+  const add = d.additionalCost;
+  const bend = (add?.waterbend ?? 0) + (add?.xCost === "waterbend" ? Math.max(0, opts.x ?? 0) : 0);
   const bendCost: ManaCost | undefined = bend ? { generic: bend, colored: {}, x: 0 } : undefined;
   // Replicate (702.56), squad (702.157): the cost paid X times.
-  const replicated = kickerPaidTimes(d) && d.kicker && (opts.x ?? 0) > 0 ? timesCost(d.kicker, opts.x ?? 0) : undefined;
-  const kick = replicated ?? (opts.kicked && d.kicker ? d.kicker : undefined);
+  const replicated = kickerPaidTimes(d) && d.kicker && (opts.x ?? 0) > 0 ? timesCost(d.kicker.mana, opts.x ?? 0) : undefined;
+  const kick = replicated ?? (opts.kicked && d.kicker ? d.kicker.mana : undefined);
   const extra = kick ? (bendCost ? totalCost(kick, 0, bendCost) : kick) : bendCost;
   const reduction = spellReduction(s, player, d, opts.targets, opts.fromZone, opts.card, opts.kicked);
   let cost0 = totalCost(
@@ -986,14 +994,15 @@ export function spellCost(
     reduction.generic,
   );
   // Officious Interrogation: "costs {W}{U} more to cast for each target beyond the first".
-  const extraTargets = d.costPerExtraTarget && opts.targets ? Math.max(0, flatTargets(opts.targets).length - 1) : 0;
-  for (let i = 0; i < extraTargets && d.costPerExtraTarget; i++) cost0 = totalCost(cost0, 0, d.costPerExtraTarget);
+  const perTarget = add?.costPerExtraTarget;
+  const extraTargets = perTarget && opts.targets ? Math.max(0, flatTargets(opts.targets).length - 1) : 0;
+  for (let i = 0; i < extraTargets && perTarget; i++) cost0 = totalCost(cost0, 0, perTarget);
   // Feed the Cycle: "forage or pay {B}" — the mana is added unless one forages (alternative cost).
-  const cost1 = d.forageOrPay && !alt?.forage ? totalCost(cost0, 0, d.forageOrPay) : cost0;
+  const cost1 = add?.forageOrPay && !alt?.forage ? totalCost(cost0, 0, add.forageOrPay) : cost0;
   // Wild Unraveling: "blight 2 or pay {1}" — the mana is added unless one blights (kicker).
-  const cost1b = d.kickerOrPay && !opts.kicked ? totalCost(cost1, 0, d.kickerOrPay) : cost1;
+  const cost1b = d.kicker?.orPay && !opts.kicked ? totalCost(cost1, 0, d.kicker.orPay) : cost1;
   // "Behold a Dragon or pay {1}": the mana is added without beholding (by default: behold if possible).
-  const behold = d.additionalCost?.behold;
+  const behold = add?.behold;
   const beheld = opts.beheld ?? (!!behold && beholdOptions(s, player, opts.card ?? "", behold.filter, behold.exiled).length > 0);
   const cost2 = behold?.orPay && !beheld ? totalCost(cost1b, 0, behold.orPay) : cost1b;
   // Aang, Master of Elements: "{W}{U}{B}{R}{G} less"; a symbol with no match in the cost reduces the generic part.
@@ -1198,9 +1207,9 @@ function abilityCostReduction(s: GameState, player: PlayerId, source: ObjectId, 
  */
 export function waterbendAmount(d: CardDef, kicked: boolean, x: number): number {
   return (
-    (d.waterbend ?? 0) +
-    (d.xCost === "waterbend" ? Math.max(0, x) : 0) +
-    (kicked && d.kickerKind === "waterbend" && d.kicker ? d.kicker.generic : 0)
+    (d.additionalCost?.waterbend ?? 0) +
+    (d.additionalCost?.xCost === "waterbend" ? Math.max(0, x) : 0) +
+    (kicked && d.kicker?.kind === "waterbend" ? d.kicker.mana.generic : 0)
   );
 }
 
@@ -1395,8 +1404,14 @@ function exhaustReusable(s: GameState, player: PlayerId, ab: ActivatedAbilityDef
  * Warp of a card: its own, or the one Tannuk, Steadfast Second grants to the cards in your hand
  * ("artifact cards and red creature cards in your hand have warp {2}{R}").
  */
-export function warpOf(s: GameState, player: PlayerId, card: ObjectId, d: CardDef): CardDef["warp"] {
-  if (d.warp) return d.warp;
+export function warpOf(
+  s: GameState,
+  player: PlayerId,
+  card: ObjectId,
+  d: CardDef,
+): { cost: ManaCost; life?: number; fromGraveyard?: boolean } | undefined {
+  const own = castOption(d, "warp");
+  if (own) return own;
   const o = s.objects[card];
   if (o?.zone !== "hand") return undefined;
   for (const { ab } of playerStatics(s, player, "grantWarp")) {
@@ -1561,7 +1576,8 @@ function baseCastTerms(s: GameState, player: PlayerId, card: ObjectId): CastTerm
   if (!o) return null;
   const d = s.defs[o.defId];
   if (!d) return null;
-  if (d.castCondition && !checkCondition(s, d.castCondition, player, card)) return null;
+  const castCondition = cardRule(d, "castCondition");
+  if (castCondition && !checkCondition(s, castCondition, player, card)) return null;
   if (o.zone === "hand") {
     if (o.owner !== player) return null;
     // Buster Sword: a spell from your hand without paying its mana cost, this turn.
@@ -1592,12 +1608,13 @@ function baseCastTerms(s: GameState, player: PlayerId, card: ObjectId): CastTerm
       };
     if (o.owner !== player) return null;
     // Timeline Culler: "you may cast this card from your graveyard using its warp ability".
-    if (d.warp?.fromGraveyard) return { source: "graveyard", warpOnly: true };
+    if (castOption(d, "warp")?.fromGraveyard) return { source: "graveyard", warpOnly: true };
     // Mayhem: discarded this turn, it is cast from the graveyard for its mayhem cost.
-    if (d.mayhem && objectDidThisTurn(s, o.id, "discard")) return { source: "graveyard", mayhem: true };
-    if (d.flashback) {
+    if (castOption(d, "mayhem") && objectDidThisTurn(s, o.id, "discard")) return { source: "graveyard", mayhem: true };
+    const flashback = castOption(d, "flashback");
+    if (flashback) {
       // Deep Analysis: "Flashback—{1}{U}, Pay 3 life".
-      const life = d.flashbackCost?.payLife;
+      const life = flashback.extra?.payLife;
       if (life && payableLife(s, player) < life) return null;
       return { source: "flashback", ...(life ? { payLife: life } : {}) };
     }
@@ -1609,7 +1626,7 @@ function baseCastTerms(s: GameState, player: PlayerId, card: ObjectId): CastTerm
     const t = graveyardTypeAvailable(s, player, card);
     if (t && t !== "Land") return { source: "graveyard", graveyardType: t };
     if (rules[0]) return playFromTerms(rules[0], "graveyard");
-    const fromGy = d.castFromGraveyard;
+    const fromGy = castOption(d, "graveyard");
     if (fromGy && (!fromGy.condition || checkCondition(s, fromGy.condition, player, card))) {
       // Wickerfolk Indomitable: "by paying 2 life and sacrificing an artifact or creature in addition".
       if (fromGy.payLife && payableLife(s, player) < fromGy.payLife) return null;
@@ -1649,7 +1666,8 @@ function baseCastTerms(s: GameState, player: PlayerId, card: ObjectId): CastTerm
     // 702.143a: a foretold card is cast on a later turn for its foretell cost.
     const via = o.exiledVia;
     if (via?.kind === "foretell") {
-      return o.owner === player && via.turn < s.turn.number && d.foretell ? { source: "exile", costOverride: d.foretell } : null;
+      const foretell = castOption(d, "foretell");
+      return o.owner === player && via.turn < s.turn.number && foretell ? { source: "exile", costOverride: foretell.cost } : null;
     }
     // 702.170d: a plotted card is cast without paying its cost, on a later turn, at sorcery speed.
     if (via?.kind === "plot") {
@@ -1777,7 +1795,7 @@ export function additionalOptions(
 } | null {
   let add = additionalCostOf(d, flashback);
   // Wickerfolk Indomitable: additional sacrifice when it is cast from the graveyard.
-  const gy = s.objects[card]?.zone === "graveyard" ? d.castFromGraveyard : undefined;
+  const gy = s.objects[card]?.zone === "graveyard" ? castOption(d, "graveyard") : undefined;
   if (gy?.sacrifice) add = { ...add, sacrifice: { filter: gy.sacrifice, count: 1 } };
   // Alien Symbiosis: "by discarding a card in addition to paying its other costs".
   if (gy?.discard) add = { ...add, discard: gy.discard, ...(gy.discardFilter ? { discardFilter: gy.discardFilter } : {}) };
@@ -1830,7 +1848,8 @@ export function additionalOptions(
  */
 /** Additional costs of the spell, and those of flashback when it is cast that way (Twinned Vision, Group Project). */
 function additionalCostOf(d: CardDef, flashback: boolean): CardDef["additionalCost"] {
-  return flashback && d.flashbackCost ? { ...d.additionalCost, ...d.flashbackCost } : d.additionalCost;
+  const extra = flashback ? castOption(d, "flashback")?.extra : undefined;
+  return extra ? { ...d.additionalCost, ...extra } : d.additionalCost;
 }
 
 export function autoAdditional(
@@ -2068,7 +2087,7 @@ function chosenAdditional(
 
 /** Colors offered for a spell's hybrid mana (PLAN-L L7: for any hybrid cost). */
 export function hybridColors(d: CardDef): ManaType[] {
-  const pairs = [...(d.manaCost?.hybrid ?? []), ...((d.evoke ?? d.altCost?.mana)?.hybrid ?? [])];
+  const pairs = [...(d.manaCost?.hybrid ?? []), ...(castOption(d, "alternative")?.mana.hybrid ?? [])];
   return [...new Set(pairs.flat())];
 }
 
@@ -2090,7 +2109,7 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
   const o = obj(s, card);
   const cardDef = s.defs[o.defId];
   // A land with disguise (Branch of Vitu-Ghazi) is cast face down.
-  const landFaceDown = !!cardDef?.types.includes("Land") && !!choices.faceDown && !!cardDef.disguise;
+  const landFaceDown = !!cardDef?.types.includes("Land") && !!choices.faceDown && !!castOption(cardDef, "faceDown");
   if (!cardDef || (cardDef.types.includes("Land") && cardDef.layout !== "adventure" && !landFaceDown))
     throw new RulesError(msg("This is not a spell"));
   if (!cardDef.implemented) throw new RulesError(msg("{card} is not handled by the engine yet", { card: cardDef.name }));
@@ -2102,7 +2121,8 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
   if (terms.adventureOnly && !(face[0] === 1 && face[1].subtypes.includes("Adventure")))
     throw new RulesError(msg("This card can only be cast from here as an Adventure"));
   // Disguise (702.168a): cast face down as a 2/2 creature with no name for {3}.
-  if (choices.faceDown && !cardDef.disguise) throw new RulesError(msg("This card can't be cast face down"));
+  const faceDown = castOption(cardDef, "faceDown");
+  if (choices.faceDown && !faceDown) throw new RulesError(msg("This card can't be cast face down"));
   // Warp (702.185): from the hand (or the graveyard if the card allows it), for its warp cost.
   const warp = choices.warp ? warpOf(s, player, card, cardDef) : undefined;
   if (choices.warp && (!warp || (terms.source !== "hand" && !(terms.source === "graveyard" && warp.fromGraveyard)))) {
@@ -2113,7 +2133,7 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
   const d = choices.faceDown ? FACE_DOWN_SPELL : warp ? { ...face[1], manaCost: warp.cost } : face[1];
   if (splitSecondOnStack(s)) throw new RulesError(msg("No spells or abilities now (split second or combat)"));
   // Harbinger of the Tides: "as though it had flash if you pay {2} more".
-  const flashExtra = !terms.anyTime && !canCastTiming(s, player, d) ? d.flashExtraCost : undefined;
+  const flashExtra = !terms.anyTime && !canCastTiming(s, player, d) ? castOption(d, "flash")?.cost : undefined;
   // Sneak (702.190a): in the declare blockers step, when you have priority.
   const sneakNow = !!choices.alternative && sneakTiming(s, player, d);
   if (!terms.anyTime && !canCastTiming(s, player, d) && !flashExtra && !sneakNow)
@@ -2152,13 +2172,17 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
     sourceId: card,
     x: choices.x,
   });
-  const hasX = (!free && !!(flashback ? (dc.flashback ?? dc.manaCost)?.x : dc.manaCost?.x)) || !!d.xCost || kickerPaidTimes(d);
+  const hasX =
+    (!free && !!(flashback ? (castOption(dc, "flashback")?.cost ?? dc.manaCost)?.x : dc.manaCost?.x)) ||
+    !!d.additionalCost?.xCost ||
+    kickerPaidTimes(d);
   const x = hasX ? Math.max(0, Math.floor(choices.x ?? 0)) : 0;
   if (x > MAX_X) throw new RulesError(msg("X is too large"));
   // Vicious Rivalry: "as an additional cost to cast this spell, pay X life".
-  if (d.xCost === "life" && x > payableLife(s, player)) throw new RulesError(msg("Not enough life"));
+  if (d.additionalCost?.xCost === "life" && x > payableLife(s, player)) throw new RulesError(msg("Not enough life"));
   // Soul Immolation: "blight X; X can't be greater than the greatest toughness among creatures you control".
-  if (d.xCost === "blight" && x > greatestToughness(s, player)) throw new RulesError(msg("X exceeds the greatest toughness"));
+  if (d.additionalCost?.xCost === "blight" && x > greatestToughness(s, player))
+    throw new RulesError(msg("X exceeds the greatest toughness"));
   const kicked = !!choices.kicked && !!d.kicker && !kickerPaidTimes(d);
   // Part of the cost payable by waterbending: additional cost, kicker, or replacement cost (Hama).
   const bendPaid =
@@ -2170,14 +2194,14 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
   // Kicker without mana (bargain): the permanent to sacrifice or return, chosen by the player (`sacrifice`, when the
   // spell has no other sacrifice as a cost); without a choice, the cheapest, tokens first.
   const kickerOptions =
-    kicked && d.kickerCost && d.kickerCost.life === undefined ? kickerCostOptions(s, player, card, d, flatTargets(targets)) : [];
-  const kickerChoice = kicked && d.kickerCost && !opts.sacrifice && choices.sacrifice?.length ? choices.sacrifice : undefined;
+    kicked && d.kicker?.pay && d.kicker.pay.life === undefined ? kickerCostOptions(s, player, card, d, flatTargets(targets)) : [];
+  const kickerChoice = kicked && d.kicker?.pay && !opts.sacrifice && choices.sacrifice?.length ? choices.sacrifice : undefined;
   if (kickerChoice && (kickerChoice.length !== 1 || !kickerOptions.includes(kickerChoice[0] as ObjectId)))
     throw new RulesError(msg("Invalid permanent for this cost"));
   const kickerPermanent = kickerChoice?.[0] ?? kickerOptions[0];
-  const teamwork = kicked ? d.kickerCost?.tapPower : undefined;
+  const teamwork = kicked ? d.kicker?.pay?.tapPower : undefined;
   const evidence =
-    kicked && d.kickerCost?.collectEvidence ? spellPickNow(s, player, card, d, x, "evidence", "kicked", choices) : undefined;
+    kicked && d.kicker?.pay?.collectEvidence ? spellPickNow(s, player, card, d, x, "evidence", "kicked", choices) : undefined;
   if (evidence === null) throw new RulesError(msg("Not enough evidence to collect in your graveyard"));
   // Urgent Necropsy: "collect evidence X, where X is the total mana value of the target permanents".
   const targetEvidenceX = d.additionalCost?.collectEvidenceTargetsManaValue
@@ -2189,12 +2213,14 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
   const targetEvidence = targetEvidenceX > 0 ? evidenceCards(s, player, card, targetEvidenceX) : undefined;
   if (targetEvidence === null) throw new RulesError(msg("Not enough evidence to collect in your graveyard"));
   const gyExile =
-    kicked && d.kickerCost?.exileGraveyard ? spellPickNow(s, player, card, d, x, "graveyardExile", "kicked", choices) : undefined;
+    kicked && d.kicker?.pay?.exileGraveyard
+      ? spellPickNow(s, player, card, d, x, "graveyardExile", "kicked", choices)
+      : undefined;
   if (gyExile === null) throw new RulesError(msg("Not enough cards in your graveyard"));
   // Redirect Lightning: "pay 5 life or pay {2}" (the kicker is the life payment).
-  const kickerLife = kicked ? d.kickerCost?.life : undefined;
+  const kickerLife = kicked ? d.kicker?.pay?.life : undefined;
   if (kickerLife !== undefined && payableLife(s, player) < kickerLife) throw new RulesError(msg("Not enough life"));
-  if (kicked && d.kickerCost && kickerLife === undefined && !teamwork && !evidence && !gyExile && !kickerPermanent)
+  if (kicked && d.kicker?.pay && kickerLife === undefined && !teamwork && !evidence && !gyExile && !kickerPermanent)
     throw new RulesError(msg("Can't pay the kicker"));
   // Teamwork: the tapped creatures (chosen by `tap`, otherwise the weakest that suffice).
   const teamTap = teamwork !== undefined ? chosenCrew(s, player, card, teamwork, choices.tap) : [];
@@ -2217,9 +2243,15 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
   const beheldIds = beholdChoice(s, player, card, d, choices.picks?.behold, flashback);
   const beheldId = beheldIds[0];
   // "… if you controlled a Faerie as you cast this spell": evaluated now (601.2), before the payment.
-  const metWhenCast = d.whenCast ? checkCondition(s, d.whenCast, player, card) : undefined;
+  const whenCast = cardRule(d, "whenCast");
+  const metWhenCast = whenCast ? checkCondition(s, whenCast, player, card) : undefined;
   // Molten Exhale: "as though it had flash if you behold": cast that way, it must behold.
-  if (d.additionalCost?.behold && d.flashIf && !beheldId && !canCastTiming(s, player, { ...d, flashIf: undefined }))
+  if (
+    d.additionalCost?.behold &&
+    cardRule(d, "flashIf") &&
+    !beheldId &&
+    !canCastTiming(s, player, { ...d, rules: { ...d.rules, flashIf: undefined } })
+  )
     throw new RulesError(msg("Without beholding, this spell can only be cast at sorcery speed"));
   let cost = spellCost(s, player, dc, {
     beheld: !!beheldId,
@@ -2251,7 +2283,7 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
   if (flashExtra) cost = addCosts(cost, flashExtra);
   if (terms.extraCost) cost = addCosts(cost, { generic: terms.extraCost, colored: {}, x: 0 });
   // Harmonize: a tapped creature reduces the cost by its power (`tap` absent: the default choice; []: none).
-  const harmonize = flashback && (!!d.harmonize || !!terms.harmonize);
+  const harmonize = flashback && (!!castOption(d, "flashback")?.harmonize || !!terms.harmonize);
   if (choices.tap?.length && !harmonize && teamwork === undefined) throw new RulesError(msg("No creature to tap for this spell"));
   const harmony = harmonize ? harmonizeOptions(s, player, card, cost.generic) : undefined;
   const harmonyTap = harmony ? (choices.tap ?? harmony.suggested) : [];
@@ -2334,7 +2366,7 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
     const back = moveObject(s, tapped, "hand");
     if (back) bounced.push(back);
   }
-  const sneaked = (alternative && !!d.sneak) || !!terms.sneakGranted;
+  const sneaked = (alternative && castOption(d, "alternative")?.via === "sneak") || !!terms.sneakGranted;
   let sneakDefender: string | undefined;
   if (sneaked) {
     // The returned unblocked attacker: by choice (`bounce`), the weakest by default.
@@ -2353,16 +2385,17 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
   // Only an Adventure goes "on an adventure"; an omen (same Scryfall layout) is shuffled into the library.
   const adventure = choices.face !== undefined && cardDef.layout === "adventure" && d.subtypes.includes("Adventure");
   if (choices.face !== undefined) obj(s, stackId).faceDefId = d.id;
-  if (choices.faceDown && cardDef.disguise) {
+  if (choices.faceDown && faceDown) {
     const spellObj = obj(s, stackId);
     s.defs[FACE_DOWN_ID] ??= FACE_DOWN_DEF;
-    spellObj.faceDown = { card: spellObj.defId, ward: !cardDef.morph, upCosts: [cardDef.disguise] };
+    spellObj.faceDown = { card: spellObj.defId, ward: !faceDown.morph, upCosts: [faceDown.cost] };
     spellObj.defId = FACE_DOWN_ID;
   }
   // The next spell: can't be countered (Theorist's Proxy), counters or haste (Summon: Fenrir), copied (below).
   const next = consumeNextSpells(s, player, d);
   const uncounterable = next.some((n) => n.uncounterable);
-  // Alternative cost paid (601.2b: only one), read by the rules and by "if it was cast this way" conditions.
+  // Alternative cost paid (601.2b: only one), read by the rules and by "if it was cast this way" conditions: the name
+  // of the alternative cost paid (`via`: evoke, impending, dash, blitz…), web-slinging and sneak also when granted.
   const castVia: CastVia | undefined = webSlinging
     ? "webSlinging"
     : terms.mayhem
@@ -2371,13 +2404,9 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
         ? "sneak"
         : warp
           ? "warp"
-          : alternative && cardDef.impending
-            ? "impending"
-            : alternative && cardDef.evoke
-              ? "evoke"
-              : alternative
-                ? altCostFor(s, player, d)?.via
-                : undefined;
+          : alternative
+            ? altCostFor(s, player, d)?.via
+            : undefined;
   const item: StackItem = {
     id: stackId,
     kind: "spell",
@@ -2441,9 +2470,9 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
     if (Object.keys(spent).length && item.cast) item.cast.spentColors = spent;
     // A waterbend cost was paid ("whenever you waterbend").
     if (
-      d.waterbend !== undefined ||
-      d.xCost === "waterbend" ||
-      (kicked && d.kickerKind === "waterbend") ||
+      d.additionalCost?.waterbend !== undefined ||
+      d.additionalCost?.xCost === "waterbend" ||
+      (kicked && d.kicker?.kind === "waterbend") ||
       (terms.waterbendOverride && !free && !alternative)
     )
       bent(s, player, "water");
@@ -2485,9 +2514,9 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
   // Warp "Warp—{B}, Pay 2 life": the life is part of the cost.
   if (warp?.life) payLife_(s, player, warp.life);
   if (terms.payLife) payLife_(s, player, terms.payLife);
-  if (d.xCost === "life" && x > 0) payLife_(s, player, x);
+  if (d.additionalCost?.xCost === "life" && x > 0) payLife_(s, player, x);
   if (kickerLife) payLife_(s, player, kickerLife);
-  if (d.xCost === "blight" && x > 0) {
+  if (d.additionalCost?.xCost === "blight" && x > 0) {
     const blighted = spellPickNow(s, player, item.id, d, x, "blight", undefined, choices)?.[0];
     if (blighted) changeCounters(s, obj(s, blighted), "-1/-1", x, { asCost: true, by: player });
   }
@@ -2523,10 +2552,10 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
     item.paid = { ...item.paid, discarded: discarded.filter((id): id is string => !!id) };
   }
   for (const id of sacrifice) sacrificePermanent(s, id);
-  if (kicked && kickerPermanent && d.kickerCost?.sacrifice) sacrificePermanent(s, kickerPermanent);
-  else if (kicked && kickerPermanent && d.kickerCost?.blight)
-    changeCounters(s, obj(s, kickerPermanent), "-1/-1", d.kickerCost.blight, { asCost: true, by: player });
-  else if (kicked && kickerPermanent && d.kickerCost?.bounce) moveObject(s, kickerPermanent, "hand");
+  if (kicked && kickerPermanent && d.kicker?.pay?.sacrifice) sacrificePermanent(s, kickerPermanent);
+  else if (kicked && kickerPermanent && d.kicker?.pay?.blight)
+    changeCounters(s, obj(s, kickerPermanent), "-1/-1", d.kicker.pay.blight, { asCost: true, by: player });
+  else if (kicked && kickerPermanent && d.kicker?.pay?.bounce) moveObject(s, kickerPermanent, "hand");
   s.priority.passes = 0;
   emit({ type: "cast", player, stackId, defId: d.id, targets: flatTargets(targets) });
   // 903.8: one more cast from the command zone (the next one's tax increases by {2}).
@@ -2638,7 +2667,7 @@ export function counterItem(s: GameState, id: string, by: string, exile = false)
   const i = s.stack.findIndex((x) => x.id === id);
   const item = s.stack[i];
   if (!item || s.resolving?.item.id === id) return false;
-  if (item.kind === "spell" && (s.defs[item.sourceDefId]?.cantBeCountered || item.uncounterable)) return false;
+  if (item.kind === "spell" && (cardRule(s.defs[item.sourceDefId], "cantBeCountered") || item.uncounterable)) return false;
   if (protectedFromCounter(s, item)) return false;
   s.stack.splice(i, 1);
   emit({ type: "countered", stackId: item.id, defId: item.sourceDefId, by });
@@ -2795,7 +2824,8 @@ export function crewPower(s: GameState, id: ObjectId): number {
 function spyglassed(s: GameState, source: ObjectId): boolean {
   const name = s.objects[source] && chars(s, source).name;
   return s.battlefield.some(
-    (id) => hasName(name, obj(s, id).chosen?.cardName) && s.defs[copiedDefId(s, id)]?.chosenNameAbilities === "forbid",
+    (id) =>
+      hasName(name, obj(s, id).chosen?.cardName) && cardRule(s.defs[copiedDefId(s, id)], "chosenNameAbilities") === "forbid",
   );
 }
 
@@ -2803,7 +2833,7 @@ function spyglassed(s: GameState, source: ObjectId): boolean {
 function chosenNameTax(s: GameState, source: ObjectId): number {
   const name = s.objects[source] && chars(s, source).name;
   return s.battlefield.reduce((n, id) => {
-    const rule = s.defs[copiedDefId(s, id)]?.chosenNameAbilities;
+    const rule = cardRule(s.defs[copiedDefId(s, id)], "chosenNameAbilities");
     const tax = typeof rule === "number" ? rule : 0;
     return n + (tax && hasName(name, obj(s, id).chosen?.cardName) ? tax : 0);
   }, 0);
@@ -3340,12 +3370,12 @@ export function spellPicks(
     const p = evidencePick(altEvidence, "alternative");
     if (p) out.push(p);
   }
-  if (d.kickerCost?.collectEvidence) {
-    const p = evidencePick(d.kickerCost.collectEvidence, "kicked");
+  if (d.kicker?.pay?.collectEvidence) {
+    const p = evidencePick(d.kicker.pay.collectEvidence, "kicked");
     if (p) out.push(p);
   }
-  if (d.kickerCost?.exileGraveyard) {
-    const n = d.kickerCost.exileGraveyard;
+  if (d.kicker?.pay?.exileGraveyard) {
+    const n = d.kicker.pay.exileGraveyard;
     const suggested = graveyardToExile(s, player, card, n);
     if (suggested)
       out.push({
@@ -3361,12 +3391,12 @@ export function spellPicks(
     ...manaHelperPicks(s, player, card, {
       convoke: hasConvoke(s, player, d),
       improvise: hasImprovise(s, player, d),
-      waterbend: d.waterbend !== undefined || d.xCost === "waterbend",
+      waterbend: d.additionalCost?.waterbend !== undefined || d.additionalCost?.xCost === "waterbend",
       delve: spellHasKeyword(s, player, d, "delve"),
       sacrificeToPay: d.additionalCost?.sacrificeToPay,
     }),
   );
-  if (d.xCost === "blight") {
+  if (d.additionalCost?.xCost === "blight") {
     const best = blightTarget(s, player, Math.max(1, x ?? 1));
     const options = s.battlefield.filter((id) => s.objects[id]?.controller === player && isCreature(s, id));
     if (best)
@@ -4160,7 +4190,7 @@ function finishResolution(
             ...(item.arrival?.loyalty !== undefined ? { loyalty: item.arrival.loyalty } : {}),
             haste: item.arrival?.haste || item.cast?.via === "blitz",
             mods: arrivalMods(item),
-            impending: item.cast?.via === "impending" ? (d.impending ?? 0) : undefined,
+            impending: item.cast?.via === "impending" ? (castOption(d, "alternative")?.impending ?? 0) : undefined,
           },
           choices,
         ),
@@ -4234,7 +4264,7 @@ function resolvedSpellAway(s: GameState, item: StackItem, d: CardDef | undefined
   }
   // Paradigm: exiled; after the first resolution, an emblem offers to cast a free copy of it at the beginning of each of
   // your first main phases.
-  if (d?.paradigm && !item.copy) {
+  if (d && cardRule(d, "paradigm") && !item.copy) {
     const exiled = moveObject(s, item.sourceId, "exile");
     const defId = `emblem:paradigm-${d.id}`;
     const already = Object.values(s.objects).some((o) => o.defId === defId && o.controller === item.controller);
@@ -4277,7 +4307,7 @@ function resolvedSpellAway(s: GameState, item: StackItem, d: CardDef | undefined
     return;
   }
   // "Exile [this spell]" (Step Between Worlds).
-  if (d?.exileOnResolve) {
+  if (cardRule(d, "exileOnResolve")) {
     moveObject(s, item.sourceId, "exile");
     return;
   }
@@ -4329,7 +4359,11 @@ function spellToRest(s: GameState, item: StackItem, exile = false): void {
 /** Spell with a promised gift whose opponent is not chosen yet (regardless of the number of opponents). */
 export function giftChoiceNeeded(s: GameState, item: StackItem): boolean {
   return (
-    item.kind === "spell" && !!item.kicked && !!item.cast && !item.cast.giftTo && s.defs[item.sourceDefId]?.kickerKind === "gift"
+    item.kind === "spell" &&
+    !!item.kicked &&
+    !!item.cast &&
+    !item.cast.giftTo &&
+    s.defs[item.sourceDefId]?.kicker?.kind === "gift"
   );
 }
 
@@ -4351,7 +4385,7 @@ function giftRecipient(s: GameState, item: StackItem): PlayerId | undefined {
  */
 export function copyStackItem(s: GameState, item: StackItem, controller: PlayerId): string {
   // "This spell can't be copied" (Choreographed Sparks).
-  if (item.kind === "spell" && s.defs[item.sourceDefId]?.cantBeCopied) return "";
+  if (item.kind === "spell" && cardRule(s.defs[item.sourceDefId], "cantBeCopied")) return "";
   let id: string;
   if (item.kind === "spell") {
     const src = s.objects[item.sourceId];

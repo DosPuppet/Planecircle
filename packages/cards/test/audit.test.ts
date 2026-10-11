@@ -36,7 +36,7 @@ describe("audit Oracle ↔ script", () => {
     expect(base && auditCard(base).filter((i) => i.kind === "static")).toEqual([]);
     if (!base) return;
     // Without its "can't be countered" field, a static of the text is no longer carried.
-    const { cantBeCountered: _c, ...stripped } = base;
+    const stripped = { ...base, rules: { ...base.rules, cantBeCountered: undefined } };
     expect(auditCard(stripped as typeof base).map((i) => i.kind)).toContain("static");
   });
 
