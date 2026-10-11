@@ -53,7 +53,7 @@
  "player or planeswalker": "joueur ou planeswalker",
  "search for a basic land": "chercher un terrain de base",
  "spell or ability": "sort ou capacité",
- "spell that targets a permanent you control": "sort qui cible un de vos permanents",
+ "spell that targets you or a permanent you control": "sort qui vous cible ou cible un de vos permanents",
  "spell, nonland permanent, or card in a graveyard": "sort, permanent non-terrain ou carte d'un cimetière",
  "your artifact or creature": "votre artefact ou créature",
  "{3}, {T}: the player mills two cards (and repeats if they share a color)": "{3}, {T} : le joueur meule deux cartes (et recommence si elles partagent une couleur)",

@@ -418,8 +418,8 @@ export const CARDS: Record<string, CardScript> = {
       [
         {
           id: "t",
-          label: "spell that targets a permanent you control",
-          filter: { spells: {}, spellsTargeting: { controller: "you" } },
+          label: "spell that targets you or a permanent you control",
+          filter: { spells: {}, spellsTargeting: { controller: "you" }, spellsTargetingYou: true },
         },
       ],
       [fx.counter(ref.target()), fx.draw(1)],

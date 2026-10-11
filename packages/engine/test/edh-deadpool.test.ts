@@ -20,6 +20,7 @@ import {
   scenario,
   settle,
   settleNoBlocks,
+  steal,
   throughCombat,
   untilCastNow,
 } from "./helpers";
@@ -733,5 +734,61 @@ describe("Deadpool (EDH)", () => {
       t = advanceUntil(s, (x) => x.turn.active === "p1" && x.turn.step === "main1");
       expect(chars(t, slicer).types).toContain("Creature");
     });
+  });
+});
+
+describe("PLAN-M M9a: approximations lifted", () => {
+  it("Elturel Survivors: X counts only the lands of the player it attacks", () => {
+    let s = scenario({
+      players: 3,
+      p1: { battlefield: ["Elturel Survivors"] },
+      p2: { battlefield: lands("Forest", 3) },
+      p3: { battlefield: lands("Island", 1) },
+    });
+    const e = idOf(s, "p1", "battlefield", "Elturel Survivors");
+    s = advanceUntil(s, (x) => x.pending?.kind === "declareAttackers");
+    s = act(s, "p1", { type: "declareAttackers", attackers: [{ id: e, defender: "p3" }] });
+    expect(chars(s, e).power).toBe(1);
+  });
+
+  it("Vislor Turlough: goaded only for as long as the opponent controls it", () => {
+    let s = scenario({ p1: { battlefield: lands("Swamp", 4), hand: ["Vislor Turlough"] } });
+    s = settle(castIt(s, "p1", "Vislor Turlough"), yes);
+    const v = idOf(s, "p2", "battlefield", "Vislor Turlough");
+    expect(objectView(s, v).goaded?.[0]?.by).toBe("p1");
+    // Back under p1's control: no longer goaded, even if p2 regains it later.
+    steal(s, v, "p1");
+    expect(objectView(s, v).goaded).toBeUndefined();
+    steal(s, v, "p2");
+    expect(objectView(s, v).goaded).toBeUndefined();
+  });
+
+  it("Xenic Poltergeist: until your next upkeep — still a creature during your untap step", () => {
+    let s = scenario({
+      p1: { battlefield: ["Xenic Poltergeist", ARTIFACT, { name: "Hedge Whisperer", tapped: true }] },
+    });
+    const relic = idOf(s, "p1", "battlefield", "Test Relic");
+    s = settle(activate(s, "p1", idOf(s, "p1", "battlefield", "Xenic Poltergeist"), { targets: { t: [relic] } }));
+    // Hedge Whisperer's question pauses p1's next untap step.
+    s = advanceUntil(s, (x) => x.turn.active === "p1" && x.turn.step === "untap" && x.pending?.kind === "choice");
+    expect(chars(s, relic).types).toContain("Creature");
+    s = act(s, "p1", { type: "choose", values: [] });
+    expect(s.turn.step).toBe("upkeep");
+    expect(chars(s, relic).types).not.toContain("Creature");
+  });
+
+  it("Share the Spoils: each player plays the exiled cards only during their own turn", () => {
+    let s = scenario({
+      p1: { battlefield: lands("Mountain", 2), hand: ["Share the Spoils"], library: ["Forest", "Swamp"] },
+      p2: { battlefield: ["Mountain"], library: ["Lightning Bolt", "Island", "Island"] },
+    });
+    s = settle(castIt(s, "p1", "Share the Spoils"));
+    const bolt = s.exile.find((id) => nameOf(s, id) === "Lightning Bolt") as string;
+    // p1's turn: p2 gets priority, but can't cast the exiled instant.
+    s = act(s, "p1", { type: "pass" });
+    expect(s.pending).toEqual({ kind: "priority", player: "p2" });
+    expect(legalActions(s, "p2").some((a) => a.type === "cast" && a.card === bolt)).toBe(false);
+    s = advanceUntil(s, (x) => x.turn.active === "p2" && x.turn.step === "main1" && x.pending?.kind === "priority");
+    expect(legalActions(s, "p2").some((a) => a.type === "cast" && a.card === bolt)).toBe(true);
   });
 });

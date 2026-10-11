@@ -591,8 +591,22 @@ export const RECORD_VERSION = 1;
  *   arrival logged in the turn log, not a change of control (Renet); Raft Security Officer is one ability with a
  *   reduction read from its target; an additional sacrifice offers the permanents that sacrifice themselves for mana
  *   last, and the one sacrificed by default doesn't pay its mana in `legalActions` (Deadly Dispute and a Treasure)
+ * - 201: PLAN-M M9a: Willie Lumpkin's prohibition lasts through that player's next turn; Helm of the Host's token gains
+ *   haste by an effect (not a copy exception); The Ur-Sphinx's players all mill before the casts; Breach the Multiverse
+ *   chooses a card per player, then puts them onto the battlefield together; Codie exiles until a cheaper instant or
+ *   sorcery, castable free until end of turn, the rest on the bottom; Plague of Vermin repeats its rounds until no one
+ *   pays; Stinging Study's commander is chosen; Expropriate's money vote takes a permanent owned by the voter; Hindering
+ *   Light counters spells that target you; Elturel Survivors counts the defending player's lands; Mirri's restriction
+ *   lasts this combat; Sylvan Library only takes cards drawn this turn; Gix's "pay 1 life" is a payment (and a life
+ *   payment that can't be made isn't asked); Notion Thief's draw is a draw (replaced by an opposing thief, not twice);
+ *   Sphinx Ambassador searches that player's library (the search event names it); every postcombat main phase triggers
+ *   Sphinx of the Second Sun, Florian and Tymna; Cryptolith Fragment is a mana ability (each player loses 1 life);
+ *   First Family counts the colors of spells cast this turn; Vislor Turlough is goaded while the opponent controls it;
+ *   Xenic Poltergeist lasts until your next upkeep; Share the Spoils plays only during one's own turn; Emrakul, the
+ *   World Anew has protection from all spells; Mariposa Military Base may enter tapped with two rad counters; Fathom
+ *   Mage triggers once per counter; Cut a Deal counts the opponents who actually drew
  */
-export const RULES_VERSION = 200;
+export const RULES_VERSION = 201;
 
 /** One checkpoint every N decisions (plus the last one of the game). */
 export const CHECKPOINT_EVERY = 25;

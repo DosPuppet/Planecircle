@@ -37,6 +37,11 @@ export const payFx = {
     const flat = effects.flat();
     return [{ op: "pay", cost: { payLife: life }, prompt, skip: flat.length }, ...flat];
   },
+  /** "[That player] may pay N life. If they do, …" (Gix, Yawgmoth Praetor): a payment by that player (119.4), not a loss. */
+  mayPayLifeFor: (who: Ref, life: Amount, prompt: string, ...effects: Effects): Effect[] => {
+    const flat = effects.flat();
+    return [{ op: "pay", cost: { payLife: life }, prompt, skip: flat.length, who }, ...flat];
+  },
   /** "You may forage. If you do, …" (701.61: exile three cards from your graveyard or sacrifice a Food). */
   mayForage: (_prompt: string, ...effects: Effects): Effect[] => {
     const flat = effects.flat();

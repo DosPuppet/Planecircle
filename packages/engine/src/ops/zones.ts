@@ -308,9 +308,9 @@ export const HANDLERS: OpHandlers = {
     if (picked === undefined) {
       // Suggestion: a player, the first designated (the next opponent in turn order; "that player or a planeswalker
       // they control": the player); otherwise the object with the greatest toughness.
-      const suggested =
-        ids.find((id) => isPlayer(s, id)) ??
-        ([...ids].sort((a, b) => chars(s, b).toughness - chars(s, a).toughness)[0] as string);
+      const by = (id: string) =>
+        e.suggest === "manaValue" ? manaValue(s.defs[s.objects[id]?.defId ?? ""]?.manaCost) : chars(s, id).toughness;
+      const suggested = ids.find((id) => isPlayer(s, id)) ?? ([...ids].sort((a, b) => by(b) - by(a))[0] as string);
       return {
         ask: {
           player: chooser,
@@ -1450,8 +1450,10 @@ export const HANDLERS: OpHandlers = {
     return;
   },
   search(s, r, e, ctx, key) {
-    // Each designated player searches THEIR library (Demolition Field); by default, the controller.
-    for (const p of e.who ? resolveRef(s, ctx, e.who).filter((x) => isPlayer(s, x)) : [ctx.controller]) {
+    // Each designated player searches THEIR library (Demolition Field); by default, the controller. "Search that
+    // player's library" (`library`): the controller searches the designated player's.
+    const libraries = e.library ? resolveRef(s, ctx, e.library).filter((x) => isPlayer(s, x) && !s.players[x]?.lost) : undefined;
+    for (const p of libraries ?? (e.who ? resolveRef(s, ctx, e.who).filter((x) => isPlayer(s, x)) : [ctx.controller])) {
       if (r.vars[key(`sdone-${p}`)]) continue;
       const player = s.players[p];
       if (!player) continue;
@@ -1478,10 +1480,13 @@ export const HANDLERS: OpHandlers = {
         ),
       );
       // Opposition Agent: an opponent controls this search (the most recent), and the cards found are exiled with it.
-      const agent = playerStatics(s, p, "searchControl")
-        .filter(({ id }) => !!id && s.objects[id]?.controller !== p)
-        .sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0))[0]?.id;
-      const searcher = (agent && s.objects[agent]?.controller) || p;
+      // Not when the controller searches another player's library (`library`: "while they're searching their libraries").
+      const agent = libraries
+        ? undefined
+        : playerStatics(s, p, "searchControl")
+            .filter(({ id }) => !!id && s.objects[id]?.controller !== p)
+            .sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0))[0]?.id;
+      const searcher = libraries ? ctx.controller : (agent && s.objects[agent]?.controller) || p;
       let picked: string[] = [];
       if (options.length > 0 && count > 0) {
         const answer = r.vars[key(`search-${p}`)];
@@ -1495,11 +1500,17 @@ export const HANDLERS: OpHandlers = {
                 intent: "search",
                 prompt: e.alsoGraveyard
                   ? msg("Search your library and/or graveyard: up to {n} card(s)", { n: count })
-                  : msg("Search your library: up to {n} card(s)", { n: count }),
+                  : libraries
+                    ? msg("Search that player's library: up to {n} card(s)", { n: count })
+                    : msg("Search your library: up to {n} card(s)", { n: count }),
                 options,
                 min: 0,
                 max: Math.min(count, options.length),
-                suggested: options.slice(0, Math.min(count, options.length)),
+                // A card held, not moved (Sphinx Ambassador): the greatest toughness first, like a choice among them.
+                suggested: (e.to ? options : [...options].sort((a, b) => chars(s, b).toughness - chars(s, a).toughness)).slice(
+                  0,
+                  Math.min(count, options.length),
+                ),
               },
             },
           };
@@ -1513,17 +1524,27 @@ export const HANDLERS: OpHandlers = {
         r.vars[key(`revealed-${p}`)] = [1];
         emit({ type: "reveal", player: p, defIds: picked.map((id) => s.objects[id]?.defId ?? "") });
       }
-      const arrival = agent ? new Map() : arrivalChoices(s, r, ctx, picked, e.to, ownerOr(s, e.to, p), (x) => key(`${p}-${x}`));
+      const to = e.to;
+      const arrival =
+        agent || !to ? new Map() : arrivalChoices(s, r, ctx, picked, to, ownerOr(s, to, p), (x) => key(`${p}-${x}`));
       if (!(arrival instanceof Map)) return arrival;
       r.vars[key(`sdone-${p}`)] = [1];
       // "If you search your library this way, shuffle": a card taken from the graveyard means the library wasn't searched.
       const searchedLibrary = !e.alsoGraveyard || !picked.some((id) => player.graveyard.includes(id));
-      if (searchedLibrary) {
+      // Another player's library (Sphinx Ambassador): the search event names it ("searches their library" doesn't
+      // trigger, nor the turn log of searches of one's own library).
+      if (searchedLibrary && libraries) rulesEvent(s, { e: "search", player: searcher, library: p });
+      else if (searchedLibrary) {
         rulesEvent(s, { e: "search", player: p });
         logTurnEvent(s, { e: "search", player: p });
       }
+      // The found cards stay where they are, remembered (the effects that follow use them, then shuffle).
+      if (!to) {
+        if (e.store) r.vars[`$ids:${e.store}`] = [...(r.vars[`$ids:${e.store}`] ?? []), ...picked];
+        continue;
+      }
       // 701.23: shuffle after searching; "on top" applies after the shuffle.
-      const toTop = e.to.to === "libraryTop" && !agent;
+      const toTop = to.to === "libraryTop" && !agent;
       for (const id of picked) {
         if (agent) {
           const exiled = moveObject(s, id, "exile");
@@ -1532,7 +1553,7 @@ export const HANDLERS: OpHandlers = {
           continue;
         }
         if (toTop) continue;
-        const moved = moveWithSpec(s, p, id, evalMoveSpec(s, ctx, e.to), arrival.get(id));
+        const moved = moveWithSpec(s, p, id, evalMoveSpec(s, ctx, to), arrival.get(id));
         if (e.store && moved) r.vars[`$ids:${e.store}`] = [...(r.vars[`$ids:${e.store}`] ?? []), moved];
       }
       if (searchedLibrary) shuffle(s, player.library);
@@ -1807,12 +1828,14 @@ export const HANDLERS: OpHandlers = {
     const players = e.who ? resolveRef(s, ctx, e.who).filter((x) => isPlayer(s, x)) : [ctx.controller];
     const all: string[] = [];
     const exiled: string[] = [];
+    // Codie: "with lesser mana value" than the spell (a comparison resolved now).
+    const filter = { ...withX(s, e.filter, ctx), controller: undefined };
     for (const whose of players) {
       const lib = s.players[whose]?.library ?? [];
       let found: string | null = null;
       while (lib.length && !found) {
         const top = lib[0] as string;
-        const match = matchesCard(s, ctx.controller, top, { ...e.filter, controller: undefined });
+        const match = matchesCard(s, ctx.controller, top, filter);
         const moved = moveWithSpec(s, ctx.controller, top, { to: "exile" });
         if (moved) exiled.push(moved);
         if (match) found = moved;

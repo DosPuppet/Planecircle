@@ -5,6 +5,7 @@
  */
 import type { Amount, CardScript, Effect, ObjectFilter, Ref, TokenSpec } from "@mtgx/engine";
 import {
+  ANY_COLOR,
   activated,
   amount,
   cond,
@@ -86,11 +87,7 @@ export const EDH_RAKDOS: Record<string, CardScript> = {
   "Cryptolith Fragment": {
     abilities: [
       entersWith({ tapped: true }),
-      activated({
-        tap: true,
-        effects: [fx.addManaChoice(1), fx.loseLife(1, ref.eachPlayer)],
-        label: "One mana of any color; each player loses 1 life",
-      }),
+      manaAbility(ANY_COLOR, 1, { drawback: { life: { who: "each", delta: -1 } } }),
       triggered(when.yourUpkeep, [fx.transform(ref.self)], {
         condition: cond.not(cond.amountAtLeast(amount.refCount(ref.playersWhere(ref.eachPlayer, cond.lifeAtLeast(11))), 1)),
         label: "Each player has 10 or less life: transform it",
@@ -359,7 +356,7 @@ export const EDH_RAKDOS: Record<string, CardScript> = {
   "Florian, Voldaren Scion": {
     abilities: [
       triggered(
-        when.secondMain,
+        when.postcombatMain,
         [
           fx.lookAtTop(OPPONENTS_LOST, { count: 1, exact: true, to: { to: "exile" }, rest: "bottom", store: "fl" }),
           fx.grantPlay(ref.stored("fl"), {}),
@@ -630,8 +627,7 @@ export const EDH_RAKDOS: Record<string, CardScript> = {
         targets: [target.player("t")],
         label: "Gain control of all creatures target player controls",
       }),
-      // Approximation: "from spells" reads as from instants and sorceries (docs/approximations.md).
-      protectionAbility(protection.from({ anyOf: [{ types: ["Instant"] }, { types: ["Sorcery"] }] }, "Protection from spells")),
+      protectionAbility(protection.spells("Protection from spells")),
       protectionAbility(
         protection.from({ cast: true, enteredThisTurn: true }, "Protection from permanents that were cast this turn"),
       ),

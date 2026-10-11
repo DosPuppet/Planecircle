@@ -214,14 +214,20 @@ describe("Source Material", () => {
     });
   });
   describe("G4e: last cards (2)", () => {
-    it("Plague of Vermin: each player pays life and creates that many Rats", () => {
+    it("Plague of Vermin: each player pays life, the process repeats until no one pays; a Rat per life paid (PLAN-M M9a)", () => {
       let s = scenario({ p1: { battlefield: lands("Swamp", 7), hand: ["Plague of Vermin"] } });
-      s = settle(act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Plague of Vermin") }), (req, player) =>
-        req.type === "number" ? [player === "p1" ? 3 : 2] : undefined,
-      );
-      expect(s.players.p1?.life).toBe(17);
+      // Round 1: 3 and 2; round 2: 1 and 0; round 3: nobody pays, the process stops.
+      const answers: Record<string, number[]> = { p1: [3, 1, 0], p2: [2, 0, 0] };
+      let asked = 0;
+      s = settle(act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Plague of Vermin") }), (req, player) => {
+        if (req.type !== "number") return undefined;
+        asked++;
+        return [answers[player]?.shift() ?? 0];
+      });
+      expect(asked).toBe(6);
+      expect(s.players.p1?.life).toBe(16);
       expect(s.players.p2?.life).toBe(18);
-      expect(idsOf(s, "p1", "battlefield", "Rat")).toHaveLength(3);
+      expect(idsOf(s, "p1", "battlefield", "Rat")).toHaveLength(4);
       expect(idsOf(s, "p2", "battlefield", "Rat")).toHaveLength(2);
     });
   });
@@ -231,15 +237,16 @@ describe("Source Material: approximations lifted (PLAN-H, H2c)", () => {
   it("Plague of Vermin: in multiplayer, each player pays in turn (starting with you) and creates that many Rats", () => {
     let s = scenario({ players: 3, p1: { battlefield: lands("Swamp", 7), hand: ["Plague of Vermin"] } });
     const payers: string[] = [];
-    const paid: Record<string, number> = { p1: 3, p2: 2, p3: 1 };
+    // Round 1: 3, 2, 1; round 2: only p3 pays; round 3: nobody.
+    const paid: Record<string, number[]> = { p1: [3, 0, 0], p2: [2, 0, 0], p3: [1, 1, 0] };
     s = settle(act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Plague of Vermin") }), (req, player) => {
       if (req.type !== "number") return undefined;
       payers.push(player);
-      return [paid[player] ?? 0];
+      return [paid[player]?.shift() ?? 0];
     });
-    expect(payers).toEqual(["p1", "p2", "p3"]);
-    expect([s.players.p1?.life, s.players.p2?.life, s.players.p3?.life]).toEqual([17, 18, 19]);
-    expect(["p1", "p2", "p3"].map((p) => idsOf(s, p, "battlefield", "Rat").length)).toEqual([3, 2, 1]);
+    expect(payers).toEqual(["p1", "p2", "p3", "p1", "p2", "p3", "p1", "p2", "p3"]);
+    expect([s.players.p1?.life, s.players.p2?.life, s.players.p3?.life]).toEqual([17, 18, 18]);
+    expect(["p1", "p2", "p3"].map((p) => idsOf(s, p, "battlefield", "Rat").length)).toEqual([3, 2, 2]);
   });
 });
 

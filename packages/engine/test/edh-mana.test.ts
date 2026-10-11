@@ -746,3 +746,23 @@ describe("Commander (EDH): mana base, rare lands (PLAN-L, L11)", () => {
     });
   });
 });
+
+describe("PLAN-M M9a: approximations lifted", () => {
+  it("Mariposa Military Base: you may have it enter tapped; if you do, you get two rad counters", () => {
+    const start = () => scenario({ p1: { hand: ["Mariposa Military Base"] } });
+    let s = start();
+    const card = idOf(s, "p1", "hand", "Mariposa Military Base");
+    // Playing it asks the question with the land (two options: untapped, or tapped with two rad counters).
+    const offers = legalActions(s, "p1").filter((a) => a.type === "playLand" && a.card === card);
+    const choose = offers[0]?.type === "playLand" ? offers[0].choose : undefined;
+    expect(choose?.type === "pick" ? choose.options : []).toEqual(["0", "1"]);
+    s = settle(act(s, "p1", { type: "playLand", card, chosen: "1" }));
+    expect(tapped(s, "Mariposa Military Base")).toBe(true);
+    expect(s.players.p1?.counters?.rad).toBe(2);
+    // Untapped: no rad counter (the suggested answer, also without a choice).
+    let t = start();
+    t = settle(act(t, "p1", { type: "playLand", card: idOf(t, "p1", "hand", "Mariposa Military Base") }));
+    expect(tapped(t, "Mariposa Military Base")).toBe(false);
+    expect(t.players.p1?.counters?.rad ?? 0).toBe(0);
+  });
+});

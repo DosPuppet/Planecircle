@@ -129,6 +129,6 @@
  "sorcery spell": "sort de rituel",
  "triggered ability or colorless spell": "capacité déclenchée ou sort incolore",
  "{1}, {T}: untap target creature": "{1}, {T} : dégagez la créature ciblée",
- "{4}, {T}: {W}{U}{B}{R}{G}; your next spell this turn cascades into an instant or a sorcery": "{4}, {T} : {W}{U}{B}{R}{G} ; votre prochain sort ce tour-ci cascade vers un éphémère ou un rituel",
+ "{4}, {T}: {W}{U}{B}{R}{G}; your next spell: exile until a cheaper instant or sorcery, castable free this turn": "{4}, {T} : {W}{U}{B}{R}{G} ; votre prochain sort : exilez jusqu'à un éphémère ou un rituel moins cher, lançable gratuitement ce tour-ci",
  "{5}{U}: draw, then discard a card": "{5}{U} : piochez, puis défaussez une carte"
 }

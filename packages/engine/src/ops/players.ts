@@ -102,6 +102,7 @@ export const HANDLERS: OpHandlers = {
               : until,
           e.times !== undefined || !!e.once,
           e.duration === "nextTurn" ? s.turn.number + 1 : undefined,
+          e.duration === "thisCombat",
         );
     return;
   },
@@ -238,12 +239,17 @@ export const HANDLERS: OpHandlers = {
   draw(s, r, e, ctx) {
     const n = evalAmount(s, ctx, e.amount);
     let drawn = 0;
+    let players = 0;
     for (const p of resolveRef(s, ctx, e.who)) {
       if (!isPlayer(s, p)) continue;
-      drawn += drawCards(s, p, n);
+      const k = drawCards(s, p, n);
+      drawn += k;
+      if (k > 0) players += 1;
     }
-    // "If you draw one or more cards this way": the cards actually drawn.
+    // "If you draw one or more cards this way": the cards actually drawn; `<store>Players`: the players who drew at
+    // least one ("for each opponent who drew a card this way", Cut a Deal).
     store(r, e.store, drawn);
+    if (e.store) store(r, `${e.store}Players`, players);
     return;
   },
   gainLife(s, _r, e, ctx) {

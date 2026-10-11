@@ -170,6 +170,8 @@ export const when = {
     kind,
     firstThisTurn,
   }),
+  /** "Whenever a [kind] counter is put on …": once for each counter (Fathom Mage). */
+  eachCounterPut: (who: "self" | ObjectFilter, kind?: string): TriggerSpec => ({ on: "countersPut", who, kind, each: true }),
   /** "Whenever you put one or more counters (of that kind) on …". */
   youPutCounters: (who: ObjectFilter, kind?: string): TriggerSpec => ({ on: "countersPut", who, kind, by: "you" }),
   /** `to`: what is dealt the damage (`TO_OPPONENT`, `TO_CREATURE`…). */
@@ -245,6 +247,8 @@ export const when = {
   eerie: { on: "eerie" } as TriggerSpec,
   /** "At the beginning of your second main phase" (Survival, with the condition "if this creature is tapped"). */
   secondMain: { on: "step", step: "main", whose: "you", nth: 2 } as TriggerSpec,
+  /** "At the beginning of each of your postcombat main phases" (505.1a: every main phase but the first). */
+  postcombatMain: { on: "step", step: "main", whose: "you", nth: "postcombat" } as TriggerSpec,
   /** "At the beginning of each of your main phases" (Carpet of Flowers). */
   eachMain: { on: "step", step: "main", whose: "you" } as TriggerSpec,
   /** "Whenever you activate a loyalty ability [removing at least N counters]" */

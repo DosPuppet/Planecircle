@@ -64,6 +64,14 @@ export const permanentsFx = {
     mods: { ...extra, addBlockRules: [...(extra.addBlockRules ?? []), GOADED] },
     duration,
   }),
+  /** Goaded "for as long as [that player] controls it" (Vislor Turlough): `ModifyWhile` `sourceControlledBy`. */
+  goadWhileControlledBy: (what: Ref, holder: Ref): Effect => ({
+    op: "modify",
+    what,
+    mods: { addBlockRules: [GOADED] },
+    duration: "permanent",
+    while: { sourceControlledBy: holder },
+  }),
   /**
    * `basePT`: base P/T set to this amount, evaluated at resolution (Fractalize: "X+1/X+1"); a pair: base power and base
    * toughness (Galion, Elvenking's Butler).
@@ -71,7 +79,7 @@ export const permanentsFx = {
   modify: (
     what: Ref,
     mods: LayerMods,
-    duration: "endOfTurn" | "permanent" | "untilYourNextTurn" | "endOfYourNextTurn" = "endOfTurn",
+    duration: "endOfTurn" | "permanent" | "untilYourNextTurn" | "endOfYourNextTurn" | "untilYourNextUpkeep" = "endOfTurn",
     basePT?: Amount | [Amount, Amount],
   ): Effect => ({
     op: "modify",

@@ -3,7 +3,7 @@
  * beginning of their precombat main phase, a player mills that many cards and loses 1 life for each nonland card),
  * milled cards, proliferate, Mutants.
  */
-import type { CardScript, ObjectFilter, TokenSpec, TriggerSpec } from "@mtgx/engine";
+import { type CardScript, msg, type ObjectFilter, type TokenSpec, type TriggerSpec } from "@mtgx/engine";
 import {
   ANY_COLOR,
   activated,
@@ -669,8 +669,14 @@ export const EDH_MUTANT: Record<string, CardScript> = {
   },
 
   // --- Lands --------------------------------------------------------------------------------------------------------
-  // Approximation: it always enters untapped, without rad counters.
+  // "You may have this land enter tapped. If you do, you get two rad counters" (614.1c: a choice as it enters).
   "Mariposa Military Base": {
+    asEnters: [
+      ...fx.yourChoice("Enter tapped (you get two rad counters)?", "tapped", [
+        { label: msg("Enter untapped"), effects: [] },
+        { label: msg("Enter tapped: you get two rad counters"), effects: [fx.tap(ref.self), fx.rad(ref.you, 2)] },
+      ]),
+    ],
     abilities: [
       manaAbility("C"),
       activated({

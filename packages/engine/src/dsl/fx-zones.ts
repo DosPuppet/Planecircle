@@ -230,6 +230,7 @@ export const zonesFx = {
       prompt?: string;
       optional?: boolean;
       random?: boolean;
+      suggest?: "manaValue";
     } = {},
   ): Effect => ({
     op: "chooseAmong",

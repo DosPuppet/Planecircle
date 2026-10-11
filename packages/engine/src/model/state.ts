@@ -264,6 +264,8 @@ export interface PlayerEffect {
   /** First turn the effect applies ("during that turn": Kang the Conqueror's extra turn); from now on otherwise. */
   from?: number;
   once?: boolean;
+  /** Ends with the current combat phase ("this combat": Mirri, Weatherlight Duelist). */
+  endOfCombat?: boolean;
   /** Timestamp of the effect (613.11: effects on the rules of the game, such as maximum hand size). */
   timestamp: number;
 }
@@ -549,12 +551,14 @@ export type TurnLogEntry =
    * up. */
   /** `search`: search of one's library (Archive Trap: "if an opponent searched their library"). */
   /** `drawStep`: a card drawn during the player's own draw step (Orcish Bowmasters, Notion Thief: "except the first"). */
+  /** `id`: the card drawn, in hand (Sylvan Library: "cards in your hand drawn this turn"). */
   | {
       e: "draw" | "scry" | "crime" | "turnFaceUp" | "search";
       player: PlayerId;
       types?: CardType[];
       subtypes?: string[];
       drawStep?: boolean;
+      id?: ObjectId;
     }
   /** `id`: the discarded card, in its new zone (Mayhem: "if you discarded it this turn"). */
   | { e: "discard"; player: PlayerId; amount: number; types?: CardType[]; subtypes?: string[]; id?: ObjectId }
@@ -818,8 +822,9 @@ export interface ContinuousEffect extends LayerMods {
    * "until end of turn", for as long as the objects remain on the battlefield, "until your next turn", or "until the
    * end of your next turn" (Evil's Thrall: removed at the cleanup of the next turn of `until`).
    */
-  duration: "endOfTurn" | "permanent" | "untilYourNextTurn" | "endOfYourNextTurn";
-  /** For "until your next turn" and "until the end of your next turn": the player concerned. */
+  /** `untilYourNextUpkeep`: removed at the beginning of the next upkeep of `until` (Xenic Poltergeist). */
+  duration: "endOfTurn" | "permanent" | "untilYourNextTurn" | "endOfYourNextTurn" | "untilYourNextUpkeep";
+  /** For "until your next turn", "until your next upkeep" and "until the end of your next turn": the player concerned. */
   until?: PlayerId;
   /** "until the end of your next turn": turn of creation (the effect lasts beyond the current turn). */
   sinceTurn?: number;

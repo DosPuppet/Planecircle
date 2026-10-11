@@ -157,6 +157,14 @@ export const ref = {
   stored: (name: string): Ref => ({ kind: "stored", name }),
   /** "each [creature] [the designated player] controls" */
   permanentsOf: (player: Ref, filter: ObjectFilter): Ref => ({ kind: "zone", zone: "battlefield", who: player, filter }),
+  /** The permanents the player owns, whoever controls them (Expropriate). */
+  permanentsOwnedBy: (player: Ref, filter: ObjectFilter = {}): Ref => ({
+    kind: "zone",
+    zone: "battlefield",
+    who: player,
+    filter,
+    owned: true,
+  }),
   playersWithMost: (filter: ObjectFilter): Ref => ({ kind: "playersWithMost", filter }),
   /** The defending player of the attacking source creature (or the controller of the attacked planeswalker). */
   defendingPlayer: { kind: "defendingPlayer" } as Ref,

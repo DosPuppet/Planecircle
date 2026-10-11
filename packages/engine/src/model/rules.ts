@@ -98,6 +98,8 @@ export interface TargetFilter {
   /** … that target a matching permanent (Fugitive Droid: "a spell that targets an artifact or creature you
    * control"). */
   spellsTargeting?: ObjectFilter;
+  /** … or that target you (Hindering Light: "a spell that targets you or a permanent you control"). */
+  spellsTargetingYou?: boolean;
   /** Spells or abilities on the stack with a single target (Bolt Bend). */
   /** `controller`: that you control; `source`: whose source matches (Scientist Supreme: "from an artifact source"). */
   stackItems?: {
@@ -223,6 +225,8 @@ export interface ObjectFilter {
   chosen?: "subtype" | "color" | "cardName" | "cardType" | "parity" | "number";
   /** Put into its current zone this turn ("card put into a graveyard this turn"). */
   enteredThisTurn?: boolean;
+  /** A card in hand drawn this turn (Sylvan Library), read from the turn log. */
+  drawnThisTurn?: boolean;
   /** Put into its zone from the battlefield this turn (Supper for Spiders). */
   fromBattlefieldThisTurn?: boolean;
   /** Legendary (true) or nonlegendary (false). */
@@ -412,9 +416,10 @@ export type TriggerSpec =
     }
   /**
    * "At the beginning of [the step]"; `main`: each main phase (Carpet of Flowers); `nth`: only the Nth main phase of
-   * the turn (Survival: the second, 505.1a).
+   * the turn (Survival: the second, 505.1a), or each postcombat main phase (`"postcombat"`: every main phase but the
+   * first, 505.1a; Sphinx of the Second Sun, Florian, Tymna: also those added after an additional combat).
    */
-  | { on: "step"; step: Step | "main"; whose: "you" | "opponent" | "any"; nth?: number }
+  | { on: "step"; step: Step | "main"; whose: "you" | "opponent" | "any"; nth?: number | "postcombat" }
   | { on: "landfall" }
   /** "Whenever you draw [your second card each turn]"; `whose` relative to the controller. */
   /** `exceptTurnDraw`: "except the first one they draw in each of their draw steps" (Orcish Bowmasters). */
@@ -436,7 +441,8 @@ export type TriggerSpec =
   /** `firstThisTurn`: "if it's the first time counters have been put on it this turn" (Stalwart Successor). */
   /** `by: "you"`: "whenever you put counters" (the one who puts them: controller of what is resolving, otherwise of
    * the permanent). */
-  | { on: "countersPut"; who: "self" | ObjectFilter; kind?: string; firstThisTurn?: boolean; by?: "you" }
+  /** `each`: "whenever a [+1/+1] counter is put on …", one trigger per counter (Fathom Mage), each with an amount of 1. */
+  | { on: "countersPut"; who: "self" | ObjectFilter; kind?: string; firstThisTurn?: boolean; by?: "you"; each?: boolean }
   /** Damage dealt by a source (noncombat only if requested), possibly to an opponent. */
   /** `anySourceYouControl`: any source (spells included) controlled by the ability's controller (Niv-Mizzet). */
   | {
@@ -773,6 +779,8 @@ export type Ref =
       who: Ref;
       filter?: ObjectFilter;
       maxManaValue?: Amount;
+      /** On the battlefield: the permanents they own, whoever controls them (Expropriate: "a permanent owned by the voter"). */
+      owned?: boolean;
     }
   /**
    * The objects with the same name as the designated objects (themselves included): on the battlefield (Maelstrom
@@ -809,6 +817,11 @@ export type Amount =
       of?: Ref;
       /** Kind of counter (`property: "counters"`). */
       counter?: string;
+      /**
+       * `distinct` colors: the colors of the spells you've cast this turn (turn log) count too (First Family: "colors
+       * among permanents you control and spells you've cast this turn").
+       */
+      withSpellsCast?: boolean;
     }
   /**
    * What was spent to cast the source (the spell resolving, or the permanent it became), or the designated objects

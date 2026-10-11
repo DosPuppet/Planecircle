@@ -663,10 +663,10 @@ export const CARDS: Record<string, CardScript> = {
     abilities: [
       triggered(
         { on: "dealsCombatDamage", who: { types: ["Creature"] }, to: { players: "opponent" } },
-        fx.mayFor(
+        fx.mayPayLifeFor(
           ref.controllerOf(ref.eventObject),
+          1,
           "Pay 1 life and draw a card?",
-          fx.loseLife(1, ref.controllerOf(ref.eventObject)),
           fx.draw(1, ref.controllerOf(ref.eventObject)),
         ),
         { label: "A creature deals damage to one of your opponents: its controller may pay 1 life and draw" },

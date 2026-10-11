@@ -387,6 +387,11 @@ function beginStep(s: GameState): void {
   // 505.1a: rank of the main phase, before its triggers (only the first one precedes combat).
   if (s.turn.step === "main1") s.turn.mainPhase = 1;
   else if (s.turn.step === "main2") s.turn.mainPhase = (s.turn.mainPhase ?? 1) + 1;
+  // "Until your next upkeep" (Xenic Poltergeist): the effect ends as the upkeep begins, before its triggers.
+  if (s.turn.step === "upkeep" && s.effects.some((e) => e.duration === "untilYourNextUpkeep" && e.until === active)) {
+    s.effects = s.effects.filter((e) => !(e.duration === "untilYourNextUpkeep" && e.until === active));
+    bump(s);
+  }
   if (s.turn.step !== "untap" && s.turn.step !== "cleanup") stepEvent(s);
   switch (s.turn.step) {
     case "untap": {
@@ -638,6 +643,8 @@ function endStep(s: GameState): void {
   if (s.turn.step === "endCombat") {
     // The next controlled combat phase (Secret of Bloodbending) is over.
     if (s.turnControl?.combatOnly && s.turnControl.turn === s.turn.number) s.turnControl = undefined;
+    // Player effects "this combat" (Mirri, Weatherlight Duelist) end with the combat phase.
+    if (s.playerEffects.some((e) => e.endOfCombat)) s.playerEffects = s.playerEffects.filter((e) => !e.endOfCombat);
     s.combat = null;
     bump(s);
   }

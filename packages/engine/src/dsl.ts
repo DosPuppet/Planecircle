@@ -218,6 +218,8 @@ export const amount = {
   differentManaValues: agg("distinct", "manaValue", { filter: { controller: "you", notTypes: ["Land"] } }),
   /** Vivid (ECL): number of colors among the permanents you control (or matching the filter). */
   colorsAmong: (filter: ObjectFilter = { permanent: true, controller: "you" }): Amount => agg("distinct", "color", { filter }),
+  /** "The number of colors among permanents you control and spells you've cast this turn" (First Family). */
+  colorsAmongWithSpellsCast: agg("distinct", "color", { filter: { permanent: true, controller: "you" }, withSpellsCast: true }),
   lifeTotal: { kind: "lifeTotal" } as Amount,
   startingLife: { kind: "lifeTotal", starting: true } as Amount,
   /** Counters on the source from its last known information ("when it dies" ability). */
@@ -1380,6 +1382,8 @@ export const protection = {
   from: (filter: ObjectFilter, label: string): ProtectionRule => ({ from: filter, label }),
   hexproofFrom: (filter: ObjectFilter, label: string): ProtectionRule => ({ from: filter, hexproofOnly: true, label }),
   everything: { from: {}, label: msg("Protection from everything") } as ProtectionRule,
+  /** "Protection from spells" (Emrakul, the World Anew): from any spell on the stack. */
+  spells: (label: string): ProtectionRule => ({ from: {}, spells: true, label }),
 };
 
 /** Protection or hexproof printed on the card: a static ability on itself. */

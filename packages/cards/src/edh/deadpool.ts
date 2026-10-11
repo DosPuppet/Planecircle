@@ -130,8 +130,7 @@ export const EDH_DEADPOOL: Record<string, CardScript> = {
       }),
     ],
   },
-  // Trample, myriad: read from the text. Approximation: X counts the lands of all opponents (the defending player's
-  // in a duel).
+  // Trample, myriad: read from the text. X: the lands of the player it attacks (its defending player, in the layers).
   "Elturel Survivors": {
     abilities: [
       staticAbility(
@@ -139,7 +138,7 @@ export const EDH_DEADPOOL: Record<string, CardScript> = {
         { power: 1 },
         {
           condition: cond.sourceMatches({ attacking: true }),
-          perAmount: amount.count({ types: ["Land"], controller: "opponent" }),
+          perAmount: amount.refCount(ref.permanentsOf(ref.defendingPlayer, { types: ["Land"] })),
           label: "While attacking: +X/+0, X being the lands of the defending player",
         },
       ),
@@ -355,8 +354,7 @@ export const EDH_DEADPOOL: Record<string, CardScript> = {
       }),
     ],
   },
-  // Doctor's companion: read from the text. Approximation: goaded for the rest of the game (not only while the
-  // opponent controls it).
+  // Doctor's companion: read from the text. Goaded for as long as the opponent controls it.
   "Vislor Turlough": {
     abilities: [
       triggered(
@@ -365,7 +363,7 @@ export const EDH_DEADPOOL: Record<string, CardScript> = {
           "Have an opponent gain control of it (goaded)?",
           fx.chooseOpponent("vislor"),
           fx.giveControl(ref.self, ref.stored("vislor")),
-          fx.goad(ref.self, "permanent"),
+          fx.goadWhileControlledBy(ref.self, ref.stored("vislor")),
         ),
         { label: "You may have an opponent gain control of it; it's goaded" },
       ),
@@ -392,7 +390,7 @@ export const EDH_DEADPOOL: Record<string, CardScript> = {
       activated({
         tap: true,
         targets: [target.permanent("t", ["Artifact"], { notTypes: ["Creature"] }, "noncreature artifact")],
-        effects: [fx.modify(ref.target(), { addTypes: ["Creature"] }, "untilYourNextTurn", amount.manaValueOf(ref.target()))],
+        effects: [fx.modify(ref.target(), { addTypes: ["Creature"] }, "untilYourNextUpkeep", amount.manaValueOf(ref.target()))],
         label: "Until your next upkeep, target noncreature artifact becomes an artifact creature (P/T: its mana value)",
       }),
     ],
@@ -503,9 +501,10 @@ export const EDH_DEADPOOL: Record<string, CardScript> = {
       triggered(when.entersSelf, SPOILS_EXILE, { label: "Exile the top card of each library" }),
       triggered(when.opponentLoses, SPOILS_EXILE, { label: "An opponent loses: exile the top card of each library" }),
       playerStatic({
-        playFrom: { zone: "linked", anyMana: true },
+        playFrom: { zone: "linked", anyMana: true, during: "yourTurn" },
         affects: "each",
-        label: "Each player may play the cards exiled with it, spending mana as though it were mana of any color",
+        label:
+          "During their turn, each player may play the cards exiled with it, spending mana as though it were mana of any color",
       }),
       triggered(
         when.zoneChange(["exile"], { linked: true }),

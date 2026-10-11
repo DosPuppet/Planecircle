@@ -1029,3 +1029,27 @@ describe("Breaking News: gaps found by L11 (PLAN-L)", () => {
     expect(exiled(t, "Siphon Insight")).toHaveLength(1);
   });
 });
+
+describe("Outlaws: approximations lifted (PLAN-M M9a)", () => {
+  const castIt = (s: S, name: string, extra: object = {}, player = "p1") =>
+    act(s, player, { type: "cast", card: idOf(s, player, "hand", name), ...extra } as never);
+  const top = (s: S) => s.stack[s.stack.length - 1]?.id as string;
+  /** p2 (active) casts its spell, then p2 and p3 pass: p1 gets priority with it on the stack. */
+  const p2Casts = (s: S, name: string, extra: object = {}) =>
+    act(act(castIt(s, name, extra, "p2"), "p2", { type: "pass" }), "p3", { type: "pass" });
+  it("Hindering Light: also counters a spell that targets you (not one that targets only another player)", () => {
+    let s = scenario({
+      players: 3,
+      active: "p2",
+      p1: { battlefield: ["Plains", "Island"], hand: ["Hindering Light"], library: lands("Island", 2) },
+      p2: { battlefield: ["Mountain", "Mountain"], hand: ["Shock", "Shock"] },
+    });
+    s = p2Casts(s, "Shock", { targets: { t: ["p3"] } });
+    expect(() => castIt(s, "Hindering Light", { targets: { t: [top(s)] } })).toThrow();
+    s = settle(s);
+    s = p2Casts(s, "Shock", { targets: { t: ["p1"] } });
+    s = settle(castIt(s, "Hindering Light", { targets: { t: [top(s)] } }));
+    expect(s.players.p1?.life).toBe(20);
+    expect(s.players.p1?.hand).toHaveLength(1);
+  });
+});

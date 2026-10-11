@@ -302,3 +302,15 @@ its artwork (51 cards). Details in the plan's follow-up.
 ## PLAN-M M8b (rules 200)
 
 - **Ragavan, Nimble Pilferer:** "you may cast that card": `grantPlay.castOnly` (a land, or a land back face, can't be played; the former condition on the card's type is gone). Test added (`fca.test.ts`).
+
+## PLAN-M M9a (rules 201)
+
+- **Codie, Vociferous Codex:** "when you next cast a spell this turn": `exileUntil` an instant or sorcery card with lesser mana value (the filter's comparison resolved with `withX`), `grantPlay` free until end of turn, the other exiled cards on the bottom in a random order (no longer a cascade).
+- **Plague of Vermin:** rounds of payments, starting with you, repeated while someone pays (twenty rounds at most, a safety cap); a Rat for each life paid in all.
+- **Expropriate:** a vote for money takes a permanent owned by the voter, whoever controls it (`ref.permanentsOwnedBy`, Ref zone `owned`).
+- **Hindering Light:** also a spell that targets you (`TargetFilter.spellsTargetingYou`).
+- **Mirri, Weatherlight Duelist:** "this combat" (`fx.thisCombat`, player effect `endOfCombat`): an additional combat of the turn isn't restricted.
+- **Sylvan Library:** only cards drawn this turn (`ObjectFilter.drawnThisTurn`; the turn log's draw entry carries the card).
+- **Gix, Yawgmoth Praetor:** "its controller may pay 1 life" is a payment (`fx.mayPayLifeFor`, the `pay` op's `who` as payer): impossible with 0 life (119.4); a life payment that can't be made is no longer asked.
+- **Notion Thief:** the thief's draw goes through `drawCards` (its replacements apply), and an opposing Notion Thief may replace it in turn, but not one that already did (614.5).
+- **Tests:** `spg.test.ts` (+4: Expropriate, Mirri, Sylvan Library, Notion Thief; Codie rewritten), `pza.test.ts` (Plague of Vermin: two tests rewritten), `otp.test.ts` (+1: Hindering Light), `fca.test.ts` (+1: Gix).

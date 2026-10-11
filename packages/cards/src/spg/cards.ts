@@ -1182,7 +1182,7 @@ export const CARDS: Record<string, CardScript> = {
   },
   "Mirri, Weatherlight Duelist": {
     abilities: [
-      triggered(when.attacksSelf, [fx.thisTurn({ maxBlockingCreatures: 1 }, ref.eachOpponent)], {
+      triggered(when.attacksSelf, [fx.thisCombat({ maxBlockingCreatures: 1 }, ref.eachOpponent)], {
         label: "Attacks: each opponent can block with at most one creature this combat",
       }),
       playerStatic({
@@ -1315,8 +1315,7 @@ export const CARDS: Record<string, CardScript> = {
     asEnters: [fx.chooseForSelf("color")],
     abilities: [staticAbility({}, { setColorsChosen: "add" }, { label: "Permanents are the chosen color in addition" })],
   },
-  // "two cards in your hand drawn this turn".
-  // Approximation: any card put into your hand this turn qualifies (not only a drawn card).
+  // "two cards in your hand drawn this turn" (the turn log notes the cards drawn).
   "Sylvan Library": {
     abilities: [
       triggered(
@@ -1329,7 +1328,7 @@ export const CARDS: Record<string, CardScript> = {
             { life: 4 },
             fx.pickFromZone(
               "hand",
-              { enteredThisTurn: true },
+              { drawnThisTurn: true },
               { to: "libraryTop" },
               { count: 1, min: 1, prompt: "Put a card drawn this turn back on top of your library" },
             ),
@@ -1339,7 +1338,7 @@ export const CARDS: Record<string, CardScript> = {
             { life: 4 },
             fx.pickFromZone(
               "hand",
-              { enteredThisTurn: true },
+              { drawnThisTurn: true },
               { to: "libraryTop" },
               { count: 1, min: 1, prompt: "Put a card drawn this turn back on top of your library" },
             ),
@@ -1364,16 +1363,25 @@ export const CARDS: Record<string, CardScript> = {
         tap: true,
         effects: [
           fx.addMana("W", "U", "B", "R", "G"),
-          fx.whenNextSpellThisTurn([fx.cascade(amount.manaValueOf(ref.target("s")), { types: ["Instant", "Sorcery"] })]),
+          // "Exile cards until an instant or sorcery card with lesser mana value. Until end of turn, you may cast that
+          // card without paying its mana cost. Put each other card exiled this way on the bottom in a random order."
+          fx.whenNextSpellThisTurn([
+            {
+              op: "exileUntil",
+              filter: { ...INSTANT_OR_SORCERY, compare: [cmp.manaValue("<", amount.manaValueOf(ref.target("s")))] },
+              store: "codie",
+              storeAll: "codieAll",
+            },
+            fx.grantPlay(ref.stored("codie"), { free: true, castOnly: true }),
+            fx.moveTo(ref.except(ref.stored("codieAll"), ref.stored("codie")), { to: "libraryBottom", shuffle: true }),
+          ]),
         ],
-        label: "{4}, {T}: {W}{U}{B}{R}{G}; your next spell this turn cascades into an instant or a sorcery",
+        label: "{4}, {T}: {W}{U}{B}{R}{G}; your next spell: exile until a cheaper instant or sorcery, castable free this turn",
       }),
     ],
   },
   // Council's dilemma: each player votes, starting with you and in turn order; then an extra turn for each vote for time,
-  // and a permanent of the voter for each vote for money.
-  // Approximation: for an opponent's vote, the permanent is chosen among those they control and one of your opponents
-  // owns (and not among those they own, whatever their controller).
+  // and a permanent owned by the voter (whoever controls it) for each vote for money.
   Expropriate: {
     exileOnResolve: true,
     spell: spell(
@@ -1385,13 +1393,13 @@ export const CARDS: Record<string, CardScript> = {
         ...fx.forEachPlayer(ref.eachOpponent, (_p, n) => fx.when(votedFor(`v${n}`, 1), fx.extraTurn)),
         ...fx.when(
           votedFor("v", 2),
-          fx.chooseAmong(ref.permanentsOf(ref.eachPlayer, { owner: "you" }), ref.you, "m"),
+          fx.chooseAmong(ref.permanentsOwnedBy(ref.you), ref.you, "m"),
           fx.giveControl(ref.stored("m"), ref.you),
         ),
         ...fx.forEachPlayer(ref.eachOpponent, (p, n) =>
           fx.when(
             votedFor(`v${n}`, 2),
-            fx.chooseAmong(ref.permanentsOf(p, { owner: "opponent" }), ref.you, `m${n}`),
+            fx.chooseAmong(ref.permanentsOwnedBy(p), ref.you, `m${n}`),
             fx.giveControl(ref.stored(`m${n}`), ref.you),
           ),
         ),

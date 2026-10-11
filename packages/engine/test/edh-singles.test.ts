@@ -823,13 +823,18 @@ describe("Commander (EDH): single cards, A to K (PLAN-L L11)", () => {
       expect(onField(t, "p1", "Serra Angel")).toBe(1);
     });
 
-    it("First Family: draw X cards and gain X life, X the colors among your permanents", () => {
+    it("First Family: X the colors among your permanents and the spells you've cast this turn, itself included (PLAN-M M9a)", () => {
       let s = scenario({
-        p1: { battlefield: [...lands("Forest", 2), ...lands("Island", 2), "Bear Cub", "Savannah Lions"], hand: ["First Family"] },
+        p1: {
+          battlefield: [...lands("Forest", 2), ...lands("Island", 2), "Mountain", "Bear Cub", "Savannah Lions"],
+          hand: ["Shock", "First Family"],
+        },
       });
+      // Green and white permanents; red (Shock) and green-blue (First Family) spells cast this turn: four colors.
+      s = settle(castIt(s, "p1", "Shock", { targets: { t: ["p2"] } }));
       s = settle(castIt(s, "p1", "First Family"));
-      expect(s.players.p1?.hand).toHaveLength(2);
-      expect(life(s, "p1")).toBe(22);
+      expect(s.players.p1?.hand).toHaveLength(4);
+      expect(life(s, "p1")).toBe(24);
     });
 
     it("Flame On!: X +1/+1 counters, X your noncreature nonland cards in the graveyard, and flying; rebound", () => {

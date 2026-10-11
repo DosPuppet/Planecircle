@@ -701,6 +701,8 @@ export function playFromRules(
       if (!r || r.zone !== zone || (r.what && r.what !== what)) return [];
       if (zone === "linked" && !(id && s.objects[id]?.linked?.includes(card))) return [];
       if (r.filter && !matchesCard(s, player, card, { ...r.filter, controller: undefined }, id)) return [];
+      // Share the Spoils: only during the player's own turn.
+      if (r.during === "yourTurn" && s.turn.active !== player) return [];
       // Granted mayhem (702.191a): only a card discarded this turn.
       if (r.mayhem && !objectDidThisTurn(s, card, "discard")) return [];
       // Maralen: mana value at most an amount evaluated for the source.
@@ -2324,6 +2326,7 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
     kicked: !!choices.kicked,
     sourceId: card,
     x: choices.x,
+    spell: true,
   });
   const hasX =
     (!free && !!(flashback ? (castOption(dc, "flashback")?.cost ?? dc.manaCost)?.x : dc.manaCost?.x)) ||

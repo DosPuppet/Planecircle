@@ -84,18 +84,24 @@ function firstOfDrawStep(s: GameState, p: PlayerId): boolean {
   );
 }
 
-/** `thief`: the draw of Notion Thief itself, which it does not replace in turn. */
-/** Draws a card; returns whether this player drew one (not an empty library, nor a draw taken by Notion Thief). */
-export function drawCard(s: GameState, p: PlayerId, thief = false): boolean {
+/**
+ * Draws a card; returns whether this player drew one (not an empty library, nor a draw taken by Notion Thief).
+ * `stolenBy`: the players whose Notion Thief already replaced this draw (614.5: a replacement doesn't apply twice to
+ * the same event).
+ */
+export function drawCard(s: GameState, p: PlayerId, stolenBy: readonly PlayerId[] = []): boolean {
   const player = s.players[p];
   if (!player) return false;
   const first = firstOfDrawStep(s, p);
   // Notion Thief: "if an opponent would draw a card except the first one they draw in each of their draw steps,
-  // instead that player skips that draw and you draw a card" (the thief's draw is not replaced in turn).
-  if (!first && !thief) {
-    const thief = opponentsOf(s, p).find((q) => !s.players[q]?.lost && playerStatic(s, q, "stealsOpponentDraws"));
+  // instead that player skips that draw and you draw a card". The thief's draw is a draw like any other (`drawCards`:
+  // its replacements apply), which an opposing Notion Thief may replace in turn, but not one that already did.
+  if (!first) {
+    const thief = opponentsOf(s, p).find(
+      (q) => !stolenBy.includes(q) && !s.players[q]?.lost && playerStatic(s, q, "stealsOpponentDraws"),
+    );
     if (thief) {
-      drawCard(s, thief, true);
+      drawCards(s, thief, 1, [...stolenBy, thief]);
       return false;
     }
   }
@@ -110,7 +116,7 @@ export function drawCard(s: GameState, p: PlayerId, thief = false): boolean {
   emit({ type: "draw", player: p, objectId: id ?? undefined, defId: s.objects[id ?? ""]?.defId });
   // Turn log (Duelist of the Mind: power equal to the cards drawn this turn).
   const inDrawStep = s.turn.step === "draw" && s.turn.active === p;
-  logTurnEvent(s, { e: "draw", player: p, ...(inDrawStep ? { drawStep: true } : {}) });
+  logTurnEvent(s, { e: "draw", player: p, ...(inDrawStep ? { drawStep: true } : {}), ...(id ? { id } : {}) });
   const nth = countTurnEvents(s, { event: "draw" }, p, p);
   // The first card drawn in the player's draw step (whatever drew it; PLAN-L L4).
   rulesEvent(s, { e: "draw", player: p, nth, objectId: id ?? undefined, ...(first ? { turnDraw: true } : {}) });
@@ -123,7 +129,7 @@ export function drawCard(s: GameState, p: PlayerId, thief = false): boolean {
  * each card), Quantum Riddler ("that many plus one" with one or fewer cards in hand). Returns the number of cards
  * actually drawn ("if you draw one or more cards this way").
  */
-export function drawCards(s: GameState, p: PlayerId, n: number): number {
+export function drawCards(s: GameState, p: PlayerId, n: number, stolenBy: readonly PlayerId[] = []): number {
   const player = s.players[p];
   if (!player || n <= 0) return 0;
   // Draw replacements (R1, family I); Mornsong Aria: "players can't draw cards"; Bard, King of Dale: except the first
@@ -137,7 +143,7 @@ export function drawCards(s: GameState, p: PlayerId, n: number): number {
   // One draw from an empty library is enough (704.5b): no need to go further.
   const draws = Math.min(total, player.library.length + 1);
   let drawn = 0;
-  for (let i = 0; i < draws; i++) if (drawCard(s, p)) drawn++;
+  for (let i = 0; i < draws; i++) if (drawCard(s, p, stolenBy)) drawn++;
   return drawn;
 }
 
@@ -459,13 +465,12 @@ export function dealDamage(s: GameState, source: DamageSource, target: string, a
     preventByReplacement(s, foreignPrevention, source, amount, target);
     return;
   }
-  // 702.16e: protection — damage from a source matching its quality is prevented.
-  if (
-    targetObj?.zone === "battlefield" &&
-    !unpreventable &&
-    protectedFrom(s, target, sourceView(s, source.id, source.defId, source.controller))
-  )
-    return;
+  // 702.16e: protection — damage from a source matching its quality is prevented. A resolving spell is seen with the
+  // id of its card on the stack ("protection from spells", Emrakul, the World Anew).
+  if (targetObj?.zone === "battlefield" && !unpreventable) {
+    const view = sourceView(s, source.id, source.defId, source.controller);
+    if (protectedFrom(s, target, view && !source.id && source.stackId ? { ...view, id: source.stackId } : view)) return;
+  }
   // Static preventions: damage received (Crystal Barricade, Fog Bank) or dealt by the source (Fog Bank).
   for (const p of unpreventable ? [] : preventions(s)) {
     if (p.ab.noncombatOnly && combat) continue;

@@ -368,8 +368,8 @@ export const EDH_COUNTER_BLITZ: Record<string, CardScript> = {
   "Fathom Mage": {
     abilities: [
       evolve,
-      // Approximation: a single question for a group of counters; as many cards as counters put.
-      triggered(when.countersPut("self", "+1/+1"), fx.may("Draw a card for each +1/+1 counter?", fx.draw(amount.eventAmount)), {
+      // One trigger for each counter put (each asks its own "you may").
+      triggered(when.eachCounterPut("self", "+1/+1"), fx.may("Draw a card?", fx.draw(1)), {
         label: "A +1/+1 counter: you may draw a card",
       }),
     ],

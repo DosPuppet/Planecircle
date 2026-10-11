@@ -1,13 +1,14 @@
 /**
  * Mana: reading costs, available sources and the automatic payment solver.
  */
-import { dealDamage, gainLife, payLife, sacrifice, sourceFromObject } from "./actions";
+import { dealDamage, gainLife, loseLife, payLife, sacrifice, sourceFromObject } from "./actions";
 import { evalAmount, resolveRef, staticContext } from "./effects";
 import { RulesError } from "./errors";
 import { bumpFor } from "./layers";
 import { type AmountMod, chooseReplacementOrder } from "./modifiers";
 import { abilitiesLocked, collectEvidence, evidenceCards } from "./stack";
 import {
+  alivePlayers,
   bump,
   changeCounters,
   chars,
@@ -701,9 +702,13 @@ export function activateManaAbility(
     if (type !== c) otherBonus = true;
   }
   const amount = (pool?.[c] ?? 0) - poolBefore;
-  // Drawback (605.3b): damage dealt by the source to its controller, life gained by each opponent.
+  // Drawback (605.3b): damage dealt by the source to its controller, life gained or lost by each opponent or player.
   if (ab.drawback?.damageYou && s.objects[id]) dealDamage(s, sourceFromObject(s, id), player, ab.drawback.damageYou, false);
-  if (ab.drawback?.opponentsGainLife) for (const p of opponentsOf(s, player)) gainLife(s, p, ab.drawback.opponentsGainLife);
+  const life = ab.drawback?.life;
+  if (life)
+    for (const p of life.who === "each" ? alivePlayers(s) : opponentsOf(s, player))
+      if (life.delta > 0) gainLife(s, p, life.delta);
+      else loseLife(s, p, -life.delta);
   if (simple && !otherBonus && types.length <= 1 && s.triggers.length === triggersBefore && amount > 0)
     s.manaUndo = [...(s.manaUndo ?? []), { player, source: id, color: c, amount }];
   // The pool changed: a static ability may depend on it (Ozai, the Phoenix King).

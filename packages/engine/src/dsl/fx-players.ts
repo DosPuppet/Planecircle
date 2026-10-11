@@ -14,6 +14,13 @@ export const playersFx = {
   loseHalfLife: (who: Ref): Effect => ({ op: "loseLife", who, amount: 0, half: true }),
   /** Player effect until end of turn, for its controller (`damageUnpreventable`: "damage can't be prevented this turn"). */
   thisTurn: (ability: Omit<PlayerStaticAbilityDef, "kind">, who?: Ref): Effect => ({ op: "playerEffect", ability, who }),
+  /** Player effect until the end of this combat (Mirri, Weatherlight Duelist: "can't block with more than one creature this combat"). */
+  thisCombat: (ability: Omit<PlayerStaticAbilityDef, "kind">, who?: Ref): Effect => ({
+    op: "playerEffect",
+    ability,
+    who,
+    duration: "thisCombat",
+  }),
   /** Player effect until the beginning of your next turn (Avatar's Wrath). */
   /** Player effect until the next turn of the affected player (Teferi's Reproach). */
   untilTheirNextTurn: (ability: Omit<PlayerStaticAbilityDef, "kind">, who: Ref): Effect => ({

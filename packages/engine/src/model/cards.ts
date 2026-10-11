@@ -532,10 +532,11 @@ export interface ManaAbilityDef {
   /** Temple of Cyclical Time: "remove a [time] counter from this land" when it's activated. */
   removeCounter?: string;
   /**
-   * Drawback of the mana ability, applied as it resolves (605.3b): the source deals damage to its
-   * controller (Ancient Tomb, "pain" lands), each opponent gains life (Grove of the Burnwillows).
+   * Drawback of the mana ability, applied as it resolves (605.3b): the source deals damage to its controller (Ancient
+   * Tomb, "pain" lands); a change of life (`life`, `delta` > 0: gained, < 0: lost) of each opponent (Grove of the
+   * Burnwillows: they gain 1) or of each player (Cryptolith Fragment: they lose 1).
    */
-  drawback?: { damageYou?: number; opponentsGainLife?: number };
+  drawback?: { damageYou?: number; life?: { who: "opponents" | "each"; delta: number } };
   /**
    * One mana of any of the colors among the designated objects: the matching permanents you control (Meteor Crater,
    * Plaza of Heroes), the matching cards in your graveyard (The Grey Havens), the cards exiled with the source (Pit of
@@ -797,6 +798,11 @@ export interface ProtectionRule {
    * all five colors.
    */
   outsideIdentity?: boolean;
+  /**
+   * "Protection from spells" (Emrakul, the World Anew): from any source that is a spell on the stack (instants,
+   * sorceries, Aura and other permanent spells; their copies), in addition to the `from` filter (left empty).
+   */
+  spells?: boolean;
   label: string;
 }
 
@@ -1206,6 +1212,8 @@ export interface PlayFromZone {
   what?: "lands" | "spells";
   /** "You may cast them as though they had flash" (Azula, Cunning Usurper). */
   anyTime?: boolean;
+  /** Only during the player's own turn (Share the Spoils: "during each player's turn, that player may play …"). */
+  during?: "yourTurn";
   /** Additional life paid (Noctis, Festival of Embers). */
   payLife?: number;
   /** Additional forage (Osteomancer Adept). */

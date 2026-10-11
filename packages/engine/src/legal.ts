@@ -246,10 +246,17 @@ function concreteManaValue(s: GameState, player: PlayerId, t: TargetSpec, source
   return concreteSpec(s, staticContext(s, player, sourceId ?? ""), t);
 }
 
-function targetOptions(s: GameState, player: PlayerId, specs: TargetSpec[], sourceId?: ObjectId): TargetOption[] {
+/** `asSpell`: the targets of a spell being cast ("protection from spells"). */
+function targetOptions(
+  s: GameState,
+  player: PlayerId,
+  specs: TargetSpec[],
+  sourceId?: ObjectId,
+  asSpell = false,
+): TargetOption[] {
   return specs.map((t0) => {
     const t = concreteManaValue(s, player, t0, sourceId);
-    const all = legalTargets(s, player, t, sourceId);
+    const all = legalTargets(s, player, t, sourceId, asSpell);
     // "Total mana value N or less": a target that exceeds N on its own can never be chosen.
     const cap = t.maxTotalManaValue;
     const legal = cap === undefined ? all : all.filter((id) => (snapshot(s, id).manaValue ?? 0) <= cap);
@@ -262,7 +269,7 @@ function targetOptions(s: GameState, player: PlayerId, specs: TargetSpec[], sour
       min: t.minCount,
       ...(t.countX ? { countX: t.countX } : {}),
       kickedCount: t.kickedCount,
-      kickedLegal: t.kickedFilter ? legalTargets(s, player, { ...t, filter: t.kickedFilter }, sourceId) : undefined,
+      kickedLegal: t.kickedFilter ? legalTargets(s, player, { ...t, filter: t.kickedFilter }, sourceId, asSpell) : undefined,
       otherThan: t.otherThan,
       attachedToTarget: t.attachedToTarget,
       ...(t.shareCreatureType ? { shareCreatureType: creatureTypesByObject(s, legal) } : {}),
@@ -477,7 +484,7 @@ export function legalActions(s: GameState, player: PlayerId): ActionOption[] {
       .map((m, index) => ({
         index,
         label: m.label,
-        targets: withoutUnpayableLifeTax(s, player, targetOptions(s, player, m.targets, card)),
+        targets: withoutUnpayableLifeTax(s, player, targetOptions(s, player, m.targets, card, true)),
         extra: m.extraCost,
         ...kickerNeeds(m.condition),
       }))

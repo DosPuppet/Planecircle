@@ -159,7 +159,8 @@ type EntersAsk = Extract<OpResult, { ask: unknown }>;
 export const ENTERS_PREFIX = "enter:";
 
 /** "As it enters" effects that only choose: the only ones done outside a resolution, and probed for a land. */
-const CHOICE_OPS: ReadonlySet<Effect["op"]> = new Set(["chooseOnEnter", "chooseCopy", "exchangeTextBox"]);
+/** `chooseOption`: "you may have it enter tapped. If you do, …" (Mariposa Military Base), a choice among labels. */
+const CHOICE_OPS: ReadonlySet<Effect["op"]> = new Set(["chooseOnEnter", "chooseCopy", "exchangeTextBox", "chooseOption"]);
 /** An "as it enters" effect that only chooses: a choice op, or "you may behold" (Theorist's Sanctum). */
 const isChoiceEffect = (e: Effect): boolean => CHOICE_OPS.has(e.op) || (e.op === "pay" && !!e.cost.behold);
 /** Results of these choices, removed before each effect (a second choice of the same kind is properly asked). */
@@ -328,6 +329,11 @@ export function asEntersChoices(
       if (e.op === "addCounters" && e.what.kind === "self") {
         const n = Math.max(0, evalAmount(s, ctx, e.amount));
         if (n > 0) out.counters = [...(out.counters ?? []), { kind: e.kind ?? P1P1, n }];
+        continue;
+      }
+      // "It enters tapped": tapping itself (614.1c; Mariposa Military Base).
+      if (e.op === "tap" && e.what.kind === "self") {
+        out.tapped = true;
         continue;
       }
       const slot = `${prefix}${phase}.${i}`;

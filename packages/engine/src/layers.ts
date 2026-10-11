@@ -165,6 +165,7 @@ function readsBattlefield(a: Amount): boolean {
   if (typeof a === "number") return false;
   if (a.kind === "sum") return a.of.some(readsBattlefield);
   if (a.kind === "aggregate") return !a.of && !a.zone;
+  if (a.kind === "refCount") return a.ref.kind === "zone" && a.ref.zone === "battlefield";
   return a.kind === "count" && (!a.zone || a.zone === "battlefield");
 }
 
@@ -203,6 +204,8 @@ export const CDA_AMOUNT_KINDS: ReadonlySet<string> = new Set([
   "aggregate:max:manaValue:graveyard:you",
   // Unlicensed Hearse: number of cards exiled with it (linked cards still in exile).
   "refCount:linked",
+  // Elturel Survivors: "the number of lands defending player controls" (permanents of designated players).
+  "refCount:zone",
 ]);
 
 /** Key of an amount for `CDA_AMOUNT_KINDS`. */
@@ -265,6 +268,28 @@ function cdaAggregate(s: GameState, o: GameObject, a: Extract<Amount, { kind: "a
   return 0;
 }
 
+/**
+ * The players a reference designates during the layer computation, from the point of view of `o`: you, your opponents,
+ * each player, or the player `o` attacks (the defending player, 506.3d; none outside combat).
+ */
+function cdaPlayers(s: GameState, o: GameObject, who: Ref): PlayerId[] {
+  switch (who.kind) {
+    case "you":
+      return [o.controller];
+    case "eachOpponent":
+      return s.playerOrder.filter((p) => p !== o.controller && !s.players[p]?.lost);
+    case "eachPlayer":
+      return s.playerOrder.filter((p) => !s.players[p]?.lost);
+    case "defendingPlayer": {
+      const atk = s.combat?.attackers.find((x) => x.id === o.id);
+      if (!atk) return [];
+      return [s.players[atk.defender] ? atk.defender : (s.objects[atk.defender]?.controller ?? atk.defender)];
+    }
+    default:
+      return [];
+  }
+}
+
 function cdaValue(s: GameState, o: GameObject, a: Amount): number {
   if (typeof a === "number") return a;
   if (a.kind === "sum") return a.of.reduce<number>((n, x) => n + cdaValue(s, o, x), 0);
@@ -283,6 +308,15 @@ function cdaValue(s: GameState, o: GameObject, a: Amount): number {
   }
   if (a.kind === "refCount" && a.ref.kind === "linked")
     return (o.linked ?? []).filter((id) => s.objects[id]?.zone === "exile").length;
+  // Elturel Survivors: the permanents of the designated players (you, your opponents, the player the source attacks),
+  // types of the previous pass, otherwise printed.
+  if (a.kind === "refCount" && a.ref.kind === "zone") {
+    const z = a.ref;
+    if (z.zone !== "battlefield") return 0;
+    const players = cdaPlayers(s, o, z.who);
+    return s.battlefield.filter((id) => players.includes(obj(s, id).controller) && printedMatch(typesOf(s, id), z.filter ?? {}))
+      .length;
+  }
   // Unsupported kind (`CDA_AMOUNT_KINDS`): no card uses one (cards/test/cda.test.ts).
   if (a.kind !== "count") return 0;
   if (a.zone === "exile") {

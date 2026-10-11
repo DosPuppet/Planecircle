@@ -501,8 +501,9 @@ function matchAction(
   const chosen = t.whose === "chosen" ? (s.objects[src.id] ?? s.lki[src.id])?.chosen?.player : undefined;
   const by = (p: PlayerId) => (t.whose === "chosen" ? p === chosen : whose(t.whose ?? "you", p, me));
   switch (ev.e) {
+    // "Searches their library": not another player's (Sphinx Ambassador).
     case "search":
-      return by(ev.player) ? { player: ev.player } : null;
+      return by(ev.player) && !ev.library ? { player: ev.player } : null;
     // A player who has just lost still counts as an opponent.
     case "playerLost":
       if (t.whose === "chosen") return ev.player === chosen ? { player: ev.player } : null;
@@ -980,7 +981,10 @@ function matchTrigger(s: GameState, ev: RulesEvent, t: TriggerSpec, src: Source)
       if (ev.e !== "step" || !whose(t.whose, ev.active, me)) return null;
       const main = ev.step === "main1" || ev.step === "main2";
       if (t.step === "main" ? !main : ev.step !== t.step) return null;
-      return t.nth === undefined || (main && (s.turn.mainPhase ?? 1) === t.nth) ? { player: ev.active } : null;
+      const rank = s.turn.mainPhase ?? 1;
+      return t.nth === undefined || (main && (t.nth === "postcombat" ? rank >= 2 : rank === t.nth))
+        ? { player: ev.active }
+        : null;
     }
     case "landfall": {
       if (ev.e !== "zone" || ev.to !== "battlefield") return null;
@@ -1143,7 +1147,11 @@ export function detectTriggers(s: GameState, ev: RulesEvent, only?: (src: Source
         // "Do this only once each turn": noted when the effect is done (`doneOncePerTurn`).
         if (ab.oncePerTurn !== "ifDone") s.turn.onceFired.push(key);
       }
-      const again = 1 + triggerDoublers(s, src, ev);
+      // Fathom Mage: "whenever a +1/+1 counter is put on it", once for each counter (each trigger counts one).
+      const each = ab.trigger.on === "countersPut" && !!ab.trigger.each;
+      const perCounter = each ? Math.max(0, data.amount ?? 1) : 1;
+      const event = each ? { ...data, amount: 1 } : data;
+      const again = (1 + triggerDoublers(s, src, ev)) * perCounter;
       for (let k = 0; k < again; k++) {
         s.triggers.push({
           id: newId(s, "t"),
@@ -1152,7 +1160,7 @@ export function detectTriggers(s: GameState, ev: RulesEvent, only?: (src: Source
           abilityIndex: index,
           controller: src.view.controller,
           sourceSnapshot: { keywords: src.view.keywords, power: src.view.power, controller: src.view.controller },
-          event: data,
+          event,
           targets: {},
           // Granted ability (not in the definition): it is carried with the trigger.
           inline: (s.defs[src.view.defId]?.abilities[index] ?? null) === ab ? undefined : inlineOf(ab),

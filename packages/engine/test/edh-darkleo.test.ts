@@ -585,3 +585,28 @@ describe("Dark Leo & Shredder (EDH)", () => {
     });
   });
 });
+
+describe("PLAN-M M9a: approximations lifted", () => {
+  it("Helm of the Host: the token gains haste by an effect, not as a copy exception (a copy of it has no haste, 707.9b)", () => {
+    let s = scenario({
+      p1: {
+        battlefield: ["Helm of the Host", "Splinter, Aging Champion", ...lands("Plains", 5), ...lands("Island", 2)],
+        hand: ["Phantasmal Image"],
+      },
+    });
+    const splinter = idOf(s, "p1", "battlefield", "Splinter, Aging Champion");
+    const helm = idOf(s, "p1", "battlefield", "Helm of the Host");
+    s = settle(activateLabeled(s, "p1", helm, "Equip", { targets: { t: [splinter] } }));
+    s = advanceUntil(s, (x) => x.turn.step === "beginCombat" && x.pending?.kind === "priority" && x.stack.length > 0);
+    s = settle(s);
+    const copy = tokens(s, "Splinter, Aging Champion")[0] as string;
+    expect(chars(s, copy).keywords).toContain("haste");
+    s = advanceUntil(s, (x) => x.turn.step === "main2" && x.pending?.kind === "priority");
+    // Phantasmal Image copies the token: nonlegendary (an exception of the copied token), without haste.
+    s = settle(act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Phantasmal Image") }), picking([copy]));
+    const image = idOf(s, "p1", "battlefield", "Phantasmal Image");
+    expect(image).toBeDefined();
+    expect(chars(s, image as string).supertypes).not.toContain("Legendary");
+    expect(chars(s, image as string).keywords).not.toContain("haste");
+  });
+});

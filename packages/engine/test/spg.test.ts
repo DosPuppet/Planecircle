@@ -29,7 +29,6 @@ import {
   steal,
   stepTrail,
   throughCombat,
-  untilCastNow,
 } from "./helpers";
 
 /** Attaches the Equipment to the creature (staging). */
@@ -1136,23 +1135,39 @@ describe("Special Guests", () => {
     });
   });
   describe("G4e: last cards (2)", () => {
-    it("Codie, Vociferous Codex: no permanent spells; {4}, {T}: WUBRG, the next spell cascades into an instant or sorcery", () => {
-      let s = scenario({
-        p1: {
-          battlefield: ["Codie, Vociferous Codex", ...lands("Mountain", 4)],
-          hand: ["Bear Cub", "Lightning Strike"],
-          library: ["Bear Cub", "Shock", "Forest"],
-        },
-      });
+    it("Codie, Vociferous Codex: no permanent spells; {4}, {T}: WUBRG; the next spell exiles until a cheaper instant or sorcery, castable free until end of turn, the rest on the bottom (PLAN-M M9a)", () => {
+      const start = () =>
+        scenario({
+          p1: {
+            battlefield: ["Codie, Vociferous Codex", ...lands("Mountain", 4)],
+            hand: ["Bear Cub", "Lightning Strike"],
+            library: ["Bear Cub", "Lightning Bolt", "Shock", "Forest"],
+          },
+        });
+      let s = start();
       expect(castable(s, "p1", idOf(s, "p1", "hand", "Bear Cub"))).toBe(false);
       // Mana ability (605.1a): resolved at once, without the stack.
       s = act(s, "p1", { type: "activate", source: idOf(s, "p1", "battlefield", "Codie, Vociferous Codex"), ability: 1 });
       expect(Object.values(s.players.p1?.manaPool ?? {}).reduce((a, b) => a + b, 0)).toBe(5);
-      s = untilCastNow(act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Lightning Strike"), targets: { t: ["p2"] } }));
-      const hit = castNowOf(s)?.cards[0] as string;
-      expect(nameOf(s, hit)).toBe("Shock");
-      s = settle(act(s, "p1", { type: "cast", card: hit, free: true, targets: { t: ["p2"] } }));
-      expect(s.players.p2?.life).toBe(15);
+      s = settle(act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Lightning Strike"), targets: { t: ["p2"] } }));
+      // Lightning Strike has mana value 2: Bear Cub (a creature) is exiled, then Lightning Bolt (mana value 1), the first
+      // cheaper instant; Bear Cub goes to the bottom.
+      const bolt = exiled(s, "Lightning Bolt")[0] as string;
+      expect(bolt).toBeDefined();
+      expect(castNowOf(s)).toBeUndefined();
+      expect(s.players.p1?.library.map((id) => nameOf(s, id))).toEqual(["Shock", "Forest", "Bear Cub"]);
+      // Castable for free later in the turn (not only right away).
+      expect(castable(s, "p1", bolt)).toBe(true);
+      s = settle(act(s, "p1", { type: "cast", card: bolt, targets: { t: ["p2"] } }));
+      expect(s.players.p2?.life).toBe(14);
+      // Not cast this turn: the permission ends with the turn.
+      let t = start();
+      t = act(t, "p1", { type: "activate", source: idOf(t, "p1", "battlefield", "Codie, Vociferous Codex"), ability: 1 });
+      t = settle(act(t, "p1", { type: "cast", card: idOf(t, "p1", "hand", "Lightning Strike"), targets: { t: ["p2"] } }));
+      const unused = exiled(t, "Lightning Bolt")[0] as string;
+      const turn = t.turn.number;
+      t = advanceUntil(t, (x) => x.turn.number > turn && x.turn.active === "p1");
+      expect(castable(t, "p1", unused)).toBe(false);
     });
 
     it("Expropriate: each player votes; time gives an extra turn, money a permanent of the voter", () => {
@@ -1284,5 +1299,100 @@ describe("Special Guests: approximations lifted (PLAN-H, H2c)", () => {
     expect(s.objects[cub]?.controller).toBe("p1");
     expect(s.objects[elves]?.controller).toBe("p1");
     expect(s.extraTurns).toEqual(["p1"]);
+  });
+});
+
+describe("Special Guests: approximations lifted (PLAN-M M9a)", () => {
+  it("Expropriate: an opponent's vote for money, a permanent they own whoever controls it", () => {
+    let s = scenario({
+      players: 3,
+      p1: { battlefield: lands("Island", 9), hand: ["Expropriate"] },
+      p2: { battlefield: ["Llanowar Elves", "Bear Cub"] },
+    });
+    const cub = idOf(s, "p2", "battlefield", "Bear Cub");
+    const elves = idOf(s, "p2", "battlefield", "Llanowar Elves");
+    steal(s, cub, "p3");
+    let offered: string[] = [];
+    s = settle(act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Expropriate") }), (req, player) => {
+      if (req.type !== "pick") return undefined;
+      if (req.options.includes(cub)) {
+        offered = req.options.map(String);
+        return [cub];
+      }
+      return player === "p2" ? ["1"] : ["0"];
+    });
+    // p2's Bear Cub, controlled by p3, can be taken; p3's own permanents can't.
+    expect(offered.sort()).toEqual([cub, elves].sort());
+    expect(s.objects[cub]?.controller).toBe("p1");
+  });
+
+  it('Mirri, Weatherlight Duelist: "this combat" — an additional combat of the turn is not restricted', () => {
+    let s = scenario({
+      p1: { battlefield: ["Mirri, Weatherlight Duelist", "Bear Cub", ...lands("Mountain", 4)], hand: ["Seize the Day"] },
+      p2: { battlefield: ["Llanowar Elves", "Savannah Lions"] },
+    });
+    const mirri = idOf(s, "p1", "battlefield", "Mirri, Weatherlight Duelist");
+    const cub = idOf(s, "p1", "battlefield", "Bear Cub");
+    const elves = idOf(s, "p2", "battlefield", "Llanowar Elves");
+    const lions = idOf(s, "p2", "battlefield", "Savannah Lions");
+    s = settle(act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Seize the Day"), targets: { t: [mirri] } }));
+    // First combat: Mirri attacks, p2 can't block with two creatures.
+    s = attack(s, [mirri]);
+    s = advanceUntil(s, (x) => x.pending?.kind === "declareBlockers");
+    const double = (attacker: string) => ({
+      type: "declareBlockers" as const,
+      blocks: [
+        { blocker: elves, attacker },
+        { blocker: lions, attacker },
+      ],
+    });
+    expect(() => act(s, "p2", double(mirri))).toThrow();
+    s = act(s, "p2", { type: "declareBlockers", blocks: [] });
+    // The additional combat: Mirri doesn't attack, the restriction is over.
+    s = attack(s, [cub]);
+    s = advanceUntil(s, (x) => x.pending?.kind === "declareBlockers");
+    s = act(s, "p2", double(cub));
+    expect(s.combat?.blockers).toHaveLength(2);
+  });
+
+  it("Sylvan Library: only cards drawn this turn, not a card put into your hand another way", () => {
+    let s = scenario({
+      active: "p2",
+      p1: { battlefield: ["Sylvan Library"], graveyard: ["Opt"], library: ["Shock", "Bear Cub", "Forest", "Island"] },
+    });
+    s = advanceUntil(s, (x) => x.turn.active === "p1" && x.turn.step === "upkeep");
+    // Returned to hand this turn (not drawn).
+    const opt = moveObject(s, idOf(s, "p1", "graveyard", "Opt"), "hand") as string;
+    const offered: string[][] = [];
+    s = advanceUntil(s, (x) => x.turn.step === "draw" && x.pending?.kind === "choice");
+    let n = 0;
+    s = settle(s, (req) => {
+      if (req.type === "yesNo") return [++n === 1 ? 1 : 0];
+      if (req.type === "pick") offered.push(req.options.map(String));
+      return undefined;
+    });
+    expect(offered).toHaveLength(2);
+    expect(offered[0]).toHaveLength(3);
+    expect(offered.every((o) => !o.includes(opt))).toBe(true);
+    expect(s.players.p1?.hand).toContain(opt);
+  });
+
+  it("Notion Thief: the thief's draw is a draw (an opposing thief replaces it in turn, but not twice)", () => {
+    const s = scenario({
+      players: 3,
+      p1: { battlefield: ["Notion Thief"], library: lands("Island", 3) },
+      p2: { battlefield: ["Notion Thief"], library: lands("Swamp", 3) },
+      p3: { library: lands("Forest", 3) },
+    });
+    // p3 draws (not their draw step): one thief draws instead; the other thief, an opponent of the first, replaces that
+    // draw in turn; the first thief doesn't apply again (614.5): p1 or p2 ends up with the card.
+    drawCards(s, "p3", 1);
+    expect(s.players.p3?.hand).toHaveLength(0);
+    expect((s.players.p1?.hand.length ?? 0) + (s.players.p2?.hand.length ?? 0)).toBe(1);
+    // p1 draws: p2's thief draws instead, then p1's thief replaces p2's draw: p1 draws after all.
+    const before = s.players.p1?.hand.length ?? 0;
+    drawCards(s, "p1", 1);
+    expect(s.players.p1?.hand.length).toBe(before + 1);
+    expect(s.players.p1?.library).toHaveLength(3 - before - 1);
   });
 });

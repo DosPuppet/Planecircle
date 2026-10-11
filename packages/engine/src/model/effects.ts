@@ -54,7 +54,9 @@ export type Effect =
       /** `throughYourNextTurn`: until the end of the controller's next turn, for every affected player (Single Combat). */
       /** `nextTurn`: only during the next turn of the game (Kang the Conqueror: "take an extra turn after this one.
        * During that turn, …"). */
+      /** `thisCombat`: until the end of the current combat phase (Mirri, Weatherlight Duelist: "this combat"). */
       duration?:
+        | "thisCombat"
         | "untilYourNextTurn"
         | "untilTheirNextTurn"
         | "throughTheirNextTurn"
@@ -108,7 +110,8 @@ export type Effect =
       op: "modify";
       what: Ref;
       mods: LayerMods;
-      duration: "endOfTurn" | "permanent" | "untilYourNextTurn" | "endOfYourNextTurn";
+      /** `untilYourNextUpkeep`: until the beginning of the controller's next upkeep (Xenic Poltergeist). */
+      duration: "endOfTurn" | "permanent" | "untilYourNextTurn" | "endOfYourNextTurn" | "untilYourNextUpkeep";
       /** Duration tied to a state (with `duration: "permanent"`): see `ModifyWhile`. */
       while?: ModifyWhile;
       /**
@@ -139,7 +142,10 @@ export type Effect =
    * players (the controller by default).
    */
   | { op: "millWhileShared"; who?: Ref; share?: "color"; nonland?: boolean; draw?: boolean }
-  /** `store`: remembers the number of cards actually drawn ("if you draw one or more cards this way"). */
+  /**
+   * `store`: remembers the number of cards actually drawn ("if you draw one or more cards this way"), and under
+   * `<store>Players` the number of players who drew at least one ("for each opponent who drew a card this way").
+   */
   | { op: "draw"; who: Ref; amount: Amount; store?: string }
   | { op: "gainLife"; who: Ref; amount: Amount }
   /**
@@ -354,14 +360,20 @@ export type Effect =
        * Kaslem, Portent of Calamity). */
       reveal?: boolean | "all";
     }
-  /** Search one's library for up to `count` cards matching the filter, then shuffle. */
+  /**
+   * Search one's library for up to `count` cards matching the filter, then shuffle. Without `to`, the found cards stay
+   * in the library, remembered under `store`, and the library isn't shuffled (the effects that follow use them, then
+   * shuffle: Sphinx Ambassador).
+   */
   | {
       op: "search";
       filter: ObjectFilter;
       /** With `who`, read from the point of view of the searching player (Winds of Abandon: as many as their exiled creatures). */
       count: Amount;
-      to: MoveSpec;
+      to?: MoveSpec;
       who?: Ref;
+      /** "Search that player's library" (Sphinx Ambassador): the controller searches the designated player's library. */
+      library?: Ref;
       store?: string;
       /** "… basic land cards with different names" */
       distinctNames?: boolean;
@@ -908,6 +920,11 @@ export type Effect =
       prompt?: string;
       optional?: boolean;
       random?: boolean;
+      /**
+       * The suggested object: the one with the greatest mana value (Stinging Study: "the mana value of a commander you
+       * own"), rather than the greatest toughness.
+       */
+      suggest?: "manaValue";
     }
   /** Attaches an Aura or an Equipment to a permanent (701.3). */
   /** `store`: number of objects actually attached (701.3b: an object already attached doesn't "become" attached; Thorin). */
@@ -1062,7 +1079,9 @@ export type ModifyWhile =
   | { counter: string }
   | {
       exiled: Ref;
-    };
+    }
+  /** "For as long as [that player] controls [the source]" (Vislor Turlough: "goaded for as long as they control it"). */
+  | { sourceControlledBy: Ref };
 
 /**
  * Fate of token copies (`copyToken`): sacrificed (`sacrifice`) or exiled (`exile`, Stormsplitter) at the beginning of

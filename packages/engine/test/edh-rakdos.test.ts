@@ -455,3 +455,36 @@ describe("Rakdos, Lord of Riots (EDH)", () => {
     });
   });
 });
+
+describe("PLAN-M M9a: approximations lifted", () => {
+  it("Cryptolith Fragment: a real mana ability (by hand and by the automatic payment); each player loses 1 life", () => {
+    const FRAGMENT = "Cryptolith Fragment // Aurora of Emrakul";
+    let s = scenario({ p1: { battlefield: [FRAGMENT], hand: ["Shock"] } });
+    const fragment = idOf(s, "p1", "battlefield", FRAGMENT);
+    expect(manaAbilitiesOf(s, fragment)).toHaveLength(1);
+    // The automatic payment uses it: Shock paid with its mana.
+    s = settle(castIt(s, "p1", "Shock", { targets: { t: ["p2"] } }));
+    expect([life(s, "p1"), life(s, "p2")]).toEqual([19, 17]);
+    // By hand, outside a payment.
+    let t = scenario({ p1: { battlefield: [FRAGMENT] } });
+    t = act(t, "p1", { type: "tapForMana", source: idOf(t, "p1", "battlefield", FRAGMENT), ability: 0, color: "B" } as never);
+    expect(t.players.p1?.manaPool.B).toBe(1);
+    expect([life(t, "p1"), life(t, "p2")]).toEqual([19, 19]);
+  });
+
+  it("Emrakul, the World Anew: protection from spells, Aura spells included", () => {
+    let s = scenario({
+      active: "p2",
+      p1: { battlefield: ["Emrakul, the World Anew"] },
+      p2: { battlefield: [...lands("Plains", 2), "Bear Cub"], hand: ["Feather of Flight"] },
+    });
+    const emrakul = idOf(s, "p1", "battlefield", "Emrakul, the World Anew");
+    const feather = idOf(s, "p2", "hand", "Feather of Flight");
+    const offer = legalActions(s, "p2").find((a) => a.type === "cast" && a.card === feather);
+    const spec = offer?.type === "cast" ? (offer.modes[0]?.targets[0]?.id as string) : "";
+    expect(() => act(s, "p2", { type: "cast", card: feather, targets: { [spec]: [emrakul] } } as never)).toThrow();
+    const cub = idOf(s, "p2", "battlefield", "Bear Cub");
+    s = settle(act(s, "p2", { type: "cast", card: feather, targets: { [spec]: [cub] } } as never));
+    expect(idsOf(s, "p2", "battlefield", "Feather of Flight")).toHaveLength(1);
+  });
+});

@@ -637,3 +637,27 @@ describe("Tevesh Szat & Jeska (EDH)", () => {
     });
   });
 });
+
+describe("PLAN-M M9a: approximations lifted", () => {
+  it("Stinging Study: with two commanders, you choose the one whose mana value is X (suggested: the greatest)", () => {
+    let s = scenario({
+      p1: {
+        battlefield: lands("Swamp", 5),
+        hand: ["Stinging Study"],
+        command: ["Tevesh Szat, Doom of Fools", "Jeska, Thrice Reborn"],
+        library: lands("Swamp", 8),
+      },
+    });
+    const jeska = s.players.p1?.command.find((id) => nameOf(s, id) === "Jeska, Thrice Reborn") as string;
+    let suggested: string[] = [];
+    s = settle(act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Stinging Study") }), (req, _p, st) => {
+      if (req.type !== "pick") return undefined;
+      suggested = namesIn(st, req.suggested.map(String)) as string[];
+      return [jeska];
+    });
+    expect(suggested).toEqual(["Tevesh Szat, Doom of Fools"]);
+    // Jeska, Thrice Reborn: mana value 3.
+    expect(s.players.p1?.hand).toHaveLength(3);
+    expect(s.players.p1?.life).toBe(17);
+  });
+});

@@ -37,12 +37,10 @@ import {
 const seated = (p: Ref) => cond.amountAtLeast(amount.refCount(p), 1);
 /** The greatest power among the designated objects (last known information of those that left the battlefield). */
 const greatestPowerOf = (r: Ref): Amount => ({ kind: "aggregate", fn: "max", property: "power", of: r });
-/** "The mana value of a commander you own on the battlefield or in the command zone" (the greatest: approximation). */
-const COMMANDER_MANA_VALUE = amount.greatestManaValueOf(
-  ref.union(
-    ref.zone("command", ref.you, { commander: true }),
-    ref.permanentsOf(ref.eachPlayer, { commander: true, owner: "you" }),
-  ),
+/** The commanders you own on the battlefield or in the command zone. */
+const YOUR_COMMANDERS = ref.union(
+  ref.zone("command", ref.you, { commander: true }),
+  ref.permanentsOf(ref.eachPlayer, { commander: true, owner: "you" }),
 );
 
 const CLERIC_BLACK: TokenSpec = {
@@ -474,7 +472,21 @@ export const EDH_TEVESH_JESKA: Record<string, CardScript> = {
       ],
     ),
   },
-  "Stinging Study": { spell: spell([], [fx.draw(COMMANDER_MANA_VALUE), fx.loseLife(COMMANDER_MANA_VALUE)]) },
+  // "X is the mana value of a commander you own": with two commanders, you choose (suggested: the greatest).
+  "Stinging Study": {
+    spell: spell(
+      [],
+      [
+        fx.chooseAmong(YOUR_COMMANDERS, ref.you, "study", {
+          anyZone: true,
+          suggest: "manaValue",
+          prompt: "Choose a commander you own (X is its mana value)",
+        }),
+        fx.draw(amount.manaValueOf(ref.stored("study"))),
+        fx.loseLife(amount.manaValueOf(ref.stored("study"))),
+      ],
+    ),
+  },
   "Temur Battle Rage": {
     spell: spell(
       [target.creature()],

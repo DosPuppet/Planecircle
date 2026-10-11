@@ -263,9 +263,15 @@ export const EDH_DARK_LEO: Record<string, CardScript> = {
   "Helm of the Host": {
     // Equip {5}: read from the text.
     abilities: [
-      triggered(when.yourCombat, [fx.copyToken(ref.attached, { nonlegendary: true, addKeywords: ["haste"] })], {
-        label: "A nonlegendary token copy of the equipped creature, with haste",
-      }),
+      // "That token gains haste": an effect on the token, not an exception of the copy (707.9b: a copy of it lacks haste).
+      triggered(
+        when.yourCombat,
+        [
+          fx.copyToken(ref.attached, { nonlegendary: true, store: "helm" }),
+          fx.modify(ref.stored("helm"), { addKeywords: ["haste"] }, "permanent"),
+        ],
+        { label: "A nonlegendary token copy of the equipped creature, with haste" },
+      ),
     ],
   },
   "Sonic Screwdriver": {

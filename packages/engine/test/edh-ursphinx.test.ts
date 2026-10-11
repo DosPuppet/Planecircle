@@ -25,6 +25,7 @@ import {
   scenario,
   settle,
   settleNoBlocks,
+  stepTrail,
   throughCombat,
   untilCastNow,
 } from "./helpers";
@@ -604,5 +605,87 @@ describe("The Ur-Sphinx, Stolen Futures (EDH)", () => {
       expect(s.objects[idOf(s, "p1", "battlefield", "Urza's Incubator")]?.chosen?.creatureType).toBe("Sphinx");
       expect(castable(toP2(s), "p2", idOf(s, "p2", "hand", "Sphinx of Forgotten Lore"))).toBe(true);
     });
+  });
+});
+
+describe("PLAN-M M9a: approximations lifted", () => {
+  it("The Ur-Sphinx: every player mills first, then a milled card of each player may be cast for free", () => {
+    let s = scenario({
+      p1: { battlefield: ["The Ur-Sphinx"], library: ["Shock", ...lands("Island", 3)] },
+      p2: { library: ["Lightning Bolt", ...lands("Island", 3)] },
+    });
+    s = untilCastNow(attack(s, [idOf(s, "p1", "battlefield", "The Ur-Sphinx")]));
+    // The first offer (p1's Shock): p2 has already milled their Lightning Bolt.
+    expect(namesIn(s, castNowOf(s)?.cards)).toEqual(["Shock"]);
+    expect(graveyardNames(s, "p2")).toEqual(["Lightning Bolt"]);
+    s = untilCastNow(act(s, "p1", { type: "cast", card: castNowOf(s)?.cards[0] as string, free: true, targets: { t: ["p2"] } }));
+    expect(namesIn(s, castNowOf(s)?.cards)).toEqual(["Lightning Bolt"]);
+    s = settleNoBlocks(
+      act(s, "p1", { type: "cast", card: castNowOf(s)?.cards[0] as string, free: true, targets: { t: ["p2"] } }),
+    );
+    expect(s.players.p2?.life).toBeLessThanOrEqual(15);
+  });
+
+  it("Breach the Multiverse: a card chosen in each graveyard, then all put onto the battlefield together", () => {
+    let s = scenario({
+      p1: { battlefield: lands("Swamp", 7), hand: ["Breach the Multiverse"], library: ["Savannah Lions", ...lands("Swamp", 12)] },
+      p2: { library: ["Bear Cub", "Llanowar Elves", ...lands("Island", 12)] },
+    });
+    // When p2's graveyard is chosen from, p1's choice (Savannah Lions) is still in p1's graveyard.
+    let lionsZoneAtSecondChoice: string | undefined;
+    s = settle(castIt(s, "p1", "Breach the Multiverse"), (req, _p, st) => {
+      if (req.type !== "pick") return undefined;
+      const names = namesIn(st, req.options);
+      if (names.includes("Bear Cub")) {
+        const lions = st.players.p1?.graveyard.find((id) => nameOf(st, id) === "Savannah Lions");
+        lionsZoneAtSecondChoice = lions ? st.objects[lions]?.zone : "gone";
+        return req.options.filter((id) => nameOf(st, id) === "Llanowar Elves");
+      }
+      return undefined;
+    });
+    expect(lionsZoneAtSecondChoice).toBe("graveyard");
+    expect(idsOf(s, "p1", "battlefield", "Llanowar Elves")).toHaveLength(1);
+    expect(idsOf(s, "p1", "battlefield", "Savannah Lions")).toHaveLength(1);
+    expect(graveyardNames(s, "p2")).toContain("Bear Cub");
+  });
+
+  it("Sphinx Ambassador: searching another player's library isn't \"searching their library\" (Wan Shi Tong doesn't trigger)", () => {
+    let s = scenario({
+      p1: { battlefield: ["Sphinx Ambassador"] },
+      p2: { battlefield: ["Wan Shi Tong, Librarian"], library: ["Island", "Bear Cub", "Swamp"] },
+    });
+    const wan = idOf(s, "p2", "battlefield", "Wan Shi Tong, Librarian");
+    let intent: string | undefined;
+    s = attackWithIt(s, "Sphinx Ambassador", (req, _p, st) => {
+      if (req.type === "pick" && req.intent === "search") {
+        intent = req.intent;
+        return req.options.filter((id) => nameOf(st, id) === "Bear Cub");
+      }
+      return req.type === "name" ? ["Island"] : req.type === "yesNo" ? [1] : undefined;
+    });
+    expect(intent).toBe("search");
+    expect(idsOf(s, "p1", "battlefield", "Bear Cub")).toHaveLength(1);
+    expect(s.objects[wan]?.counters["+1/+1"] ?? 0).toBe(0);
+    expect(s.players.p2?.hand).toHaveLength(0);
+  });
+
+  it("Sphinx of the Second Sun: every postcombat main phase, also the one after an additional combat (505.1a)", () => {
+    const s = scenario({
+      p1: {
+        battlefield: ["Sphinx of the Second Sun", "Bear Cub", ...lands("Mountain", 4)],
+        hand: ["Seize the Day"],
+        library: lands("Island", 10),
+      },
+      step: "main1",
+    });
+    const cub = idOf(s, "p1", "battlefield", "Bear Cub");
+    // Seize the Day in the first main phase: an additional combat and main phase, then the turn's own combat and main.
+    const cast = settle(castIt(s, "p1", "Seize the Day", { targets: { t: [cub] } }));
+    const { steps } = stepTrail(cast, (x) => x.turn.active !== "p1");
+    expect(steps.slice(0, steps.indexOf("cleanup") + 1)).toEqual([
+      ...["beginCombat", "declareAttackers", "endCombat", "main2", "untap", "upkeep", "draw"],
+      ...["beginCombat", "declareAttackers", "endCombat", "main2", "untap", "upkeep", "draw"],
+      ...["end", "cleanup"],
+    ]);
   });
 });

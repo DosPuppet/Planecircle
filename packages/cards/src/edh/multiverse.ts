@@ -433,10 +433,11 @@ export const EDH_MULTIVERSE: Record<string, CardScript> = {
       eminenceReduction("Sphinx", "Eminence — other Sphinx spells you cast cost {1} less"),
       triggered(
         when.attackWith(1, { subtype: "Sphinx", controller: "you" }),
-        fx.forEachPlayer(ref.eachPlayer, (p, n) => [
-          fx.mill(amount.eventAmount, p, { name: `sphinx${n}` }),
-          fx.castNow(ref.stored(`sphinx${n}`), { free: true }),
-        ]),
+        // All the players mill first, then a card of each player's may be cast.
+        [
+          ...fx.forEachPlayer(ref.eachPlayer, (p, n) => [fx.mill(amount.eventAmount, p, { name: `sphinx${n}` })]),
+          ...fx.forEachPlayer(ref.eachPlayer, (_p, n) => [fx.castNow(ref.stored(`sphinx${n}`), { free: true })]),
+        ],
         { label: "Each player mills that many cards; one milled card per player, cast for free" },
       ),
     ],

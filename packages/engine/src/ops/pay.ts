@@ -70,7 +70,13 @@ export const HANDLERS: OpHandlers = {
     if (c.forage) return payForage(s, r, ctx, key, e.skip);
     if (c.behold) return payBehold(s, r, ctx, key, { filter: c.behold, skip: e.skip });
     if (c.mana !== undefined || c.payLife !== undefined)
-      return mayPay(s, r, ctx, key, { cost: c.mana ?? NO_MANA, prompt: e.prompt ?? "", skip: e.skip, ...lifeOf(c.payLife) });
+      return mayPay(s, r, ctx, key, {
+        cost: c.mana ?? NO_MANA,
+        prompt: e.prompt ?? "",
+        skip: e.skip,
+        who: e.who,
+        ...lifeOf(c.payLife),
+      });
     return may(s, r, ctx, key, { prompt: e.prompt ?? "", skip: e.skip, who: e.who, store: e.store });
   },
 };
@@ -110,14 +116,19 @@ function mayPay(
   r: Resolution,
   ctx: EffectContext,
   key: Key,
-  e: { cost: ManaCost; prompt: string; skip: number; life?: number; lifeAmount?: Amount },
+  e: { cost: ManaCost; prompt: string; skip: number; life?: number; lifeAmount?: Amount; who?: Ref },
 ): OpResult {
-  if (!canPay(s, ctx.controller, e.cost)) return { skip: e.skip };
+  // "[That player] may pay …" (Gix, Yawgmoth Praetor: the creature's controller); no payer left: nothing is paid.
+  const payer = e.who ? resolveRef(s, ctx, e.who).find((x) => isPlayer(s, x) && !s.players[x]?.lost) : ctx.controller;
+  if (!payer || !canPay(s, payer, e.cost)) return { skip: e.skip };
+  // Life that can't be paid (119.4: not more than one has; 119.8: a loss prevented): no question.
+  const life = e.lifeAmount !== undefined ? Math.max(0, evalAmount(s, ctx, e.lifeAmount)) : e.life;
+  if (life && payableLife(s, payer) < life) return { skip: e.skip };
   const answer = r.vars[key("pay")];
   if (!answer) {
     return {
       ask: {
-        player: ctx.controller,
+        player: payer,
         key: key("pay"),
         request: {
           type: "yesNo",
@@ -128,11 +139,10 @@ function mayPay(
       },
     };
   }
-  if (answer[0] !== 1 || !canPay(s, ctx.controller, e.cost)) return { skip: e.skip };
-  const life = e.lifeAmount !== undefined ? Math.max(0, evalAmount(s, ctx, e.lifeAmount)) : e.life;
-  if (life && payableLife(s, ctx.controller) < life) return { skip: e.skip };
-  payMana(s, ctx.controller, e.cost);
-  if (life) payLife(s, ctx.controller, life);
+  if (answer[0] !== 1 || !canPay(s, payer, e.cost)) return { skip: e.skip };
+  if (life && payableLife(s, payer) < life) return { skip: e.skip };
+  payMana(s, payer, e.cost);
+  if (life) payLife(s, payer, life);
   return;
 }
 

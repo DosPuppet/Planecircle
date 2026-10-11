@@ -189,7 +189,7 @@ export const CARDS: Record<string, CardScript> = {
     ],
   },
   "Grove of the Burnwillows": {
-    abilities: [manaAbility("C"), manaAbility(["R", "G"], 1, { drawback: { opponentsGainLife: 1 } })],
+    abilities: [manaAbility("C"), manaAbility(["R", "G"], 1, { drawback: { life: { who: "opponents", delta: 1 } } })],
   },
   "High Market": {
     abilities: [

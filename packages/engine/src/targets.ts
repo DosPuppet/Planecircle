@@ -9,7 +9,7 @@ import { firstOfEachName, isCreatureType, shareName } from "./names";
 import { commanderIdentity, obj } from "./state";
 import { playerProtectedFrom, playerStatic, playerStatics } from "./statics";
 import { msg } from "./text";
-import { attackedThisTurn, countersPutThisTurn, dealtDamageThisTurn, enteredThisTurn } from "./turnlog";
+import { attackedThisTurn, countersPutThisTurn, dealtDamageThisTurn, enteredThisTurn, objectDidThisTurn } from "./turnlog";
 import type {
   CardType,
   Color,
@@ -55,11 +55,23 @@ export function sourceView(s: GameState, id?: ObjectId, defId?: string, controll
  * Hexproof counts only for targeting by an opponent (`targetedByOpponent`).
  * Without a view of the source, only protection from everything (empty filter) applies.
  */
-export function protectedFrom(s: GameState, id: ObjectId, source: LkiSnapshot | undefined, targetedByOpponent = false): boolean {
+/** `asSpell`: the source is a spell being cast (its targets are chosen before it is on the stack, 601.2c). */
+export function protectedFrom(
+  s: GameState,
+  id: ObjectId,
+  source: LkiSnapshot | undefined,
+  targetedByOpponent = false,
+  asSpell = false,
+): boolean {
   const o = s.objects[id];
   if (o?.zone !== "battlefield") return false;
   for (const r of chars(s, id).protections) {
     if (r.hexproofOnly && !targetedByOpponent) continue;
+    // "Protection from spells": the source is a spell on the stack (cast or resolving), whatever its types.
+    if (r.spells) {
+      if (asSpell || (source?.id && s.objects[source.id]?.zone === "stack")) return true;
+      continue;
+    }
     // "hexproof from the chosen color" (Mondo Gecko): the choice of the protected permanent.
     let from = resolveFilter(s, r.from, id);
     // Commander's Plate: each color outside the color identity of its controller's commanders (903.4).
@@ -300,6 +312,8 @@ export function matchesCard(s: GameState, controller: PlayerId, id: ObjectId, f:
   if (f.other && sourceId && o.uid && o.uid === (s.objects[sourceId]?.uid ?? s.lki[sourceId]?.uid)) return false;
   // "put into a graveyard this turn": the object was created in its zone during this turn.
   if (f.enteredThisTurn && o.controlledSince !== s.turn.number) return false;
+  // Sylvan Library: "cards in your hand drawn this turn" (the draw is logged with the card).
+  if (f.drawnThisTurn && (o.zone !== "hand" || !objectDidThisTurn(s, id, "draw"))) return false;
   // "put into a graveyard from the battlefield this turn" (Supper for Spiders).
   if (f.fromBattlefieldThisTurn && (o.arrivedFrom !== "battlefield" || o.controlledSince !== s.turn.number)) return false;
   // "milled this turn": put into the graveyard from the library during this turn (Raul, Tato Farmer).
@@ -407,7 +421,15 @@ export function holderOf(s: GameState, id: string): PlayerId {
   return s.stack.find((x) => x.id === id)?.controller ?? id;
 }
 
-export function isLegalTarget(s: GameState, controller: PlayerId, spec: TargetSpec, id: string, sourceId?: ObjectId): boolean {
+export function isLegalTarget(
+  s: GameState,
+  controller: PlayerId,
+  spec: TargetSpec,
+  id: string,
+  sourceId?: ObjectId,
+  /** The source is a spell being cast ("protection from spells"). */
+  asSpell = false,
+): boolean {
   // "… that player controls", "from that player's graveyard" (`concreteSpec`).
   if (spec.ofPlayers && !spec.ofPlayers.includes(holderOf(s, id))) return false;
   const player = s.players[id];
@@ -461,7 +483,13 @@ export function isLegalTarget(s: GameState, controller: PlayerId, spec: TargetSp
     const item = s.stack.find((x) => x.id === id && x.kind === "spell");
     if (!f || !item || !matchesView(snapshot(s, id), f, controller, sourceId)) return false;
     const tg = spec.filter.spellsTargeting;
-    return !tg || Object.values(item.targets).some((ids) => ids.some((t) => matchesObjectFilter(s, controller, t, tg, sourceId)));
+    const you = spec.filter.spellsTargetingYou;
+    return (
+      (!tg && !you) ||
+      Object.values(item.targets).some((ids) =>
+        ids.some((t) => (you && t === controller) || (!!tg && matchesObjectFilter(s, controller, t, tg, sourceId))),
+      )
+    );
   }
   if (o && o.zone === "exile") {
     const ex = spec.filter.exiled;
@@ -487,13 +515,20 @@ export function isLegalTarget(s: GameState, controller: PlayerId, spec: TargetSp
   // Shroud (702.18): can't be the target of any spell or ability, even its controller's.
   if (hasKeyword(s, id, "shroud")) return false;
   // Protection from [filter] (702.16b), hexproof from [filter] if the source is an opponent's.
-  if (protectedFrom(s, id, sourceId ? sourceView(s, sourceId) : undefined, obj(s, id).controller !== controller)) return false;
+  if (protectedFrom(s, id, sourceId ? sourceView(s, sourceId) : undefined, obj(s, id).controller !== controller, asSpell))
+    return false;
   return true;
 }
 
-export function legalTargets(s: GameState, controller: PlayerId, spec: TargetSpec, sourceId?: ObjectId): string[] {
+export function legalTargets(
+  s: GameState,
+  controller: PlayerId,
+  spec: TargetSpec,
+  sourceId?: ObjectId,
+  asSpell = false,
+): string[] {
   const out: string[] = [];
-  const ok = (id: string) => isLegalTarget(s, controller, spec, id, sourceId);
+  const ok = (id: string) => isLegalTarget(s, controller, spec, id, sourceId, asSpell);
   if (spec.filter.players) for (const p of s.playerOrder) if (ok(p)) out.push(p);
   if (spec.filter.objects) for (const id of s.battlefield) if (ok(id)) out.push(id);
   if (spec.filter.cards) for (const p of s.playerOrder) for (const id of s.players[p]?.graveyard ?? []) if (ok(id)) out.push(id);
@@ -511,7 +546,8 @@ export function validateTargets(
   controller: PlayerId,
   specs: TargetSpec[],
   chosen: Record<string, string[]> = {},
-  opts: { kicked?: boolean; sourceId?: ObjectId; x?: number } = {},
+  /** `spell`: the targets of a spell being cast ("protection from spells"). */
+  opts: { kicked?: boolean; sourceId?: ObjectId; x?: number; spell?: boolean } = {},
 ): Record<string, string[]> {
   const result: Record<string, string[]> = {};
   for (const spec of specs) {
@@ -540,7 +576,8 @@ export function validateTargets(
     // Gift promised or kicker: another filter ("instead, target nonland permanent").
     const legalSpec = opts.kicked && spec.kickedFilter ? { ...spec, filter: spec.kickedFilter } : spec;
     for (const id of ids)
-      if (!isLegalTarget(s, controller, legalSpec, id, opts.sourceId)) throw new RulesError(msg("Illegal target: {id}", { id }));
+      if (!isLegalTarget(s, controller, legalSpec, id, opts.sourceId, !!opts.spell))
+        throw new RulesError(msg("Illegal target: {id}", { id }));
     const holders = ids.map((id) => s.objects[id]?.[s.objects[id]?.zone === "battlefield" ? "controller" : "owner"] ?? id);
     // "Target player … target cards from their graveyard": the targets are held by a target of another word.
     const of = spec.of;

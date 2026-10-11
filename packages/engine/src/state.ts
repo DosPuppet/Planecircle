@@ -97,8 +97,8 @@ export type RulesEvent =
   | { e: "tap"; objectId: ObjectId; by: PlayerId; cause?: "teamwork" | "mana"; first?: boolean }
   /** A player just scried or surveilled. */
   | { e: "scry"; player: PlayerId }
-  /** A player searched their library (Wan Shi Tong). */
-  | { e: "search"; player: PlayerId }
+  /** A player searched their library (Wan Shi Tong); `library`: another player's library (Sphinx Ambassador). */
+  | { e: "search"; player: PlayerId; library?: PlayerId }
   /** Loyalty ability activated (`cost`: loyalty change, negative if counters are removed). */
   | { e: "loyalty"; player: PlayerId; sourceId: ObjectId; cost: number }
   /** A creature blocks. */

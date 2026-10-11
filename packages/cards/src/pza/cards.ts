@@ -1,4 +1,5 @@
 /** Source Material (PZA): card scripts (PLAN-G). */
+import type { Effect } from "@mtgx/engine";
 import {
   activated,
   amount,
@@ -20,6 +21,25 @@ import {
 const RATS = { types: ["Creature" as const], subtype: "Rat", controller: "you" as const };
 const EQUIPPED = { types: ["Creature" as const], attached: "host" as const };
 const PAY_FOR_RATS = "pay any amount of life (one Rat per life)";
+/** Plague of Vermin: at most that many rounds of payments (a safety cap, docs/approximations.md). */
+const PLAGUE_ROUNDS = 20;
+const SEATS = [0, 1, 2, 3, 4, 5];
+
+/**
+ * Plague of Vermin: "starting with you, each player may pay any amount of life. Repeat this process until no one pays
+ * life": round `r` (you `a<r>`, then each opponent `b<r>_<n>` in turn order) is followed by another one only if someone
+ * paid in it.
+ */
+function plagueRound(r: number): Effect[] {
+  const pays = [
+    fx.payLifeX(PAY_FOR_RATS, `a${r}`),
+    ...fx.forEachPlayer(ref.eachOpponent, (p, n) => [fx.payLifeX(PAY_FOR_RATS, `b${r}_${n}`, p)]),
+  ];
+  if (r + 1 >= PLAGUE_ROUNDS) return pays;
+  const someonePaid = cond.any(cond.v(`a${r}`), ...SEATS.map((n) => cond.v(`b${r}_${n}`)));
+  return [...pays, ...fx.when(someonePaid, plagueRound(r + 1))];
+}
+const ROUNDS = Array.from({ length: PLAGUE_ROUNDS }, (_, r) => r);
 
 export const CARDS: Record<string, CardScript> = {
   // Modular 1: read from the text.
@@ -219,16 +239,17 @@ export const CARDS: Record<string, CardScript> = {
       }),
     ],
   },
-  // "Starting with you, each player may pay any amount of life": then each opponent, in turn order.
-  // Approximation: each player pays only once (the process doesn't repeat).
+  // "Starting with you, each player may pay any amount of life" (then each opponent, in turn order), round after round
+  // until no one pays; then each player creates a Rat for each life they paid in all.
   "Plague of Vermin": {
     spell: spell(
       [],
       [
-        fx.payLifeX(PAY_FOR_RATS, "a"),
-        ...fx.forEachPlayer(ref.eachOpponent, (p, n) => [fx.payLifeX(PAY_FOR_RATS, `b${n}`, p)]),
-        fx.createTokens(RAT, amount.v("a")),
-        ...fx.forEachPlayer(ref.eachOpponent, (p, n) => [fx.createTokens(RAT, amount.v(`b${n}`), p)]),
+        ...plagueRound(0),
+        fx.createTokens(RAT, amount.plus(...ROUNDS.map((r) => amount.v(`a${r}`)))),
+        ...fx.forEachPlayer(ref.eachOpponent, (p, n) => [
+          fx.createTokens(RAT, amount.plus(...ROUNDS.map((r) => amount.v(`b${r}_${n}`))), p),
+        ]),
       ],
     ),
   },

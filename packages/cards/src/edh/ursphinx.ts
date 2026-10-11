@@ -181,14 +181,11 @@ export const EDH_UR_SPHINX: Record<string, CardScript> = {
   },
   "Sphinx Ambassador": {
     abilities: [
-      // "Search that player's library for a card": chosen among the cards of their library, which they then shuffle.
+      // "Search that player's library for a card": the card found stays there, remembered; they shuffle at the end.
       triggered(
         when.combatDamageToPlayer,
         [
-          fx.chooseAmong(ref.zone("library", ref.eventPlayer), ref.you, "s", {
-            anyZone: true,
-            prompt: "Search that player's library for a card",
-          }),
+          { op: "search", filter: {}, count: 1, library: ref.eventPlayer, store: "s" },
           fx.chooseForSelf("cardName", { who: ref.eventPlayer }),
           ...fx.when(
             cond.refMatches(ref.stored("s"), { types: ["Creature"], not: { chosen: "cardName" } }),
@@ -221,7 +218,7 @@ export const EDH_UR_SPHINX: Record<string, CardScript> = {
   },
   "Sphinx of the Second Sun": {
     abilities: [
-      triggered({ on: "step", step: "main", whose: "you", nth: 2 }, [fx.extraBeginningPhase], {
+      triggered(when.postcombatMain, [fx.extraBeginningPhase], {
         label: "Postcombat main phase: an additional beginning phase after this phase",
       }),
     ],
@@ -285,14 +282,14 @@ export const EDH_UR_SPHINX: Record<string, CardScript> = {
       [],
       [
         fx.mill(10, ref.eachPlayer),
-        ...fx.forEachPlayer(ref.eachPlayer, (p) => [
-          fx.pickFromZone(
-            "graveyard",
-            { types: ["Creature", "Planeswalker"] },
-            { to: "battlefield", underYourControl: true },
-            { pool: ref.graveyardOf(p), min: 1, prompt: "Choose a creature or planeswalker card in that player's graveyard" },
-          ),
+        // One card chosen for each player, then all of them put onto the battlefield at the same time.
+        ...fx.forEachPlayer(ref.eachPlayer, (p, n) => [
+          fx.chooseAmong(ref.zone("graveyard", p, { types: ["Creature", "Planeswalker"] }), ref.you, `breach${n}`, {
+            anyZone: true,
+            prompt: "Choose a creature or planeswalker card in that player's graveyard",
+          }),
         ]),
+        fx.toBattlefield(ref.union(...[0, 1, 2, 3, 4, 5].map((n) => ref.stored(`breach${n}`))), { underYourControl: true }),
         fx.modify(ref.permanentsOf(ref.you, { types: ["Creature"] }), { addSubtypes: ["Phyrexian"] }, "permanent"),
       ],
     ),

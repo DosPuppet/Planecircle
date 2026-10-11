@@ -472,6 +472,12 @@ export const HANDLERS: OpHandlers = {
     if (ids.length === 0) return;
     // 611.2b: a "for as long as [the source] remains…" effect does nothing if it is already gone.
     if (w === "source" && !onBattlefield(s, ctx.sourceId)) return;
+    // "For as long as they control it" (Vislor Turlough): nothing if that player doesn't control the source now.
+    const holder =
+      typeof w === "object" && "sourceControlledBy" in w
+        ? resolveRef(s, ctx, w.sourceControlledBy).find((p) => isPlayer(s, p))
+        : undefined;
+    if (typeof w === "object" && "sourceControlledBy" in w && (!holder || s.objects[ctx.sourceId]?.controller !== holder)) return;
     // "Becomes the chosen color and gains hexproof from that color" (Mondo Gecko): the color chosen by this effect is
     // frozen in the effect (another activation chooses another one).
     const chosen = r.vars.$chosen?.[0] === "color" ? (String(r.vars.$chosen[1]) as Color) : undefined;
@@ -490,11 +496,12 @@ export const HANDLERS: OpHandlers = {
       timestamp: nextTimestamp(s),
       affected: ids,
       duration: e.duration,
-      ...(e.duration === "untilYourNextTurn" ? { until: ctx.controller } : {}),
+      ...(e.duration === "untilYourNextTurn" || e.duration === "untilYourNextUpkeep" ? { until: ctx.controller } : {}),
       ...(e.duration === "endOfYourNextTurn" ? { until: ctx.controller, sinceTurn: s.turn.number } : {}),
       ...(typeof w === "object" && "exiled" in w ? { untilExiledUid: exiledUid(s, ctx, w.exiled) } : {}),
       ...(w === "source" || w === "youControlSource" ? { whileSource: ctx.sourceId } : {}),
       ...(w === "youControlSource" ? { whileControlledBy: ctx.controller } : {}),
+      ...(holder ? { whileSource: ctx.sourceId, whileControlledBy: holder } : {}),
       ...(w === "sourceTapped" ? { whileSourceTapped: ctx.sourceId } : {}),
       ...(w === "tapped" ? { whileAffectedTapped: true } : {}),
       ...(counter ? { whileAffectedHasCounter: counter } : {}),

@@ -4,6 +4,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { activated, fx, ref, target } from "../src/dsl";
 import { chars } from "../src/layers";
 import { legalActions } from "../src/legal";
 import { availableMana } from "../src/mana";
@@ -14,6 +15,7 @@ import {
   advanceUntil,
   attack,
   castable,
+  customCard,
   idOf,
   idsOf,
   lands,
@@ -349,5 +351,36 @@ describe("player attacked in multiplayer (PLAN-H, lot H5)", () => {
     expect(offered.flat()).not.toContain("Bear Cub");
     expect(s.objects[idOf(s, "p1", "battlefield", "Llanowar Elves")]?.counters.stun).toBe(1);
     expect(s.objects[idOf(s, "p1", "battlefield", "Bear Cub")]?.counters.stun ?? 0).toBe(0);
+  });
+});
+
+describe("PLAN-M M9a: approximations lifted", () => {
+  it('Fathom Mage: two +1/+1 counters put at once, two triggers, each its own "you may draw"', () => {
+    const booster = customCard({
+      name: "Test Booster",
+      types: ["Artifact"],
+      typeLine: "Artifact",
+      abilities: [activated({ tap: true, targets: [target.creature()], effects: [fx.addCounters(ref.target(), 2)] })],
+    });
+    let s = scenario({ p1: { battlefield: ["Fathom Mage", booster], library: lands("Island", 3) } });
+    const mage = idOf(s, "p1", "battlefield", "Fathom Mage");
+    const asked: string[] = [];
+    s = settle(
+      act(s, "p1", {
+        type: "activate",
+        source: idOf(s, "p1", "battlefield", "Test Booster"),
+        ability: 0,
+        targets: { t: [mage] },
+      }),
+      (req) => {
+        if (req.intent !== "may") return undefined;
+        asked.push(req.prompt);
+        // The first yes, the second no.
+        return [asked.length === 1 ? 1 : 0];
+      },
+    );
+    expect(plusOne(s, mage)).toBe(2);
+    expect(asked).toHaveLength(2);
+    expect(hand(s, "p1")).toBe(1);
   });
 });

@@ -302,8 +302,8 @@ export const EDH_FANTASTIC: Record<string, CardScript> = {
             "d",
             fx.draw(1, ref.eventPlayer),
           ),
-          // "during their next turn": until the next turn of Willie's controller (that player's own turn comes first).
-          ...fx.when(cond.v("d"), fx.untilYourNextTurn({ cantAttack: { of: "you" } }, ref.eventPlayer)),
+          // "During their next turn": until the end of that player's next turn.
+          ...fx.when(cond.v("d"), fx.throughTheirNextTurn({ cantAttack: { of: "you" } }, ref.eventPlayer)),
         ],
         { label: "You draw; that player may draw, and then can't attack you" },
       ),
@@ -430,8 +430,8 @@ export const EDH_FANTASTIC: Record<string, CardScript> = {
     ),
   },
   "Cut a Deal": {
-    // Approximation: each opponent draws (even if their library is empty).
-    spell: spell([], [fx.draw(1, ref.eachOpponent), fx.draw(amount.refCount(ref.eachOpponent))]),
+    // "For each opponent who drew a card this way": not one whose library was empty or whose draw was replaced.
+    spell: spell([], [fx.draw(1, ref.eachOpponent, "deal"), fx.draw(amount.v("dealPlayers"))]),
   },
   "Deep Analysis": {
     flashback: "{1}{U}",
@@ -450,9 +450,9 @@ export const EDH_FANTASTIC: Record<string, CardScript> = {
       ],
     },
   },
-  // Approximation: only the colors of the permanents you control (not those of the spells cast this turn).
+  // The colors of the permanents you control and of the spells you've cast this turn (turn log), itself included.
   "First Family": {
-    spell: spell([], [fx.draw(amount.colorsAmong()), fx.gainLife(amount.colorsAmong())]),
+    spell: spell([], [fx.draw(amount.colorsAmongWithSpellsCast), fx.gainLife(amount.colorsAmongWithSpellsCast)]),
   },
   "Flame On!": {
     spell: spell(

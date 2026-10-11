@@ -8,6 +8,7 @@ import { destroy } from "../src/actions";
 import { chars } from "../src/layers";
 import { legalActions } from "../src/legal";
 import { moveObject, random } from "../src/state";
+import { attackableDefenders } from "../src/turn";
 import type { GameState, PlayerId } from "../src/types";
 import {
   act,
@@ -369,5 +370,45 @@ describe("attacked player in multiplayer (PLAN-H, lot H5)", () => {
     };
     expect(run("p2")).toEqual([4, 1]);
     expect(run("walker")).toEqual([2, 1]);
+  });
+});
+
+describe("PLAN-M M9a: approximations lifted", () => {
+  it("Willie Lumpkin, Postman: the player who draws can't attack you or your permanents during their next turn, and only then", () => {
+    let s = scenario({
+      players: 4,
+      p1: { battlefield: ["Willie Lumpkin, Postman"], library: lands("Forest", 3) },
+      p3: { library: lands("Forest", 3) },
+    });
+    const willie = idOf(s, "p1", "battlefield", "Willie Lumpkin, Postman");
+    s = throughCombat(attackPlayer(s, [willie], "p3"), (req) => (req.intent === "may" ? [1] : undefined));
+    expect(hand(s, "p3")).toBe(1);
+    // The effect lasts through p3's next turn (not until p1's next turn).
+    const effect = s.playerEffects.find((e) => e.player === "p3" && e.ability.cantAttack);
+    expect(effect?.ability.cantAttack?.of).toBe("p1");
+    expect(effect?.until).toBe(s.turn.number + 2);
+    s = advanceUntil(s, (x) => x.turn.active === "p3");
+    expect(attackableDefenders(s, "p3")).toEqual(["p4", "p2"]);
+    // Over once p3's turn is: not still running during p4's turn.
+    s = advanceUntil(s, (x) => x.turn.active === "p4");
+    expect(s.playerEffects.some((e) => e.player === "p3" && e.ability.cantAttack)).toBe(false);
+  });
+
+  it("Cut a Deal: you draw a card for each opponent who actually drew one (empty library, draw replaced)", () => {
+    let s = scenario({
+      players: 3,
+      p1: { battlefield: lands("Plains", 3), hand: ["Cut a Deal"], library: lands("Plains", 3) },
+      p2: { library: [] },
+      p3: { library: lands("Island", 2) },
+    });
+    s = settle(castIt(s, "p1", "Cut a Deal"));
+    expect([hand(s, "p1"), hand(s, "p3")]).toEqual([1, 1]);
+    // Notion Thief replaces each opponent's draw: none of them drew, you only draw the stolen cards.
+    let t = scenario({
+      p1: { battlefield: [...lands("Plains", 3), "Notion Thief"], hand: ["Cut a Deal"], library: lands("Plains", 3) },
+      p2: { library: lands("Island", 2) },
+    });
+    t = settle(castIt(t, "p1", "Cut a Deal"));
+    expect([hand(t, "p1"), hand(t, "p2")]).toEqual([1, 0]);
   });
 });

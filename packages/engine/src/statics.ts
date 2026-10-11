@@ -416,6 +416,8 @@ export function addPlayerEffect(
   until: number | null,
   once = false,
   from?: number,
+  /** "This combat": the effect ends with the combat phase (`endOfCombat`). */
+  thisCombat = false,
 ): void {
   s.playerEffects.push({
     id: newId(s, "pe"),
@@ -423,6 +425,7 @@ export function addPlayerEffect(
     ability: { kind: "playerStatic", ...ability },
     until,
     ...(from !== undefined ? { from } : {}),
+    ...(thisCombat ? { endOfCombat: true } : {}),
     once: once || undefined,
     timestamp: nextTimestamp(s),
   });

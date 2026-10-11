@@ -167,7 +167,8 @@ function zoneObjects(s: GameState, ctx: EffectContext, ref: Extract<Ref, { kind:
     case "battlefield":
       return s.battlefield.filter(
         (id) =>
-          players.includes(s.objects[id]?.controller ?? "") && matchesObjectFilter(s, ctx.controller, id, f ?? {}, ctx.sourceId),
+          players.includes((ref.owned ? s.objects[id]?.owner : s.objects[id]?.controller) ?? "") &&
+          matchesObjectFilter(s, ctx.controller, id, f ?? {}, ctx.sourceId),
       );
     case "graveyard":
       return players.flatMap((p) => s.players[p]?.graveyard ?? []).filter(card);
@@ -863,6 +864,9 @@ function aggregate(s: GameState, ctx: EffectContext, a: Extract<Amount, { kind: 
     return changelings + Math.max(0, ...per.values());
   }
   const values = ids.flatMap((id) => propertyValues(s, id, a.property, a.counter));
+  // First Family: "and spells you've cast this turn" (their colors, from the turn log).
+  if (a.withSpellsCast && a.property === "color")
+    for (const e of s.turnLog) if (e.e === "cast" && e.player === ctx.controller) values.push(...(e.colors ?? []));
   if (a.fn === "distinct") return new Set(values).size;
   const numbers = values.map(Number);
   if (a.fn === "max") return Math.max(0, ...numbers);

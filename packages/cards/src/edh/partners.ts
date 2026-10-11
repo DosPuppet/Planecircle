@@ -99,7 +99,7 @@ export const EDH_PARTNERS: Record<string, CardScript> = {
   "Tymna the Weaver": {
     abilities: [
       triggered(
-        when.secondMain,
+        when.postcombatMain,
         fx.when(
           cond.amountAtLeast(OPPONENTS_DEALT_COMBAT_DAMAGE, 1),
           fx.mayPayLife(OPPONENTS_DEALT_COMBAT_DAMAGE, "Pay X life to draw X cards?", fx.draw(OPPONENTS_DEALT_COMBAT_DAMAGE)),

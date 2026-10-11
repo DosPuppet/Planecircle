@@ -584,3 +584,19 @@ describe("tokens created attacking for another player (PLAN-H, lot H5)", () => {
     expect(run(3)).toEqual({ asked: [["p1", ["p2", "p3"]]], defender: "p3" });
   });
 });
+
+describe("Final Fantasy Commander: approximations lifted (PLAN-M M9a)", () => {
+  it('Gix, Yawgmoth Praetor: "pay 1 life" is a payment (119.4): impossible with 0 life, no card drawn', () => {
+    let s = scenario({
+      p1: { life: 0, battlefield: ["Gix, Yawgmoth Praetor", "Bear Cub", "Phyrexian Unlife"], library: lands("Plains", 3) },
+    });
+    let asked = 0;
+    s = throughCombat(attack(s, [idOf(s, "p1", "battlefield", "Bear Cub")]), (req) => {
+      if (req.type === "yesNo") asked++;
+      return req.type === "yesNo" ? [1] : undefined;
+    });
+    expect(asked).toBe(0);
+    expect(s.players.p1?.hand).toHaveLength(0);
+    expect(s.players.p1?.life).toBe(0);
+  });
+});
