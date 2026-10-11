@@ -508,7 +508,12 @@ export const HANDLERS: OpHandlers = {
             ),
           }
         : {}),
-      ...(e.basePT !== undefined ? { setPower: evalAmount(s, ctx, e.basePT), setToughness: evalAmount(s, ctx, e.basePT) } : {}),
+      ...(e.basePT !== undefined
+        ? {
+            setPower: evalAmount(s, ctx, Array.isArray(e.basePT) ? e.basePT[0] : e.basePT),
+            setToughness: evalAmount(s, ctx, Array.isArray(e.basePT) ? e.basePT[1] : e.basePT),
+          }
+        : {}),
     });
     // After the push: evaluating the amounts above (Karn, Silver Golem: the mana value) reads the characteristics, which
     // must not stay cached without this effect.

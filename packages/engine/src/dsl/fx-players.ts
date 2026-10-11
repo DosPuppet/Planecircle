@@ -6,7 +6,8 @@ import type { Effects } from "./shared";
 export const playersFx = {
   /** "They can't gain life for the rest of the game" (Screaming Nemesis). */
   cantGainLife: (who: Ref): Effect => ({ op: "playerEffect", ability: { cantGainLife: true }, who, duration: "forever" }),
-  draw: (n: Amount, who: Ref = ref.you): Effect => ({ op: "draw", who, amount: n }),
+  /** `store`: the number of cards actually drawn ("if you draw one or more cards this way"). */
+  draw: (n: Amount, who: Ref = ref.you, store?: string): Effect => ({ op: "draw", who, amount: n, ...(store ? { store } : {}) }),
   gainLife: (n: Amount, who: Ref = ref.you): Effect => ({ op: "gainLife", who, amount: n }),
   loseLife: (n: Amount, who: Ref = ref.you, store?: string): Effect => ({ op: "loseLife", who, amount: n, store }),
   /** "Each player loses half their life, rounded down." */
@@ -33,6 +34,13 @@ export const playersFx = {
     ability,
     who,
     duration: "untilYourNextTurn",
+  }),
+  /** Player effect during the next turn only (Kang the Conqueror: "take an extra turn after this one. During that turn, …"). */
+  duringNextTurn: (ability: Omit<PlayerStaticAbilityDef, "kind">, who?: Ref): Effect => ({
+    op: "playerEffect",
+    ability,
+    who,
+    duration: "nextTurn",
   }),
   /** N one-shot effects on these players (Ral Zarek: "skips their next X turns"). */
   playerEffectTimes: (ability: Omit<PlayerStaticAbilityDef, "kind">, times: Amount, who?: Ref): Effect => ({

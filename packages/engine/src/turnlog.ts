@@ -234,6 +234,7 @@ export function zoneEntry(
   owner: PlayerId,
   controller: PlayerId,
   c: { types: CardType[]; subtypes: string[]; token: boolean; faceDown?: boolean },
+  id?: ObjectId,
 ): TurnLogEntry {
   return {
     e: "zone",
@@ -245,5 +246,14 @@ export function zoneEntry(
     subtypes: c.subtypes,
     token: c.token || undefined,
     ...(c.faceDown ? { faceDown: true } : {}),
+    ...(id ? { id } : {}),
   };
+}
+
+/**
+ * Did this permanent enter the battlefield this turn (its arrival is logged with its identifier)? A change of control
+ * isn't an arrival (Renet, Temporal Apprentice; power-up: "if he entered this turn").
+ */
+export function enteredThisTurn(s: GameState, id: ObjectId): boolean {
+  return objectDidThisTurn(s, id, "zone");
 }

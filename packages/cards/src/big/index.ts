@@ -260,12 +260,16 @@ export const BIG_SCRIPTS: Record<string, CardScript> = {
   },
   "Memory Vessel": {
     abilities: [
-      // Approximation: playing the cards from the hand can't be forbidden.
       activated({
         tap: true,
         exileSelf: true,
         sorcerySpeed: true,
-        effects: [fx.exileTop(ref.eachPlayer, 7, "m"), fx.grantPlay(ref.stored("m"), { for: "owner", untilYourNextTurn: true })],
+        effects: [
+          fx.exileTop(ref.eachPlayer, 7, "m"),
+          fx.grantPlay(ref.stored("m"), { for: "owner", untilYourNextTurn: true }),
+          // "They can't play cards from their hand" (spells and lands), until your next turn.
+          fx.untilYourNextTurn({ castLimit: { who: "you", from: "hand" } }, ref.eachPlayer),
+        ],
         label: "Each player exiles seven cards, playable",
       }),
     ],

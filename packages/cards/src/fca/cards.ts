@@ -107,8 +107,8 @@ export const CARDS: Record<string, CardScript> = {
         [
           fx.createTokens(TREASURE),
           fx.exileTop(ref.eventPlayer, 1, "r"),
-          // "You may cast that card": a land can't be played this way.
-          ...fx.when(cond.refMatches(ref.stored("r"), { notTypes: ["Land"] }), fx.grantPlay(ref.stored("r"))),
+          // "You may cast that card": a land (or a land back face) can't be played this way.
+          fx.grantPlay(ref.stored("r"), { castOnly: true }),
         ],
         { label: "A Treasure; exile the top card of their library, castable this turn" },
       ),

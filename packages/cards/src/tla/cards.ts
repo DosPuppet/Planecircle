@@ -217,7 +217,7 @@ export const CARDS: Record<string, CardScript> = {
       [target.upTo(1, target.creature())],
       [
         fx.airbend(ref.except(ref.permanentsOf(ref.eachPlayer, { types: ["Creature"] }), ref.target())),
-        fx.untilYourNextTurn({ castLimit: { who: "you", exceptFromHand: true } }, ref.eachOpponent),
+        fx.untilYourNextTurn({ castLimit: { who: "you", from: "elsewhere" } }, ref.eachOpponent),
       ],
     ),
   },

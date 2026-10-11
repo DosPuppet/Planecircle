@@ -19,6 +19,7 @@ import type {
   ObjectId,
   PlayerId,
   Step,
+  TurnLogEntry,
   TurnStats,
   Zone,
 } from "./types";
@@ -714,25 +715,26 @@ export function moveObject(
   // Turn log: "creatures exiled this turn" (Vren), "cards that left your graveyard" (Bonecache)…
   // Only public moves: a draw (library → hand) isn't in it (hidden information).
   const hidden = (z: Zone) => z === "library" || z === "hand";
+  // Arrival on the battlefield: logged once the new object exists, with its identifier ("entered this turn").
+  let arrival: Extract<TurnLogEntry, { e: "zone" }> | undefined;
   if (o.zone !== to && !(hidden(o.zone) && hidden(to))) {
     const d = s.defs[o.defId];
-    logTurnEvent(
-      s,
-      zoneEntry(
-        o.zone,
-        to,
-        o.owner,
-        lki?.controller ?? (to === "battlefield" ? (opts.controller ?? o.controller) : o.controller),
-        // Face down (708): a 2/2 creature without a creature type; the real card isn't noted.
-        (opts.faceDown || o.faceDown) && to === "battlefield"
-          ? { types: ["Creature"], subtypes: [], token: o.isToken, faceDown: true }
-          : {
-              types: lki?.types ?? d?.types ?? [],
-              subtypes: lki?.subtypes ?? d?.subtypes ?? [],
-              token: o.isToken,
-            },
-      ),
+    const entry = zoneEntry(
+      o.zone,
+      to,
+      o.owner,
+      lki?.controller ?? (to === "battlefield" ? (opts.controller ?? o.controller) : o.controller),
+      // Face down (708): a 2/2 creature without a creature type; the real card isn't noted.
+      (opts.faceDown || o.faceDown) && to === "battlefield"
+        ? { types: ["Creature"], subtypes: [], token: o.isToken, faceDown: true }
+        : {
+            types: lki?.types ?? d?.types ?? [],
+            subtypes: lki?.subtypes ?? d?.subtypes ?? [],
+            token: o.isToken,
+          },
     );
+    if (to === "battlefield" && entry.e === "zone") arrival = entry;
+    else logTurnEvent(s, entry);
   }
   const from0 = o.zone;
   delete s.objects[id];
@@ -742,6 +744,7 @@ export function moveObject(
       createObject(s, p.defId, o.owner, to, { uid: p.uid, controller: to === "battlefield" ? o.controller : o.owner }),
     );
     if (to === "library") shuffle(s, s.players[o.owner]?.library ?? []);
+    if (arrival && parts[0]) logTurnEvent(s, { ...arrival, id: parts[0].id });
     bump(s);
     rulesEvent(s, { e: "zone", oldId: id, newId: parts[0]?.id ?? null, from: from0, to, lki });
     if (from0 === "battlefield") releaseLinkedExile(s, id);
@@ -781,6 +784,7 @@ export function moveObject(
     isToken: o.isToken || (!!o.cardCopy && to === "battlefield"),
     controller: to === "battlefield" || to === "stack" ? (opts.controller ?? o.controller) : o.owner,
   });
+  if (arrival) logTurnEvent(s, { ...arrival, id: moved.id });
   if (o.preparedFor) moved.preparedFor = o.preparedFor;
   if (o.cardCopy && to === "stack") moved.cardCopy = true;
   if (staysFaceDown) moved.faceDown = o.faceDown;
@@ -846,6 +850,8 @@ export const FACE_DOWN_DEF: CardDef = {
 export function turnFaceUp(s: GameState, id: ObjectId): void {
   const o = s.objects[id];
   if (o?.zone !== "battlefield" || !o.faceDown) return;
+  // "Can't be turned face up" (Unable to Scream, Karlov Watchdog).
+  if (chars(s, id).keywords.includes("cantBeTurnedFaceUp")) return;
   o.defId = o.faceDown.card;
   delete o.faceDown;
   // "As it is turned face up, put N counters on it" (a replacement-like effect, before the event).

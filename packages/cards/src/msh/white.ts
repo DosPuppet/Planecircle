@@ -222,12 +222,14 @@ export const WHITE: Record<string, CardScript> = {
         powerUp: true,
         effects: [
           fx.addCounters(ref.self, 2),
-          // "If it's a double-faced card, you may transform it": approximated, it enters on its front face.
           fx.lookAtTop(7, {
             filter: { anyOf: [{ subtype: "Hero" }, { subtype: "Equipment" }, { subtype: "Vehicle" }] },
             to: { to: "battlefield" },
             rest: "bottom",
+            store: "nf",
           }),
+          // "If it's a double-faced card, you may transform it."
+          fx.transform(ref.stored("nf"), true),
         ],
         label: "Power-up: two +1/+1 counters, a Hero, Equipment or Vehicle from among the top seven",
       }),
@@ -303,21 +305,15 @@ export const WHITE: Record<string, CardScript> = {
     ],
   },
   "Raft Security Officer": {
-    // "Costs {1} less if it targets a creature with power 3 or less": two abilities, depending on the target.
     abilities: [
-      activated({
-        mana: "{1}",
-        tap: true,
-        targets: [target.creature("t", { maxPower: 3 })],
-        effects: [fx.tap(ref.target())],
-        label: "Taps a creature with power 3 or less",
-      }),
       activated({
         mana: "{2}",
         tap: true,
         targets: [target.creature()],
+        // "Costs {1} less to activate if it targets a creature with power 3 or less" (read with the target).
+        reduction: { generic: amount.refCount(ref.filtered(ref.target(), { maxPower: 3 })) },
         effects: [fx.tap(ref.target())],
-        label: "Taps a creature",
+        label: "Taps a creature ({1} less if its power is 3 or less)",
       }),
     ],
   },

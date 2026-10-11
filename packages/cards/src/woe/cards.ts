@@ -107,7 +107,7 @@ export const CARDS: Record<string, CardScript> = {
   },
   "Mosswood Dreadknight": {
     abilities: [
-      triggered(when.diesSelf, [fx.grantPlay(ref.selfCard, { untilYourNextTurn: true, adventureOnly: true })], {
+      triggered(when.diesSelf, [fx.grantPlay(ref.selfCard, { untilYourNextTurn: true, castOnly: "adventure" })], {
         label: "Castable from the graveyard (as an Adventure) until the end of your next turn",
       }),
     ],

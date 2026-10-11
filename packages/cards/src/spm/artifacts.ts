@@ -187,10 +187,8 @@ export const ARTIFACTS: Record<string, CardScript> = {
   },
   "Spider-Slayer, Hatred Honed": {
     abilities: [
-      // Approximation: triggers when a Spider it has already damaged this turn is dealt damage (the "deals damage"
-      // trigger does not designate the damaged object).
       triggered(
-        when.dealtDamage({ types: ["Creature"], subtype: "Spider", damagedBySource: true }),
+        when.dealsDamage("self", { to: { objects: { subtype: "Spider" } }, eventObject: "damaged" }),
         [fx.destroy(ref.eventObject)],
         { label: "Destroys the Spider it damaged" },
       ),

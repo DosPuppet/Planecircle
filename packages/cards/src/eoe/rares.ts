@@ -156,7 +156,7 @@ export const RARES: Record<string, CardScript> = {
       }),
       staticAbility(
         { types: ["Artifact"], controller: "you" },
-        { addAbilities: [manaAbility("U", 1, { restriction: { spellNotFromHand: true } })] },
+        { addAbilities: [manaAbility("U", 1, { restriction: { spellFrom: "elsewhere" } })] },
         { label: 'Your artifacts: "{T}: {U}" (spells from outside your hand)' },
       ),
     ],

@@ -175,7 +175,7 @@ export const when = {
   /** `to`: what is dealt the damage (`TO_OPPONENT`, `TO_CREATURE`…). */
   dealsDamage: (
     who: "self" | ObjectFilter,
-    opts: { noncombatOnly?: boolean; to?: TargetFilter; anySourceYouControl?: boolean } = {},
+    opts: { noncombatOnly?: boolean; to?: TargetFilter; anySourceYouControl?: boolean; eventObject?: "damaged" } = {},
   ): TriggerSpec => ({
     on: "dealsDamage",
     who,
@@ -291,6 +291,8 @@ export function triggered(
     triggerCondition?: Condition;
     label?: string;
     oncePerTurn?: boolean | "ifDone" | "firstEvent";
+    /** "This ability triggers only once." */
+    once?: boolean;
     /** Triggers from the graveyard (Flamewake Phoenix). */
     fromGraveyard?: boolean;
     /** Also works from the command zone (eminence, Commander). */
@@ -308,6 +310,7 @@ export function triggered(
     ...(opts.triggerCondition ? { triggerCondition: opts.triggerCondition } : {}),
     label: opts.label,
     oncePerTurn: opts.oncePerTurn,
+    ...(opts.once ? { once: true } : {}),
     fromGraveyard: opts.fromGraveyard,
     ...(opts.fromCommand ? { fromCommand: true } : {}),
     batched: opts.batched,

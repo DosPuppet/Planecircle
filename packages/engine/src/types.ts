@@ -118,7 +118,12 @@ export type Keyword =
   /** "Can't be sacrificed" (Zurgo, Thunder's Decree: its Warrior tokens during your end step). */
   | "cantBeSacrificed"
   /** "Can't become suspected" (Airtight Alibi, 701.60). */
-  | "cantBeSuspected";
+  | "cantBeSuspected"
+  /**
+   * "Can't be turned face up" (Unable to Scream: the enchanted face-down creature; Karlov Watchdog: your opponents'
+   * face-down permanents during your turn): neither by the special action nor by an effect.
+   */
+  | "cantBeTurnedFaceUp";
 
 /** Restrictions: displayed differently from keywords. */
 export const RESTRICTIONS: readonly Keyword[] = [
@@ -131,6 +136,7 @@ export const RESTRICTIONS: readonly Keyword[] = [
   "damageHealsFirst",
   "cantBeSacrificed",
   "cantBeSuspected",
+  "cantBeTurnedFaceUp",
 ];
 
 export const KEYWORDS: readonly Keyword[] = [

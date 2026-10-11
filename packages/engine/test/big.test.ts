@@ -570,25 +570,32 @@ describe("The Big Score, lot K8: mythic rares", () => {
     expect(s.objects[ring]?.zone).toBe("battlefield");
   });
 
-  it("Memory Vessel: {T}, exile it: each player exiles seven cards, playable by their owner until your next turn", () => {
+  it("Memory Vessel: {T}, exile it: each player exiles seven cards, playable by their owner until your next turn; nobody plays from hand", () => {
     let s = scenario({
-      p1: { battlefield: ["Memory Vessel"], library: lands("Mountain", 9) },
-      p2: { library: lands("Swamp", 9) },
+      p1: { battlefield: ["Memory Vessel", "Mountain"], hand: ["Forest", "Shock"], library: lands("Mountain", 9) },
+      p2: { battlefield: ["Mountain"], hand: ["Swamp", "Shock"], library: lands("Swamp", 9) },
     });
     const vessel = idOf(s, "p1", "battlefield", "Memory Vessel");
+    const playsFromHand = (x: GameState, p: PlayerId) =>
+      legalActions(x, p).some((a) => (a.type === "playLand" || a.type === "cast") && x.objects[a.card]?.zone === "hand");
+    expect(playsFromHand(s, "p1")).toBe(true);
     s = settle(activateBy(s, "p1", vessel, "Each player"));
     expect(exiled(s, "Memory Vessel")).toHaveLength(1);
     expect(exiled(s, "Mountain")).toHaveLength(7);
     expect(exiled(s, "Swamp")).toHaveLength(7);
     const mountain = exiled(s, "Mountain")[0] as string;
     expect(legalActions(s, "p1").some((a) => a.type === "playLand" && a.card === mountain)).toBe(true);
-    // The opponent plays their exiled cards during their turn.
+    // "They can't play cards from their hand": neither the land nor the instant.
+    expect(playsFromHand(s, "p1")).toBe(false);
+    // The opponent plays their exiled cards during their turn, not those of their hand.
     const p2turn = advanceUntil(s, (x) => x.turn.active === "p2" && x.turn.step === "main1");
     const swamp = exiled(p2turn, "Swamp")[0] as string;
     expect(legalActions(p2turn, "p2").some((a) => a.type === "playLand" && a.card === swamp)).toBe(true);
-    // At your next turn, the effect has ended.
+    expect(playsFromHand(p2turn, "p2")).toBe(false);
+    // At your next turn, the effect has ended: the hand is playable again.
     const back = advanceUntil(p2turn, (x) => x.turn.active === "p1" && x.turn.step === "main1");
     expect(legalActions(back, "p1").some((a) => a.type === "playLand" && a.card === mountain)).toBe(false);
+    expect(playsFromHand(back, "p1")).toBe(true);
   });
 
   it("Nexus of Becoming: at the beginning of your combat, draw, then exile an artifact or creature card: a 3/3 artifact Golem token copy", () => {

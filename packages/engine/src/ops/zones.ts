@@ -57,7 +57,7 @@ import {
 import { payableLife, playerStatics, quantityMods, recipientMatches, tokenShielded } from "../statics";
 import { holderOf, matchesCard, matchesObjectFilter, shareCreatureType } from "../targets";
 import { msg } from "../text";
-import { logTurnEvent } from "../turnlog";
+import { logTurnEvent, zoneEntry } from "../turnlog";
 import type { CardType, Effect, GameObject, GameState, MoveSpec, ObjectFilter, ObjectId, PlayerId, Resolution } from "../types";
 import { PERMANENT_TYPES } from "../types";
 import { chooseAttacked } from "./permanents";
@@ -1116,8 +1116,12 @@ export const HANDLERS: OpHandlers = {
     for (const id of resolveRef(s, ctx, e.what)) if (onBattlefield(s, id)) sacrifice(s, id);
     return;
   },
-  moveTo(s, r, e, ctx, key) {
-    const ids = resolveRef(s, ctx, e.what);
+  moveTo(s, r, e0, ctx, key) {
+    const ids = resolveRef(s, ctx, e0.what);
+    // "… under [that player]'s control" (Zuko, Conflicted: the chosen opponent): that player plays the part of "you".
+    const under = e0.spec.controller ? resolveRef(s, ctx, e0.spec.controller).find((p) => isPlayer(s, p)) : undefined;
+    const you = under ?? ctx.controller;
+    const e = under ? { ...e0, spec: { ...e0.spec, controller: undefined, underYourControl: true } } : e0;
     const f = e.store?.filter;
     if (e.store)
       store(
@@ -1136,7 +1140,7 @@ export const HANDLERS: OpHandlers = {
         const o = s.objects[id];
         const d = s.defs[o?.defId ?? ""];
         if (!o || !d) continue;
-        const who = e.spec.underYourControl ? ctx.controller : o.owner;
+        const who = e.spec.underYourControl ? you : o.owner;
         // "… attached to [a creature]": the Aura or Equipment enters attached, if it can be.
         if (
           host &&
@@ -1172,7 +1176,7 @@ export const HANDLERS: OpHandlers = {
         }
       }
     }
-    const arrival = arrivalChoices(s, r, ctx, ids, e.spec, ownerOr(s, e.spec, ctx.controller), key);
+    const arrival = arrivalChoices(s, r, ctx, ids, e.spec, ownerOr(s, e.spec, you), key);
     if (!(arrival instanceof Map)) return arrival;
     for (const [id, a] of arrival) choices[id] = { ...choices[id], ...a };
     const moved: string[] = [];
@@ -1182,7 +1186,7 @@ export const HANDLERS: OpHandlers = {
     if (bottomRandom) shuffle(s, order);
     const spec = bottomRandom ? { ...e.spec, shuffle: undefined } : e.spec;
     for (const id of order) {
-      const n = moveWithSpec(s, ctx.controller, id, evalMoveSpec(s, ctx, spec), choices[id]);
+      const n = moveWithSpec(s, you, id, evalMoveSpec(s, ctx, spec), choices[id]);
       if (n) moved.push(n);
       // A token that ceases to exist (off the battlefield): its old identifier, for its last known information
       // (Zoyowa's Justice: owner and mana value).
@@ -1307,8 +1311,12 @@ export const HANDLERS: OpHandlers = {
     const options = top.filter((id) => !filter || matchesCard(s, ctx.controller, id, filter, ctx.sourceId));
     const count = evalAmount(s, ctx, e.count);
     // Suggestion that respects the total mana value limit (the first cards that fit).
+    const power = (id: string) => chars(s, id).power;
     const withinTotal = (ids: string[]) => {
       if (e.onePerType) return greedyOnePerType(s, options, typesAmong).slice(0, count);
+      // "With different powers": the first card of each power.
+      if (e.distinctPower)
+        return options.filter((id, i) => options.findIndex((x) => power(x) === power(id)) === i).slice(0, count);
       if (e.maxTotalManaValue === undefined) return ids;
       let total = 0;
       return ids.filter((id) => {
@@ -1320,7 +1328,14 @@ export const HANDLERS: OpHandlers = {
     };
     let picked: string[] = [];
     if (e.random && options.length > 0 && count > 0) picked = randomPick(s, r, key("randomPick"), options, count);
-    else if (e.exact && !e.onePerType && e.maxTotalManaValue === undefined && count > 0 && options.length <= count) {
+    else if (
+      e.exact &&
+      !e.onePerType &&
+      !e.distinctPower &&
+      e.maxTotalManaValue === undefined &&
+      count > 0 &&
+      options.length <= count
+    ) {
       // All the matching cards must be taken (Scroll Rack: "that many cards from the top"): no question.
       picked = options;
     } else if (options.length > 0 && count > 0) {
@@ -1347,6 +1362,8 @@ export const HANDLERS: OpHandlers = {
       picked = answer.map(String);
       // Atraxa, Grand Unifier: "for each card type, a card of that type" (each card taken for a different type).
       if (e.onePerType && !assignTypes(s, picked, typesAmong)) throw new RulesError(msg("Only one card per card type"));
+      if (e.distinctPower && new Set(picked.map(power)).size < picked.length)
+        throw new RulesError(msg("The cards must have different powers"));
       // "with total mana value N or less": a choice that exceeds it is refused.
       if (e.maxTotalManaValue !== undefined) {
         const total = picked.reduce((n, id) => n + manaValue(s.defs[s.objects[id]?.defId ?? ""]?.manaCost), 0);
@@ -1837,13 +1854,38 @@ export const HANDLERS: OpHandlers = {
     }
     return;
   },
-  transform(s, _r, e, ctx) {
-    for (const id of resolveRef(s, ctx, e.what)) {
+  transform(s, r, e, ctx, key) {
+    // Marvel Super Heroes: modal double-faced cards transform too (Jennifer Walters).
+    const backOf = (id: ObjectId) => {
       const o = s.objects[id];
       const d = o ? s.defs[o.defId] : undefined;
-      // Marvel Super Heroes: modal double-faced cards transform too (Jennifer Walters).
-      const back = d?.layout === "transform" || d?.layout === "modal_dfc" ? d.faceDefs?.[1] : undefined;
-      if (o?.zone !== "battlefield" || !back) continue;
+      return o?.zone === "battlefield" && (d?.layout === "transform" || d?.layout === "modal_dfc") ? d.faceDefs?.[1] : undefined;
+    };
+    const ids = resolveRef(s, ctx, e.what).filter((id) => !!backOf(id));
+    // "You may transform it": asked for each double-faced permanent before any transformation (suggestion: it stays as
+    // it is).
+    if (e.may)
+      for (const id of ids) {
+        if (r.vars[key(`transform-${id}`)]) continue;
+        const o = s.objects[id];
+        return {
+          ask: {
+            player: ctx.controller,
+            key: key(`transform-${id}`),
+            request: {
+              type: "yesNo",
+              intent: "may",
+              prompt: msg("Transform {card}?", { card: cardRef(o?.faceDefId ?? o?.defId ?? "") }),
+              suggested: [0],
+            },
+          },
+        };
+      }
+    for (const id of ids) {
+      if (e.may && r.vars[key(`transform-${id}`)]?.[0] !== 1) continue;
+      const o = s.objects[id];
+      const back = backOf(id);
+      if (!o || !back) continue;
       o.faceDefId = o.faceDefId === back.id ? undefined : back.id;
       bump(s);
       emit({ type: "transform", objectId: id, defId: o.faceDefId ?? o.defId });
@@ -1870,6 +1912,7 @@ export const HANDLERS: OpHandlers = {
     const melded = createObject(s, result.id, ctx.controller, "battlefield");
     melded.melded = parts;
     melded.timestamp = nextTimestamp(s);
+    logTurnEvent(s, zoneEntry("exile", "battlefield", ctx.controller, ctx.controller, { ...result, token: false }, melded.id));
     bump(s);
     emit({ type: "token", objectId: melded.id, defId: result.id, controller: ctx.controller });
     rulesEvent(s, { e: "zone", oldId: exiled[0] ?? null, newId: melded.id, from: "exile", to: "battlefield", lki: null });
@@ -2057,7 +2100,7 @@ export const HANDLERS: OpHandlers = {
         emit({ type: "reveal", player: o.controller, defIds: [o.faceDown.card] });
         r.vars[key(`revealed-${id}`)] = [1];
       }
-      if (!card?.types.includes("Creature")) continue;
+      if (!card?.types.includes("Creature") || hasKeyword(s, id, "cantBeTurnedFaceUp")) continue;
       const answer = r.vars[key(`up-${id}`)];
       if (!answer) {
         return {

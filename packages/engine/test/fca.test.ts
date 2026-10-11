@@ -68,6 +68,26 @@ describe("Through the Ages", () => {
     });
   });
 
+  it('Ragavan: "you may cast that card": a land card or a land back face can\'t be played (PLAN-M M8b)', () => {
+    const SINK = "Sink into Stupor // Soporific Springs";
+    const steal = (top: string) => {
+      let s = scenario({
+        p1: { battlefield: ["Ragavan, Nimble Pilferer", ...lands("Island", 3)] },
+        p2: { battlefield: ["Bear Cub"], library: [top, "Forest"] },
+      });
+      s = settleNoBlocks(attack(s, [idOf(s, "p1", "battlefield", "Ragavan, Nimble Pilferer")]));
+      return advanceUntil(s, (x) => x.turn.step === "main2");
+    };
+    const s = steal(SINK);
+    const sink = s.exile.find((id) => nameOf(s, id) === SINK) as string;
+    expect(legalActions(s, "p1").some((a) => a.type === "playLand" && a.card === sink)).toBe(false);
+    expect(castOption(s, sink)).toBeDefined();
+    const t = steal("Forest");
+    const forest = t.exile.find((id) => nameOf(t, id) === "Forest") as string;
+    expect(forest).toBeDefined();
+    expect(legalActions(t, "p1").some((a) => a.type === "playLand" && a.card === forest)).toBe(false);
+  });
+
   describe("Spectacle (702.137): Light Up the Stage", () => {
     it("the spectacle cost is only offered if an opponent lost life this turn", () => {
       let s = scenario({ p1: { battlefield: lands("Mountain", 3), hand: ["Light Up the Stage"], library: lands("Island", 5) } });

@@ -131,3 +131,9 @@ The scripts are in `packages/cards/src/tla/`: `cards` (meta cards), `white`, `bl
 - **Debt:** `chooseCardName` and `exileNamed` now serve two cards (Ancient Vendetta, The Rise of Sozin): their entries are removed.
 - **Rules version:** 45.
 - **Tests:** 6 rules tests ("lot C3").
+
+## PLAN-M M8b (rules 200)
+
+- **Azula, Cunning Usurper:** the exiled cards are cast during your turn as though they had flash (`PlayFromZone.anyTime`). Test added.
+- **Zuko, Conflicted:** the fourth mode returns Zuko directly under the chosen opponent's control (`MoveSpec.controller`, read by `moveTo`: the chosen player is the one under whose control it enters, no control-changing effect). Test extended.
+- **Avatar's Wrath:** `castLimit.from: "elsewhere"` (former `exceptFromHand`), no change of behavior.

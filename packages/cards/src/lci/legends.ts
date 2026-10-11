@@ -258,7 +258,11 @@ export const LEGENDS: Record<string, CardScript> = {
   },
   "Locus of Enlightenment": {
     abilities: [
-      staticAbility("self", { gainAbilitiesOf: { zone: "linked" } }, { label: "Activated abilities of the exiled cards" }),
+      staticAbility(
+        "self",
+        { gainAbilitiesOf: { zone: "linked", oncePerTurn: true } },
+        { label: "Activated abilities of the exiled cards, each once per turn" },
+      ),
       triggered({ on: "activateAbility" }, [fx.copySpell(ref.eventObject, 1)], { label: "Copy the ability" }),
     ],
   },

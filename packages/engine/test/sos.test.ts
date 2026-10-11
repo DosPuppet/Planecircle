@@ -4267,6 +4267,16 @@ describe("Secrets of Strixhaven, lot A - colorless and lands", () => {
       expect(s.players.p1?.hand).toHaveLength(0);
       expect(s.players.p1?.graveyard).toHaveLength(0);
     });
+
+    it('"if you draw one or more cards this way": no card drawn (Mornsong Aria), no discard (PLAN-M M8b)', () => {
+      let s = scenario({
+        p1: { battlefield: ["Island", "Mountain", ...lands("Forest", 5)], hand: ["Transcendent Archaic", "Opt", "Opt"] },
+        p2: { battlefield: ["Mornsong Aria"] },
+      });
+      s = settle(cast(s, "p1", "Transcendent Archaic"), yes);
+      expect(namesIn(s, s.players.p1?.hand)).toEqual(["Opt", "Opt"]);
+      expect(s.players.p1?.graveyard).toHaveLength(0);
+    });
   });
 
   describe("Prepare: Biblioplex Tomekeeper and Skycoach Waypoint", () => {

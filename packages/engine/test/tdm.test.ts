@@ -6,6 +6,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { dealDamage, destroy, sourceFromObject } from "../src/actions";
+import { manaAbility } from "../src/dsl";
 import { RulesError } from "../src/errors";
 import { legalActions } from "../src/legal";
 import { chars } from "../src/state";
@@ -18,6 +19,7 @@ import {
   attack,
   castTargets as cast,
   castNowOf,
+  customCard,
   exiled,
   idOf,
   idsOf,
@@ -1315,6 +1317,20 @@ describe("Tarkir: Dragonstorm, lot C", () => {
       expect(s.players.p1?.life).toBe(18);
       // A card from the graveyard paid the {1}.
       expect(s.players.p1?.graveyard.filter((id) => nameOf(s, id) !== "Lightning Strike")).toHaveLength(1);
+    });
+
+    it("a card exiled for delve pays generic mana, never a {C} symbol (PLAN-M M8b)", () => {
+      const WASTE = customCard({ name: "Test Waste", typeLine: "Land", types: ["Land"], abilities: [manaAbility("C")] });
+      const offered = (land: string | typeof WASTE) => {
+        const s = scenario({
+          p1: { battlefield: ["Teval, Arbiter of Virtue", land], hand: ["Warping Wail"], graveyard: ["Opt", "Forest"] },
+        });
+        return legalActions(s, "p1").some((a) => a.type === "cast" && a.card === idOf(s, "p1", "hand", "Warping Wail"));
+      };
+      // Warping Wail {1}{C}: an Island and two graveyard cards can't pay the {C}.
+      expect(offered("Island")).toBe(false);
+      // A colorless source pays the {C}, a graveyard card the {1}.
+      expect(offered(WASTE)).toBe(true);
     });
   });
 

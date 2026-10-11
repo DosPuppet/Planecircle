@@ -181,9 +181,8 @@ export const GREEN: Record<string, CardScript> = {
       triggered(
         when.attacksSelf,
         [
-          // Base P/T X/X (X: Galion's power, layer 7b), then the toughness − power gap in layer 7c (approximation).
-          fx.modify(ref.target(), {}, "endOfTurn", amount.powerOf(ref.self)),
-          fx.pump(ref.target(), 0, amount.plus(amount.toughnessOf(ref.self), amount.neg(amount.powerOf(ref.self)))),
+          // Base P/T equal to Galion's power and toughness (layer 7b).
+          fx.modify(ref.target(), {}, "endOfTurn", [amount.powerOf(ref.self), amount.toughnessOf(ref.self)]),
         ],
         {
           targets: [target.upTo(1, target.creature("t", { controller: "you", other: true }))],

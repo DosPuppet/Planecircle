@@ -193,3 +193,8 @@ Scripts go in their set's folder (`packages/cards/src/<ext>/cards.ts`, one file 
 - **Tarkir: Dragonstorm (TDM):** Channeled Dragonfire (harmonize), Sage of the Skies; in the sideboard, Heritage Reclamation.
 - **Marvel's Spider-Man (SPM):** Interdimensional Web Watch, Spider Manifestation; in the sideboard, Spider-Sense (web-slinging).
 - **Murders at Karlov Manor (MKM):** Steamcore Scholar, Underground Mortuary. **Teenage Mutant Ninja Turtles (TMT):** Michelangelo's Technique (sneak). **Lorwyn Eclipsed (ECL):** Springleaf Drum.
+
+## PLAN-M M8b (rules 200)
+
+- **Teamwork:** the creatures tapped for teamwork count their power, without a pilot's crew bonus (`crewPower(…, "teamwork")`, `CrewUse`). Test added (We Say Thee Nay! and a 1/1 pilot).
+- **Interdimensional Web Watch:** see `spm.md`.

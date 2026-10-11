@@ -299,7 +299,7 @@
  "Tap or untap a nonland permanent": "Engagez ou dégagez un permanent non-terrain",
  "Tapped for teamwork: a +1/+1 counter and draw a card": "Engagée pour un travail d'équipe : un marqueur +1/+1 et piochez une carte",
  "Taps a creature": "Engage une créature",
- "Taps a creature with power 3 or less": "Engage une créature de force 3 ou moins",
+ "Taps a creature ({1} less if its power is 3 or less)": "Engage une créature ({1} de moins si sa force est inférieure ou égale à 3)",
  "Target player creates a 6/5 Leviathan": "Le joueur ciblé crée un Léviathan 6/5",
  "Targeted by a spell: +2/+2, you may change the target": "Ciblé par un sort : +2/+2, vous pouvez changer la cible",
  "Technopathy: draw a card": "Technopathie : piochez une carte",

@@ -95,6 +95,7 @@ export const KEYWORD_LABEL: Record<Keyword, string> = {
   ascend: msg("Ascend"),
   cantBeSacrificed: msg("Can't be sacrificed"),
   cantBeSuspected: msg("Can't become suspected"),
+  cantBeTurnedFaceUp: msg("Can't be turned face up"),
   cantAttack: msg("Can't attack"),
   unblockable: msg("Can't be blocked"),
   mustAttack: msg("Attacks each combat"),

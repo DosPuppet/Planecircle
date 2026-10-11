@@ -8,6 +8,7 @@ import { legalActions } from "../src/legal";
 import { isNameAllowed } from "../src/names";
 import { cloneState, createObject, registerDef, syncControl } from "../src/state";
 import { advance, emptyCombat, forcedAttacks } from "../src/turn";
+import { zoneEntry } from "../src/turnlog";
 import type { CardDef, CastNowRequest, ChoiceRequest, ChoiceValue, Decision, GameState, PlayerId, Step } from "../src/types";
 
 export interface Permanent {
@@ -100,6 +101,9 @@ export function scenario(opts: ScenarioOptions): GameState {
         registerDef(s, d);
         const o = createObject(s, d.id, p, "battlefield");
         o.controlledSince = perm.sick ? turn : 0;
+        // Arrived this turn: its arrival is in the turn log ("entered this turn").
+        if (perm.sick)
+          s.turnLog.push(zoneEntry(null, "battlefield", p, p, { types: d.types, subtypes: d.subtypes, token: false }, o.id));
         o.tapped = !!perm.tapped;
         o.damage = perm.damage ?? 0;
         if (d.loyalty) o.counters.loyalty = d.loyalty;

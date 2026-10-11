@@ -169,13 +169,10 @@ export const MULTI: Record<string, CardScript> = {
     ],
   },
   "Dream Harvest": {
-    // "You may cast the exiled cards": not the land cards (which are played, not cast).
+    // "You may cast the exiled cards": not the land cards, nor a land back face (played, not cast).
     spell: spell(
       [],
-      [
-        fx.exileUntilTotalManaValue(ref.eachOpponent, 5, "h"),
-        fx.grantPlay(ref.filtered(ref.stored("h"), { notTypes: ["Land"] }), { free: true }),
-      ],
+      [fx.exileUntilTotalManaValue(ref.eachOpponent, 5, "h"), fx.grantPlay(ref.stored("h"), { free: true, castOnly: true })],
     ),
   },
   // Flying read from the text.

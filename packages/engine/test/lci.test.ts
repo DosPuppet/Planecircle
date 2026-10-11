@@ -10,7 +10,7 @@ import { amount, fx, ref, spell, target, triggered, when } from "../src/dsl";
 import { addPump, moveWithSpec } from "../src/effects";
 import { RulesError } from "../src/errors";
 import { legalActions } from "../src/legal";
-import { bump, chars, untapObject } from "../src/state";
+import { bump, chars, moveObject, untapObject } from "../src/state";
 import { playerStatic } from "../src/statics";
 import { plainText } from "../src/text";
 import { countTurnEvents } from "../src/turnlog";
@@ -3791,5 +3791,35 @@ describe("The Lost Caverns of Ixalan, PLAN-A A4a", () => {
     sick.objects[idOf(sick, "p1", "battlefield", "Deconstruction Hammer")]!.attachedTo = cub;
     bump(sick);
     expect(canActivate(sick, "p1", cub)).toBe(false);
+  });
+});
+
+describe("The Lost Caverns of Ixalan, PLAN-M M8b", () => {
+  it("Locus of Enlightenment: each activated ability of the exiled cards can be activated only once each turn", () => {
+    let s = scenario({
+      p1: {
+        battlefield: ["The Enigma Jewel // Locus of Enlightenment", "Mountain", "Mountain", "Mountain"],
+        graveyard: ["Shivan Dragon"],
+      },
+    });
+    const locus = idOf(s, "p1", "battlefield", "The Enigma Jewel // Locus of Enlightenment");
+    const o = s.objects[locus];
+    if (!o) throw new Error("Locus missing");
+    o.faceDefId = s.defs[o.defId]?.faceDefs?.[1]?.id;
+    o.linked = [moveObject(s, idOf(s, "p1", "graveyard", "Shivan Dragon"), "exile") as string];
+    bump(s);
+    // Shivan Dragon's "{R}: +1/+0 until end of turn".
+    const pump = legalActions(s, "p1").find((a) => a.type === "activate" && a.source === locus);
+    if (pump?.type !== "activate") throw new Error("ability not found");
+    s = passAccepting(act(s, "p1", { type: "activate", source: locus, ability: pump.ability }), (x) => x.stack.length === 0);
+    // Two Mountains remain untapped: the ability isn't offered again this turn.
+    expect(idsOf(s, "p1", "battlefield", "Mountain").filter((id) => !s.objects[id]?.tapped)).toHaveLength(2);
+    expect(canActivate(s, "p1", locus)).toBe(false);
+    const turn = s.turn.number;
+    s = advanceUntil(
+      s,
+      (x) => x.turn.number > turn && x.turn.active === "p1" && x.turn.step === "main1" && x.pending?.kind === "priority",
+    );
+    expect(canActivate(s, "p1", locus)).toBe(true);
   });
 });

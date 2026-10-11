@@ -40,6 +40,8 @@ import {
 } from "./helpers";
 
 type S = GameState;
+/** One of the activated abilities of `source` is offered to p1. */
+const canActivateAny = (s: S, source: string) => legalActions(s, "p1").some((a) => a.type === "activate" && a.source === source);
 /** Activated ability of `source` whose label matches (the first one otherwise). */
 const ability = (s: S, player: string, source: string, label?: RegExp) =>
   legalActions(s, player).find(
@@ -617,6 +619,29 @@ describe("lot A, blanc", () => {
       expect(s.defs[s.objects[s.players.p1?.library[0] as string]?.defId ?? ""]?.name).toBe("Forest");
     });
 
+    it("Nick Fury: a double-faced card put onto the battlefield may be transformed (PLAN-M M8b)", () => {
+      const BANNER = "Bruce Banner // The Incredible Hulk";
+      const run = (transform: boolean) => {
+        const s = scenario({
+          p1: {
+            battlefield: ["Nick Fury, Agent of S.H.I.E.L.D.", "Plains", "Island", "Swamp", "Mountain", "Forest"],
+            library: [BANNER, "Opt", "Opt", "Opt", "Opt", "Opt", "Opt", "Forest"],
+          },
+        });
+        let asked = 0;
+        const t = settle(activate(s, "p1", idOf(s, "p1", "battlefield", "Nick Fury, Agent of S.H.I.E.L.D.")), (req) => {
+          if (req.type !== "yesNo") return undefined;
+          asked++;
+          expect(req.suggested).toEqual([0]);
+          return [transform ? 1 : 0];
+        });
+        expect(asked).toBe(1);
+        return chars(t, idOf(t, "p1", "battlefield", BANNER)).name;
+      };
+      expect(run(false)).toBe("Bruce Banner");
+      expect(run(true)).toBe("The Incredible Hulk");
+    });
+
     it("Night Nurse: returns to hand a permanent card put into your graveyard this turn, not an older one", () => {
       let s = scenario({
         p1: {
@@ -737,21 +762,28 @@ describe("lot A, blanc", () => {
       expect(s.objects[angel]?.tapped).toBe(true);
     });
 
-    it("Raft Security Officer: {1} for a creature with power 3 or less, {2} otherwise", () => {
-      let s = scenario({
-        p1: { battlefield: ["Raft Security Officer", "Plains"] },
-        p2: { battlefield: ["Serra Angel", "Bear Cub"] },
-      });
+    it("Raft Security Officer: {2}, {T}: tap target creature; {1} less if it targets a creature with power 3 or less", () => {
+      const setup = (plains: number) =>
+        scenario({
+          p1: { battlefield: ["Raft Security Officer", ...lands("Plains", plains)] },
+          p2: { battlefield: ["Serra Angel", "Bear Cub"] },
+        });
+      let s = setup(1);
       const officer = idOf(s, "p1", "battlefield", "Raft Security Officer");
       const bear = idOf(s, "p2", "battlefield", "Bear Cub");
       const angel = idOf(s, "p2", "battlefield", "Serra Angel");
+      // A single ability, both creatures can be targeted.
+      expect(legalActions(s, "p1").filter((a) => a.type === "activate" && a.source === officer)).toHaveLength(1);
       // A single land: the Serra Angel (power 4) asks for {2}.
-      expect(() => activate(s, "p1", officer, { targets: { t: [angel] } }, /^Taps a creature$/)).toThrow();
-      const legal = ability(s, "p1", officer, /power 3/)?.targets[0]?.legal ?? [];
-      expect(legal).toContain(bear);
-      expect(legal).not.toContain(angel);
-      s = settle(activate(s, "p1", officer, { targets: { t: [bear] } }, /power 3/));
+      expect(() => activate(s, "p1", officer, { targets: { t: [angel] } })).toThrow();
+      s = settle(activate(s, "p1", officer, { targets: { t: [bear] } }));
       expect(s.objects[bear]?.tapped).toBe(true);
+      // Two lands: the Angel is tapped for {2}.
+      let t = setup(2);
+      const angel2 = idOf(t, "p2", "battlefield", "Serra Angel");
+      t = settle(activate(t, "p1", idOf(t, "p1", "battlefield", "Raft Security Officer"), { targets: { t: [angel2] } }));
+      expect(t.objects[angel2]?.tapped).toBe(true);
+      expect(idsOf(t, "p1", "battlefield", "Plains").every((id) => t.objects[id]?.tapped)).toBe(true);
     });
 
     it("Red Guardian: destroys an opposing creature that dealt damage this turn", () => {
@@ -1213,6 +1245,21 @@ describe("lot A, bleu", () => {
       expect(pt(s, kang)).toEqual([5, 6]);
       s = advanceUntil(s, (x) => x.turn.number === 4);
       expect(s.turn.active).toBe("p1");
+    });
+
+    it("Kang the Conqueror: during the extra turn, power-up abilities can't be activated (PLAN-M M8b)", () => {
+      let s = scenario({ p1: { battlefield: ["Kang the Conqueror", "Aerial Doombot", ...lands("Island", 8)] } });
+      const kang = idOf(s, "p1", "battlefield", "Kang the Conqueror");
+      const doombot = idOf(s, "p1", "battlefield", "Aerial Doombot");
+      s = settle(activate(s, "p1", kang));
+      // The extra turn: the lands are untapped, the Doombot's power-up ({5}{U}) is not offered.
+      s = advanceUntil(s, (x) => x.turn.number === 4 && x.turn.step === "main1" && x.pending?.kind === "priority");
+      expect(s.turn.active).toBe("p1");
+      expect(canActivateAny(s, doombot)).toBe(false);
+      // On p1's next turn, it is.
+      s = advanceUntil(s, (x) => x.turn.number === 6 && x.turn.step === "main1" && x.pending?.kind === "priority");
+      expect(s.turn.active).toBe("p1");
+      expect(canActivateAny(s, doombot)).toBe(true);
     });
 
     it("Mister Fantastic: tokens enter under your control, you may draw", () => {
@@ -3547,6 +3594,32 @@ describe("lot A, multicolores", () => {
       s = settle(s);
       expect(exiled(s, "Bear Cub")).toHaveLength(0);
       expect(idsOf(s, "p1", "battlefield", "Bear Cub")).toHaveLength(1);
+    });
+
+    it("Cloak and Dagger: a creature that passed to another opponent in response is no longer controlled by the chosen one (PLAN-M M8b)", () => {
+      let s = scenario({
+        players: 3,
+        p1: { battlefield: [...lands("Plains", 2), ...lands("Swamp", 2)], hand: ["Cloak and Dagger, Entwined"] },
+        p2: { hand: ["Forest"], battlefield: ["Bear Cub"] },
+      });
+      const bear = idOf(s, "p2", "battlefield", "Bear Cub");
+      s = cast(s, "p1", "Cloak and Dagger, Entwined");
+      for (let i = 0; i < 50 && !s.stack.some((x) => x.kind !== "spell"); i++) {
+        const p = s.pending;
+        if (p?.kind === "priority") s = act(s, p.player, { type: "pass" });
+        else if (p?.kind === "choice")
+          s = act(s, p.player, {
+            type: "choose",
+            values: answering(["p2", bear])(p.request, p.player, s) ?? p.request.suggested,
+          });
+        else break;
+      }
+      expect(s.stack.some((x) => x.kind !== "spell")).toBe(true);
+      // The Bear Cub passes to p3, another opponent: "a creature they control" no longer designates it.
+      steal(s, bear, "p3");
+      s = settle(s, answering([bear]));
+      expect(exiled(s, "Bear Cub")).toHaveLength(0);
+      expect(idsOf(s, "p3", "battlefield", "Bear Cub")).toHaveLength(1);
     });
 
     it("The Coming of Galactus: I destroys a nonland permanent; IV creates Galactus, a legendary 16/16 with flying and trample", () => {

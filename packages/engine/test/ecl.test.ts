@@ -4101,6 +4101,19 @@ describe("Lorwyn Eclipsed, batch B", () => {
     expect(chars(s, idOf(s, "p1", "battlefield", "Squawkroaster")).power).toBe(2);
   });
 
+  it("Squawkroaster: Vivid counts the colors your permanents have, not their printed colors (PLAN-M M8b)", () => {
+    // A green creature made red: one color among them (printed, there would be two).
+    const PAINT = customCard({
+      name: "Test Red Paint",
+      typeLine: "Artifact",
+      types: ["Artifact"],
+      abilities: [dsl.staticAbility({ name: "Bear Cub" }, { setColors: ["R"] })],
+    });
+    const s = scenario({ p1: { battlefield: ["Squawkroaster", "Bear Cub", PAINT] } });
+    expect(chars(s, idOf(s, "p1", "battlefield", "Bear Cub")).colors).toEqual(["R"]);
+    expect(chars(s, idOf(s, "p1", "battlefield", "Squawkroaster")).power).toBe(1);
+  });
+
   it('"remove a counter from this creature": any kind of counter pays the cost', () => {
     let s = scenario({ p1: { battlefield: ["Moonlit Lamenter", "Plains", "Plains"], library: lands("Plains", 3) } });
     const lam = idOf(s, "p1", "battlefield", "Moonlit Lamenter");
@@ -4506,6 +4519,20 @@ describe("Lorwyn Eclipsed, batch C", () => {
     expect(forest).toBeDefined();
     expect(castable(s, dragon)).toBe(true);
     expect(legalActions(s, "p1").some((a) => a.type === "playLand" && a.card === forest)).toBe(false);
+  });
+
+  it("Dream Harvest: a modal card's spell face is cast, its land back face can't be played (PLAN-M M8b)", () => {
+    const SINK = "Sink into Stupor // Soporific Springs";
+    let s = scenario({
+      p1: { battlefield: lands("Island", 7), hand: ["Dream Harvest"] },
+      p2: { battlefield: ["Bear Cub"], library: [SINK, "Bear Cub", "Forest"] },
+    });
+    s = settle(act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Dream Harvest") }));
+    // Sink into Stupor (3) and Bear Cub (2): total 5.
+    const sink = s.exile.find((id) => nameOf(s, id) === SINK) as string;
+    expect(sink).toBeDefined();
+    expect(legalActions(s, "p1").some((a) => a.type === "playLand" && a.card === sink)).toBe(false);
+    expect(castable(s, sink)).toBe(true);
   });
 
   it("Lluwen: discard a land card (and only a land): a Worm per land in the graveyard", () => {

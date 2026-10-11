@@ -79,3 +79,9 @@ The scripts are in `packages/cards/src/hob/`: `cards` (meta cards), `white`, `bl
 
 - **Control of an Aura (613.1b):** the control given by an Aura (or a "for as long as" effect) returns as soon as it leaves the battlefield, without waiting for state-based actions (Banishing Betrayal returns the Aura then asks for a scry; found by the "chaos" fuzz; test in `rulings.test.ts`). `RULES_VERSION` = 59.
 - **Safety ceilings:** an expert AI simulation accumulated copies of Exalted Sunborn (token doubler) until it asked for 2^2058 tokens, an endless loop. An event creates at most 100 tokens, none beyond 400 objects on the battlefield, and a replaced amount is capped at one million; a draw stops at the empty library (found by the "AI levels" fuzz; general approximation in `docs/approximations.md`). `RULES_VERSION` = 60.
+
+## PLAN-M M8b (rules 200)
+
+- **Bard, King of Dale:** "except the first one you draw in each of your draw steps" (`EventReplacement.exceptTurnDraw`, the key of Orcish Bowmasters' draw trigger), read by `drawCards`; a card drawn in the upkeep no longer makes the draw step's card doubled. Test added.
+- **Galion, Elvenking's Butler:** base power and base toughness each Galion's (`modify.basePT` as a pair), without a toughness correction left over. Test added.
+- **Bilbo, Thief in the Night:** the reduction applies to spells cast from the library and the command zone too (`costReduction.fromZones`); only an instant or sorcery cast with its attack trigger is exiled (`castNow.afterFilter`), an artifact countered goes to the graveyard. Tests added.

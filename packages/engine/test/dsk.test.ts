@@ -4,12 +4,14 @@
  * Aura, choice by the opponent, ninjutsu, delayed trigger by emblem, global alternative cost, Nowhere to Run,
  * Marvin, Found Footage (lots C and D).
  */
+import { card } from "@mtgx/cards";
 import { describe, expect, it } from "vitest";
 import * as dsl from "../src/dsl";
+import { putFaceDown } from "../src/effects";
 import { RulesError } from "../src/errors";
 import { bump } from "../src/layers";
 import { legalActions } from "../src/legal";
-import { chars, moveObject, rulesEvent } from "../src/state";
+import { chars, createObject, moveObject, registerDef, rulesEvent, turnFaceUp } from "../src/state";
 import { plainText } from "../src/text";
 import type { GameState } from "../src/types";
 import { projectView } from "../src/view";
@@ -3658,5 +3660,75 @@ describe("Duskmourn: player statics and untapping (PLAN-H, H8b)", () => {
     const stuck = idOf(s, "p1", "battlefield", "Test Statue");
     s = advanceUntil(s, (x) => x.turn.active === "p2" && x.turn.step === "main1");
     expect(s.objects[stuck]?.tapped).toBe(false);
+  });
+});
+
+describe("Duskmourn, PLAN-M M8b: approximations lifted", () => {
+  it("Acrobatic Cheerleader: survival puts a flying counter on it; this ability triggers only once", () => {
+    let s = scenario({ p1: { battlefield: [{ name: "Acrobatic Cheerleader", tapped: true }] } });
+    const cheer = idOf(s, "p1", "battlefield", "Acrobatic Cheerleader");
+    s = advanceUntil(s, (x) => x.turn.step === "main2" && x.stack.length === 0 && x.pending?.kind === "priority");
+    s = settle(s);
+    expect(s.objects[cheer]?.counters.flying).toBe(1);
+    expect(chars(s, cheer).keywords).toContain("flying");
+    // The counter gone and the creature tapped again on its next turn: it doesn't trigger again.
+    s = advanceUntil(s, (x) => x.turn.active === "p1" && x.turn.step === "main1");
+    const o = s.objects[cheer];
+    if (o) {
+      o.counters.flying = 0;
+      o.tapped = true;
+    }
+    bump(s);
+    s = advanceUntil(s, (x) => x.turn.step === "main2" && x.pending?.kind === "priority");
+    expect(s.stack).toHaveLength(0);
+    expect(s.objects[cheer]?.counters.flying ?? 0).toBe(0);
+  });
+
+  it("Rip, Spawn Hunter: the creature and Vehicle cards put into hand have different powers", () => {
+    let s = scenario({
+      p1: {
+        battlefield: [{ name: "Rip, Spawn Hunter", tapped: true }],
+        library: ["Bear Cub", "Bear Cub", "Forest", "Serra Angel", "Opt"],
+      },
+    });
+    s = advanceUntil(s, (x) => x.turn.step === "main2" && x.pending?.kind === "choice");
+    const req = s.pending?.kind === "choice" ? s.pending.request : undefined;
+    if (req?.type !== "pick") throw new Error("pick expected");
+    expect((namesIn(s, req.options) as string[]).sort()).toEqual(["Bear Cub", "Bear Cub", "Serra Angel"]);
+    // The suggestion takes one card of each power.
+    expect((namesIn(s, req.suggested.map(String)) as string[]).sort()).toEqual(["Bear Cub", "Serra Angel"]);
+    // Two Bear Cubs (power 2 both) are refused.
+    const bears = req.options.filter((id) => nameOf(s, id) === "Bear Cub");
+    expect(() => act(s, "p1", { type: "choose", values: bears })).toThrow(RulesError);
+    s = settleAnswering(s);
+    expect((namesIn(s, s.players.p1?.hand) as string[]).sort()).toEqual(["Bear Cub", "Serra Angel"]);
+  });
+
+  it("Unable to Scream: the enchanted face-down creature can't be turned face up, by its cost or by an effect", () => {
+    // The Aura, attached on arrival to the designated creature.
+    const enchant = (s: S, host: string) => {
+      const d = card("Unable to Scream");
+      registerDef(s, d);
+      const aura = createObject(s, d.id, "p2", "battlefield");
+      aura.attachedTo = host;
+      bump(s);
+    };
+    const s = scenario({ p1: { battlefield: lands("Forest", 3), hand: ["Bear Cub"] } });
+    const hidden = putFaceDown(s, "p1", idOf(s, "p1", "hand", "Bear Cub"), false) as string;
+    bump(s);
+    // Without the Aura: its mana cost turns it face up.
+    expect(canActivate(s, "p1", hidden)).toBe(true);
+    enchant(s, hidden);
+    expect(chars(s, hidden).keywords).toContain("cantBeTurnedFaceUp");
+    expect(chars(s, hidden)).toMatchObject({ power: 0, toughness: 2 });
+    expect(canActivate(s, "p1", hidden)).toBe(false);
+    turnFaceUp(s, hidden);
+    expect(s.objects[hidden]?.faceDown).toBeDefined();
+    // A face-up enchanted creature doesn't have the restriction.
+    const t = scenario({ p1: { battlefield: ["Bear Cub"] } });
+    const bear = idOf(t, "p1", "battlefield", "Bear Cub");
+    enchant(t, bear);
+    expect(chars(t, bear).keywords).not.toContain("cantBeTurnedFaceUp");
+    expect(chars(t, bear)).toMatchObject({ power: 0, toughness: 2 });
   });
 });

@@ -136,3 +136,7 @@ The scripts are in `packages/cards/src/sos/`: `cards` (meta cards), `white`, `bl
 ## PLAN-M M8a (rules 199)
 
 - **Zimone's Experiment:** `chooseAmong` (up to two) among the creature and land cards of the top five, revealed, the rest on the bottom in a random order, then the cards go straight from the library. 1 test added.
+
+## PLAN-M M8b (rules 200)
+
+- **Transcendent Archaic:** "if you draw one or more cards this way": the draw operation stores the cards actually drawn (`draw.store`; `drawCards` returns them), read by `cond.v`. Test added (Mornsong Aria: no card drawn, no discard).

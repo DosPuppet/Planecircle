@@ -171,3 +171,7 @@ Three rules tests in `engine/test/mkm.test.ts`.
 
 - **Break Out:** the creature card is chosen with `chooseAmong` among the top six and goes straight from the library (battlefield or hand); the rest on the bottom in a random order. 1 test added.
 - **Rakdos, Patron of Chaos:** the sacrifice is offered only to an opponent who controls two nonland, nontoken permanents (otherwise you draw). 1 test added.
+
+## PLAN-M M8b (rules 200)
+
+- **Karlov Watchdog:** "permanents your opponents control can't be turned face up during your turn" is the restriction `cantBeTurnedFaceUp` granted to your opponents' face-down permanents during your turn (the `CastLimit.faceUp` flag is gone); an effect can no longer turn them face up either. Test extended.

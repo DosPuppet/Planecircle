@@ -137,7 +137,7 @@
  "Draw, then discard a card": "Piochez, puis défaussez une carte",
  "During your turn, Lessons in your graveyard have flashback {1}": "Pendant votre tour, vos Leçons au cimetière ont le flashback {1}",
  "During your turn, cast the exiled card by waterbending {X} (X: its mana value)": "Pendant votre tour, lancez la carte exilée en maîtrisant l'eau {X} (X : sa valeur de mana)",
- "During your turn, cast the exiled cards": "Pendant votre tour, lancez les cartes exilées",
+ "During your turn, cast the exiled cards (as though they had flash)": "Pendant votre tour, lancez les cartes exilées (comme si elles avaient le flash)",
  "During your turn, non-Lesson instants and sorceries in your graveyard have flashback": "Pendant votre tour, vos éphémères et rituels non-Leçons au cimetière ont le flashback",
  "Each opponent loses 1 life and you gain 1 life": "Chaque adversaire perd 1 PV, vous en gagnez 1",
  "Each opponent loses 1 life, you gain 1 life": "Chaque adversaire perd 1 PV, vous gagnez 1 PV",

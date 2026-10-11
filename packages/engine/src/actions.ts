@@ -45,7 +45,7 @@ import {
 import { matchesObjectFilter, matchesView, protectedFrom, sourceView, withChosen } from "./targets";
 import { msg } from "./text";
 import { pushInline, queueLifelink, rulesTrigger } from "./triggers";
-import { countTurnEvents, logTurnEvent, zoneEntry } from "./turnlog";
+import { countTurnEvents, enteredThisTurn, logTurnEvent, zoneEntry } from "./turnlog";
 import type {
   CardDef,
   CardType,
@@ -85,9 +85,10 @@ function firstOfDrawStep(s: GameState, p: PlayerId): boolean {
 }
 
 /** `thief`: the draw of Notion Thief itself, which it does not replace in turn. */
-export function drawCard(s: GameState, p: PlayerId, thief = false): void {
+/** Draws a card; returns whether this player drew one (not an empty library, nor a draw taken by Notion Thief). */
+export function drawCard(s: GameState, p: PlayerId, thief = false): boolean {
   const player = s.players[p];
-  if (!player) return;
+  if (!player) return false;
   const first = firstOfDrawStep(s, p);
   // Notion Thief: "if an opponent would draw a card except the first one they draw in each of their draw steps,
   // instead that player skips that draw and you draw a card" (the thief's draw is not replaced in turn).
@@ -95,7 +96,7 @@ export function drawCard(s: GameState, p: PlayerId, thief = false): void {
     const thief = opponentsOf(s, p).find((q) => !s.players[q]?.lost && playerStatic(s, q, "stealsOpponentDraws"));
     if (thief) {
       drawCard(s, thief, true);
-      return;
+      return false;
     }
   }
   const top = player.library[0];
@@ -103,7 +104,7 @@ export function drawCard(s: GameState, p: PlayerId, thief = false): void {
     // Laboratory Maniac: "you win the game instead" (replacement, applied by the state-based actions).
     if (player.drewFromEmptyLibrary !== "win") player.drewFromEmptyLibrary = playerStatic(s, p, "winOnEmptyDraw") ? "win" : true;
     emit({ type: "draw", player: p });
-    return;
+    return false;
   }
   const id = moveObject(s, top, "hand");
   emit({ type: "draw", player: p, objectId: id ?? undefined, defId: s.objects[id ?? ""]?.defId });
@@ -113,25 +114,31 @@ export function drawCard(s: GameState, p: PlayerId, thief = false): void {
   const nth = countTurnEvents(s, { event: "draw" }, p, p);
   // The first card drawn in the player's draw step (whatever drew it; PLAN-L L4).
   rulesEvent(s, { e: "draw", player: p, nth, objectId: id ?? undefined, ...(first ? { turnDraw: true } : {}) });
+  return true;
 }
 
 /**
  * Draws N cards: a single draw event for the replacements (616.1), in the order most favorable to the player (the
  * most cards, unless they don't have that many in their library): Vnwxt, Verbose Host ("draw two cards instead", for
- * each card), Quantum Riddler ("that many plus one" with one or fewer cards in hand).
+ * each card), Quantum Riddler ("that many plus one" with one or fewer cards in hand). Returns the number of cards
+ * actually drawn ("if you draw one or more cards this way").
  */
-export function drawCards(s: GameState, p: PlayerId, n: number): void {
+export function drawCards(s: GameState, p: PlayerId, n: number): number {
   const player = s.players[p];
-  if (!player || n <= 0) return;
-  // Draw replacements (R1, family I); Mornsong Aria: "players can't draw cards".
-  const q = quantityMods(s, "draw", (a) => recipientMatches(s, a, p));
-  if (q.prevented) return;
+  if (!player || n <= 0) return 0;
+  // Draw replacements (R1, family I); Mornsong Aria: "players can't draw cards"; Bard, King of Dale: except the first
+  // card of the draw step.
+  const first = firstOfDrawStep(s, p);
+  const q = quantityMods(s, "draw", (a) => recipientMatches(s, a, p) && !(a.r.exceptTurnDraw && first));
+  if (q.prevented) return 0;
   const mods = q.mods;
   const most = chooseReplacementOrder(n, mods, "max");
   const total = most <= player.library.length ? most : chooseReplacementOrder(n, mods, "min");
   // One draw from an empty library is enough (704.5b): no need to go further.
   const draws = Math.min(total, player.library.length + 1);
-  for (let i = 0; i < draws; i++) drawCard(s, p);
+  let drawn = 0;
+  for (let i = 0; i < draws; i++) if (drawCard(s, p)) drawn++;
+  return drawn;
 }
 
 export function gainLife(s: GameState, p: PlayerId, amount: number): void {
@@ -306,7 +313,7 @@ function damageReplacementApplies(
         ? matchesObjectFilter(s, a.controller, id, r.source, a.sourceId)
         : (() => {
             // "Entered this turn" (Neriv): a source gone from the battlefield, from its last known information.
-            if (r.source?.enteredThisTurn && (!id || s.lki[id]?.controlledSince !== s.turn.number)) return false;
+            if (r.source?.enteredThisTurn && (!id || !enteredThisTurn(s, id))) return false;
             const v = sourceView(s, id, source.defId, source.controller);
             const chooser = a.sourceId ? (s.objects[a.sourceId] ?? s.lki[a.sourceId]) : undefined;
             return !!v && matchesView(v, withChosen(r.source as ObjectFilter, chooser), a.controller, a.sourceId);
@@ -897,7 +904,10 @@ export function createTokenCopy(s: GameState, controller: PlayerId, defId: strin
 /** Turn log: a created token enters the battlefield ("a creature entered under your control"). */
 function logTokenArrival(s: GameState, o: GameObject): void {
   const c = chars(s, o.id);
-  logTurnEvent(s, zoneEntry(null, "battlefield", o.owner, o.controller, { types: c.types, subtypes: c.subtypes, token: true }));
+  logTurnEvent(
+    s,
+    zoneEntry(null, "battlefield", o.owner, o.controller, { types: c.types, subtypes: c.subtypes, token: true }, o.id),
+  );
 }
 
 /** The token as it would be created (filters of token replacements). */

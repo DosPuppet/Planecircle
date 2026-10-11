@@ -154,3 +154,7 @@ The scripts are in `packages/cards/src/woe/`: `cards` (meta cards), `white`, `bl
 - **Brave the Wilds:** two modes, the target land only in the bargained one (mode conditions read at announcement). Test extended.
 - **Expel the Interlopers:** the number is chosen as the spell resolves (`fx.chooseNumbers` with a `prompt` and a `suggested` amount: one more than your greatest creature power), then `destroyAll` with `cmp.power(">=", amount.numberChosen("n"))`; one mode instead of eleven. Test rewritten.
 - **Will, Scion of Peace and Rowan, Scion of War:** a player effect for the turn (`fx.thisTurn({ spellCost })`), its `reduce` an amount frozen as the ability resolves (`spellCost.reduce` accepts an amount). Rowan's test extended (life lost afterwards, Rowan gone, next turn).
+
+## PLAN-M M8b (rules 200)
+
+- **Mosswood Dreadknight:** `grantPlay.castOnly: "adventure"` (former `adventureOnly`), no change of behavior.

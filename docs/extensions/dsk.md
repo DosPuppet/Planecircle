@@ -56,3 +56,9 @@ The scripts are in `packages/cards/src/dsk/`: `white`, `blue`, `black`, `red`, `
   - `ref.filtered` (Ghost Vacuum), and the conditions `step`, `creatureDiedMatching` and `castFromGraveyard` (Undead Sprinter).
 
 Tests: `engine/test/dsk.test.ts` (18 tests) and the smoke test `ai/test/smoke/dsk.test.ts`.
+
+## PLAN-M M8b (rules 200)
+
+- **Acrobatic Cheerleader:** "this ability triggers only once": `once` on the triggered ability, noted on the object (`GameObject.used`, like the "activate only once" abilities); the flying counter is no longer the marker. Test added.
+- **Rip, Spawn Hunter:** the creature and Vehicle cards put into hand have different powers (`lookAtTop.distinctPower`: suggestion one card per power, a pick of two same powers refused); the top X cards are revealed. Test added.
+- **Unable to Scream:** "as long as enchanted creature is face down, it can't be turned face up": the restriction `cantBeTurnedFaceUp` (keyword), granted by a second static to the enchanted face-down creature (`{ attached: "host", faceDown: true }`); read by the turn-face-up special action, `turnFaceUp` (effects too) and `revealFaceDown`. Test added.

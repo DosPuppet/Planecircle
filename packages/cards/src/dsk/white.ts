@@ -24,13 +24,7 @@ import {
 
 export const WHITE: Record<string, CardScript> = {
   "Acrobatic Cheerleader": {
-    // "This ability triggers only once": as long as it has no flying counter.
-    abilities: [
-      survival([fx.counters(ref.self, "flying", 1)], {
-        condition: cond.not(cond.counterAtLeast("flying", 1)),
-        label: "A flying counter",
-      }),
-    ],
+    abilities: [survival([fx.counters(ref.self, "flying", 1)], { once: true, label: "A flying counter" })],
   },
   "Cult Healer": {
     abilities: [eerie([fx.pump(ref.self, 0, 0, ["lifelink"])], { label: "Lifelink" })],

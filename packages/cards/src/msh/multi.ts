@@ -246,7 +246,7 @@ export const MULTI: Record<string, CardScript> = {
         {
           targets: [
             target.player("p", "opponent"),
-            // "That player controls" is only checked on targeting; the "opponent" filter is checked again on resolution.
+            // "That player controls": checked on targeting and again on resolution.
             target.of(
               ref.target("p"),
               target.upTo(1, target.creature("c", { controller: "opponent" })),

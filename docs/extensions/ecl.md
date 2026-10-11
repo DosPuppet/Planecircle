@@ -99,3 +99,8 @@ The scripts are in `packages/cards/src/ecl/`: `cards` (meta cards, phase 1), `wh
 
 - **End-Blaze Epiphany:** the playable card is chosen as the delayed ability resolves (`chooseAmong` among the exiled cards, then `grantPlay` on that one). Test rewritten.
 - **Aurora Awakener:** "any number" of the revealed permanent cards (`revealUntilN` with `anyNumber`: a pick from 0 to all, the others join the rest on the bottom). Test extended.
+
+## PLAN-M M8b (rules 200)
+
+- **Dream Harvest:** "you may cast cards exiled this way": `grantPlay.castOnly` (a land card, or the land back face of a modal card, can't be played). Test added (Sink into Stupor // Soporific Springs).
+- **Squawkroaster:** Vivid counts the colors of your permanents from the previous layer pass (613.8, like domain's land types), no longer their printed colors. Test added.

@@ -3254,6 +3254,19 @@ describe("lot A, multicolores", () => {
       expect(castable(s, "p1", bear)).toBe(false);
     });
 
+    it("Azula, Cunning Usurper: the exiled cards are cast as though they had flash during your turn (PLAN-M M8b)", () => {
+      let s = scenario({
+        p1: { battlefield: [...lands("Swamp", 4), "Island", "Swamp", "Swamp"], hand: ["Azula, Cunning Usurper"] },
+        p2: { battlefield: ["Bear Cub"] },
+      });
+      s = settle(cast(s, "p1", "Azula, Cunning Usurper"));
+      const bear = exiled(s, "Bear Cub")[0] as string;
+      s = advanceUntil(s, (x) => x.turn.step === "beginCombat" && x.pending?.player === "p1");
+      expect(castable(s, "p1", bear)).toBe(true);
+      s = settle(act(s, "p1", { type: "cast", card: bear }));
+      expect(idsOf(s, "p1", "battlefield", "Bear Cub")).toHaveLength(1);
+    });
+
     it("Beifong's Bounty Hunters: one of your nonland creatures dies, earthbending X (its power)", () => {
       let s = scenario({
         p1: {
@@ -5488,5 +5501,8 @@ describe("Avatar: The Last Airbender: a chosen opponent (PLAN-H H4)", () => {
     expect(idsOf(s, "p3", "battlefield", "Zuko, Conflicted")).toHaveLength(1);
     expect(idsOf(s, "p2", "battlefield", "Zuko, Conflicted")).toHaveLength(0);
     expect(s.players.p1?.life).toBe(18);
+    // PLAN-M M8b: he returns directly under p3's control (no control-changing effect afterwards).
+    expect(s.effects.some((e) => e.controller)).toBe(false);
+    expect(s.turnLog.some((e) => e.e === "zone" && e.to === "battlefield" && e.controller === "p3")).toBe(true);
   });
 });

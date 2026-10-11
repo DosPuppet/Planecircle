@@ -123,7 +123,10 @@ export type PlayerStaticKey = keyof Omit<PlayerStaticAbilityDef, "kind" | "label
 
 /** Effects on this player still in force (created by resolutions, `s.playerEffects`). */
 function liveEffects(s: GameState, player: PlayerId): PlayerEffect[] {
-  return s.playerEffects.filter((e) => e.player === player && (e.until === null || s.turn.number <= e.until));
+  return s.playerEffects.filter(
+    (e) =>
+      e.player === player && (e.until === null || s.turn.number <= e.until) && (e.from === undefined || s.turn.number >= e.from),
+  );
 }
 
 /**
@@ -412,12 +415,14 @@ export function addPlayerEffect(
   ability: Omit<PlayerStaticAbilityDef, "kind">,
   until: number | null,
   once = false,
+  from?: number,
 ): void {
   s.playerEffects.push({
     id: newId(s, "pe"),
     player,
     ability: { kind: "playerStatic", ...ability },
     until,
+    ...(from !== undefined ? { from } : {}),
     once: once || undefined,
     timestamp: nextTimestamp(s),
   });

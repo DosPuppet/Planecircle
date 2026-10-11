@@ -1201,7 +1201,7 @@ export function grantPlay(
     harmonize?: boolean;
     cost?: ManaCost;
     payLifeManaValue?: boolean;
-    adventureOnly?: boolean;
+    castOnly?: true | "adventure";
     haste?: boolean;
   },
 ): void {

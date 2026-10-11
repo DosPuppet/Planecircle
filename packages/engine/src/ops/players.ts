@@ -83,9 +83,11 @@ export const HANDLERS: OpHandlers = {
         ? nextTurnOf(s, ctx.controller) - 1
         : e.duration === "throughYourNextTurn"
           ? nextTurnOf(s, ctx.controller)
-          : e.duration === "forever" || (e.times !== undefined && !e.once)
-            ? null
-            : s.turn.number;
+          : e.duration === "nextTurn"
+            ? s.turn.number + 1
+            : e.duration === "forever" || (e.times !== undefined && !e.once)
+              ? null
+              : s.turn.number;
     const times = e.times !== undefined ? evalAmount(s, ctx, e.times) : 1;
     for (const p of who)
       for (let i = 0; i < times; i++)
@@ -99,6 +101,7 @@ export const HANDLERS: OpHandlers = {
               ? nextTurnOf(s, p)
               : until,
           e.times !== undefined || !!e.once,
+          e.duration === "nextTurn" ? s.turn.number + 1 : undefined,
         );
     return;
   },
@@ -232,12 +235,15 @@ export const HANDLERS: OpHandlers = {
       }
     return;
   },
-  draw(s, _r, e, ctx) {
+  draw(s, r, e, ctx) {
     const n = evalAmount(s, ctx, e.amount);
+    let drawn = 0;
     for (const p of resolveRef(s, ctx, e.who)) {
       if (!isPlayer(s, p)) continue;
-      drawCards(s, p, n);
+      drawn += drawCards(s, p, n);
     }
+    // "If you draw one or more cards this way": the cards actually drawn.
+    store(r, e.store, drawn);
     return;
   },
   gainLife(s, _r, e, ctx) {

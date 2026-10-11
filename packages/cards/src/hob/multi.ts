@@ -31,15 +31,12 @@ const GOBLIN_ORC_ARMY: ObjectFilter = { anySubtype: ["Goblin", "Orc", "Army"], c
 
 export const MULTI: Record<string, CardScript> = {
   "Bard, King of Dale": {
-    // Approximation: "the first card you draw during each of your draw steps" is read as "a draw during your draw
-    // step, if you haven't drawn any card yet this turn" (a card drawn during your upkeep makes the draw step's draw
-    // doubled).
     abilities: [
       eventReplacement({
         event: "draw",
         to: "you",
         modify: { times: 2 },
-        condition: cond.not(cond.all(cond.yourTurn, cond.step("draw"), cond.not(cond.drewAtLeast(1)))),
+        exceptTurnDraw: true,
         label: "Draw two cards instead of one (except the first of your draw step)",
       }),
       eventReplacement({ event: "tokens", to: "you", modify: { times: 2 }, label: "Twice as many tokens" }),

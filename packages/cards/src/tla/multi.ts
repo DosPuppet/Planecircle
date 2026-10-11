@@ -61,8 +61,6 @@ export const MULTI: Record<string, CardScript> = {
     ],
   },
   "Azula, Cunning Usurper": {
-    // Approximation: the exiled cards are cast during your turn with mana of any type, but without flash (the engine
-    // doesn't yet grant flash to the linked cards only).
     abilities: [
       triggered(
         when.entersSelf,
@@ -81,9 +79,9 @@ export const MULTI: Record<string, CardScript> = {
         },
       ),
       playerStatic({
-        playFrom: { zone: "linked", what: "spells", anyMana: true },
+        playFrom: { zone: "linked", what: "spells", anyMana: true, anyTime: true },
         condition: cond.yourTurn,
-        label: "During your turn, cast the exiled cards",
+        label: "During your turn, cast the exiled cards (as though they had flash)",
       }),
     ],
   },
@@ -528,8 +526,7 @@ export const MULTI: Record<string, CardScript> = {
             [
               fx.chooseOpponent("zo"),
               fx.exileCard(ref.self, { name: "z" }),
-              fx.moveTo(ref.stored("z"), { to: "battlefield" }, { name: "zb" }),
-              fx.giveControl(ref.stored("zb"), ref.stored("zo")),
+              fx.moveTo(ref.stored("z"), { to: "battlefield", controller: ref.stored("zo") }),
               fx.loseLife(2),
             ],
           ),

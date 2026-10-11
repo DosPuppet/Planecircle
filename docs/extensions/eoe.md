@@ -54,3 +54,7 @@
   - a permanent put onto the battlefield attacking; the condition "a player controls no creatures";
   - enters replacements also apply to created tokens, and can read the mana spent and the lands that entered this turn.
 - Smoke test: the scenario's opponent has a Goblin Firebomb in hand (target of artifact counterspells).
+
+## PLAN-M M8b (rules 200)
+
+- **Mm'menon, the Right Hand:** `ManaRestriction.spellFrom: "elsewhere"` (former `spellNotFromHand`), no change of behavior.

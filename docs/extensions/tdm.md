@@ -88,3 +88,7 @@ New Way Forward brings the first "the next time" shield (615.7) and Neriv a new 
 - **Neriv, Heart of the Storm:** a creature that entered this turn and left the battlefield before dealing its damage is judged by its last known information (`LkiSnapshot.controlledSince`).
 - **Taigam, Master Opportunist:** the suspended copy fix is general (suspend: haste only for the suspended creature; `docs/extensions/core.md`).
 - **Tests:** `tdm.test.ts` (+1 Neriv).
+
+## PLAN-M M8b (rules 200)
+
+- **Teval, Arbiter of Virtue:** a card exiled for delve pays generic mana only, never a {C} symbol (the solver's delve and convoke sources no longer have the `C` color; waterbend and improvise already paid generic only). Test added (Warping Wail).

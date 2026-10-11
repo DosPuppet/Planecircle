@@ -324,10 +324,11 @@ export const WHITE: Record<string, CardScript> = {
   },
   "Karlov Watchdog": {
     abilities: [
-      playerStatic({
-        castLimit: { who: "opponents", during: "yourTurn", faceUp: true },
-        label: "During your turn, your opponents' permanents can't be turned face up",
-      }),
+      staticAbility(
+        { controller: "opponent", faceDown: true },
+        { addKeywords: ["cantBeTurnedFaceUp"] },
+        { condition: cond.yourTurn, label: "During your turn, your opponents' permanents can't be turned face up" },
+      ),
       triggered(when.attackWith(3), [fx.pumpAll({ types: ["Creature"], controller: "you" }, 1, 1)], {
         label: "You attack with three or more creatures: your creatures +1/+1",
       }),

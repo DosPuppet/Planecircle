@@ -255,6 +255,16 @@ describe("Marvel's Spider-Man", () => {
     expect(idsOf(s, "p1", "battlefield", "Bear Cub")).toHaveLength(1);
   });
 
+  it("Interdimensional Web Watch: its mana doesn't pay for a spell cast from a graveyard (only from exile)", () => {
+    const setup = (islands: number) =>
+      scenario({ p1: { battlefield: ["Interdimensional Web Watch", ...lands("Island", islands)], graveyard: ["Think Twice"] } });
+    const s = setup(1);
+    // Flashback {2}{U}: the Watch's two mana can't be spent from the graveyard.
+    expect(castable(s, "p1", idOf(s, "p1", "graveyard", "Think Twice"))).toBe(false);
+    const t = setup(3);
+    expect(castable(t, "p1", idOf(t, "p1", "graveyard", "Think Twice"))).toBe(true);
+  });
+
   describe("Spider-Sense", () => {
     const setup = (p1Battlefield: (string | { name: string; tapped: boolean })[], spell: string) => {
       let s = scenario({
@@ -3434,6 +3444,38 @@ describe("lot A, colorless cards and lands", () => {
         t = act(t, "p2", { type: "declareBlockers", blocks: [{ blocker: wall, attacker: slayer2 }] });
         t = advanceUntil(t, (x) => x.turn.step === "end");
         expect(idsOf(t, "p2", "battlefield", "Test Wall")).toHaveLength(1);
+      });
+
+      it("triggers when it deals damage to a Spider, not when a Spider it damaged is dealt damage by another source", () => {
+        const TOUGH_SPIDER = customCard({
+          name: "Test Tough Spider",
+          typeLine: "Creature — Spider",
+          subtypes: ["Spider"],
+          power: 0,
+          toughness: 5,
+          keywords: ["indestructible"],
+        });
+        let s = scenario({
+          p1: { battlefield: ["Spider-Slayer, Hatred Honed", "Mountain"], hand: ["Shock"] },
+          p2: { battlefield: [TOUGH_SPIDER] },
+        });
+        const slayer = idOf(s, "p1", "battlefield", "Spider-Slayer, Hatred Honed");
+        const spider = idOf(s, "p2", "battlefield", "Test Tough Spider");
+        s = passAccepting(s, (x) => x.pending?.kind === "declareAttackers");
+        s = act(s, "p1", { type: "declareAttackers", attackers: [{ id: slayer, defender: "p2" }] });
+        s = passAccepting(s, (x) => x.pending?.kind === "declareBlockers");
+        s = act(s, "p2", { type: "declareBlockers", blocks: [{ blocker: spider, attacker: slayer }] });
+        // The damage dealt by Spider-Slayer triggers (indestructible: the Spider survives).
+        s = advanceUntil(s, (x) => x.stack.length > 0);
+        expect(nameOf(s, s.stack[0]?.sourceId ?? "")).toBe("Spider-Slayer, Hatred Honed");
+        s = advanceUntil(s, (x) => x.turn.step === "main2" && x.pending?.kind === "priority");
+        expect(idsOf(s, "p2", "battlefield", "Test Tough Spider")).toHaveLength(1);
+        // Shock deals damage to that Spider: Spider-Slayer doesn't trigger.
+        s = act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Shock"), targets: { t: [spider] } });
+        s = passAccepting(s, (x) => x.stack.length === 0 && x.pending?.kind === "priority");
+        expect(s.objects[spider]?.damage).toBe(4);
+        expect(s.stack).toHaveLength(0);
+        expect(s.triggers).toHaveLength(0);
       });
 
       it("{6}, exile it from your graveyard: two tapped 1/1 flying artifact Robots", () => {

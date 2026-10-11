@@ -6,12 +6,13 @@
 
 import { describe, expect, it } from "vitest";
 import { destroy } from "../src/actions";
+import { powerFor, powerRuleAbility } from "../src/dsl";
 import { legalActions } from "../src/legal";
 import { addReplacement } from "../src/replacement";
 import { chars } from "../src/state";
 import { playerStatic } from "../src/statics";
 import type { GameState } from "../src/types";
-import { act, advanceUntil, idOf, idsOf, passAccepting, passUntil, scenario } from "./helpers";
+import { act, advanceUntil, customCard, idOf, idsOf, passAccepting, passUntil, scenario } from "./helpers";
 
 type S = GameState;
 const lands = (name: string, n: number) => Array(n).fill(name) as string[];
@@ -365,6 +366,39 @@ describe("Meta, lot M2", () => {
     expect(s.objects[bear]?.tapped).toBe(true);
     s = settle(s);
     expect(idsOf(s, "p2", "graveyard", "Fire Elemental")).toHaveLength(1);
+  });
+
+  it("We Say Thee Nay!: teamwork counts the power of the tapped creatures, not a pilot's crew bonus (PLAN-M M8b)", () => {
+    const PILOT = customCard({
+      name: "Test Pilot",
+      typeLine: "Creature — Pilot",
+      subtypes: ["Pilot"],
+      power: 1,
+      toughness: 1,
+      abilities: [powerRuleAbility(powerFor.pilot)],
+    });
+    let s = scenario({
+      p1: { battlefield: ["Island", "Island", PILOT], hand: ["We Say Thee Nay!"] },
+      p2: { battlefield: [...lands("Mountain", 7)], hand: ["Fire Elemental"] },
+      active: "p2",
+    });
+    s = act(s, "p2", { type: "cast", card: idOf(s, "p2", "hand", "Fire Elemental") });
+    const spell = s.stack[0]?.id as string;
+    s = act(s, "p2", { type: "pass" });
+    // Power 1 (it would crew as 3): teamwork 2 isn't offered, and refused.
+    const opt = castOption(s, idOf(s, "p1", "hand", "We Say Thee Nay!"));
+    const pilot = idOf(s, "p1", "battlefield", "Test Pilot");
+    expect(opt?.type === "cast" && opt.kickerTap?.powers[pilot]).toBe(1);
+    expect(opt?.type === "cast" && opt.kickerTap?.suggested).toEqual([]);
+    expect(() =>
+      act(s, "p1", {
+        type: "cast",
+        card: idOf(s, "p1", "hand", "We Say Thee Nay!"),
+        targets: { t: [spell] },
+        kicked: true,
+        tap: [pilot],
+      }),
+    ).toThrow();
   });
 
   it("Azog: destroys a creature, its controller amasses Goblins X (its power)", () => {

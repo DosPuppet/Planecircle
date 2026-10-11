@@ -68,11 +68,10 @@ export const BLUE: Record<string, CardScript> = {
   "Bilbo, Thief in the Night": {
     abilities: [
       {
-        // Approximation: spells cast from the graveyard or exile (not from the top of the library).
         kind: "costReduction",
         filter: {},
         generic: 1,
-        fromZones: ["graveyard", "exile"],
+        fromZones: ["graveyard", "exile", "library", "command"],
         label: "Spells cast from anywhere other than your hand: {1} less",
       },
       triggered(
@@ -80,6 +79,7 @@ export const BLUE: Record<string, CardScript> = {
         [
           fx.castNow(ref.filtered(ref.graveyardOf(ref.you), { types: ["Artifact", "Instant", "Sorcery"] }), {
             after: "exile",
+            afterFilter: { types: ["Instant", "Sorcery"] },
           }),
         ],
         { label: "Cast an artifact, instant or sorcery from your graveyard" },

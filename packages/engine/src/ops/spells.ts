@@ -34,7 +34,7 @@ import {
 } from "../state";
 import { legalTargets, matchesCard, matchesObjectFilter, matchesView } from "../targets";
 import { msg } from "../text";
-import type { ChoiceValue, GameState, ManaCost, ObjectId, PlayerId, Resolution, StackItem } from "../types";
+import type { ChoiceValue, GameState, ManaCost, ObjectFilter, ObjectId, PlayerId, Resolution, StackItem } from "../types";
 
 export const HANDLERS: OpHandlers = {
   discover(s, r, e, ctx, key) {
@@ -417,7 +417,7 @@ export const HANDLERS: OpHandlers = {
       after: e.after,
       payLifeManaValue: e.payLifeManaValue,
       group: e.oneOf ? newId(s, "g") : undefined,
-      adventureOnly: e.adventureOnly,
+      castOnly: e.castOnly,
     };
     // Ian Malcolm: each player other than the card's owner.
     if (e.for === "nonOwners") {
@@ -500,6 +500,7 @@ function castNowLoop(
     free?: boolean;
     many?: boolean;
     after?: "exile" | "bottom";
+    afterFilter?: ObjectFilter;
     anyMana?: boolean;
     cost?: ManaCost;
     haste?: boolean;
@@ -521,16 +522,27 @@ function castNowLoop(
   dropNowPermissions(s);
   if (!declined && (opts.many || cast.length === 0)) {
     const open = rest.filter((id) => !s.defs[s.objects[id]?.defId ?? ""]?.types.includes("Land"));
-    grantPlay(s, player, open, "thisTurn", {
-      free: opts.free,
-      anyTime: true,
-      anyMana: opts.anyMana,
-      after: opts.after,
-      source,
-      now: true,
-      ...(opts.cost ? { cost: opts.cost } : {}),
-      ...(opts.haste ? { haste: true } : {}),
-    });
+    const grant = (ids: ObjectId[], after: "exile" | "bottom" | undefined) =>
+      grantPlay(s, player, ids, "thisTurn", {
+        free: opts.free,
+        anyTime: true,
+        anyMana: opts.anyMana,
+        after,
+        source,
+        now: true,
+        ...(opts.cost ? { cost: opts.cost } : {}),
+        ...(opts.haste ? { haste: true } : {}),
+      });
+    // `afterFilter`: only the matching spells are exiled (Bilbo, Thief in the Night: "if an instant or sorcery spell").
+    const f = opts.afterFilter;
+    if (f) {
+      const exiled = (id: ObjectId) => matchesCard(s, player, id, { ...f, controller: undefined });
+      grant(open.filter(exiled), opts.after);
+      grant(
+        open.filter((id) => !exiled(id)),
+        undefined,
+      );
+    } else grant(open, opts.after);
     // Only the cards that can really be cast (targets, additional costs) are offered.
     const castable = open.filter((id) => castTerms(s, player, id));
     if (castable.length) {

@@ -691,6 +691,9 @@ function matchTrigger(s: GameState, ev: RulesEvent, t: TriggerSpec, src: Source)
       if (!damagedMatches(s, ev.target, t.to, me, src.id)) return null;
       const v = liveView(s, ev.sourceId) ?? s.lki[ev.sourceId] ?? null;
       if (!v || !matchWho(t.who, v, src)) return null;
+      // "… deals damage to a Spider, destroy that creature": the damaged object.
+      if (t.on === "dealsDamage" && t.eventObject === "damaged")
+        return toPlayer ? null : { objectId: ev.target, amount: ev.amount };
       return { objectId: ev.sourceId, player: toPlayer ? ev.target : undefined, amount: ev.amount };
     }
     case "castSpell": {
@@ -1127,6 +1130,12 @@ export function detectTriggers(s: GameState, ev: RulesEvent, only?: (src: Source
             }
           return;
         }
+      }
+      // "This ability triggers only once": noted on the object.
+      if (ab.once) {
+        const o = s.objects[src.id];
+        if (o?.used?.includes(index)) return;
+        if (o) o.used = [...(o.used ?? []), index];
       }
       if (ab.oncePerTurn && ab.oncePerTurn !== "firstEvent") {
         const key = onceKey(src.view.defId, src.id, index);

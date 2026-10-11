@@ -576,8 +576,23 @@ export const RECORD_VERSION = 1;
  *   arrive later (emblem statics); Expel the Interlopers' number chosen as it resolves; Rakdos, Patron of Chaos offers
  *   the sacrifice only to an opponent who can sacrifice two; Will and Rowan, Scion: a player effect for the turn, X
  *   fixed as the ability resolves
+ * - 200: PLAN-M M8b: Memory Vessel forbids playing cards from hand (`castLimit.from`, lands included); Acrobatic
+ *   Cheerleader triggers only once (`once` on triggered abilities); Rip, Spawn Hunter takes cards with different powers;
+ *   "can't be turned face up" restriction (Unable to Scream; Karlov Watchdog, by effects too); Interdimensional Web
+ *   Watch's mana only for spells cast from exile; Dream Harvest and Ragavan cast only (`grantPlay.castOnly`: no land
+ *   back face); Azula's exiled cards with flash; Zuko returns directly under the chosen opponent's control
+ *   (`MoveSpec.controller`); Vivid counts the colors of the previous layer pass; Locus of Enlightenment's gained
+ *   abilities once each turn; teamwork counts plain power; the draw op stores the cards actually drawn (Transcendent
+ *   Archaic); Spider-Slayer triggers on the damaged Spider; Bard, King of Dale excludes the first draw of the draw step
+ *   only; Galion gives base power and toughness separately; Kang's extra turn forbids power-ups (a player effect
+ *   `nextTurn`); Bilbo reduces spells from the library and command zone too, exiling only instants and sorceries;
+ *   delve and convoke never pay {C}; a target "they control" rechecked as held by the chosen player on resolution
+ *   (Cloak and Dagger); Nick Fury may transform the double-faced card; "entered this turn" on the battlefield is the
+ *   arrival logged in the turn log, not a change of control (Renet); Raft Security Officer is one ability with a
+ *   reduction read from its target; an additional sacrifice offers the permanents that sacrifice themselves for mana
+ *   last, and the one sacrificed by default doesn't pay its mana in `legalActions` (Deadly Dispute and a Treasure)
  */
-export const RULES_VERSION = 199;
+export const RULES_VERSION = 200;
 
 /** One checkpoint every N decisions (plus the last one of the game). */
 export const CHECKPOINT_EVERY = 25;

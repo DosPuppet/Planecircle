@@ -117,3 +117,8 @@ The scripts are in `packages/cards/src/spm/`: `cards` (meta cards), `white`, `bl
 ## PLAN-M M8a (rules 199)
 
 - **Maximum Carnage:** chapter I is the static of an emblem until your next turn (ruling: every creature, those that arrive afterwards too). Test extended.
+
+## PLAN-M M8b (rules 200)
+
+- **Interdimensional Web Watch:** its mana only for spells cast from exile (`ManaRestriction.spellFrom: "exile"`; `spellFrom: "elsewhere"` replaces `spellNotFromHand`, Mm'menon; the payment knows the zone cast from, `ManaPurpose.from`). Test added (Think Twice's flashback refused).
+- **Spider-Slayer, Hatred Honed:** "whenever it deals damage to a Spider, destroy that creature": `dealsDamage` with `to: { objects: { subtype: "Spider" } }` and `eventObject: "damaged"` (the event object is what was dealt the damage; the key of Skewer Slinger's `blocks` trigger). Test added (an indestructible Spider shocked afterwards: no trigger).

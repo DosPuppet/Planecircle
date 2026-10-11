@@ -52,7 +52,15 @@ export type Effect =
        * of the game", Screaming Nemesis); absent: until end of turn.
        */
       /** `throughYourNextTurn`: until the end of the controller's next turn, for every affected player (Single Combat). */
-      duration?: "untilYourNextTurn" | "untilTheirNextTurn" | "throughTheirNextTurn" | "throughYourNextTurn" | "forever";
+      /** `nextTurn`: only during the next turn of the game (Kang the Conqueror: "take an extra turn after this one.
+       * During that turn, …"). */
+      duration?:
+        | "untilYourNextTurn"
+        | "untilTheirNextTurn"
+        | "throughTheirNextTurn"
+        | "throughYourNextTurn"
+        | "nextTurn"
+        | "forever";
       times?: Amount;
       /** Single use, until end of turn ("the next spell you cast this turn"). */
       once?: boolean;
@@ -103,8 +111,11 @@ export type Effect =
       duration: "endOfTurn" | "permanent" | "untilYourNextTurn" | "endOfYourNextTurn";
       /** Duration tied to a state (with `duration: "permanent"`): see `ModifyWhile`. */
       while?: ModifyWhile;
-      /** Base P/T set to this amount, evaluated on resolution (layer 7b). */
-      basePT?: Amount;
+      /**
+       * Base P/T set to this amount, evaluated on resolution (layer 7b); a pair: base power and base toughness (Galion,
+       * Elvenking's Butler: "equal to Galion's power and toughness").
+       */
+      basePT?: Amount | [Amount, Amount];
     }
   /**
    * `store`: the number of permanents destroyed, and the cards put into the graveyard this way ("if a creature card is
@@ -128,7 +139,8 @@ export type Effect =
    * players (the controller by default).
    */
   | { op: "millWhileShared"; who?: Ref; share?: "color"; nonland?: boolean; draw?: boolean }
-  | { op: "draw"; who: Ref; amount: Amount }
+  /** `store`: remembers the number of cards actually drawn ("if you draw one or more cards this way"). */
+  | { op: "draw"; who: Ref; amount: Amount; store?: string }
   | { op: "gainLife"; who: Ref; amount: Amount }
   /**
    * `tapped`: tapped tokens; `attacking`: tapped and attacking (508.4), what their controller chooses (one question for
@@ -330,6 +342,8 @@ export type Effect =
       /** At most one card per card type (Atraxa, Grand Unifier); a list: only those types count ("a creature card and/or
        * a land card": Ojer Kaslem, In the Presence of Ages). */
       onePerType?: boolean | CardType[];
+      /** The cards taken have different powers ("creature and/or Vehicle cards with different powers": Rip, Spawn Hunter). */
+      distinctPower?: boolean;
       /**
        * Who chooses the cards and orders the rest: the controller (by default; Portent: another player's library), or
        * the library's owner (`owner`: "each player looks at … and may reveal", Explore the Vastlands).
@@ -658,10 +672,13 @@ export type Effect =
       after?: "exile" | "bottom";
       /** Only one of the designated cards can be cast (Buster Sword). */
       oneOf?: boolean;
-      /** Only as an Adventure (Mosswood Dreadknight: "you may cast it from your graveyard as an Adventure"). */
       /** Granted flashback (or harmonize, 702.180): the card is exiled as it leaves the stack. */
       flashback?: true | "harmonize";
-      adventureOnly?: boolean;
+      /**
+       * "You may cast [it]": not played as a land (Dream Harvest, Ragavan; nor a land back face); `adventure`: only as an
+       * Adventure (Mosswood Dreadknight: "you may cast it from your graveyard as an Adventure").
+       */
+      castOnly?: true | "adventure";
     }
   /** Exiles the top cards until a matching card (remembered): Territorial Bruntar. */
   /**
@@ -717,8 +734,11 @@ export type Effect =
    * this way by the controller (Mister Negative: "draw that many cards"). */
   /** "Do this only once each turn": the resolving triggered ability no longer triggers this turn. */
   | { op: "doneOncePerTurn" }
-  /** Transforms the designated double-faced permanents (712.10: front ↔ back). */
-  | { op: "transform"; what: Ref }
+  /**
+   * Transforms the designated double-faced permanents (712.10: front ↔ back); `may`: "you may transform it", asked for
+   * each double-faced one (Nick Fury, Agent of S.H.I.E.L.D.).
+   */
+  | { op: "transform"; what: Ref; may?: boolean }
   /** "Exile them, then meld them into [card]": the source and a permanent with the given name (701.42). */
   | { op: "meld"; with: string }
   /** The designated creatures explore (701.44), `times` times. */
@@ -749,6 +769,8 @@ export type Effect =
       free?: boolean;
       many?: boolean;
       after?: "exile" | "bottom";
+      /** `after` only for the matching spells (Bilbo, Thief in the Night: "if an instant or sorcery spell cast this way"). */
+      afterFilter?: ObjectFilter;
       anyMana?: boolean;
       storeCast?: string;
       storeRest?: string;

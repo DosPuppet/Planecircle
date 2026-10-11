@@ -50,3 +50,7 @@ Tests: `engine/test/lci.test.ts` and the smoke test `ai/test/smoke/lci.test.ts`.
 ## PLAN-M M8a (rules 199)
 
 - **Ojer Kaslem:** one choice of a creature card and/or a land card, put onto the battlefield together, all the cards revealed first (`lookAtTop` with `onePerType: ["Creature", "Land"]`, `reveal: "all"`); an artifact creature and a creature are refused. In the Presence of Ages uses the same type list. Test rewritten.
+
+## PLAN-M M8b (rules 200)
+
+- **Locus of Enlightenment:** the gained activated abilities of the exiled cards can each be activated only once each turn (`gainAbilitiesOf.oncePerTurn`; a mana ability's "once each turn" is now noted per ability, `mana:<id>:<index>`). Test added.

@@ -82,8 +82,8 @@ export const ARTIFACTS: Record<string, CardScript> = {
         when.entersSelf,
         fx.may(
           "Draw a card for each color of mana spent, then discard two cards?",
-          fx.draw(amount.colorsSpent),
-          fx.when(cond.amountAtLeast(amount.colorsSpent, 1), fx.discard(2)),
+          fx.draw(amount.colorsSpent, ref.you, "drawn"),
+          fx.when(cond.v("drawn"), fx.discard(2)),
         ),
         { label: "Converge: draw X cards, then discard two" },
       ),

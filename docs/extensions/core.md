@@ -332,3 +332,9 @@ Lot R8 (PLAN-R, no rules change):
 - **Last known information:** `LkiSnapshot.kicked` ("if it was kicked / if the gift was promised" once the permanent has left) and `LkiSnapshot.controlledSince` ("entered this turn" for a source gone from the battlefield, Neriv).
 - **Cost permanents and mana** (bug found by the fuzz, older than the lot): a permanent chosen for another cost of a spell (sacrifice, "discard or sacrifice", the kicker's permanent) is passed to the payment as `sacrificedForCost`: its mana abilities that sacrifice it (Treasure) are not used.
 - **Tests:** `rulings.test.ts` (+4: suspend, cast or declined; random shock lands from the library and the graveyard; a Treasure sacrificed for Demand Answers' cost).
+
+## PLAN-M M8b (rules 200)
+
+- **Additional sacrifice and Treasures** (found by the FCA strict fuzz, seed 26: Deadly Dispute with a Treasure as its only black source and only permanent to sacrifice, offered then refused): the options of an additional sacrifice put the permanents that sacrifice themselves for mana last (`additionalOptions`), and `legalActions` checks the mana without the ability of the permanents sacrificed by default (`sacrificedForCost`, as `castSpell` does). Test added (`offers.test.ts`).
+- **"Entered this turn"** on the battlefield is read from the turn log (an arrival carries the new object's id), no longer from `controlledSince`: a change of control isn't an arrival (see `tmt.md`, Renet).
+- **"Can't be turned face up"** is a restriction (`cantBeTurnedFaceUp`), granted by statics (see `dsk.md` and `mkm.md`).

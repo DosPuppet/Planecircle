@@ -14,7 +14,7 @@ import { addEffect, evalAmount, putFaceDown } from "../src/effects";
 import { RulesError } from "../src/errors";
 import { bump } from "../src/layers";
 import { legalActions } from "../src/legal";
-import { chars, FACE_DOWN_ID, moveObject } from "../src/state";
+import { chars, FACE_DOWN_ID, moveObject, turnFaceUp } from "../src/state";
 import { isLegalTarget, matchesObjectFilter } from "../src/targets";
 import { msg } from "../src/text";
 import { canBlock, requiredBlocks } from "../src/turn";
@@ -4896,6 +4896,10 @@ describe("Murders at Karlov Manor, lot B2: disguise", () => {
     s = act(s, "p1", { type: "pass" });
     expect(s.pending?.player).toBe("p2");
     expect(faceUpAction(s, "p2", goblin)).toBeUndefined();
+    // PLAN-M M8b: "can't be turned face up", by an effect either.
+    expect(chars(s, goblin).keywords).toContain("cantBeTurnedFaceUp");
+    turnFaceUp(s, goblin);
+    expect(s.objects[goblin]?.faceDown).toBeDefined();
   });
 
   it("Branch of Vitu-Ghazi: a land cast face down; turned up, two mana of one color kept until end of turn", () => {

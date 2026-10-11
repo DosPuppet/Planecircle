@@ -298,3 +298,7 @@ its artwork (51 cards). Details in the plan's follow-up.
 - **Shared Animosity:** a changeling attacker shares a creature type only with the attackers that have one (`anySubtype: ["*"]`).
 - **Reflecting Pool:** the colors of Command Tower count; other lands of the same kind still don't (106.7).
 - **Tests:** `spg.test.ts` (+1), `wot.test.ts` (+1), `eos.test.ts` (+1).
+
+## PLAN-M M8b (rules 200)
+
+- **Ragavan, Nimble Pilferer:** "you may cast that card": `grantPlay.castOnly` (a land, or a land back face, can't be played; the former condition on the card's type is gone). Test added (`fca.test.ts`).

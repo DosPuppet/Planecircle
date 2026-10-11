@@ -135,7 +135,7 @@ export const CARDS: Record<string, CardScript> = {
       triggered(when.entersSelf, [fx.exileTop(ref.you, 2, "w"), fx.grantPlay(ref.stored("w"), { untilYourNextTurn: true })], {
         label: "Exiles the top two cards, playable until the end of your next turn",
       }),
-      manaAbility(["W", "U", "B", "R", "G"], 2, { restriction: { spellNotFromHand: true }, combination: true }),
+      manaAbility(["W", "U", "B", "R", "G"], 2, { restriction: { spellFrom: "exile" }, combination: true }),
     ],
   },
   "Spider-Sense": {

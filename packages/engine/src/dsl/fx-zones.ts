@@ -190,7 +190,8 @@ export const zonesFx = {
     ...(orExileStore ? { orExileCast: true, store: orExileStore } : {}),
   }),
   /** "Transform [this permanent]" (front ↔ back). */
-  transform: (what: Ref = ref.self): Effect => ({ op: "transform", what }),
+  /** `may`: "you may transform it" (asked only for a double-faced permanent). */
+  transform: (what: Ref = ref.self, may = false): Effect => ({ op: "transform", what, ...(may ? { may } : {}) }),
   /** "Exile them, then meld them": the source and a permanent named `with`, into their melded card. */
   meld: (withName: string): Effect => ({ op: "meld", with: withName }),
   untapUpTo: (filter: ObjectFilter, n: number): Effect => ({ op: "untapUpTo", filter, n }),
@@ -332,6 +333,8 @@ export const zonesFx = {
       random?: boolean;
       /** One card per card type at most (Atraxa, Grand Unifier); a list: only those types count. */
       onePerType?: boolean | CardType[];
+      /** The cards taken have different powers (Rip, Spawn Hunter). */
+      distinctPower?: boolean;
       /** The owner of the library chooses ("each player looks at …", with `who`). */
       chooser?: "owner";
       /** "Reveal the top N cards": all of them are shown before the choice. */
@@ -344,6 +347,7 @@ export const zonesFx = {
     ...(opts.chooser ? { chooser: opts.chooser } : {}),
     ...(opts.random ? { random: true } : {}),
     ...(opts.onePerType ? { onePerType: opts.onePerType } : {}),
+    ...(opts.distinctPower ? { distinctPower: true } : {}),
     ...(opts.revealAll ? { reveal: "all" as const } : {}),
     filter: opts.filter,
     count: opts.count ?? 1,

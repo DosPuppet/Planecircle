@@ -96,7 +96,7 @@ export interface GameObject {
   baseController?: PlayerId;
   timestamp: number;
   isToken: boolean;
-  /** "Only once" abilities already activated (indexes). */
+  /** "Only once" abilities already activated, or triggered ("triggers only once"): their indexes. */
   used?: number[];
   /** Permanent that entered from a kicked spell (or the copy of a kicked spell, 707.10). */
   kicked?: boolean;
@@ -261,6 +261,8 @@ export interface PlayerEffect {
   player: PlayerId;
   ability: PlayerStaticAbilityDef;
   until: number | null;
+  /** First turn the effect applies ("during that turn": Kang the Conqueror's extra turn); from now on otherwise. */
+  from?: number;
   once?: boolean;
   /** Timestamp of the effect (613.11: effects on the rules of the game, such as maximum hand size). */
   timestamp: number;
@@ -488,6 +490,8 @@ export type TurnLogEntry =
       token?: boolean;
       /** Entered face down (Tunnel Tipster: "a face-down creature entered the battlefield under your control"). */
       faceDown?: boolean;
+      /** On the battlefield: the new object (`enteredThisTurn`: "each other nonland permanent that entered this turn"). */
+      id?: ObjectId;
     }
   | {
       e: "cast";
@@ -1005,8 +1009,11 @@ export interface GameState {
     harmonize?: boolean;
     /** Airbend: castable for this cost rather than its mana cost. */
     cost?: ManaCost;
-    /** Only the card's Adventure (Mosswood Dreadknight). */
-    adventureOnly?: boolean;
+    /**
+     * "You may cast it": a land can't be played this way (Dream Harvest, Ragavan, Nimble Pilferer; nor the land back
+     * face of a modal double-faced card); `adventure`: only as its Adventure (Mosswood Dreadknight).
+     */
+    castOnly?: true | "adventure";
     /** A creature spell cast this way gains haste (suspend, 702.62a). */
     haste?: boolean;
   }[];

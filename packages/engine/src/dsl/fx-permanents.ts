@@ -64,12 +64,15 @@ export const permanentsFx = {
     mods: { ...extra, addBlockRules: [...(extra.addBlockRules ?? []), GOADED] },
     duration,
   }),
-  /** `basePT`: base P/T set to this amount, evaluated at resolution (Fractalize: "X+1/X+1"). */
+  /**
+   * `basePT`: base P/T set to this amount, evaluated at resolution (Fractalize: "X+1/X+1"); a pair: base power and base
+   * toughness (Galion, Elvenking's Butler).
+   */
   modify: (
     what: Ref,
     mods: LayerMods,
     duration: "endOfTurn" | "permanent" | "untilYourNextTurn" | "endOfYourNextTurn" = "endOfTurn",
-    basePT?: Amount,
+    basePT?: Amount | [Amount, Amount],
   ): Effect => ({
     op: "modify",
     what,

@@ -241,11 +241,11 @@ function cdaAggregate(s: GameState, o: GameObject, a: Extract<Amount, { kind: "a
       return BASIC_LAND_TYPES.filter((t) => subtypes.has(t)).length;
     }
     case "aggregate:distinct:color": {
-      // Printed colors (the modified colors of the other permanents aren't known yet).
+      // Colors of the previous pass (613.8: Vivid, Squawkroaster), otherwise printed.
       const colors = new Set<string>();
       for (const id of permanents()) {
         const x = obj(s, id);
-        for (const c of s.defs[x.faceDefId ?? x.defId]?.colors ?? []) colors.add(c);
+        for (const c of provisional?.get(id)?.colors ?? s.defs[x.faceDefId ?? x.defId]?.colors ?? []) colors.add(c);
       }
       return colors.size;
     }
@@ -659,7 +659,8 @@ function scanDeps(x: unknown, out: CacheDeps): void {
     // A key without a value reads nothing (`perAmount: undefined`, always written by `staticAbility`).
     if (v === undefined) continue;
     if (k === "tapped" || k === "whileSourceTapped") out.tapped = true;
-    if (k === "attackedThisTurn" || k === "dealtDamageThisTurn" || k === "countersPutByYouThisTurn") out.turnLog = true;
+    if (k === "attackedThisTurn" || k === "dealtDamageThisTurn" || k === "countersPutByYouThisTurn" || k === "enteredThisTurn")
+      out.turnLog = true;
     if (k === "perLife") out.life = true;
     if (k === "blocked" || k === "blocking") out.blocks = true;
     scanDeps(v, out);
@@ -1078,7 +1079,9 @@ function evalStatic(s: GameState, slot: StaticSlot, sig: (string | number)[]): {
       .filter((d) => !chosenName || (!!d && hasName(printedName(d), o.chosen?.cardName)))
       .slice(0, chosenName ? 1 : undefined)
       .flatMap((d) => d?.abilities ?? [])
-      .filter((a) => a.kind === "activated" || a.kind === "mana" || (gain.triggered && a.kind === "triggered"));
+      .filter((a) => a.kind === "activated" || a.kind === "mana" || (gain.triggered && a.kind === "triggered"))
+      // "Only once each turn" (Locus of Enlightenment).
+      .map((a) => (gain.oncePerTurn && (a.kind === "activated" || a.kind === "mana") ? { ...a, oncePerTurn: true } : a));
     sig.push(`gl${o.chosen?.cardName ?? ""}`);
     mods = { ...mods, gainAbilitiesOf: undefined, addAbilities: [...(mods.addAbilities ?? []), ...extra] };
   }

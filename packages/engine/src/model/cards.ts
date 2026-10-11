@@ -478,8 +478,11 @@ export interface CostReductionAbilityDef {
   colored?: ManaType;
   /** Only if the condition is met (Uthros Psionicist: "the second spell you cast each turn"). */
   condition?: Condition;
-  /** Only for spells cast from these zones (Aven Interrupter, Doc Aurlock: graveyard or exile). */
-  fromZones?: ("graveyard" | "exile")[];
+  /**
+   * Only for spells cast from these zones (Aven Interrupter, Doc Aurlock: graveyard or exile; Bilbo, Thief in the Night:
+   * "from anywhere other than your hand", the library and the command zone too).
+   */
+  fromZones?: ("graveyard" | "exile" | "library" | "command")[];
   label?: string;
 }
 
@@ -497,7 +500,11 @@ export interface ManaRestriction {
   abilityOfCreature?: ObjectFilter;
   abilityOfSource?: ObjectFilter;
   notSpellFromHand?: boolean;
-  spellNotFromHand?: boolean;
+  /**
+   * Only to cast a spell from anywhere other than your hand (`elsewhere`, Mm'menon, the Right Hand) or from exile
+   * (`exile`, Interdimensional Web Watch).
+   */
+  spellFrom?: "elsewhere" | "exile";
 }
 
 export interface ManaAbilityDef {
@@ -512,7 +519,6 @@ export interface ManaAbilityDef {
   /** Mana that can be spent only on a spell (or an ability of a source creature) matching the filter. */
   /** `notSpellFromHand`: "this mana can't be spent to cast spells from your hand" (Heartwood Crafter). */
   /** `abilityOfSource`: ability of any source matching the filter (Steelswarm Operator); */
-  /** `spellNotFromHand`: "only to cast a spell from anywhere other than your hand" (Mm'menon, the Right Hand). */
   restriction?: ManaRestriction;
   /** Gene Pollinator: "tap an untapped permanent you control" in addition to {T} (chosen automatically). */
   /** `"creature"`: an untapped creature (Springleaf Drum); a filter: a matching permanent (Relic of Legends). */
@@ -875,8 +881,14 @@ export interface LayerMods {
    * Territory Forge; `triggered`: also their triggered abilities, and `filter` `chosen: "cardName"`: only the linked card
    * whose name was chosen, Koh, the Face Stealer), the matching cards in its controller's graveyard (`graveyard`:
    * Thranduil, the Elvenking), the matching creatures that don't have its name (`battlefield`: Marvin, Murderous Mimic).
+   * `oncePerTurn`: "you may activate each of those abilities only once each turn" (Locus of Enlightenment).
    */
-  gainAbilitiesOf?: { zone: "linked" | "graveyard" | "battlefield"; filter?: ObjectFilter; triggered?: boolean };
+  gainAbilitiesOf?: {
+    zone: "linked" | "graveyard" | "battlefield";
+    filter?: ObjectFilter;
+    triggered?: boolean;
+    oncePerTurn?: boolean;
+  };
   /** Layer 7b: P/T set. */
   setPower?: number;
   setToughness?: number;
@@ -974,6 +986,11 @@ export interface EventReplacement {
   effectOnly?: boolean;
   /** Counters: only those put by the replacement's controller (Innkeeper's Talent: "if you would put"). */
   byYou?: boolean;
+  /**
+   * Draw: "except the first one you draw in each of your draw steps" (Bard, King of Dale), like the draw trigger of
+   * Orcish Bowmasters.
+   */
+  exceptTurnDraw?: boolean;
   /**
    * Tokens: other tokens instead (Draconic Visitor: a 5/5 Dragon) or copies of the permanent the source is
    * attached to (Moonlit Meditation, Mirrormind Crown); `firstEachTurn`: only the first time each turn; `may`:
@@ -1087,7 +1104,7 @@ export interface NextSpell {
 
 /**
  * Casting restriction (family D, R4.5), seen from the player who has the static ability: who is concerned, when, and
- * what is forbidden (all spells, beyond N per turn, or those cast from anywhere other than hand).
+ * what is forbidden (all spells, beyond N per turn, or those cast from one zone or another).
  */
 export interface CastLimit {
   who: "you" | "opponents" | "each";
@@ -1099,17 +1116,18 @@ export interface CastLimit {
   maxSpells?: number;
   /** Only spells of these types, counted by themselves (Deafening Silence: one noncreature spell per turn). */
   spellTypes?: { types?: CardType[]; notTypes?: CardType[] };
-  /** Only spells cast from anywhere other than hand (Avatar's Wrath). */
-  exceptFromHand?: boolean;
+  /**
+   * Only the cards played from this zone: spells cast from anywhere other than hand (`elsewhere`, Avatar's Wrath), or
+   * spells cast and lands played from hand (`hand`, Memory Vessel: "they can't play cards from their hand").
+   */
+  from?: "hand" | "elsewhere";
   /** Spells can be cast only any time you could cast a sorcery (Teferi, Mage of Zhalfir). */
   sorceryTiming?: boolean;
-  /** Only turning permanents face up (Karlov Watchdog): neither spells nor abilities are blocked. */
-  faceUp?: boolean;
   /**
    * Also blocks activated abilities: all but mana abilities (Yuriko), or those of artifacts, creatures and enchantments,
-   * mana abilities included (Grand Abolisher).
+   * mana abilities included (Grand Abolisher); `powerUp`: only the power-up abilities (Kang the Conqueror), not spells.
    */
-  abilities?: "all" | "artifactsCreaturesEnchantments";
+  abilities?: "all" | "artifactsCreaturesEnchantments" | "powerUp";
 }
 
 /**
@@ -1186,6 +1204,8 @@ export interface PlayFromZone {
   removeCountersAmong?: number;
   /** Lands, spells, or both (by default). */
   what?: "lands" | "spells";
+  /** "You may cast them as though they had flash" (Azula, Cunning Usurper). */
+  anyTime?: boolean;
   /** Additional life paid (Noctis, Festival of Embers). */
   payLife?: number;
   /** Additional forage (Osteomancer Adept). */
@@ -1474,6 +1494,11 @@ export interface TriggeredAbilityDef {
    * first time each turn" (recorded at the first event, even if the "if …" condition isn't met, 603.4:
    * Fear of Missing Out). */
   oncePerTurn?: boolean | "ifDone" | "firstEvent";
+  /**
+   * "This ability triggers only once" (Acrobatic Cheerleader): recorded on the object (`GameObject.used`, like the
+   * "activate only once" abilities); a new object (400.7) can trigger it again.
+   */
+  once?: boolean;
   /** Triggers from its owner's graveyard (Flamewake Phoenix). */
   fromGraveyard?: boolean;
   /**
@@ -1518,6 +1543,11 @@ export interface MoveSpec {
   tapped?: boolean;
   /** On the battlefield: under the control of the effect's controller (otherwise of the owner). */
   underYourControl?: boolean;
+  /**
+   * On the battlefield: under the control of that player ("return him to the battlefield under an opponent's control",
+   * Zuko, Conflicted: the chosen opponent); read by the `moveTo` operation.
+   */
+  controller?: Ref;
   /** Counters put on entering (614.1c) or on the exiled card; "with X counters": an amount. */
   counters?: { kind: string; n: Amount };
   /** Types and subtypes added to the object ("it's a Demon in addition to its other types"). */

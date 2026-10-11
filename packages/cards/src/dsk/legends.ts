@@ -330,6 +330,12 @@ export const LEGENDS: Record<string, CardScript> = {
         { loseAllAbilities: true, addTypes: ["Artifact", "Creature"], addSubtypes: ["Toy"], setPower: 0, setToughness: 2 },
         { label: "Loses its abilities, 0/2 Toy" },
       ),
+      // "As long as enchanted creature is face down, it can't be turned face up" (granted after "loses all abilities").
+      staticAbility(
+        { attached: "host", faceDown: true },
+        { addKeywords: ["cantBeTurnedFaceUp"] },
+        { label: "Can't be turned face up" },
+      ),
     ],
   },
 
@@ -826,13 +832,14 @@ export const LEGENDS: Record<string, CardScript> = {
     ],
   },
   "Rip, Spawn Hunter": {
-    // "with different powers": not checked.
     abilities: [
       survival(
         [
           fx.lookAtTop(amount.powerOf(ref.self), {
             filter: { anyOf: [{ types: ["Creature"] }, { subtype: "Vehicle" }] },
             count: amount.powerOf(ref.self),
+            distinctPower: true,
+            revealAll: true,
             rest: "bottom",
           }),
         ],

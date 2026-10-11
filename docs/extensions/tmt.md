@@ -84,3 +84,7 @@ Scripts are in `packages/cards/src/tmt/`: `cards` (meta cards), `white`, `blue`,
   - `RULES_VERSION` = 56, golden games regenerated.
 - **Approximations:** North Wind Avatar (no "outside the game" zone); Ninja Teen (the attacker returned by the granted Sneak is the weakest).
 - **Tests:** 8 rules tests ("lot C1").
+
+## PLAN-M M8b (rules 200)
+
+- **Renet, Temporal Apprentice:** "entered this turn" on the battlefield is the arrival logged in the turn log with the new object's id (`enteredThisTurn`, `turnlog.ts`), not `controlledSince`: a change of control is no longer an arrival (power-up "if he entered this turn", Cloudspire Coordinator and the other `enteredThisTurn` filters too). Test added.

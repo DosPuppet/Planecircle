@@ -364,4 +364,31 @@ describe("offered options, accepted decisions", () => {
     const passage = idOf(s, "p1", "hand", "Multiversal Passage");
     expect(() => act(s, "p1", { type: "playLand", card: passage, chosen: "Island" })).toThrow(RulesError);
   });
+  it("additional sacrifice (Deadly Dispute): a Treasure sacrificed for the cost doesn't pay its mana (PLAN-M M8b, FCA fuzz seed 26)", () => {
+    const TREASURE = customCard({
+      name: "Test Treasure",
+      types: ["Artifact"],
+      typeLine: "Artifact — Treasure",
+      subtypes: ["Treasure"],
+      abilities: [manaAbility(["W", "U", "B", "R", "G"], 1, { sacrifice: true })],
+    });
+    // The Treasure is the only black source and the only permanent to sacrifice: not offered.
+    const s = scenario({ p1: { battlefield: ["Island", "Plains", TREASURE], hand: ["Deadly Dispute"] } });
+    expect(castOption(s, "p1", idOf(s, "p1", "hand", "Deadly Dispute"))).toBeUndefined();
+    // With a creature to sacrifice, it comes first by default and the Treasure pays {B}.
+    const t = scenario({ p1: { battlefield: ["Island", TREASURE, bear("Test Bear")], hand: ["Deadly Dispute"] } });
+    const option = castOption(t, "p1", idOf(t, "p1", "hand", "Deadly Dispute"));
+    expect(option?.additional?.sacrifice?.options.map((id) => t.defs[t.objects[id]?.defId ?? ""]?.name)).toEqual([
+      "Test Bear",
+      "Test Treasure",
+    ]);
+    const after = settle(
+      act(t, "p1", {
+        type: "cast",
+        card: idOf(t, "p1", "hand", "Deadly Dispute"),
+        sacrifice: [idOf(t, "p1", "battlefield", "Test Bear")],
+      }),
+    );
+    expect(after.players.p1?.hand).toHaveLength(2);
+  });
 });

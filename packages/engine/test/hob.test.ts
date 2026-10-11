@@ -5,6 +5,9 @@
 import { TOKEN_SPECS } from "@mtgx/cards/tokens";
 import { describe, expect, it } from "vitest";
 import { createTokens, destroy } from "../src/actions";
+import { playerStatic } from "../src/dsl";
+import { addPump } from "../src/effects";
+import { bump } from "../src/layers";
 import { legalActions } from "../src/legal";
 import { chars } from "../src/state";
 import { canBlock } from "../src/turn";
@@ -978,6 +981,40 @@ describe("lot A, blue", () => {
         expect(s.players.p2?.life).toBe(17);
         expect(namesIn(s, s.exile)).toContain("Lightning Strike");
         expect(s.players.p1?.graveyard).toHaveLength(0);
+      });
+
+      it("spells cast from the top of the library cost {1} less too (PLAN-M M8b)", () => {
+        const TOP = customCard({
+          name: "Test Top Caster",
+          typeLine: "Enchantment",
+          types: ["Enchantment"],
+          abilities: [playerStatic({ playFrom: { zone: "libraryTop" } })],
+        });
+        const s = scenario({
+          p1: { battlefield: ["Bilbo, Thief in the Night", TOP, "Forest"], library: ["Bear Cub", "Forest"] },
+        });
+        // Bear Cub ({1}{G}) for {G}.
+        expect(legalActions(s, "p1").some((a) => a.type === "cast" && a.card === s.players.p1?.library[0])).toBe(true);
+        const t = scenario({ p1: { battlefield: ["Bear Cub", TOP, "Forest"], library: ["Bear Cub", "Forest"] } });
+        expect(legalActions(t, "p1").some((a) => a.type === "cast" && a.card === t.players.p1?.library[0])).toBe(false);
+      });
+
+      it("an artifact cast this way then countered goes to the graveyard; only instants and sorceries are exiled (PLAN-M M8b)", () => {
+        let s = scenario({
+          p1: { battlefield: ["Bilbo, Thief in the Night"], graveyard: ["Fishing Pole"] },
+          p2: { battlefield: lands("Island", 3), hand: ["Cancel"] },
+        });
+        s = untilCastNow(attack(s, [idOf(s, "p1", "battlefield", "Bilbo, Thief in the Night")]));
+        const pole = (castNowOf(s)?.cards ?? [])[0] as string;
+        expect(nameOf(s, pole)).toBe("Fishing Pole");
+        // {1} minus {1}: free.
+        s = act(s, "p1", { type: "cast", card: pole });
+        const spell = s.stack.find((x) => x.kind === "spell")?.id as string;
+        s = passAccepting(s, (x) => x.pending?.player === "p2" && x.pending.kind === "priority");
+        s = act(s, "p2", { type: "cast", card: idOf(s, "p2", "hand", "Cancel"), targets: { t: [spell] } });
+        s = passAccepting(s, (x) => !x.stack.some((i) => i.kind === "spell"));
+        expect(namesIn(s, s.players.p1?.graveyard)).toEqual(["Fishing Pole"]);
+        expect(namesIn(s, s.exile)).not.toContain("Fishing Pole");
       });
 
       it("without an artifact, instant or sorcery in the graveyard, nothing is offered", () => {
@@ -2619,6 +2656,20 @@ describe("lot A, green", () => {
       expect(pt(s, elves)).toEqual([1, 1]);
     });
 
+    it("Galion: the base power and the base toughness are Galion's, each its own (PLAN-M M8b)", () => {
+      let s = scenario({ p1: { battlefield: ["Galion, Elvenking's Butler", "Llanowar Elves"] } });
+      const galion = idOf(s, "p1", "battlefield", "Galion, Elvenking's Butler");
+      const elves = idOf(s, "p1", "battlefield", "Llanowar Elves");
+      // Galion 6/4.
+      addPump(s, [galion], 2, 0);
+      s = settle(attack(s, [galion, elves]), pickId(elves));
+      expect(pt(s, elves)).toEqual([6, 4]);
+      // A later effect that sets its base P/T to 1/1: 1/1 (no toughness correction left over).
+      s.effects.push({ id: "test-base", timestamp: 1e9, affected: [elves], setPower: 1, setToughness: 1, duration: "endOfTurn" });
+      bump(s);
+      expect(pt(s, elves)).toEqual([1, 1]);
+    });
+
     it("Gigantic Big Bear: can't be countered; hexproof and haste", () => {
       let s = scenario({
         p1: { battlefield: lands("Forest", 7), hand: ["Gigantic Big Bear"] },
@@ -2943,6 +2994,20 @@ describe("lot A, multicolor", () => {
         expect(s.players.p1?.hand).toHaveLength(2);
         s = settle(cast(s, "p1", "Opt"));
         // Opt: one card drawn, replaced by two.
+        expect(s.players.p1?.hand).toHaveLength(3);
+      });
+
+      it("a card drawn during the upkeep doesn't make the first card of the draw step doubled (PLAN-M M8b)", () => {
+        let s = scenario({
+          step: "upkeep",
+          p1: { battlefield: ["Bard, King of Dale", "Island"], hand: ["Opt"], library: lands("Forest", 10) },
+        });
+        // Opt in the upkeep: two cards.
+        s = settle(cast(s, "p1", "Opt"));
+        expect(s.turn.step).toBe("upkeep");
+        expect(s.players.p1?.hand).toHaveLength(2);
+        // The draw step's card: one.
+        s = advanceUntil(s, (x) => x.turn.step === "main1");
         expect(s.players.p1?.hand).toHaveLength(3);
       });
 

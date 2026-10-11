@@ -9,7 +9,7 @@ import { firstOfEachName, isCreatureType, shareName } from "./names";
 import { commanderIdentity, obj } from "./state";
 import { playerProtectedFrom, playerStatic, playerStatics } from "./statics";
 import { msg } from "./text";
-import { attackedThisTurn, countersPutThisTurn, dealtDamageThisTurn } from "./turnlog";
+import { attackedThisTurn, countersPutThisTurn, dealtDamageThisTurn, enteredThisTurn } from "./turnlog";
 import type {
   CardType,
   Color,
@@ -346,8 +346,9 @@ export function matchesObjectFilter(
     const host = sourceId ? s.objects[sourceId]?.attachedTo : undefined;
     if (!host || o.attachedTo !== host) return false;
   }
-  // "entered under your control this turn" (Cloudspire Coordinator).
-  if (f.enteredThisTurn && o.controlledSince !== s.turn.number) return false;
+  // "entered this turn" (the arrival, not a change of control: Renet, Temporal Apprentice); "under your control" is
+  // the `controller` filter (Cloudspire Coordinator).
+  if (f.enteredThisTurn && !enteredThisTurn(s, id)) return false;
   // Treacherous Greed: "a creature that dealt damage this turn".
   if (f.dealtDamageThisTurn && !dealtDamageThisTurn(s, id)) return false;
   if (f.disguise !== undefined && !!castOption(s.defs[o.defId], "faceDown") !== f.disguise) return false;

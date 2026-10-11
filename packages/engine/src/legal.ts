@@ -30,6 +30,7 @@ import {
   altCostFor,
   altCostPayment,
   autoAdditional,
+  type CrewUse,
   canCastTiming,
   canPayNonManaCost,
   canPlayLand,
@@ -365,14 +366,14 @@ function maxX(
 }
 
 /** Choice of the creatures that crew or saddle: total power required, powers, default choice. */
-function crewSpec(s: GameState, player: PlayerId, source: ObjectId, n: number) {
+function crewSpec(s: GameState, player: PlayerId, source: ObjectId, n: number, use: CrewUse = "crew") {
   const options = crewCandidates(s, player, source);
-  const suggested = suggestedCrew(s, player, source, n);
+  const suggested = suggestedCrew(s, player, source, n, use);
   return {
     count: suggested.length,
     options,
     minPower: n,
-    powers: Object.fromEntries(options.map((id) => [id, Math.max(0, crewPower(s, id))])),
+    powers: Object.fromEntries(options.map((id) => [id, Math.max(0, crewPower(s, id, use))])),
     suggested,
   };
 }
@@ -512,14 +513,18 @@ export function legalActions(s: GameState, player: PlayerId): ActionOption[] {
     const exclude = spent.length ? new Set(spent) : undefined;
     // The permanents exiled or returned by the cost (before the mana) no longer apply their mana replacements.
     const gone = auto.exile.length || auto.bounce.length ? new Set([...auto.exile, ...auto.bounce]) : undefined;
+    // The permanents sacrificed by default for an additional cost don't pay with an ability that sacrifices them
+    // (Deadly Dispute and a Treasure, as in `castSpell`).
+    const sacDefault = additional.sacrifice ? additional.sacrifice.options.slice(0, additional.sacrifice.count) : [];
     const purpose0: ManaPurpose = {
       ...(gone ? { gone } : {}),
+      ...(sacDefault.length ? { sacrificedForCost: new Set(sacDefault) } : {}),
       spell: spellView(d, player),
       convoke: hasConvoke(s, player, d),
       improvise: hasImprovise(s, player, d) || undefined,
       delve: spellHasKeyword(s, player, d, "delve"),
       sacrificeToPay: d.additionalCost?.sacrificeToPay,
-      fromHand: terms.source === "hand",
+      from: terms.source,
     };
     // Waterbend as an additional cost: its share of the cost, depending on the kicker and X.
     const purposeFor = (kicked: boolean, x: number): ManaPurpose => {
@@ -606,7 +611,7 @@ export function legalActions(s: GameState, player: PlayerId): ActionOption[] {
     // Payable kicker ("costs {2} less if it's bargained": Hamlet Glutton may be payable only when bargained).
     // Teamwork: the creatures tapped for the kicker don't pay the mana.
     const kickerPay = d.kicker?.pay;
-    const kickerCrew = kickerPay?.tapPower !== undefined ? suggestedCrew(s, player, card, kickerPay.tapPower) : [];
+    const kickerCrew = kickerPay?.tapPower !== undefined ? suggestedCrew(s, player, card, kickerPay.tapPower, "teamwork") : [];
     // Replicate (702.56), squad (702.157): the cost is paid X times (X chosen as for an X spell), not as a kicker.
     const replicate = kickerPaidTimes(d);
     const kickerAffordable =
@@ -773,7 +778,7 @@ export function legalActions(s: GameState, player: PlayerId): ActionOption[] {
         kickerPay && !kickerPay.tapPower && !kickerPay.collectEvidence && !kickerPay.exileGraveyard
           ? kickerCostOptions(s, player, card, d)
           : undefined,
-      kickerTap: kickerPay?.tapPower ? crewSpec(s, player, card, kickerPay.tapPower) : undefined,
+      kickerTap: kickerPay?.tapPower ? crewSpec(s, player, card, kickerPay.tapPower, "teamwork") : undefined,
       // Objects paid as a cost (evidence, exile from the graveyard, blight X), when the player has a choice to make.
       ...(() => {
         const picks = spellPicks(s, player, card, d, undefined, terms)

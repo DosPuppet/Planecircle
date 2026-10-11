@@ -238,8 +238,12 @@ export const BLUE: Record<string, CardScript> = {
       activated({
         mana: "{5}{U}{U}{U}",
         powerUp: true,
-        // Approximation: the restriction "power-up abilities can't be activated during that turn" is missing.
-        effects: [fx.addCounters(ref.self, 1), fx.extraTurn],
+        effects: [
+          fx.addCounters(ref.self, 1),
+          fx.extraTurn,
+          // "During that turn, power-up abilities can't be activated" (the extra turn is the next one).
+          fx.duringNextTurn({ castLimit: { who: "you", abilities: "powerUp" } }),
+        ],
         label: "Power-up: a +1/+1 counter and an extra turn",
       }),
     ],

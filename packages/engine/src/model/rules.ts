@@ -453,6 +453,8 @@ export type TriggerSpec =
        * to that creature.
        */
       spellToSoleTarget?: boolean;
+      /** `damaged`: the event object is what is dealt the damage (Spider-Slayer, Hatred Honed: "destroy that creature"). */
+      eventObject?: "damaged";
     }
   /** "Whenever an opponent discards a card" */
   /** `self`: "when you discard this card" (triggers from the graveyard, Titanbones). */

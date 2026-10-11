@@ -840,8 +840,8 @@ describe("Outlaws of Thunder Junction, lot K8 : mythiques", () => {
     createTokens(s, "p1", SOLDIER, 1);
     createTokens(s, "p1", SOLDIER, 1);
     const [fresh, old] = tokensOf(s, "p1", "Soldier") as [string, string];
-    const oldObj = s.objects[old];
-    if (oldObj) oldObj.controlledSince = 0;
+    // The second token entered on an earlier turn: its arrival is not in this turn's log.
+    s.turnLog = s.turnLog.filter((e) => !(e.e === "zone" && e.id === old));
     const cub = idOf(s, "p1", "battlefield", "Bear Cub");
     expect(chars(s, idOf(s, "p1", "battlefield", "Ghired, Mirror of the Wilds")).keywords).toContain("haste");
     // Tokens and opposing creatures do not have the ability.

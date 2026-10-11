@@ -76,6 +76,7 @@ import {
   playerStaticTotal,
 } from "./statics";
 import {
+  holderOf,
   isLegalTarget,
   legalTargets,
   matchesCard,
@@ -320,11 +321,13 @@ export function landsAllowed(s: GameState, player: PlayerId): number {
 }
 
 /** Permission to play an exiled card (impulse draw, Etali…) that is still valid. */
-function exilePermission(s: GameState, player: PlayerId, card: ObjectId) {
+function exilePermission(s: GameState, player: PlayerId, card: ObjectId, land = false) {
   return s.playPermissions?.find(
     (p) =>
       p.card === card &&
       p.player === player &&
+      // A land is played only through a permission to "play" it (not "cast", nor at any time).
+      (!land || (!p.anyTime && !p.castOnly)) &&
       permissionActive(s, p) &&
       // Possibility Technician: "as long as you control a Kavu".
       (!p.condition || checkCondition(s, p.condition, player, p.source)),
@@ -387,8 +390,8 @@ export function landPermitted(s: GameState, player: PlayerId, card: ObjectId): b
   const d = s.defs[o.defId];
   if (!d || !landFace(d)) return false;
   return (
-    (o.zone === "hand" && o.owner === player) ||
-    (o.zone === "exile" && !!exilePermission(s, player, card) && !exilePermission(s, player, card)?.anyTime) ||
+    (o.zone === "hand" && o.owner === player && !handLocked(s, player)) ||
+    (o.zone === "exile" && !!exilePermission(s, player, card, true)) ||
     // Valgavoth: the linked cards, lands included.
     (o.zone === "exile" && playFromRules(s, player, card, "linked", "lands").length > 0) ||
     // Tinybones: "play" the stash cards, lands included.
@@ -400,7 +403,7 @@ export function landPermitted(s: GameState, player: PlayerId, card: ObjectId): b
     // Town with an adventure (FIN): the card "on an adventure" is played as a land from exile (715.4).
     (o.zone === "exile" && !!o.onAdventure && o.owner === player) ||
     // "You may play that card this turn" (Tablet of Discovery: the milled card, land included).
-    (o.zone === "graveyard" && !!exilePermission(s, player, card) && !exilePermission(s, player, card)?.anyTime) ||
+    (o.zone === "graveyard" && !!exilePermission(s, player, card, true)) ||
     (o.zone === "graveyard" &&
       o.owner === player &&
       (graveyardTypeAvailable(s, player, card) === "Land" ||
@@ -624,7 +627,7 @@ export function spellReduction(
       if (ab.condition && !checkCondition(s, ab.condition, o.controller, id)) continue;
       // "Spells cast from graveyards or from exile" (Aven Interrupter, Doc Aurlock).
       const zone = fromZone === "flashback" ? "graveyard" : fromZone;
-      if (ab.fromZones && !(zone === "graveyard" || zone === "exile" ? ab.fromZones.includes(zone) : false)) continue;
+      if (ab.fromZones && !(zone && zone !== "hand" && ab.fromZones.includes(zone))) continue;
       const n =
         ab.generic +
         (ab.genericAmount !== undefined ? evalAmount(s, reductionContext(s, o.controller, id, o.defId), ab.genericAmount) : 0);
@@ -733,6 +736,7 @@ function playFromTerms(r: PlayFromZone, source: "graveyard" | "library"): CastTe
     ...(r.forage ? { forage: true } : {}),
     ...(r.finality ? { finality: true } : {}),
     ...(r.anyMana ? { anyMana: true } : {}),
+    ...(r.anyTime ? { anyTime: true } : {}),
     ...(r.onceKey ? { onceKey: r.onceKey } : {}),
   };
 }
@@ -1610,9 +1614,9 @@ function castLimits(s: GameState, player: PlayerId): CastLimit[] {
   return out;
 }
 
-/** Karlov Watchdog: may this player turn their permanents face up? */
-export function faceUpLocked(s: GameState, player: PlayerId): boolean {
-  return castLimits(s, player).some((l) => l.faceUp);
+/** Memory Vessel: "they can't play cards from their hand" (lands included). */
+export function handLocked(s: GameState, player: PlayerId): boolean {
+  return castLimits(s, player).some((l) => l.from === "hand");
 }
 
 /**
@@ -1620,10 +1624,11 @@ export function faceUpLocked(s: GameState, player: PlayerId): boolean {
  * which Yuriko ("abilities that aren't mana abilities") leaves alone and Grand Abolisher ("abilities of artifacts,
  * creatures, or enchantments") locks too.
  */
-export function abilitiesLocked(s: GameState, player: PlayerId, source: ObjectId, mana = false): boolean {
+export function abilitiesLocked(s: GameState, player: PlayerId, source: ObjectId, mana = false, powerUp = false): boolean {
   return castLimits(s, player).some(
     (l) =>
       (l.abilities === "all" && !mana) ||
+      (l.abilities === "powerUp" && powerUp) ||
       (l.abilities === "artifactsCreaturesEnchantments" &&
         chars(s, source).types.some((t) => t === "Artifact" || t === "Creature" || t === "Enchantment")),
   );
@@ -1633,7 +1638,8 @@ export function castTerms(s: GameState, player: PlayerId, card: ObjectId): CastT
   const spells = s.players[player]?.turnStats.spellsCast ?? 0;
   const fromHand = s.objects[card]?.zone === "hand";
   for (const l of castLimits(s, player)) {
-    if (l.faceUp) continue;
+    // Kang the Conqueror: only power-up abilities.
+    if (l.abilities === "powerUp") continue;
     if (l.sorceryTiming) {
       if (!sorceryTiming(s, player)) return null;
       continue;
@@ -1645,7 +1651,11 @@ export function castTerms(s: GameState, player: PlayerId, card: ObjectId): CastT
       if (countTurnEvents(s, { event: "cast", who: "you", ...l.spellTypes }, player) >= (l.maxSpells ?? 0)) return null;
       continue;
     }
-    if (l.maxSpells !== undefined ? spells >= l.maxSpells : !l.exceptFromHand || !fromHand) return null;
+    if (l.maxSpells !== undefined) {
+      if (spells >= l.maxSpells) return null;
+      continue;
+    }
+    if (l.from === "elsewhere" ? !fromHand : l.from === "hand" ? fromHand : true) return null;
   }
   const base = baseCastTerms(s, player, card);
   const terms = base && freeCastTerms(s, player, card, base);
@@ -1729,7 +1739,7 @@ function baseCastTerms(s: GameState, player: PlayerId, card: ObjectId): CastTerm
         // "You may cast [the card]" during a resolution (608.2g): the casting timing is ignored.
         anyTime: gyPerm.anyTime,
         after: gyPerm.after === "exile" ? "exile" : undefined,
-        ...(gyPerm.adventureOnly ? { adventureOnly: true } : {}),
+        ...(gyPerm.castOnly === "adventure" ? { adventureOnly: true } : {}),
       };
     if (o.owner !== player) return null;
     // Timeline Culler: "you may cast this card from your graveyard using its warp ability".
@@ -1824,6 +1834,7 @@ function baseCastTerms(s: GameState, player: PlayerId, card: ObjectId): CastTerm
         ...(linked.finality ? { finality: true } : {}),
         ...(linked.free ? { free: true } : {}),
         ...(linked.anyMana ? { anyMana: true } : {}),
+        ...(linked.anyTime ? { anyTime: true } : {}),
         ...(linked.removeCountersAmong ? { removeCounters: linked.removeCountersAmong } : {}),
         ...(linked.onceKey ? { onceKey: linked.onceKey } : {}),
       };
@@ -1972,7 +1983,10 @@ export function additionalOptions(
   }
   if (add.sacrifice) {
     const f = add.sacrifice.filter;
-    const options = s.battlefield.filter((id) => obj(s, id).controller === player && matchesObjectFilter(s, player, id, f));
+    // The permanents that sacrifice themselves for mana (Treasure) come last: the default choice keeps them to pay.
+    const forMana = (id: ObjectId) => manaAbilitiesOf(s, id).some((ab) => ab.cost.self === "sacrifice");
+    const mine = s.battlefield.filter((id) => obj(s, id).controller === player && matchesObjectFilter(s, player, id, f));
+    const options = [...mine.filter((id) => !forMana(id)), ...mine.filter(forMana)];
     // "Sacrifice a creature or pay {3}{B}": without a creature, the option to pay remains.
     if (options.length < add.sacrifice.count && !add.sacrifice.orPay) return null;
     out.sacrifice = { count: add.sacrifice.count, options, orPay: add.sacrifice.orPay };
@@ -2362,7 +2376,7 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
   if (kicked && d.kicker?.pay && kickerLife === undefined && !teamwork && !evidence && !gyExile && !kickerPermanent)
     throw new RulesError(msg("Can't pay the kicker"));
   // Teamwork: the tapped creatures (chosen by `tap`, otherwise the weakest that suffice).
-  const teamTap = teamwork !== undefined ? chosenCrew(s, player, card, teamwork, choices.tap) : [];
+  const teamTap = teamwork !== undefined ? chosenCrew(s, player, card, teamwork, choices.tap, "teamwork") : [];
   if (teamwork !== undefined && teamTap.length === 0) throw new RulesError(msg("Not enough total power for teamwork"));
   const discard = choices.discard ?? [];
   const sacrifice = kickerChoice ? [] : (choices.sacrifice ?? []);
@@ -2622,7 +2636,7 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
         improvise: hasImprovise(s, player, d) || undefined,
         delve: spellHasKeyword(s, player, d, "delve"),
         sacrificeToPay: d.additionalCost?.sacrificeToPay,
-        fromHand: terms.source === "hand",
+        from: terms.source,
         ...(bendPaid ? { waterbend: bendPaid } : {}),
         ...(onlyChosen(validHelperPicks(s, player, stackId, d, choices)) ? { only: onlyChosen(choices.picks) } : {}),
         ...(choices.phyrexianLife !== undefined ? { phyrexianLife: choices.phyrexianLife } : {}),
@@ -2940,15 +2954,18 @@ export function tapOthersOptions(s: GameState, player: PlayerId, source: ObjectI
   );
 }
 
-/** Crew N: untapped creatures (other than the source) with total power N or greater, weakest first. */
-function crewOptions(s: GameState, player: PlayerId, source: ObjectId, n: number): ObjectId[] | null {
-  const ids = crewCandidates(s, player, source).sort((a, b) => crewPower(s, a) - crewPower(s, b));
+/**
+ * Crew N: untapped creatures (other than the source) with total power N or greater, weakest first. `use`: the power
+ * counted (crew and saddle, or teamwork: the plain power, without the bonus of pilots).
+ */
+function crewOptions(s: GameState, player: PlayerId, source: ObjectId, n: number, use: CrewUse = "crew"): ObjectId[] | null {
+  const ids = crewCandidates(s, player, source).sort((a, b) => crewPower(s, a, use) - crewPower(s, b, use));
   const out: ObjectId[] = [];
   let total = 0;
   for (const id of ids) {
     if (total >= n) break;
     out.push(id);
-    total += Math.max(0, crewPower(s, id));
+    total += Math.max(0, crewPower(s, id, use));
   }
   return total >= n ? out : null;
 }
@@ -2961,23 +2978,33 @@ export function crewCandidates(s: GameState, player: PlayerId, source: ObjectId)
 }
 
 /** Default crew choice (weakest first), for the interface and the AI. */
-export function suggestedCrew(s: GameState, player: PlayerId, source: ObjectId, n: number): ObjectId[] {
-  return crewOptions(s, player, source, n) ?? [];
+export function suggestedCrew(s: GameState, player: PlayerId, source: ObjectId, n: number, use: CrewUse = "crew"): ObjectId[] {
+  return crewOptions(s, player, source, n, use) ?? [];
 }
 
-function chosenCrew(s: GameState, player: PlayerId, source: ObjectId, n: number, picked: ObjectId[] | undefined): ObjectId[] {
-  if (!picked?.length) return crewOptions(s, player, source, n) ?? [];
+function chosenCrew(
+  s: GameState,
+  player: PlayerId,
+  source: ObjectId,
+  n: number,
+  picked: ObjectId[] | undefined,
+  use: CrewUse = "crew",
+): ObjectId[] {
+  if (!picked?.length) return crewOptions(s, player, source, n, use) ?? [];
   const legal = crewCandidates(s, player, source);
   if (new Set(picked).size !== picked.length || picked.some((id) => !legal.includes(id)))
     throw new RulesError(msg("Invalid crew creatures"));
-  if (picked.reduce((t, id) => t + Math.max(0, crewPower(s, id)), 0) < n)
+  if (picked.reduce((t, id) => t + Math.max(0, crewPower(s, id, use)), 0) < n)
     throw new RulesError(msg("Not enough total power ({n} required)", { n }));
   return picked;
 }
 
-/** Power counted to saddle and crew: toughness (Interface Ace), +2 for pilots. */
-export function crewPower(s: GameState, id: ObjectId): number {
-  return effectivePower(chars(s, id), "crew");
+/** What creatures are tapped for: crew and saddle, or teamwork (Marvel Super Heroes). */
+export type CrewUse = "crew" | "teamwork";
+
+/** Power counted to saddle and crew: toughness (Interface Ace), +2 for pilots; for teamwork, the power alone. */
+export function crewPower(s: GameState, id: ObjectId, use: CrewUse = "crew"): number {
+  return use === "teamwork" ? chars(s, id).power : effectivePower(chars(s, id), "crew");
 }
 
 /**
@@ -3262,14 +3289,14 @@ export function canPayNonManaCost(s: GameState, source: ObjectId, ab: ActivatedA
   if (!o || o.zone !== activationZone(o, ab)) return false;
   if (o.zone === "battlefield" && !ab.specialAction && chars(s, source).keywords.includes("noActivatedAbilities")) return false;
   if (ab.once && !onceAvailable(s, o, ab, index) && !exhaustReusable(s, o.controller, ab)) return false;
-  if (o.zone === "battlefield" && abilitiesLocked(s, o.controller, source, isManaAbility(ab))) return false;
+  if (o.zone === "battlefield" && abilitiesLocked(s, o.controller, source, isManaAbility(ab), !!ab.powerUp)) return false;
   if (ab.oncePerTurn && activatedThisTurn(s, source, { index })) return false;
   const who = o.zone !== "battlefield" ? o.owner : o.controller;
   if (ab.activationCondition && !checkCondition(s, ab.activationCondition, who, source)) return false;
   // Sorcerous Spyglass: the (non-mana) abilities of sources with the chosen name can't be activated.
   if (spyglassed(s, source)) return false;
-  // Karlov Watchdog: "permanents your opponents control can't be turned face up during your turn".
-  if (ab.effects.some((e) => e.op === "turnFaceUp") && faceUpLocked(s, who)) return false;
+  // "Can't be turned face up" (Unable to Scream; Karlov Watchdog: "permanents your opponents control … during your turn").
+  if (ab.effects.some((e) => e.op === "turnFaceUp") && chars(s, source).keywords.includes("cantBeTurnedFaceUp")) return false;
   if (ab.cost.crew !== undefined && crewOptions(s, who, source, ab.cost.crew) === null) return false;
   if (ab.cost.tap && (o.tapped || sickForActivation(s, source))) return false;
   // 606.3: only one loyalty ability per planeswalker each turn; no more than its loyalty can be removed.
@@ -4355,7 +4382,12 @@ export function resolveTop(s: GameState): boolean {
     chosen += ids.length;
     // Promised gift or kicker: its own filter ("instead, target nonland permanent").
     const legalSpec = item.kicked && spec.kickedFilter ? { ...spec, filter: spec.kickedFilter } : spec;
-    legal[spec.id] = ids.filter((id) => isLegalTarget(s, item.controller, legalSpec, id, item.sourceId));
+    // "… creature they control" (`of` another word "target"): still held by the player chosen for that word (Cloak and
+    // Dagger, Entwined).
+    const of = spec.of?.kind === "target" ? (item.targets[spec.of.id] ?? []).map((x) => holderOf(s, x)) : undefined;
+    legal[spec.id] = ids.filter(
+      (id) => isLegalTarget(s, item.controller, legalSpec, id, item.sourceId) && (!of || of.includes(holderOf(s, id))),
+    );
     stillLegal += legal[spec.id]?.length ?? 0;
   }
   if (chosen > 0 && stillLegal === 0) {

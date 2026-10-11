@@ -1406,6 +1406,19 @@ describe("lot A, bleu", () => {
       expect(idsOf(s, "p2", "battlefield", "Llanowar Elves")).toHaveLength(1);
     });
 
+    it("Renet: a permanent whose control changed this turn didn't enter this turn (PLAN-M M8b)", () => {
+      let s = scenario({
+        p1: { battlefield: lands("Island", 5), hand: ["Renet, Temporal Apprentice"] },
+        p2: { battlefield: ["Llanowar Elves", { name: "Bear Cub", sick: true }] },
+      });
+      const elves = idOf(s, "p2", "battlefield", "Llanowar Elves");
+      s = steal(s, elves, "p1");
+      expect(s.objects[elves]?.controlledSince).toBe(s.turn.number);
+      s = settle(cast(s, "p1", "Renet, Temporal Apprentice"));
+      expect(idsOf(s, "p1", "battlefield", "Llanowar Elves")).toHaveLength(1);
+      expect(namesIn(s, s.players.p2?.hand)).toEqual(["Bear Cub"]);
+    });
+
     it("Retro-Mutation: the enchanted creature is a base 0/1 Turtle, with no abilities, that can't attack", () => {
       let s = scenario({ p1: { battlefield: [...lands("Island", 3), "Serra Angel"], hand: ["Retro-Mutation"] } });
       const angel = idOf(s, "p1", "battlefield", "Serra Angel");

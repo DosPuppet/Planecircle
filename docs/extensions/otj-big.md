@@ -33,3 +33,7 @@
 
 - **Grand Abolisher:** the mana abilities of the opponents' artifacts, creatures and enchantments are locked too (`abilitiesLocked(…, mana)` in `canActivateMana`: neither by hand nor by the automatic payment); Yuriko ("abilities that aren't mana abilities") no longer locks activated mana abilities.
 - **Tests:** `big.test.ts` (+1).
+
+## PLAN-M M8b (rules 200)
+
+- **Memory Vessel:** "they can't play cards from their hand" (spells and lands), for each player until your next turn: a player effect `castLimit` with `from: "hand"` (`from: "elsewhere"` replaces Avatar's Wrath's `exceptFromHand`), read by `castTerms` and, for lands, by `landPermitted` (`handLocked`). Test extended (`big.test.ts`).

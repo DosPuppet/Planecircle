@@ -141,3 +141,11 @@ The scripts are in `packages/cards/src/msh/`: `cards` (meta cards), `white`, `bl
 ## PLAN-M M8a (rules 199)
 
 - **The Kingpin of Crime:** the toughness rule is the static of an emblem until end of turn, so creatures that arrive afterwards follow it too. Test extended.
+
+## PLAN-M M8b (rules 200)
+
+- **Kang the Conqueror:** "during that turn, power-up abilities can't be activated": a player effect `nextTurn` (`PlayerEffect.from`: it applies only during the next turn, the extra one) with `castLimit.abilities: "powerUp"`. Test added.
+- **Cloak and Dagger, Entwined:** a target "they control" (`target.of` another target) is checked again on resolution as held by the chosen player (608.2b): a creature passed to another opponent is no longer legal. Test added (three players).
+- **Nick Fury, Agent of S.H.I.E.L.D.:** "if it's a double-faced card, you may transform it": `transform` with `may` (one question per double-faced permanent, suggestion: not transformed). Test added.
+- **Raft Security Officer:** one ability `{2}, {T}` whose reduction reads its target (`reduction.generic` an amount of `ref.target`: {1} less for a creature with power 3 or less); the target is no longer refused if its power changes. Test rewritten.
+- **Teamwork:** plain power (see `meta.md`).

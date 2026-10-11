@@ -231,7 +231,7 @@ export function manaAbilitiesOf(s: GameState, id: ObjectId): ManaAbilityDef[] {
 }
 
 /** Can a mana ability without a mana cost be activated now? */
-function canActivateMana(s: GameState, id: ObjectId, ab: ManaAbilityDef): boolean {
+function canActivateMana(s: GameState, id: ObjectId, ab: ManaAbilityDef, index: number): boolean {
   const o = obj(s, id);
   if (ab.cost.mana) return false;
   if (chars(s, id).keywords.includes("noActivatedAbilities")) return false;
@@ -240,7 +240,8 @@ function canActivateMana(s: GameState, id: ObjectId, ab: ManaAbilityDef): boolea
   if (ab.cost.tap && (o.tapped || sickForActivation(s, id))) return false;
   if (ab.tapAnother && !otherToTap(s, id, ab)) return false;
   if (ab.condition && !checkCondition(s, ab.condition, o.controller, id)) return false;
-  if (ab.oncePerTurn && s.turn.onceFired.includes(`mana:${id}`)) return false;
+  // "Activate only once each turn": each ability of the source counts apart (Locus of Enlightenment's gained abilities).
+  if (ab.oncePerTurn && s.turn.onceFired.includes(`mana:${id}:${index}`)) return false;
   if (ab.cost.payLife && payableLife(s, o.controller) < lifeCost(s, o.controller, id, ab.cost.payLife)) return false;
   if (ab.cost.collectEvidence && !evidenceCards(s, o.controller, id, ab.cost.collectEvidence)) return false;
   return true;
@@ -354,8 +355,8 @@ export interface ManaPurpose {
   convoke?: boolean;
   /** Delve (702.66, Teval): each card exiled from your graveyard pays {1}. */
   delve?: boolean;
-  /** Spell cast from the hand. */
-  fromHand?: boolean;
+  /** Zone the spell is cast from (`flashback`: from the graveyard, by flashback). */
+  from?: "hand" | "graveyard" | "exile" | "flashback" | "library" | "command";
   /**
    * Waterbend N: at most N of the generic part can be paid by tapping untapped artifacts and creatures ({1} each).
    */
@@ -439,8 +440,9 @@ function allows(
 ): boolean {
   if (!r) return true;
   if (!purpose) return false;
-  if (r.notSpellFromHand) return !!purpose.abilitySource || (!!purpose.spell && !purpose.fromHand);
-  if (r.spellNotFromHand) return !!purpose.spell && !purpose.fromHand;
+  if (r.notSpellFromHand) return !!purpose.abilitySource || (!!purpose.spell && purpose.from !== "hand");
+  if (r.spellFrom)
+    return !!purpose.spell && (r.spellFrom === "elsewhere" ? purpose.from !== "hand" : purpose.from === r.spellFrom);
   if (r.spell && purpose.spell && matchesView(purpose.spell, withChosen(r.spell, o), player, sourceId)) return true;
   if (r.ability && purpose.abilityKinds?.some((k) => r.ability?.includes(k))) return true;
   const src = purpose.abilitySource;
@@ -466,7 +468,7 @@ export function manaSources(
     // A creature chosen by the player for convoke is tapped for convoke, not for its mana.
     if (purpose?.convoke && purpose.only?.convoke?.includes(id)) continue;
     manaAbilitiesOf(s, id).forEach((ab, i) => {
-      if (!canActivateMana(s, id, ab)) return;
+      if (!canActivateMana(s, id, ab, i)) return;
       // Restricted mana: usable by the solver only for an allowed payment.
       if (!restrictionAllows(s, id, ab, player, purpose)) return;
       // An excluded permanent (tapped or sacrificed for another cost of the same payment) does not serve as "permanent to tap".
@@ -490,8 +492,9 @@ export function manaSources(
       });
     });
   }
-  // Convoke (702.51a): each untapped creature pays {1} or one mana of its color (used last); a creature with a mana
-  // ability shares its key with that ability (one or the other), and one chosen for convoke is only tapped for it.
+  // Convoke (702.51a): each untapped creature pays {1} or one mana of its color (used last; not a {C} symbol); a creature
+  // with a mana ability shares its key with that ability (one or the other), and one chosen for convoke is only tapped
+  // for it.
   if (purpose?.convoke) {
     for (const id of s.battlefield) {
       const o = obj(s, id);
@@ -501,7 +504,7 @@ export function manaSources(
       out.push({
         id,
         ability: CONVOKE,
-        colors: [...colors, "C"],
+        colors: [...colors],
         amount: 1,
         isCreature: true,
         sacrifice: false,
@@ -566,13 +569,13 @@ export function manaSources(
       key: `pool:${i}`,
     });
   });
-  // Delve: each graveyard card pays {1} (used very last, automatic choice).
+  // Delve: each graveyard card pays {1}, only generic mana (702.66a; used very last, automatic choice).
   if (purpose?.delve) {
     const keep = kept(purpose);
     for (const id of s.players[player]?.graveyard ?? []) {
       if (exclude.has(id) || keep.includes(id)) continue;
       if (purpose.only?.delve && !purpose.only.delve.includes(id)) continue;
-      out.push({ id, ability: DELVE, colors: ["C"], amount: 1, isCreature: false, sacrifice: false, delve: true, key: id });
+      out.push({ id, ability: DELVE, colors: [], amount: 1, isCreature: false, sacrifice: false, delve: true, key: id });
     }
   }
   // Preference: lands, then creatures, then sacrificed sources, then convoke and waterbending, then delve; the least
@@ -622,7 +625,7 @@ export function activateManaAbility(
   const o = s.objects[id];
   if (!o || o.controller !== player) throw new RulesError(msg("You don't control this source"));
   const ab = manaAbilitiesOf(s, id)[ability];
-  if (!ab || !canActivateMana(s, id, ab)) throw new RulesError(msg("Mana ability unavailable"));
+  if (!ab || !canActivateMana(s, id, ab, ability)) throw new RulesError(msg("Mana ability unavailable"));
   const types = Array.isArray(color) ? color : color ? [color] : [];
   if (types.length > 1 && !ab.combination) throw new RulesError(msg("This source produces a single type of mana"));
   // "In any combination" (by hand: PLAN-L L3): one type for each mana produced.
@@ -651,7 +654,7 @@ export function activateManaAbility(
   const before = ab.cost.self === "sacrifice" ? { amount: manaAmount(s, id, ab), reps: manaReplacements(s, id, ab) } : null;
   const amountNow = () => before?.amount ?? manaAmount(s, id, ab);
   if (ab.cost.tap) tapObject(s, o, "mana");
-  if (ab.oncePerTurn) s.turn.onceFired.push(`mana:${id}`);
+  if (ab.oncePerTurn) s.turn.onceFired.push(`mana:${id}:${ability}`);
   if (ab.tapAnother) {
     if (tapChoice && (tapChoice.length !== 1 || !othersToTap(s, id, ab).includes(tapChoice[0] as ObjectId)))
       throw new RulesError(msg("Invalid choice: {label}", { label: msg("The other permanent to tap for this mana") }));

@@ -65,7 +65,8 @@ export const spellsFx = {
       oneOf?: boolean;
       replacePrevious?: boolean;
       payLifeManaValue?: boolean;
-      adventureOnly?: boolean;
+      /** "You may cast it" (not play it as a land); `adventure`: only as its Adventure. */
+      castOnly?: true | "adventure";
     } = {},
   ): Effect => {
     const { forever, untilYourNextTurn, untilYourNextEndStep, untilOwnersNextTurn, ...rest } = opts;
@@ -91,6 +92,8 @@ export const spellsFx = {
       free?: boolean;
       many?: boolean;
       after?: "exile" | "bottom";
+      /** `after` only for the matching spells ("if an instant or sorcery spell cast this way would be put…"). */
+      afterFilter?: ObjectFilter;
       anyMana?: boolean;
       storeCast?: string;
       storeRest?: string;
