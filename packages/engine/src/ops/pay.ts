@@ -3,7 +3,7 @@
  * the former ops (`unlessPay`, `payCostOf`, `exileForManaValue`, `collectEvidence`, `payX`, `forage`, `behold`,
  * `mayPay`, `may`), kept as they were: same question keys, options, intents, prompts and payment order (replays identical).
  */
-import { canForage, forage, payLife, sacrifice } from "../actions";
+import { canForage, forage, forageOptions, payLife, sacrifice } from "../actions";
 import { cardRef } from "../choices";
 import type { EffectContext, OpHandlers, OpResult } from "../effects";
 import { announceDiscard, announceDiscardBatch, cardRefOf, evalAmount, moveDiscarded, resolveRef, store } from "../effects";
@@ -12,7 +12,7 @@ import { availableMana, canPay, costToText, manaValue, payCostText, payMana } fr
 import { beholdOptions, collectEvidence, evidenceCards, pickEvidence, timesCost } from "../stack";
 import { bent, emit, isPlayer, moveObject, shuffle } from "../state";
 import { payableLife } from "../statics";
-import { matchesObjectFilter } from "../targets";
+import { matchesCard, matchesObjectFilter } from "../targets";
 import { msg } from "../text";
 import type { Amount, Effect, GameState, ManaCost, ObjectFilter, ObjectId, Ref, Resolution } from "../types";
 
@@ -69,6 +69,7 @@ export const HANDLERS: OpHandlers = {
       });
     if (c.forage) return payForage(s, r, ctx, key, e.skip);
     if (c.behold) return payBehold(s, r, ctx, key, { filter: c.behold, skip: e.skip });
+    if (c.reveal) return payBehold(s, r, ctx, key, { filter: c.reveal, skip: e.skip, reveal: true });
     if (c.mana !== undefined || c.payLife !== undefined)
       return mayPay(s, r, ctx, key, {
         cost: c.mana ?? NO_MANA,
@@ -166,7 +167,57 @@ function payForage(s: GameState, r: Resolution, ctx: EffectContext, key: Key, sk
       },
     };
   }
-  if (answer[0] !== 1 || !forage(s, ctx.controller)) return { skip };
+  if (answer[0] !== 1) return { skip };
+  // 701.61 (PLAN-M M11a): three graveyard cards or a Food, then which ones, each asked only with a choice; suggestion:
+  // the former automatic choice (`forageOptions`: three cards, lands first, otherwise a Food, a token first).
+  const { graveyard, foods, suggested } = forageOptions(s, ctx.controller);
+  if (!suggested) return { skip };
+  const ways = [...(graveyard.length >= 3 ? ["graveyard"] : []), ...(foods.length ? ["food"] : [])];
+  const pickWay = r.vars[key("forageHow")];
+  if (ways.length > 1 && !pickWay) {
+    return {
+      ask: {
+        player: ctx.controller,
+        key: key("forageHow"),
+        request: {
+          type: "pick",
+          intent: "forage",
+          prompt: msg("Forage: how?"),
+          options: ways,
+          labels: { graveyard: msg("Exile three cards from your graveyard"), food: msg("Sacrifice a Food") },
+          min: 1,
+          max: 1,
+          suggested: [foods.includes(suggested[0] as string) ? "food" : "graveyard"],
+        },
+      },
+    };
+  }
+  const way = ways.length > 1 ? String(pickWay?.[0]) : ways[0];
+  const pool = way === "food" ? foods : graveyard;
+  const count = way === "food" ? 1 : 3;
+  const own = pool.filter((id) => suggested.includes(id));
+  let paid = own.length === count ? own : pool.slice(0, count);
+  if (pool.length > count) {
+    const picked = r.vars[key("forageWhat")];
+    if (!picked)
+      return {
+        ask: {
+          player: ctx.controller,
+          key: key("forageWhat"),
+          request: {
+            type: "pick",
+            intent: "forage",
+            prompt: way === "food" ? msg("Forage: choose the Food to sacrifice") : msg("Forage: choose three cards to exile"),
+            options: pool,
+            min: count,
+            max: count,
+            suggested: paid,
+          },
+        },
+      };
+    paid = picked.map(String).filter((id) => pool.includes(id));
+  }
+  if (paid.length !== count || !forage(s, ctx.controller, paid)) return { skip };
   return;
 }
 
@@ -276,15 +327,22 @@ function payEvidence(
   return;
 }
 
-/** "You may behold [filter]. If you do, …" during the resolution: otherwise, the `skip` effects are skipped. */
+/**
+ * "You may behold [filter]. If you do, …" during the resolution: otherwise, the `skip` effects are skipped. `reveal`:
+ * "you may reveal a [filter] card from your hand" (the cards of the hand only), a detail answered with the suggestion
+ * outside full control (`autoOk`, the reveal lands: revealing is always better).
+ */
 function payBehold(
   s: GameState,
   r: Resolution,
   ctx: EffectContext,
   key: Key,
-  e: { filter: ObjectFilter; skip: number },
+  e: { filter: ObjectFilter; skip: number; reveal?: boolean },
 ): OpResult {
-  const options = beholdOptions(s, ctx.controller, ctx.sourceId, e.filter);
+  const hand = s.players[ctx.controller]?.hand ?? [];
+  const options = e.reveal
+    ? hand.filter((id) => id !== ctx.sourceId && matchesCard(s, ctx.controller, id, e.filter, ctx.sourceId))
+    : beholdOptions(s, ctx.controller, ctx.sourceId, e.filter);
   // Noted for "as it enters" (Theorist's Sanctum: "if you don't, it enters tapped").
   r.vars.$beheld = [0];
   if (options.length === 0) return { skip: e.skip };
@@ -296,16 +354,19 @@ function payBehold(
         key: key("behold"),
         request: {
           type: "pick",
-          intent: "pickCards",
-          prompt: msg("{card}: you may behold (a permanent, or a revealed card from your hand)", {
-            card: cardRefOf(s, ctx.sourceId),
-          }),
+          intent: e.reveal ? "reveal" : "pickCards",
+          prompt: e.reveal
+            ? msg("{card}: you may reveal a card from your hand", { card: cardRefOf(s, ctx.sourceId) })
+            : msg("{card}: you may behold (a permanent, or a revealed card from your hand)", {
+                card: cardRefOf(s, ctx.sourceId),
+              }),
           options,
           // Named: a card from the hand is not on the board (land played, PLAN-L L5).
           labels: Object.fromEntries(options.map((id) => [id, cardRef(s.objects[id]?.defId ?? "")])),
           min: 0,
           max: 1,
           suggested: options.slice(0, 1),
+          ...(e.reveal ? { autoOk: true } : {}),
         },
       },
     };
@@ -472,7 +533,8 @@ function unlessPay(
     const id = String(card[0]);
     if (!hand.includes(id)) return;
     emit({ type: "discard", player: p, defIds: [s.objects[id]?.defId ?? ""] });
-    announceDiscard(s, p, moveDiscarded(s, p, id, true));
+    // A cost ("unless … discards a card", ward), not an effect: Library of Leng doesn't apply.
+    announceDiscard(s, p, moveDiscarded(s, p, id));
     announceDiscardBatch(s, p, 1);
   }
   // Ward "sacrifice three permanents" (Emrakul, the Exigent Doom).

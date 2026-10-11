@@ -33,7 +33,7 @@ import {
   shuffle,
   snapshot,
 } from "./state";
-import { playerStatic, playerStatics } from "./statics";
+import { playerStatics } from "./statics";
 import {
   ALL_CREATURE_TYPES,
   creatureTypesOf,
@@ -1149,15 +1149,12 @@ export function attach(s: GameState, what: ObjectId, to: ObjectId): boolean {
 /**
  * Puts a discarded card in its place (701.9): into the graveyard, or into exile if it has madness (702.35a); in that
  * case, a triggered ability "cast it for its madness cost, otherwise put it into your graveyard" is put on hold.
- * `byEffect`: the discard comes from an effect (not from a cost or the maximum hand size).
+ * `toLibraryTop`: on top of the library instead (Library of Leng, a card discarded by an effect: `discardToTopChoice`).
  */
-export function moveDiscarded(s: GameState, player: PlayerId, card: ObjectId, byEffect = false): ObjectId | null {
+export function moveDiscarded(s: GameState, player: PlayerId, card: ObjectId, toLibraryTop = false): ObjectId | null {
   const d = s.defs[s.objects[card]?.defId ?? ""];
+  if (toLibraryTop) return moveObject(s, card, "library", { position: "top" });
   const madness = castOption(d, "madness")?.cost;
-  // Library of Leng: discarded by an effect, the card can go on top of the library (automatic choice: yes, except a
-  // card with madness).
-  if (byEffect && !madness && playerStatic(s, player, "discardToLibraryTop"))
-    return moveObject(s, card, "library", { position: "top" });
   if (!d || !madness) return moveObject(s, card, "graveyard");
   const exiled = moveObject(s, card, "exile");
   if (exiled) {
@@ -1173,6 +1170,51 @@ export function moveDiscarded(s: GameState, player: PlayerId, card: ObjectId, by
     });
   }
   return exiled;
+}
+
+/**
+ * Library of Leng ("if an effect causes you to discard a card, … you may put it on top of your library instead of into
+ * your graveyard"): the cards about to be discarded by an effect that go on top instead, chosen card by card by the
+ * player before the discard (PLAN-M M11a), under the key `k`. Suggestion: those without madness (madness is the other
+ * replacement, 616.1). The chosen cards go on top in the order of the answer, the last one on top. Returns the question,
+ * otherwise the chosen cards (none without the static).
+ */
+export function discardToTopChoice(
+  s: GameState,
+  r: Resolution,
+  k: string,
+  player: PlayerId,
+  cards: ObjectId[],
+): Extract<OpResult, { ask: unknown }> | ObjectId[] {
+  const source = playerStatics(s, player, "discardToLibraryTop")[0];
+  if (!source || cards.length === 0) return [];
+  const answer = r.vars[k];
+  if (answer) return answer.map(String).filter((id) => cards.includes(id));
+  const suggested = cards.filter((id) => !castOption(s.defs[s.objects[id]?.defId ?? ""], "madness"));
+  return {
+    ask: {
+      player,
+      key: k,
+      request: {
+        type: "pick",
+        intent: "libraryTop",
+        prompt: msg("{card}: choose the discarded cards to put on top of your library (the others go to your graveyard)", {
+          card: cardRefOf(s, source.id ?? ""),
+        }),
+        options: [...cards],
+        // Named: the cards are still in the hand.
+        labels: Object.fromEntries(cards.map((id) => [id, cardRef(s.objects[id]?.defId ?? "")])),
+        min: 0,
+        max: cards.length,
+        suggested,
+      },
+    },
+  };
+}
+
+/** The order of the discarded cards: those going to the graveyard, then those put on top in the chosen order. */
+export function discardOrder(cards: ObjectId[], top: ObjectId[]): ObjectId[] {
+  return [...cards.filter((id) => !top.includes(id)), ...top];
 }
 
 /** Signals a discarded card ("whenever an opponent discards a card" triggers). */

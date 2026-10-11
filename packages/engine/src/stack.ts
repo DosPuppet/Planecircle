@@ -14,7 +14,7 @@ import {
   sacrifice as sacrificePermanent,
 } from "./actions";
 import { cardRule, castOption, modesChosen } from "./cardDef";
-import { absentAnswer, ask } from "./choices";
+import { absentAnswer, ask, validateChoice } from "./choices";
 import { counterLabel } from "./counterLabels";
 import { SACRIFICE_TOKEN_AT_END_STEP } from "./dsl/when";
 import {
@@ -37,8 +37,8 @@ import { RulesError, rethrowAsRules } from "./errors";
 import { copiedDefId, effectivePower, hasKeyword } from "./layers";
 import { MAX_X } from "./limits";
 import { canPay, costToText, type ManaPurpose, manaAbilitiesOf, manaValue, payMana, totalCost } from "./mana";
-import { firstOfEachName, hasName, isCreatureType, isNameAllowed } from "./names";
-import { asEntersChoices, ENTERS_PREFIX, withEntersChoices } from "./replacement";
+import { firstOfEachName, hasName, isCreatureType } from "./names";
+import { asEntersChoices, ENTERS_PREFIX, landEntersQuestion, withEntersChoices } from "./replacement";
 import {
   bent,
   bump,
@@ -472,7 +472,7 @@ export function playLand(
   card: ObjectId,
   payLife = false,
   landType?: string,
-  chosen?: string,
+  answer?: ChoiceValue[],
   back = false,
 ): void {
   if (!canPlayLand(s, player, card)) throw new RulesError(msg("You can't play this land now"));
@@ -484,26 +484,21 @@ export function playLand(
   const face = backLand ?? landFace(s.defs[o.defId]);
   const backFace = !!face && face.id !== o.defId;
   // 614.12: the land's first "as it enters" question (Cavern of Souls: a creature type; Multiversal Passage: a basic land
-  // type, `landType`; Echoing Deeps: the copied card, "" for none) is answered with the decision; without an answer, and
-  // for the next ones, the suggested answer (`asEntersChoices`).
+  // type, `landType`; Echoing Deeps: the copied card, none for none; Scorched Ruins: the two lands sacrificed) is
+  // answered with the decision (`landEntersQuestion`, PLAN-M M11b); without an answer, and for the next ones, the
+  // suggested answer (`asEntersChoices`).
   const entering = { id: card, defId: face?.id ?? o.defId, controller: player };
   const choosesType = face ? landTypeChoice(face) : false;
   if (landType !== undefined && (!choosesType || !BASIC_LAND_TYPES.includes(landType)))
     throw new RulesError(msg("Invalid basic land type"));
-  if (chosen !== undefined && choosesType) throw new RulesError(msg("This land asks for no choice"));
+  if (answer !== undefined && choosesType) throw new RulesError(msg("This land asks for no choice"));
   let first: ChoiceValue[] | undefined;
-  const given = landType ?? chosen;
-  if (given !== undefined) {
-    const probe = asEntersChoices(s, {}, entering, "land:", "probe");
-    const request = "ask" in probe ? probe.ask.request : undefined;
-    if (request?.type === "name") {
-      // Cavern of Souls: a creature type (the whole official list, `isNameAllowed`).
-      if (!isNameAllowed(s, request.of, given)) throw new RulesError(msg("Invalid choice"));
-      first = [given];
-    } else if (request?.type !== "pick") throw new RulesError(msg("This land asks for no choice"));
-    else if (given === "" && request.min === 0) first = [];
-    else if (request.options.includes(given)) first = [given];
-    else throw new RulesError(msg("Invalid choice"));
+  if (landType !== undefined) first = [landType];
+  else if (answer !== undefined) {
+    const request = landEntersQuestion(s, entering);
+    if (!request) throw new RulesError(msg("This land asks for no choice"));
+    validateChoice(request, answer, s);
+    first = answer;
   }
   // Shock lands: "you may pay 2 life; if you don't, it enters tapped".
   const shock = face?.shockLand;

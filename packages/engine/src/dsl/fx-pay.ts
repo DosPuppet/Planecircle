@@ -27,6 +27,14 @@ export const payFx = {
     const flat = effects.flat();
     return [{ op: "pay", cost: { behold: filter }, skip: flat.length }, ...flat];
   },
+  /**
+   * "You may reveal a [filter] card from your hand" (as a reveal land enters: `cond.beheld` then says whether a card was
+   * revealed). A detail the interface answers with the suggestion outside full control (`autoOk`: revealing is better).
+   */
+  mayReveal: (filter: ObjectFilter, ...effects: Effects): Effect[] => {
+    const flat = effects.flat();
+    return [{ op: "pay", cost: { reveal: filter }, skip: flat.length }, ...flat];
+  },
   /** "You may pay {X}. If you do, …" */
   mayPay: (cost: string, prompt: string, ...effects: Effects): Effect[] => {
     const flat = effects.flat();

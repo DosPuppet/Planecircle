@@ -17,12 +17,10 @@ Each entry carries its nature:
   - "a source that loses all abilities no longer applies its static abilities": at one level only (the statics granted by the same resolution effect or a later one still apply: The Irencrag);
   - a static ability granted by a resolution effect applies (Roar of the Fifth People), but not a static ability granted by another static ability (a test in `layers.test.ts` checks that no card needs it).
 - `timing` **Division (601.2d), opponent of the promised gift (702.174a) and new targets of a copy (707.10c):** asked right after the spell is put on the stack (costs paid), before anyone receives priority, and not during announcement; a copy made during a resolution chooses its targets at the end of it. A copy made before the original announced its division announces its own (`stackChoices.ts`); the gift's opponent, for its part, is always the original's (707.10), carried over to the copy once chosen.
-- `auto choice` **Aura that enters without being cast, outside a resolution** (return from a linked exile, state-based actions): the first possible host is chosen for the player. During a resolution (`moveTo`), the choice is asked (303.4f).
+- `auto choice` **Aura that enters without being cast, outside a resolution** (return from a linked exile, state-based actions): the first possible host is chosen for the player. During a resolution (`moveTo`; a token copy of an Aura, Yenna, Redtooth Regent: `copyToken`), the choice is asked (303.4f).
 - `auto choice` **"Enters" effects outside a resolution** (return from a linked exile, state-based actions; 614.1c, 614.12): only the choices are made (type, color, name, mode, model of a copy), with the suggested answer; the other "enters" effects are not (Sin removes no counters, Mox Diamond enters without a discard, devour sacrifices nothing), and riot takes the default choice. A permanent spell that resolves, a land played (the first question comes with the decision, the following ones take the suggestion) a permanent put onto the battlefield by an effect (`moveTo`, `arrivalChoices`) a token copy created by an effect (`copyToken`, PLAN-L L5), ninjutsu (an effect of its ability) and sneak (a cast spell) ask the player the questions (`asEntersChoices`, PLAN-H H9).
-- `auto choice` **Untap up to N lands:** the lands are chosen automatically.
 - `auto choice` **Mana abilities with a cost (605.1a):** they resolve without the stack, but only when activated by hand: the automatic payment does not use them (Ramos, Capital City, Loot, the Pathfinder, Phyrexian Altar, Phyrexian Tower, Sunken Ruins...; the automatic payment never sacrifices a creature).
-- `auto choice` **Amass (701.47a):** the counters go on your first Army (no choice when you control several).
-- `auto choice` **Payment details (as on Arena):** outside full control, the automatic payment chooses the objects that help pay (waterbend, convoke, improvise, delve, Cave, after the lands), uses the {0} of Kíli the Resourceful for the first equip of the turn, and chooses the other permanent tapped by Gene Pollinator or Relic of Legends (one without a mana ability first); in full control, the player chooses them (PLAN-M M6).
+- `auto choice` **Payment details (as on Arena):** outside full control, the automatic payment chooses the objects that help pay (waterbend, convoke, improvise, delve, Cave, after the lands), uses the {0} of Kíli the Resourceful for the first equip of the turn, and chooses the other permanent tapped by Gene Pollinator or Relic of Legends (one without a mana ability first); in full control, the player chooses them (PLAN-M M6). Likewise, outside full control, a reveal land (Port Town, Fortified Village, Vineglimmer Snarl, Foreboding Ruins) reveals the suggested card (PLAN-M M11b: the question is asked in full control).
 - `timing` **Commander to a hand or a library (903.9b):** it is a replacement, but the question ("Put ... into the command zone?") is asked right after its arrival in hand or in the library, at the next check, as from a graveyard or exile (903.9a); a trigger "when a card is put into your hand" would therefore see it go by. Never answered by the autopilot.
 - `rule` **"One or more ..." triggers (Ketramose, Dredger's Insight):** one trigger per batch of simultaneous events (an effect of a resolution, a combat damage step, a state-based actions pass); events outside a batch (costs paid while casting a spell or activating an ability) count as a single batch.
 - `timing` **Costs paid before the mana:** a permanent exiled, returned or sacrificed for an additional or alternative cost leaves the battlefield before the mana is paid: its mana abilities and its mana replacements (Lavaleaper) no longer help pay for that spell (601.2g-h would allow committing mana earlier). For an activated ability, the mana abilities of the permanents sacrificed for the cost are used first.
@@ -56,8 +54,6 @@ In the order they were added, set by set.
   - `rule` Leyline of Transformation: only creatures on the battlefield (not spells or cards);
   - `rule` Marvin, Murderous Mimic: not the granted abilities whose cost names the permanent that grants them ("tap Fishing Pole");
   - `auto choice` Haunted Screen: the automatic payment can pay the life of the {G}/{U}/{R} ability.
-- **Bloomburrow (`docs/extensions/blb.md`):**
-  - `auto choice` Forage during a resolution ("you may forage. If you do…"): three cards from the graveyard (lands first) if there are at least three, otherwise a Food (a token preferably); as a cost (Feed the Cycle, Osteomancer Adept, Thornvault Forager), the player chooses (PLAN-M M6).
 - **The Lost Caverns of Ixalan (`docs/extensions/lci.md`):**
   - `rule` Cavern mana (Bat Colony) and "using mana produced by [source]" (Tecutlan, The Myriad Pools): only the mana committed by the automatic payment;
   - `rule` The Myriad Pools: the permanent becomes a copy of the spell on the stack.
@@ -74,7 +70,6 @@ In the order they were added, set by set.
   - `timing` Lavaleaper, Shimmerwilds Growth: the extra mana (triggered mana ability, 605.1b) is added with the land's mana, as a replacement; the payment solver counts that of the same type, not that of another color (Shimmerwilds Growth).
 - **Wilds of Eldraine (`docs/extensions/woe.md`):**
   - `timing` Feral Encounter: "at the beginning of the next combat phase this turn" goes through a turn emblem;
-  - `auto choice` Yenna, Redtooth Regent: the copy of an Aura attaches to a host chosen by the engine.
 - **Secrets of Strixhaven (`docs/extensions/sos.md`):**
   - `rule` Lorehold, the Historian: the granted miracle is a triggered ability on the first draw of the turn (the card is not revealed), which offers to cast it for {2}.
 - **Murders at Karlov Manor (`docs/extensions/mkm.md`):**
@@ -97,7 +92,6 @@ In the order they were added, set by set.
   - `rule` North Wind Avatar: the engine has no "outside the game" zone (no sideboard during a game): the enters ability has no effect.
 - **The Hobbit (`docs/extensions/hob.md`):**
   - `rule` Burglar's Plot: "two target nonland permanents that share a card type" is a modal spell, one mode per type;
-  - `auto choice` Goblin Plate Mail: the Equipment attaches to the Army that receives the amass counters (see the general entry).
 - **Reprints, "Unlimited" (`docs/extensions/reprints.md`):**
   - `auto choice` Gemstone Caverns: the card exiled from hand is the nonland card of lowest mana value (a land if there is none);
   - `rule` Drown in the Loch: "mana value less than or equal to the number of cards in its controller's graveyard" is checked at resolution, not at targeting;
@@ -106,12 +100,10 @@ In the order they were added, set by set.
   - `rule` Outlaws' Merriment: the token "chosen at random" is drawn by a three-sided die (shown in the log);
   - `rule` Flesh Duplicate: fading is given even if the copied creature already has it (only when copying another Flesh Duplicate: no handled card has printed fading);
   - `rule` Ad Nauseam: the process repeats at most thirty times;
-  - `auto choice` Library of Leng: the card discarded by an effect always goes on top of the library (except a card with madness);
   - `rule` Painter's Servant: only permanents take the chosen color (not spells or cards in other zones);
   - `rule` Plague of Vermin: the rounds of payments ("repeat this process until no one pays life") stop after twenty rounds at most (a safety cap);
 - **Commander, EDH pseudo-set (`docs/extensions/edh.md`):**
   - `auto choice` Relic of Legends: the automatic payment only uses it once per ability;
-  - `auto choice` Foreboding Ruins, Fortified Village, Port Town, Vineglimmer Snarl: a card of the right type in hand is revealed automatically if possible;
   - `rule` Pandemonium: the target of the damage is chosen by Pandemonium's controller, not by the controller of the creature that enters (exact when it is the same person);
   - `rule` Wheel of Misfortune: the secret numbers go from 0 to 20 (not any number 0 or greater);
   - `rule` Incubate (701.53): the transformation is a permanent modification (Phyrexian artifact creature 0/0), not a switch to the back face; the token keeps its name;
@@ -119,7 +111,6 @@ In the order they were added, set by set.
   - `rule` Harold and Bob: the chosen Forest gains its ability forever, and the card stays in the graveyard (it does not become an Aura);
   - `rule` Winding Constrictor: the clause "if you would get counters" is not handled;
   - `rule` Young Deathclaws: the granted scavenge is an ability of Young Deathclaws that costs {4} (and not the exiled card's mana cost);
-  - `auto choice` Scorched Ruins: the two untapped lands sacrificed on entering are chosen by the engine (the first ones on the battlefield), without asking the player;
   - `rule` Cover of Darkness, Shizo, Death's Storehouse: fear (702.36) is a blocking rule ("can't be blocked except by artifact and/or black creatures"), not a keyword: no card can read that a creature "has fear".
   - `rule` Desperate Ritual: splice onto Arcane is not done (no other Arcane spell in the deck; two in the catalog: We Say Thee Nay!, Hex Magic);
   - `rule` Tandem Lookout (soulbond, 702.95e): a pair breaks when state-based actions are checked, not at the very moment one of the creatures leaves, changes controller or stops being a creature;
@@ -133,4 +124,3 @@ In the order they were added, set by set.
   - `rule` Possibility Storm: a spell that already left the stack when the ability resolves (countered, exiled by another Possibility Storm) leads to no search (the ruling still has its caster search with its card types); a land card sharing a type with the spell (artifact land) doesn't stop the search, as for cascade; the cards exiled before the one found go to the bottom before it is cast;
   - `rule` Slicer, Hired Muscle: "More Than Meets the Eye" (casting it converted for {2}{R}) is not handled: it is only cast for its mana cost;
   - `rule` Delina, Wild Mage: "you may roll again" is offered ten times at most;
-  - `auto choice` Opposition Agent: you choose what the opponent finds, but the other decisions of the search (a "may" in its spell) stay theirs.

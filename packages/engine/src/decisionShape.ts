@@ -14,6 +14,8 @@ const isIndex = (v: unknown): v is number => Number.isInteger(v) && (v as number
 const isStrArray = (v: unknown): v is string[] => Array.isArray(v) && v.every(isStr);
 /** List of distinct objects (discarded, sacrificed cards…): a duplicate makes no sense. */
 const isIdSet = (v: unknown): v is string[] => isStrArray(v) && new Set(v).size === v.length;
+/** Answer to a question: strings and finite numbers. */
+const isValues = (v: unknown): boolean => Array.isArray(v) && v.every((x) => isStr(x) || Number.isFinite(x));
 
 function bad(field: string): never {
   throw new RulesError(msg("Malformed decision: {field}", { field }));
@@ -85,6 +87,7 @@ export function checkDecisionShape(s: GameState, raw: Decision): void {
       opt(d, "payLife", (v) => typeof v === "boolean");
       opt(d, "landType", (v) => typeof v === "string");
       opt(d, "chosen", (v) => typeof v === "string");
+      opt(d, "answer", isValues);
       opt(d, "back", (v) => typeof v === "boolean");
       return;
     case "cast":
@@ -122,7 +125,7 @@ export function checkDecisionShape(s: GameState, raw: Decision): void {
       );
       return;
     case "choose":
-      if (!Array.isArray(d.values) || !d.values.every((v) => isStr(v) || Number.isFinite(v))) bad("values");
+      if (!isValues(d.values)) bad("values");
       return;
     default:
       bad("type");

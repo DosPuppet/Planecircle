@@ -4,6 +4,7 @@
 import { chars, type GameState } from "@mtgx/engine";
 import { describe, expect, it } from "vitest";
 import { idOf, scenario } from "../../engine/test/helpers";
+import { heuristicChoice } from "../src/choices";
 import { checkInvariants } from "../src/selfplay";
 
 /** Number of cards of each player, so only the introduced defect is reported. */
@@ -26,6 +27,27 @@ describe("checkInvariants", () => {
     (s.players.p1 as unknown as Record<string, unknown>).x = undefined;
     s.players.p1!.life = Number.NaN;
     expect(checkInvariants(s, n).join("\n")).toContain("state.players.p1.life = NaN");
+  });
+
+  it("an autoOk question with a single possible answer is reported (PLAN-M)", () => {
+    const s = base();
+    const bear = idOf(s, "p1", "battlefield", "Bear Cub");
+    const request = {
+      type: "pick" as const,
+      intent: "reveal" as const,
+      prompt: "Reveal",
+      options: [bear],
+      min: 1,
+      max: 1,
+      suggested: [bear],
+      autoOk: true,
+    };
+    s.pending = { kind: "choice", player: "p1", request, purpose: { kind: "effect" } };
+    expect(checkInvariants(s, sizes(s))).toEqual(["autoOk question with a single answer: Reveal"]);
+    s.pending = { kind: "choice", player: "p1", request: { ...request, min: 0 }, purpose: { kind: "effect" } };
+    expect(checkInvariants(s, sizes(s))).toEqual([]);
+    // The AI answers a payment detail with the suggestion (PLAN-M M11).
+    expect(heuristicChoice(s, "p1", { ...request, min: 0, suggested: [] })).toEqual([]);
   });
 
   it("a stale characteristics cache (forgotten bump) is reported, field by field", () => {

@@ -5107,3 +5107,29 @@ describe("Wilds of Eldraine: a player chosen without being targeted (PLAN-H H4)"
     expect(s.objects[t]?.controller).toBe("p2");
   });
 });
+
+describe("PLAN-M M11a: Yenna's copy of an Aura asks what it enchants", () => {
+  it("Yenna, Redtooth Regent: the copy of an Aura enchants the creature chosen (303.4f), then Yenna untaps and scries 2", () => {
+    let s = scenario({
+      p1: { battlefield: ["Yenna, Redtooth Regent", ...lands("Forest", 5), "Bear Cub", "Bear Cub"], hand: ["Bestial Bloodline"] },
+    });
+    const yenna = idOf(s, "p1", "battlefield", "Yenna, Redtooth Regent");
+    const [cub1, cub2] = idsOf(s, "p1", "battlefield", "Bear Cub") as [string, string];
+    s = settle(act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Bestial Bloodline"), targets: { enchant: [cub1] } }));
+    const bloodline = idOf(s, "p1", "battlefield", "Bestial Bloodline");
+    expect(s.objects[bloodline]?.attachedTo).toBe(cub1);
+    let hosts: ChoiceValue[] | undefined;
+    s = settle(act(s, "p1", { type: "activate", source: yenna, ability: 0, targets: { t: [bloodline] } }), (req) => {
+      if (req.type !== "pick" || !req.prompt.includes("enchants")) return undefined;
+      hosts = req.options;
+      return [cub2];
+    });
+    // Any creature it can enchant (Yenna and both Bears); the suggestion was the first one.
+    expect(hosts).toEqual(expect.arrayContaining([yenna, cub1, cub2]));
+    const copy = s.battlefield.find((id) => id !== bloodline && chars(s, id).name === "Bestial Bloodline") as string;
+    expect(s.objects[copy]?.attachedTo).toBe(cub2);
+    expect(chars(s, cub2).power).toBe(4);
+    expect(chars(s, cub1).power).toBe(4);
+    expect(s.objects[yenna]?.tapped).toBe(false);
+  });
+});

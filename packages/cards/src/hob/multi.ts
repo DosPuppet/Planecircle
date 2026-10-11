@@ -152,9 +152,9 @@ export const MULTI: Record<string, CardScript> = {
       triggered(
         when.entersSelf,
         [
-          fx.amass(ref.you, "Goblin", 1),
-          // The Army that just got the counter: the first one you control, as for amass.
-          fx.attach(ref.permanentsOf(ref.you, { subtype: "Army" })),
+          // "Then attach this Equipment to that Army": the Army that got the counter (chosen among several).
+          fx.amass(ref.you, "Goblin", 1, "army"),
+          fx.attach(ref.stored("army")),
         ],
         { label: "Amass Goblins 1, then attach it to the Army" },
       ),

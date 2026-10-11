@@ -4090,3 +4090,49 @@ describe("Bloomburrow, lot K8 : peu communes (5)", () => {
     expect(b.players.p2?.hand).toHaveLength(1);
   });
 });
+
+describe("PLAN-M M11a: forage during a resolution asks how and what", () => {
+  const FOOD = customCard({ name: "Test Food", types: ["Artifact"], typeLine: "Artifact — Food", subtypes: ["Food"] });
+  const setup = () =>
+    scenario({
+      p1: {
+        battlefield: [...lands("Forest", 4), FOOD],
+        hand: ["Treetop Sentries"],
+        graveyard: ["Opt", "Forest", "Stab", "Shock"],
+      },
+    });
+  const castSentries = (s: S, answer: Answer) =>
+    resolve(act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Treetop Sentries") }), answer);
+
+  it("Treetop Sentries: a Food rather than three cards (both possible: the player chooses how)", () => {
+    let ways: unknown;
+    const s = castSentries(setup(), (req) => {
+      if (req.type === "yesNo") return [1];
+      if (req.intent !== "forage" || req.type !== "pick") return undefined;
+      ways = [req.options, req.suggested];
+      return ["food"];
+    });
+    // Suggested: three cards from the graveyard (the former automatic choice).
+    expect(ways).toEqual([["graveyard", "food"], ["graveyard"]]);
+    expect(idsOf(s, "p1", "battlefield", "Test Food")).toHaveLength(0);
+    expect(s.players.p1?.graveyard).toHaveLength(5);
+    // The card drawn for foraging.
+    expect(s.players.p1?.hand).toHaveLength(1);
+  });
+
+  it("Treetop Sentries: the three cards exiled are chosen (not the lands first)", () => {
+    let s = setup();
+    const keep = idOf(s, "p1", "graveyard", "Forest");
+    let suggested: unknown;
+    s = castSentries(s, (req, _p, cur) => {
+      if (req.type === "yesNo") return [1];
+      if (req.intent !== "forage" || req.type !== "pick") return undefined;
+      if (req.options.includes("graveyard")) return ["graveyard"];
+      suggested = req.suggested.map((id) => nameOf(cur, String(id)));
+      return req.options.filter((id) => id !== keep);
+    });
+    expect(suggested).toEqual(expect.arrayContaining(["Forest"]));
+    expect(namesIn(s, s.players.p1?.graveyard)).toEqual(["Forest"]);
+    expect(idsOf(s, "p1", "battlefield", "Test Food")).toHaveLength(1);
+  });
+});

@@ -2,7 +2,7 @@
  * AI against AI games with invariant checks: used for fuzzing the engine and for the tests.
  */
 
-import type { CardDef, GameVariant } from "@mtgx/engine";
+import type { CardDef, ChoiceRequest, GameVariant } from "@mtgx/engine";
 import {
   type Agent,
   chars,
@@ -32,6 +32,22 @@ export interface SelfPlayResult {
 }
 
 /** Checks the consistency of the state; returns the list of violations. */
+/** At least how many answers a question has (2 means "several"): cheap, without listing them. */
+function answerCount(req: ChoiceRequest): number {
+  switch (req.type) {
+    case "pick":
+      return req.max > 0 && req.options.length > req.min ? 2 : 1;
+    case "number":
+      return req.max > req.min ? 2 : 1;
+    case "order":
+      return req.items.length > 1 ? 2 : 1;
+    case "divide":
+      return req.among.length > 1 && req.total > 0 ? 2 : 1;
+    default:
+      return 2;
+  }
+}
+
 export function checkInvariants(s: GameState, deckSizes: Record<string, number>): string[] {
   const errors: string[] = [];
   const seen = new Map<string, string>();
@@ -136,6 +152,9 @@ export function checkInvariants(s: GameState, deckSizes: Record<string, number>)
   for (const b of s.combat?.blockers ?? []) if (!onBattlefield.has(b.id)) errors.push(`blocker ${b.id} not on the battlefield`);
   if (s.pending && s.players[s.pending.player]?.lost)
     errors.push(`decision expected from an eliminated player (${s.pending.player})`);
+  // A question that the autopilot may answer (`autoOk`) is never asked with a single possible answer (PLAN-M).
+  if (s.pending?.kind === "choice" && s.pending.request.autoOk && answerCount(s.pending.request) < 2)
+    errors.push(`autoOk question with a single answer: ${s.pending.request.prompt}`);
   // Serializable to JSON (save, replay, sending): no Map, no Set, no function, no non-finite number.
   const bad = nonJson({ ...s, defs: undefined });
   if (bad) errors.push(`state not serializable to JSON: ${bad}`);

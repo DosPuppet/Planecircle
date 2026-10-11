@@ -67,12 +67,39 @@ export const HANDLERS: OpHandlers = {
     return;
   },
   counterOnOrCreate(s, r, e, ctx, key) {
-    // Reinforce Jace (a Jace token), amass (an Army): the player's first matching permanent, otherwise a token created
-    // first; then the counters, and the extra subtypes (701.47a).
+    // Reinforce Jace (a Jace token), amass (an Army): a matching permanent of the player, chosen by them among several
+    // (701.47a, PLAN-M M11a), otherwise a token created first; then the counters, and the extra subtypes (701.47a).
     const n = Math.max(0, evalAmount(s, ctx, e.amount));
     const players = resolveRef(s, ctx, e.who).filter((x) => !!s.players[x]);
-    const found = (p: string) =>
-      s.battlefield.find((x) => s.objects[x]?.controller === p && matchesObjectFilter(s, p, x, e.find));
+    const matching = (p: string) =>
+      s.battlefield.filter((x) => s.objects[x]?.controller === p && matchesObjectFilter(s, p, x, e.find));
+    // Each player's choice among several, asked before anything changes; suggestion: the first one.
+    const chosen = new Map<string, string>();
+    for (const p of players) {
+      const all = matching(p);
+      if (all.length <= 1) continue;
+      const k = key(`on-${p}`);
+      const answer = r.vars[k];
+      if (!answer)
+        return {
+          ask: {
+            player: p,
+            key: k,
+            request: {
+              type: "pick",
+              intent: "amass",
+              prompt: msg("{card}: choose the permanent that gets the counters", { card: cardRefOf(s, ctx.sourceId) }),
+              options: all,
+              min: 1,
+              max: 1,
+              suggested: all.slice(0, 1),
+            },
+          },
+        };
+      const picked = answer.map(String).find((x) => all.includes(x));
+      if (picked) chosen.set(p, picked);
+    }
+    const found = (p: string) => chosen.get(p) ?? matching(p)[0];
     // Moonlit Meditation: its "you may", for the players who will create the token, before anything changes.
     const declined = askCopiesInstead(
       s,
@@ -83,6 +110,7 @@ export const HANDLERS: OpHandlers = {
       1,
     );
     if (!(declined instanceof Set)) return declined;
+    const got: string[] = [];
     for (const p of players) {
       let id = found(p);
       if (!id) {
@@ -95,7 +123,10 @@ export const HANDLERS: OpHandlers = {
       if (n > 0) changeCounters(s, o, e.kind, n);
       const missing = (e.addSubtypes ?? []).filter((t) => !chars(s, o.id).subtypes.includes(t));
       if (missing.length) addEffect(s, [o.id], { addSubtypes: missing }, "permanent");
+      got.push(o.id);
     }
+    // Goblin Plate Mail: "attach it to that Army".
+    if (e.store) r.vars[`$ids:${e.store}`] = got;
     return;
   },
   proliferate(s, r, e, ctx, key) {

@@ -8,6 +8,8 @@ import {
   announceDiscardBatch,
   cardRefOf,
   damageSource,
+  discardOrder,
+  discardToTopChoice,
   evalAmount,
   millCards,
   moveDiscarded,
@@ -168,11 +170,19 @@ export const HANDLERS: OpHandlers = {
       };
     }
     const yes = order.filter((p) => r.vars[key(`wheel-${p}`)]?.[0] === 1);
+    // Library of Leng: the cards that go on top of the library instead, asked before the discards.
+    const tops = new Map<string, string[]>();
+    for (const p of yes) {
+      const top = discardToTopChoice(s, r, key(`top-${p}`), p, [...(s.players[p]?.hand ?? [])]);
+      if (!Array.isArray(top)) return top;
+      tops.set(p, top);
+    }
     for (const p of yes) {
       const hand = [...(s.players[p]?.hand ?? [])];
       if (hand.length === 0) continue;
+      const top = tops.get(p) ?? [];
       emit({ type: "discard", player: p, defIds: hand.map((id) => s.objects[id]?.defId ?? "") });
-      for (const id of hand) announceDiscard(s, p, moveDiscarded(s, p, id, true));
+      for (const id of discardOrder(hand, top)) announceDiscard(s, p, moveDiscarded(s, p, id, top.includes(id)));
       announceDiscardBatch(s, p, hand.length);
     }
     for (const p of yes) drawCards(s, p, 7);
@@ -242,11 +252,14 @@ export const HANDLERS: OpHandlers = {
             },
           };
         }
+        // Library of Leng: the discarded card may go on top of the library instead.
+        const top = choice === "discard" ? discardToTopChoice(s, r, key(`punishTop-${i}-${p}`), p, picked) : [];
+        if (!Array.isArray(top)) return top;
         r.vars[key(`pdone-${i}-${p}`)] = [1];
         for (const id of picked) {
           if (choice === "discard") {
             emit({ type: "discard", player: p, defIds: [s.objects[id]?.defId ?? ""] });
-            announceDiscard(s, p, moveDiscarded(s, p, id, true));
+            announceDiscard(s, p, moveDiscarded(s, p, id, top.includes(id)));
           } else if (onBattlefield(s, id)) sacrifice(s, id);
         }
         if (choice === "discard") announceDiscardBatch(s, p, picked.length);

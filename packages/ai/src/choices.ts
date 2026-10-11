@@ -157,7 +157,16 @@ function permutations<T>(xs: T[]): T[][] {
 const COSTLY_STACK = 12;
 const COSTLY_FIELD = 150;
 
+/** `autoOk` questions with their own policy (the others, payment details, take the suggestion). */
+const OWN_AUTO_POLICY = new Set<ChoiceRequest["intent"]>(["triggerOrder", "proliferate", "combatDamage"]);
+/**
+ * Questions that were automatic choices (PLAN-M M11a): the AI keeps the engine's former pick, the suggestion (the Army
+ * that gets the counters, Library of Leng's cards, forage).
+ */
+const SUGGESTION_INTENTS = new Set<ChoiceRequest["intent"]>(["amass", "libraryTop", "forage"]);
+
 export function heuristicChoice(s: GameState, me: PlayerId, req: ChoiceRequest): ChoiceValue[] {
+  if ((req.autoOk && !OWN_AUTO_POLICY.has(req.intent)) || SUGGESTION_INTENTS.has(req.intent)) return req.suggested;
   if (s.stack.length > COSTLY_STACK || s.battlefield.length > COSTLY_FIELD) {
     if (req.type === "order") return [...req.items].sort((a, b) => keepValue(s, me, b) - keepValue(s, me, a));
     return req.suggested;

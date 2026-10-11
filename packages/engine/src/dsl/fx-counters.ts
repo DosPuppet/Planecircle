@@ -14,8 +14,8 @@ export const countersFx = {
   blight: (n: Amount, who: Ref = ref.you, store?: string): Effect => ({ op: "blight", who, amount: n, store }),
   /** "Monstrosity N" (701.37): if this permanent isn't monstrous, N +1/+1 counters on it and it becomes monstrous. */
   monstrosity: (n: Amount): Effect => ({ op: "monstrosity", amount: n }),
-  /** "[That player] amasses [Goblins] X" (701.47). */
-  amass: (who: Ref, subtype: string, n: Amount): Effect => ({
+  /** "[That player] amasses [Goblins] X" (701.47); `store`: the Army that got the counters. */
+  amass: (who: Ref, subtype: string, n: Amount, store?: string): Effect => ({
     op: "counterOnOrCreate",
     who,
     find: { subtype: "Army", controller: "you" },
@@ -30,6 +30,7 @@ export const countersFx = {
     kind: "+1/+1",
     amount: n,
     addSubtypes: [subtype],
+    ...(store ? { store } : {}),
   }),
   doubleCounters: (what: Ref): Effect => ({ op: "doubleCounters", what }),
   /** Room: "unlock a locked door" / "lock or unlock a door" of one of the designated Rooms. */

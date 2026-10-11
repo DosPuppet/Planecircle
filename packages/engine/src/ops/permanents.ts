@@ -27,7 +27,15 @@ import {
 import { blockRulePlaceholder, copiableExceptions, copiedDefId, mergeMods, resolveBlockRules, wordsInText } from "../layers";
 import { manaValue } from "../mana";
 import { CREATURE_TYPES, gameNames, isCreatureType, nameList, printedName, tokenCreatureTypes } from "../names";
-import { asEntersChoices, chosenValue, ENTERS_PREFIX, type EntersChoices, withEntersChoices } from "../replacement";
+import {
+  asEntersChoices,
+  auraHostChoice,
+  auraHosts,
+  chosenValue,
+  ENTERS_PREFIX,
+  type EntersChoices,
+  withEntersChoices,
+} from "../replacement";
 import {
   bump,
   chars,
@@ -43,7 +51,7 @@ import {
   rulesEvent,
   snapshot,
 } from "../state";
-import { matchesCard, matchesObjectFilter } from "../targets";
+import { matchesCard, matchesObjectFilter, sourceView } from "../targets";
 import { msg } from "../text";
 import { createDelayed, onceKey } from "../triggers";
 import { attackableDefenders } from "../turn";
@@ -801,6 +809,24 @@ export const HANDLERS: OpHandlers = {
         const copy = view ? { ...view, types, isToken: true } : undefined;
         plan.push({ who, id, model, defId, n: copy ? tokenCopyCount(s, who, copy, base) : base, view: copy });
       }
+    // 303.4f: what a copy of an Aura enchants, asked of its controller among several before any copy is created (Yenna,
+    // Redtooth Regent; PLAN-M M11a); otherwise the first possible host, as it enters.
+    const hosts = new Map<string, string>();
+    for (const { who, id, defId, n, view } of plan)
+      for (let i = 0; i < n; i++) {
+        const d = s.defs[defId];
+        if (!d?.enchant || d.enchant.player) continue;
+        const options = auraHosts(
+          s,
+          who,
+          "",
+          defId,
+          view ? { ...view, controller: who, owner: who } : sourceView(s, undefined, defId, who),
+        );
+        const c = auraHostChoice(r, key(`host-${who}-${id}-${i}`), who, defId, options);
+        if ("ask" in c) return c;
+        if (c.host) hosts.set(`${who}|${id}|${i}`, c.host);
+      }
     // 614.12: the "as it enters" choices of each copy (a creature type, a color, riot…), asked of its controller before
     // any copy is created (PLAN-L L5).
     const entry = new Map<string, EntersChoices>();
@@ -815,6 +841,7 @@ export const HANDLERS: OpHandlers = {
         // Tapped, types, abilities and P/T in place before the entering event (no "becomes tapped").
         // 707.9b: the exceptions of the model, then those of this effect ("except it's a 1/1"), are copiable.
         const choices = entry.get(`${who}|${id}|${i}`) ?? { asEnters: true };
+        const attachTo = hosts.get(`${who}|${id}|${i}`);
         const token = createTokenCopy(
           s,
           who,
@@ -836,6 +863,7 @@ export const HANDLERS: OpHandlers = {
                 ...(pt ? { setPower: pt.power, setToughness: pt.toughness } : {}),
               }),
               modsCopiable: true,
+              ...(attachTo ? { attachTo } : {}),
             },
             choices,
           ),

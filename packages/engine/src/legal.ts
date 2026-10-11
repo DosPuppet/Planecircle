@@ -17,7 +17,7 @@ import {
   tapAnotherPick,
   totalCost,
 } from "./mana";
-import { asEntersChoices } from "./replacement";
+import { landEntersQuestion } from "./replacement";
 import {
   abilitiesOf,
   abilityAsPaid,
@@ -420,13 +420,10 @@ export function legalActions(s: GameState, player: PlayerId): ActionOption[] {
           // Multiversal Passage: one option per chosen basic land type.
           const choosesType = landTypeChoice(face);
           const types = choosesType ? BASIC_LAND_TYPES : [undefined];
-          // "As it enters, choose…" (Cavern of Souls, Echoing Deeps): the first question of the "as it enters" loop,
-          // asked when playing the land (none if there is nothing to choose).
-          const probe =
-            face.asEnters?.length && !choosesType
-              ? asEntersChoices(s, {}, { id: card, defId: face.id, controller: player }, "land:", "probe")
-              : undefined;
-          const choose = probe && "ask" in probe ? { choose: probe.ask.request } : {};
+          // "As it enters, choose…" (Cavern of Souls, Echoing Deeps), Scorched Ruins' sacrifice, a reveal land: the first
+          // question of the "as it enters" loop, asked when playing the land (none if there is nothing to choose).
+          const question = choosesType ? undefined : landEntersQuestion(s, { id: card, defId: face.id, controller: player });
+          const choose = question ? { choose: question } : {};
           for (const landType of types) {
             const extra = landType ? { landType, ...choose, ...side } : { ...choose, ...side };
             if (face.shockLand && payableLife(s, player) >= face.shockLand)

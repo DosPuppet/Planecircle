@@ -10,7 +10,7 @@ import {
   type ObjectView,
   plainText,
 } from "@mtgx/engine";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, ManaCost, RulesText } from "../board/Card";
 import { Dialog } from "../Dialog";
 import { faceName, type Lang } from "../i18n";
@@ -1108,7 +1108,7 @@ function GameOver({ view }: { view: GameView }) {
 
 /**
  * Land played with an "as it enters" question (Cavern of Souls: a creature type; Echoing Deeps: a land card of a
- * graveyard to copy, or none).
+ * graveyard to copy, or none; Scorched Ruins: the two lands to sacrifice; a reveal land: the card to reveal, or none).
  */
 function LandChoice() {
   const option = useGame((s) => s.landChoice);
@@ -1119,19 +1119,32 @@ function LandChoice() {
   const t = useT();
   const [filter, setFilter] = useState("");
   const request = option?.choose;
+  const [picked, setPicked] = useState<string[]>([]);
+  // A new question: back to the engine's suggestion (several answers: Scorched Ruins).
+  useEffect(() => {
+    setPicked(request?.type === "pick" ? request.suggested.map(String) : []);
+  }, [request]);
   if (request?.type === "name") return <LandNameChoice key={option?.card} request={request} />;
   if (request?.type !== "pick") return null;
-  const suggested = String(request.suggested[0] ?? "");
-  // A card of a graveyard (Echoing Deeps): its name; otherwise the engine's label, or the value.
-  const graveyards = Object.values(view?.players ?? {}).flatMap((pl) => pl.graveyard);
+  const suggested = request.suggested.map(String);
+  const several = request.max > 1;
+  // A card (a graveyard's, the hand's, a permanent): its name; otherwise the engine's label, or the value.
+  const objects = [
+    ...Object.values(view?.players ?? {}).flatMap((pl) => pl.graveyard),
+    ...(view?.hand ?? []),
+    ...(view?.battlefield ?? []),
+  ];
   const label = (v: string) => {
-    const card = graveyards.find((o) => o.id === v);
+    const card = objects.find((o) => o.id === v);
     return card ? faceName(card, lang) : loc(request.labels?.[v] ?? v);
   };
   const shown = request.options
     .map(String)
     .filter((v) => !filter || label(v).toLowerCase().includes(filter.toLowerCase()))
-    .sort((a, b) => (a === suggested ? -1 : b === suggested ? 1 : 0));
+    .sort((a, b) => Number(suggested.includes(b)) - Number(suggested.includes(a)));
+  const toggle = (v: string) =>
+    setPicked((cur) => (cur.includes(v) ? cur.filter((x) => x !== v) : cur.length < request.max ? [...cur, v] : cur));
+  const valid = picked.length >= request.min && picked.length <= request.max;
   return (
     <Modal title={loc(request.prompt)}>
       {request.options.length > 12 && (
@@ -1139,21 +1152,43 @@ function LandChoice() {
       )}
       <div className="choice-list scroll">
         {shown.slice(0, 60).map((v) => (
-          <button key={v} type="button" className={`btn choice ${v === suggested ? "suggested" : ""}`} onClick={() => answer(v)}>
+          <button
+            key={v}
+            type="button"
+            className={`btn choice ${several ? (picked.includes(v) ? "primary" : "") : suggested.includes(v) ? "suggested" : ""}`}
+            aria-pressed={several ? picked.includes(v) : undefined}
+            onClick={() => (several ? toggle(v) : answer([v]))}
+          >
             {label(v)}
-            {v === suggested ? ` ${t("(suggestion)")}` : ""}
+            {!several && suggested.includes(v) ? ` ${t("(suggestion)")}` : ""}
           </button>
         ))}
       </div>
+      {several && (
+        <p className="hint">
+          {request.min === request.max
+            ? t("Choose {n} — selection: {count}", { n: request.min, count: picked.length })
+            : t("Choose from {min} to {max} — selection: {count}", {
+                min: request.min,
+                max: request.max,
+                count: picked.length,
+              })}
+        </p>
+      )}
       <div className="modal-actions">
-        {request.min === 0 && (
-          <button type="button" className="btn" onClick={() => answer("")}>
+        {!several && request.min === 0 && (
+          <button type="button" className="btn" onClick={() => answer([])}>
             {t("ctx:feminine|None")}
           </button>
         )}
         <button type="button" className="btn ghost" onClick={() => answer(null)}>
           {t("Cancel")}
         </button>
+        {several && (
+          <button type="button" className="btn primary" disabled={!valid} onClick={() => answer(picked)}>
+            {t("Confirm")}
+          </button>
+        )}
       </div>
     </Modal>
   );
@@ -1174,13 +1209,13 @@ function LandNameChoice({ request }: { request: Extract<ChoiceRequest, { type: "
         suggested={suggested}
         value={value}
         onChange={setValue}
-        onSubmit={answer}
+        onSubmit={(name) => answer([name])}
       />
       <div className="modal-actions">
         <button type="button" className="btn ghost" onClick={() => answer(null)}>
           {t("Cancel")}
         </button>
-        <button type="button" className="btn primary" disabled={!value} onClick={() => answer(value)}>
+        <button type="button" className="btn primary" disabled={!value} onClick={() => answer([value])}>
           {t("Confirm")}
         </button>
       </div>

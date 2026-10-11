@@ -9,6 +9,8 @@ import {
   announceDiscardBatch,
   cardRefOf,
   damageSource,
+  discardOrder,
+  discardToTopChoice,
   evalAmount,
   evalMoveSpec,
   grantPlay,
@@ -28,7 +30,7 @@ import { hasKeyword } from "../layers";
 import { manaValue } from "../mana";
 import { chooseReplacementOrder } from "../modifiers";
 import { firstOfEachName, hasName, shareName } from "../names";
-import { asEntersChoices, auraHosts, type EntersContext } from "../replacement";
+import { asEntersChoices, auraHostChoice, auraHosts, type EntersContext } from "../replacement";
 import { bounceSpell, exileSpell, spellToZone } from "../stack";
 import {
   apnapOrder,
@@ -885,7 +887,10 @@ export const HANDLERS: OpHandlers = {
       let chosen: string[];
       const unless = e.unlessFilter;
       const exempt = unless ? hand.filter((id) => matchesCard(s, p, id, { ...unless, controller: undefined })) : [];
-      if (unless && exempt.length > 0) {
+      // Kept while Library of Leng's question is asked (a random discard isn't drawn again).
+      const held = r.vars[key(`held-${p}`)];
+      if (held) chosen = held.map(String);
+      else if (unless && exempt.length > 0) {
         // "Discard two cards unless you discard an artifact card": an artifact card, or two cards.
         const answer = r.vars[key(`discard-${p}`)];
         if (!answer) {
@@ -971,6 +976,23 @@ export const HANDLERS: OpHandlers = {
         }
         chosen = answer.map(String);
       }
+      // Wilt-Leaf Liege: discarded by an opposing effect, it goes onto the battlefield.
+      const toField = (id: string) =>
+        p !== ctx.controller && !!cardRule(s.defs[s.objects[id]?.defId ?? ""], "opponentDiscardToBattlefield");
+      // Library of Leng: the cards that go on top of the library instead, asked before the discard.
+      const top = e.exile
+        ? []
+        : discardToTopChoice(
+            s,
+            r,
+            key(`top-${p}`),
+            p,
+            chosen.filter((id) => !toField(id)),
+          );
+      if (!Array.isArray(top)) {
+        r.vars[key(`held-${p}`)] = chosen;
+        return top;
+      }
       r.vars[key(`done-${p}`)] = [1];
       const sf = e.storeFilter;
       const counted = sf ? chosen.filter((id) => matchesCard(s, p, id, { ...sf, controller: undefined })).length : chosen.length;
@@ -986,11 +1008,9 @@ export const HANDLERS: OpHandlers = {
         continue;
       }
       emit({ type: "discard", player: p, defIds: chosen.map((id) => s.objects[id]?.defId ?? "") });
-      for (const id of chosen) {
-        // Wilt-Leaf Liege: discarded by an opposing effect, it goes onto the battlefield.
-        const toField = p !== ctx.controller && !!cardRule(s.defs[s.objects[id]?.defId ?? ""], "opponentDiscardToBattlefield");
-        const moved = toField ? moveObject(s, id, "battlefield") : moveDiscarded(s, p, id, true);
-        if (!toField) announceDiscard(s, p, moved);
+      for (const id of discardOrder(chosen, top)) {
+        const moved = toField(id) ? moveObject(s, id, "battlefield") : moveDiscarded(s, p, id, top.includes(id));
+        if (!toField(id)) announceDiscard(s, p, moved);
         // The discarded cards, for `ref.stored` (Ninja's Blades: "the discarded card's mana value").
         if (e.store && moved) r.vars[`$ids:${e.store}`] = [...(r.vars[`$ids:${e.store}`] ?? []), moved];
       }
@@ -1164,27 +1184,9 @@ export const HANDLERS: OpHandlers = {
           continue;
         }
         if (d.enchant && !d.enchant.player) {
-          const options = auraHosts(s, who, id);
-          const k = key(`host-${id}`);
-          if (options.length > 1 && !r.vars[k]) {
-            return {
-              ask: {
-                player: who,
-                key: k,
-                request: {
-                  type: "pick",
-                  intent: "pickCards",
-                  prompt: msg("{card}: choose what it enchants", { card: cardRef(d.id) }),
-                  options,
-                  min: 1,
-                  max: 1,
-                  suggested: options.slice(0, 1),
-                },
-              },
-            };
-          }
-          const picked = (r.vars[k] ?? []).map(String).find((x) => options.includes(x)) ?? options[0];
-          if (picked) choices[id] = { ...choices[id], attachTo: picked };
+          const c = auraHostChoice(r, key(`host-${id}`), who, d.id, auraHosts(s, who, id));
+          if ("ask" in c) return c;
+          if (c.host) choices[id] = { ...choices[id], attachTo: c.host };
         }
       }
     }
@@ -1557,9 +1559,9 @@ export const HANDLERS: OpHandlers = {
         emit({ type: "reveal", player: p, defIds: picked.map((id) => s.objects[id]?.defId ?? "") });
       }
       const to = e.to;
-      // Opposition Agent: the cards found in the library are exiled with it (held cards too); those taken from the
-      // graveyard or the hand weren't found by searching the library.
-      const exiledByAgent = agent ? picked.filter((id) => player.library.includes(id)) : [];
+      // Opposition Agent: the cards found are exiled with it (held cards too), in every zone searched with the library
+      // (ruling: "they'll exile all cards they find in any of the zones").
+      const exiledByAgent = agent ? picked : [];
       const kept = picked.filter((id) => !exiledByAgent.includes(id));
       const arrival = !to ? new Map() : arrivalChoices(s, r, ctx, kept, to, ownerOr(s, to, p), (x) => key(`${p}-${x}`));
       if (!(arrival instanceof Map)) return arrival;
@@ -2117,12 +2119,15 @@ export const HANDLERS: OpHandlers = {
           },
         };
       }
-      r.vars[key(`connive-${id}-done`)] = [1];
       const cards = [...new Set(answer.map(String))].filter((c) => hand.includes(c)).slice(0, n);
+      // Library of Leng: the cards that go on top of the library instead, asked before the discard.
+      const top = discardToTopChoice(s, r, key(`connive-${id}-top`), p, cards);
+      if (!Array.isArray(top)) return top;
+      r.vars[key(`connive-${id}-done`)] = [1];
       if (cards.length === 0) continue;
       const nonland = cards.filter((c) => !s.defs[s.objects[c]?.defId ?? ""]?.types.includes("Land")).length;
       emit({ type: "discard", player: p, defIds: cards.map((c) => s.objects[c]?.defId ?? "") });
-      for (const c of cards) announceDiscard(s, p, moveDiscarded(s, p, c, true));
+      for (const c of discardOrder(cards, top)) announceDiscard(s, p, moveDiscarded(s, p, c, top.includes(c)));
       announceDiscardBatch(s, p, cards.length);
       if (nonland > 0 && onBattlefield(s, id)) changeCounters(s, o, P1P1, nonland);
     }

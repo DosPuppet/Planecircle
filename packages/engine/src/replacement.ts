@@ -11,11 +11,13 @@
 
 import { gainLife } from "./actions";
 import { cardRule } from "./cardDef";
+import { cardRef } from "./choices";
 import { boardAmount, type EffectContext, evalAmount, type OpResult, runEffectWith, staticContext } from "./effects";
+import { collectEvents } from "./events";
 import { copiableExceptions, copiedDefId, mergeMods, textBoxOf } from "./layers";
 import { manaValue } from "./mana";
 import { willHaveRiot } from "./stack";
-import { changeCounters, chars, FACE_DOWN_ID, moveObject, newId, nextTimestamp, P1P1, setPrepared } from "./state";
+import { changeCounters, chars, cloneState, FACE_DOWN_ID, moveObject, newId, nextTimestamp, P1P1, setPrepared } from "./state";
 import { controlledAbilitiesWithSource, playerStatic } from "./statics";
 import { matchesCard, matchesObjectFilter, protectedFrom, sourceView, withChosen } from "./targets";
 import { msg } from "./text";
@@ -32,6 +34,7 @@ import type {
   GameObject,
   GameState,
   LayerMods,
+  LkiSnapshot,
   ManaType,
   ObjectId,
   PlayerId,
@@ -95,17 +98,57 @@ export interface EntersContext {
   asEnters?: boolean;
 }
 
-/** 303.4f: what an Aura entering without being cast can enchant (permanents; not player Auras). */
-export function auraHosts(s: GameState, controller: PlayerId, cardId: ObjectId): ObjectId[] {
-  const enchant = s.defs[s.objects[cardId]?.defId ?? ""]?.enchant;
+/**
+ * 303.4f: what an Aura entering without being cast can enchant (permanents; not player Auras). `defId` and `source`: a
+ * token copy not created yet (Yenna, Redtooth Regent), its definition and its characteristics.
+ */
+export function auraHosts(
+  s: GameState,
+  controller: PlayerId,
+  cardId: ObjectId,
+  defId: string = s.objects[cardId]?.defId ?? "",
+  source: LkiSnapshot | undefined = sourceView(s, cardId),
+): ObjectId[] {
+  const enchant = s.defs[defId]?.enchant;
   // Animate Dead entering without being cast: nothing chosen in a graveyard, it stays in its zone (approximation).
   if (!enchant || enchant.player || enchant.graveyard) return [];
   return s.battlefield.filter(
     (id) =>
       id !== cardId &&
-      !protectedFrom(s, id, sourceView(s, cardId)) &&
-      matchesObjectFilter(s, controller, id, enchant.filter, cardId),
+      !protectedFrom(s, id, source) &&
+      matchesObjectFilter(s, controller, id, enchant.filter, cardId || undefined),
   );
+}
+
+/**
+ * 303.4f: the host of an Aura entering without being cast during a resolution, asked of `who` among several `options`
+ * (`moveTo`; a token copy, Yenna, Redtooth Regent, PLAN-M M11a) under the key `k`; suggestion: the first one. Returns
+ * the question, otherwise the host (none without options).
+ */
+export function auraHostChoice(
+  r: Resolution,
+  k: string,
+  who: PlayerId,
+  defId: string,
+  options: ObjectId[],
+): EntersAsk | { host?: ObjectId } {
+  if (options.length > 1 && !r.vars[k])
+    return {
+      ask: {
+        player: who,
+        key: k,
+        request: {
+          type: "pick",
+          intent: "pickCards",
+          prompt: msg("{card}: choose what it enchants", { card: cardRef(defId) }),
+          options,
+          min: 1,
+          max: 1,
+          suggested: options.slice(0, 1),
+        },
+      },
+    };
+  return { host: (r.vars[k] ?? []).map(String).find((x) => options.includes(x)) ?? options[0] };
 }
 
 /** Riot without a choice made while resolving the spell: haste if the creature can still attack this turn, otherwise
@@ -163,7 +206,7 @@ export const ENTERS_PREFIX = "enter:";
 /** `chooseOption`: "you may have it enter tapped. If you do, …" (Mariposa Military Base), a choice among labels. */
 const CHOICE_OPS: ReadonlySet<Effect["op"]> = new Set(["chooseOnEnter", "chooseCopy", "exchangeTextBox", "chooseOption"]);
 /** An "as it enters" effect that only chooses: a choice op, or "you may behold" (Theorist's Sanctum). */
-const isChoiceEffect = (e: Effect): boolean => CHOICE_OPS.has(e.op) || (e.op === "pay" && !!e.cost.behold);
+const isChoiceEffect = (e: Effect): boolean => CHOICE_OPS.has(e.op) || (e.op === "pay" && !!(e.cost.behold || e.cost.reveal));
 /** Results of these choices, removed before each effect (a second choice of the same kind is properly asked). */
 const RESULT_KEYS = ["$chosen", "$copyOf", "$copyCard", "$devoured", "$ids:devoured", "$beheld", "$textSwap"];
 
@@ -224,8 +267,9 @@ function collectEntering(
   } else if (e.op === "exchangeTextBox") {
     const other = diff.$textSwap?.[0];
     if (other !== undefined) out.textSwap = String(other);
-  } else if (e.op === "pay" && e.cost.behold) {
-    // "As this land enters, you may behold a Jace" (Theorist's Sanctum): read by `cond.beheld` as it enters.
+  } else if (e.op === "pay" && (e.cost.behold || e.cost.reveal)) {
+    // "As this land enters, you may behold a Jace" (Theorist's Sanctum), "you may reveal a Plains or Island card from
+    // your hand" (Port Town): read by `cond.beheld` as it enters.
     out.beheld = Number(diff.$beheld?.[0] ?? 0) > 0;
   } else if (e.op === "devour") {
     const n = Number(diff.$devoured?.[0] ?? 0);
@@ -369,6 +413,24 @@ export function asEntersChoices(
     if (model) phases.push(model);
   }
   return out;
+}
+
+/** An "as it enters" effect read without running it: "it enters with N counters", "it enters tapped" (614.1c). */
+const readOnly = (e: Effect): boolean => (e.op === "addCounters" || e.op === "tap") && e.what.kind === "self";
+
+/**
+ * The first "as it enters" question of a land played (614.12), asked with the decision to play it (`ActionOption.choose`,
+ * answered by `Decision.playLand.answer`): Cavern of Souls' creature type, a reveal land's card. A land whose effects do
+ * more than choose (Scorched Ruins and Lake of the Dead sacrifice lands as it enters, PLAN-M M11b) runs them in `ask`
+ * mode on a copy of the state, its events discarded, up to the first question.
+ */
+export function landEntersQuestion(s: GameState, entering: Entering): ChoiceRequest | undefined {
+  const effects = s.defs[entering.defId]?.asEnters ?? [];
+  if (effects.length === 0) return undefined;
+  const res = effects.every((e) => isChoiceEffect(e) || readOnly(e))
+    ? asEntersChoices(s, {}, entering, "land:", "probe")
+    : collectEvents(() => asEntersChoices(cloneState(s), {}, entering, "land:", "ask"))[0];
+  return "ask" in res ? res.ask.request : undefined;
 }
 
 /**

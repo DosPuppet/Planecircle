@@ -766,6 +766,11 @@ export interface CostDef {
    * effect for now (the additional cost to cast is `AdditionalCost.behold`).
    */
   behold?: ObjectFilter;
+  /**
+   * "Reveal a [filter] card from your hand" (the reveal lands: "as this land enters, you may reveal a Plains or Island
+   * card from your hand. If you don't, it enters tapped", PLAN-M M11b). Only in a `pay` effect for now.
+   */
+  reveal?: ObjectFilter;
 }
 /** Modifications made by a continuous effect, sorted by layer (613). */
 /**

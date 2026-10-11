@@ -37,7 +37,7 @@ Related deferrals from the same plans:
 - `GraveyardReplacement` `gainLife` / `createToken` -> `then`: dropped (two evaluators would remain: the life gain is part of the replacement, the token comes from a reflexive ability, 603.12; H7a).
 
 **Cost and choice slots (PLAN-C C8, C9, C12)**
-- Still automatic (documented): evidence "X = value of the targets" (Urgent Necropsy), forage, counter removal among several creatures of one kind (Dyadrine; Quilled Greatwurm needs `removeCountersAmong`/kind choice), symbol exile (Zemo), Champions (C8).
+- Still automatic (documented): evidence "X = value of the targets" (Urgent Necropsy), forage (asked since PLAN-M M6 as a cost and M11a as an effect), counter removal among several creatures of one kind (Dyadrine; Quilled Greatwurm needs `removeCountersAmong`/kind choice), symbol exile (Zemo), Champions (C8).
 - Entry choices still on their default: exile-linked returns and state-based actions (C9). PLAN-H H9 added questions for the other paths, PLAN-L L5b for the token copies created by an effect; `shockLand` stays apart (already a common arrival question). (Abuelo's Awakening's 1/1 right after arriving: `MoveSpec.mods`, PLAN-L L5a.)
 
 **Approximation groups left by PLAN-C C12** (check each against `docs/approximations.md` before starting; some were touched by later plans)

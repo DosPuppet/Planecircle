@@ -3,6 +3,7 @@
  * untap, Equipment, Urza's lands, colorless spells and creatures, three Ugin and Karn, Living Legacy.
  */
 import { describe, expect, it } from "vitest";
+import { submit } from "../src/game";
 import { bump, chars, snapshot } from "../src/layers";
 import { legalActions } from "../src/legal";
 import { manaAbilitiesOf } from "../src/mana";
@@ -1267,5 +1268,90 @@ describe("The Vision (EDH)", () => {
       expect(s.players.p3?.life).toBe(11);
       expect(s.players.p1?.life).toBe(20);
     });
+  });
+});
+
+describe("PLAN-M M11b: the questions of a land played", () => {
+  const offer = (s: S, name: string) => {
+    const card = idOf(s, "p1", "hand", name);
+    const o = legalActions(s, "p1").find(
+      (a): a is Extract<ActionOption, { type: "playLand" }> => a.type === "playLand" && a.card === card,
+    );
+    return { card, request: o?.choose };
+  };
+
+  it("Scorched Ruins: the two untapped lands sacrificed are chosen with the land played (not the first ones)", () => {
+    const s = scenario({
+      p1: { hand: ["Scorched Ruins"], battlefield: ["Wastes", "Forest", "Island", { name: "Plains", tapped: true }] },
+    });
+    const { card, request } = offer(s, "Scorched Ruins");
+    const [wastes, forest, island] = ["Wastes", "Forest", "Island"].map((n) => idOf(s, "p1", "battlefield", n)) as [
+      string,
+      string,
+      string,
+    ];
+    // "Sacrifice two untapped lands": the three untapped ones offered, two to choose; the suggestion is the first two.
+    expect(request?.type === "pick" && [request.options, request.min, request.max, request.suggested]).toEqual([
+      [wastes, forest, island],
+      2,
+      2,
+      [wastes, forest],
+    ]);
+    const t = act(s, "p1", { type: "playLand", card, answer: [forest, island] });
+    expect(idsOf(t, "p1", "battlefield", "Scorched Ruins")).toHaveLength(1);
+    expect(namesIn(t, t.players.p1?.graveyard).sort()).toEqual(["Forest", "Island"]);
+    expect(idsOf(t, "p1", "battlefield", "Wastes")).toHaveLength(1);
+    // An answer that isn't two of the offered lands is refused.
+    expect(() => act(s, "p1", { type: "playLand", card, answer: [forest] })).toThrow();
+    expect(() => act(s, "p1", { type: "playLand", card, answer: [forest, idOf(s, "p1", "battlefield", "Plains")] })).toThrow();
+    // The offer changed nothing: the question was asked on a copy (no land sacrificed, no event).
+    expect(s.battlefield).toHaveLength(4);
+  });
+
+  it("Scorched Ruins: exactly two untapped lands, no question; without an answer, the suggestion", () => {
+    const s = scenario({ p1: { hand: ["Scorched Ruins"], battlefield: ["Wastes", "Forest", { name: "Plains", tapped: true }] } });
+    expect(offer(s, "Scorched Ruins").request).toBeUndefined();
+    const u = scenario({ p1: { hand: ["Scorched Ruins"], battlefield: ["Wastes", "Forest", "Island"] } });
+    const t = act(u, "p1", { type: "playLand", card: idOf(u, "p1", "hand", "Scorched Ruins") });
+    expect(namesIn(t, t.players.p1?.graveyard).sort()).toEqual(["Forest", "Wastes"]);
+  });
+
+  it("Lake of the Dead: the Swamp sacrificed is chosen with the land played", () => {
+    const s = scenario({ p1: { hand: ["Lake of the Dead"], battlefield: ["Swamp", { name: "Swamp", tapped: true }] } });
+    const { card, request } = offer(s, "Lake of the Dead");
+    const [untapped, tapped] = idsOf(s, "p1", "battlefield", "Swamp");
+    expect(request?.type === "pick" && request.options).toEqual([untapped, tapped]);
+    const t = act(s, "p1", { type: "playLand", card, answer: [tapped as string] });
+    expect(idsOf(t, "p1", "battlefield", "Lake of the Dead")).toHaveLength(1);
+    expect(t.objects[untapped as string]?.zone).toBe("battlefield");
+    expect(idsOf(t, "p1", "graveyard", "Swamp")).toHaveLength(1);
+  });
+
+  it("Port Town: the card revealed is asked (a detail, autoOk); revealed: untapped; none: tapped", () => {
+    const s = scenario({ p1: { hand: ["Port Town", "Island", "Plains", "Opt"] } });
+    const { card, request } = offer(s, "Port Town");
+    const island = idOf(s, "p1", "hand", "Island");
+    const plains = idOf(s, "p1", "hand", "Plains");
+    // "A Plains or Island card from your hand": not Opt.
+    expect(request?.type === "pick" && [request.options, request.min, request.max, request.autoOk]).toEqual([
+      [island, plains],
+      0,
+      1,
+      true,
+    ]);
+    const shown = submit(s, "p1", { type: "playLand", card, answer: [plains] });
+    expect(shown.state.objects[idOf(shown.state, "p1", "battlefield", "Port Town")]?.tapped).toBe(false);
+    expect(shown.events.find((e) => e.type === "reveal")).toMatchObject({ defIds: [s.objects[plains]?.defId] });
+    const none = submit(s, "p1", { type: "playLand", card, answer: [] });
+    expect(none.state.objects[idOf(none.state, "p1", "battlefield", "Port Town")]?.tapped).toBe(true);
+    expect(none.events.some((e) => e.type === "reveal")).toBe(false);
+    // Without an answer: the suggestion, revealed.
+    const auto = act(s, "p1", { type: "playLand", card });
+    expect(auto.objects[idOf(auto, "p1", "battlefield", "Port Town")]?.tapped).toBe(false);
+    // Nothing to reveal: no question, tapped.
+    const u = scenario({ p1: { hand: ["Foreboding Ruins", "Forest"] } });
+    expect(offer(u, "Foreboding Ruins").request).toBeUndefined();
+    const v = act(u, "p1", { type: "playLand", card: idOf(u, "p1", "hand", "Foreboding Ruins") });
+    expect(v.objects[idOf(v, "p1", "battlefield", "Foreboding Ruins")]?.tapped).toBe(true);
   });
 });

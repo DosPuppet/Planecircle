@@ -4298,3 +4298,41 @@ describe("The Hobbit, PLAN-D D9: last cards", () => {
     expect(canBlock(t, idOf(t, "p1", "battlefield", "Bear Cub"), angel)).toBe(false);
   });
 });
+
+describe("PLAN-M M11a: amass asks which Army", () => {
+  const ARMY = customCard({ name: "Test Army", subtypes: ["Army"], power: 0, toughness: 1 });
+  const armiesOf = (s: GameState) => s.battlefield.filter((id) => chars(s, id).subtypes.includes("Army"));
+
+  it("Goblin Plate Mail: with two Armies, the player chooses the one that gets the counter; the Equipment attaches to it", () => {
+    let s = scenario({ p1: { battlefield: [ARMY, ARMY, "Swamp", "Mountain"], hand: ["Goblin Plate Mail"] } });
+    const [first, second] = armiesOf(s) as [string, string];
+    let asked: ChoiceRequest | undefined;
+    s = settle(cast(s, "p1", "Goblin Plate Mail"), (req) => {
+      if (req.intent !== "amass") return undefined;
+      asked = req;
+      return [second];
+    });
+    // 701.47a: "put N +1/+1 counters on an Army you control" (several: the player's choice; suggestion: the first).
+    expect(asked?.type === "pick" && [asked.options, asked.suggested]).toEqual([[first, second], [first]]);
+    expect(s.objects[second]?.counters["+1/+1"]).toBe(1);
+    expect(s.objects[first]?.counters["+1/+1"] ?? 0).toBe(0);
+    expect(chars(s, second).subtypes).toContain("Goblin");
+    expect(chars(s, first).subtypes).not.toContain("Goblin");
+    // "Then attach this Equipment to that Army."
+    expect(s.objects[idOf(s, "p1", "battlefield", "Goblin Plate Mail")]?.attachedTo).toBe(second);
+    expect(chars(s, second).keywords).toContain("menace");
+  });
+
+  it("Fearsome Goblin Pair: a single Army, no question", () => {
+    let s = scenario({ p1: { battlefield: [ARMY, "Fearsome Goblin Pair", "Mountain", "Mountain"], hand: ["Lightning Strike"] } });
+    const army = armiesOf(s)[0] as string;
+    const pair = idOf(s, "p1", "battlefield", "Fearsome Goblin Pair");
+    let asked = false;
+    s = settle(cast(s, "p1", "Lightning Strike", { targets: { t: [pair] } }), (req) => {
+      if (req.intent === "amass") asked = true;
+      return undefined;
+    });
+    expect(asked).toBe(false);
+    expect(s.objects[army]?.counters["+1/+1"]).toBe(4);
+  });
+});

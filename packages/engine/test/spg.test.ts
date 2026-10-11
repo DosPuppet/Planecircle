@@ -1426,3 +1426,45 @@ describe("Special Guests: approximations lifted (PLAN-M M9a)", () => {
     expect(s.players.p1?.library).toHaveLength(3 - before - 1);
   });
 });
+
+describe("PLAN-M M11a: Library of Leng asks which discarded cards go on top", () => {
+  const DISCARD_TWO = customCard({
+    name: "Test discard two",
+    types: ["Sorcery"],
+    typeLine: "Sorcery",
+    spell: spell([], [fx.discard(2)]),
+  });
+  const setup = () =>
+    scenario({
+      p1: { battlefield: ["Library of Leng"], hand: [DISCARD_TWO, "Shock", "Lightning Strike", "Opt"], library: ["Forest"] },
+    });
+
+  it("each card discarded by an effect: on top or into the graveyard, as the player chooses (not all on top)", () => {
+    let s = setup();
+    const shock = idOf(s, "p1", "hand", "Shock");
+    const strike = idOf(s, "p1", "hand", "Lightning Strike");
+    let asked: string[] | undefined;
+    s = settle(act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Test discard two") }), (req) => {
+      if (req.intent === "discard") return [shock, strike];
+      if (req.intent !== "libraryTop" || req.type !== "pick") return undefined;
+      asked = req.options;
+      // Suggested: both on top (the former automatic choice).
+      expect(req.suggested).toEqual([shock, strike]);
+      return [strike];
+    });
+    expect(asked).toEqual([shock, strike]);
+    expect(nameOf(s, s.players.p1?.library[0] as string)).toBe("Lightning Strike");
+    expect(nameOf(s, s.players.p1?.library[1] as string)).toBe("Forest");
+    expect(s.players.p1?.graveyard.map((id) => nameOf(s, id))).toEqual(expect.arrayContaining(["Shock"]));
+  });
+
+  it("several on top: in the order of the answer, the last one on top", () => {
+    let s = setup();
+    const shock = idOf(s, "p1", "hand", "Shock");
+    const strike = idOf(s, "p1", "hand", "Lightning Strike");
+    s = settle(act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Test discard two") }), (req) =>
+      req.intent === "discard" ? [shock, strike] : req.intent === "libraryTop" ? [strike, shock] : undefined,
+    );
+    expect(s.players.p1?.library.slice(0, 3).map((id) => nameOf(s, id))).toEqual(["Shock", "Lightning Strike", "Forest"]);
+  });
+});

@@ -643,8 +643,15 @@ export const RECORD_VERSION = 1;
  *   optional costs (Raiding Schemes, Silverquill); Rottenmouth Viper sacrifices any number; Old Fat Spider's prevention
  *   is an effect while the Saga stays; Bumi's restriction applies to the added combat only; Fblthp plots from the
  *   library as a special action; Cursecloth Wrappings grants embalm to the card (white Zombie token).
+ * - 207: PLAN-M M11a/b: automatic choices asked of the player: the Army that gets amass's counters among several (Goblin
+ *   Plate Mail attaches to it), what a token copy of an Aura enchants (Yenna), the cards discarded by an effect that
+ *   Library of Leng puts on top (each card; a cost discard no longer does), forage during a resolution (three cards or a
+ *   Food, then which); Opposition Agent exiles every card found, in any zone searched; a land played answers its first
+ *   "as it enters" question with the decision (`playLand.answer`, several values), also when its effects do more than
+ *   choose (Scorched Ruins, Lake of the Dead: the lands sacrificed); the reveal lands (Port Town, Fortified Village,
+ *   Vineglimmer Snarl, Foreboding Ruins) ask the card revealed.
  */
-export const RULES_VERSION = 206;
+export const RULES_VERSION = 207;
 
 /** One checkpoint every N decisions (plus the last one of the game). */
 export const CHECKPOINT_EVERY = 25;

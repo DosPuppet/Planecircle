@@ -313,7 +313,16 @@ function apply(s: GameState, submitter: PlayerId, d: Decision): void {
           passPriority(s, player);
           break;
         case "playLand":
-          playLand(s, player, d.card, !!d.payLife, d.landType, d.chosen, !!d.back);
+          // `chosen` (a single value, "" for none): the form of the records before PLAN-M M11b.
+          playLand(
+            s,
+            player,
+            d.card,
+            !!d.payLife,
+            d.landType,
+            d.answer ?? (d.chosen === undefined ? undefined : d.chosen === "" ? [] : [d.chosen]),
+            !!d.back,
+          );
           s.priority.passes = 0;
           break;
         case "cast":

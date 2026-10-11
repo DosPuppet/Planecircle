@@ -14,6 +14,7 @@ import {
   autoTarget,
   type CardDef,
   type CardFace,
+  type ChoiceValue,
   type CostPick,
   type CostSlot,
   DEFAULT_AUTOPILOT,
@@ -379,8 +380,8 @@ interface Store {
   landChoice: Extract<ActionOption, { type: "playLand" }> | null;
   /** Plays a land (the "as it enters" question is asked first, if it has one). */
   playLand(option: Extract<ActionOption, { type: "playLand" }>): void;
-  /** Answer to the land's question (`null`: cancel). */
-  answerLandChoice(value: string | null): void;
+  /** The answer to the land's question (`null`: cancel, the land isn't played). */
+  answerLandChoice(values: ChoiceValue[] | null): void;
   confirmLegend(): void;
   cancelLegend(): void;
   chooseMode(index: number): void;
@@ -1853,7 +1854,10 @@ export const useGame = create<Store>((set, get) => {
     landChoice: null,
 
     playLand(option) {
-      if (option.choose) return set({ landChoice: option, abilityMenu: null });
+      // The land's "as it enters" question; a detail (`autoOk`: the card a reveal land shows) keeps the engine's
+      // suggestion outside full control (PLAN-M M11b).
+      if (option.choose && !(option.choose.autoOk && !get().settings.fullControl))
+        return set({ landChoice: option, abilityMenu: null });
       set({ abilityMenu: null });
       get().decide({
         type: "playLand",
@@ -1864,16 +1868,16 @@ export const useGame = create<Store>((set, get) => {
       });
     },
 
-    answerLandChoice(value) {
+    answerLandChoice(values) {
       const option = get().landChoice;
       set({ landChoice: null });
-      if (!option || value === null) return;
+      if (!option || values === null) return;
       get().decide({
         type: "playLand",
         card: option.card,
         payLife: option.payLife,
         landType: option.landType,
-        chosen: value,
+        answer: values,
         ...(option.back ? { back: true } : {}),
       });
     },

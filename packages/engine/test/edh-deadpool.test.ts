@@ -4,6 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { forgetSecrets } from "../src/choices";
+import { fx, spell } from "../src/dsl";
 import { chars } from "../src/layers";
 import { legalActions } from "../src/legal";
 import { cloneState } from "../src/state";
@@ -902,5 +903,36 @@ describe("PLAN-M M9b: approximations lifted", () => {
     // Only this turn.
     s = advanceUntil(s, (x) => x.turn.active === "p2");
     expect(chars(s, bear).keywords).not.toContain("cantBlock");
+  });
+});
+
+describe("PLAN-M M11a: Opposition Agent", () => {
+  it("a search of the library and the graveyard: you choose what they find, and every card found is exiled (ruling)", () => {
+    const SEARCH = customCard({
+      name: "Test library and graveyard search",
+      types: ["Sorcery"],
+      typeLine: "Sorcery",
+      spell: spell(
+        [],
+        [fx.search({ types: ["Creature"] }, { to: "hand" }, 1, undefined, undefined, undefined, { alsoFrom: ["graveyard"] })],
+      ),
+    });
+    let s = scenario({
+      p1: { battlefield: ["Opposition Agent"] },
+      p2: { hand: [SEARCH], graveyard: ["Bear Cub"], library: ["Shivan Dragon", "Forest"] },
+      active: "p2",
+    });
+    const cub = idOf(s, "p2", "graveyard", "Bear Cub");
+    let asked: PlayerId | undefined;
+    s = settle(act(s, "p2", { type: "cast", card: idOf(s, "p2", "hand", "Test library and graveyard search") }), (req, p) => {
+      if (req.intent !== "search") return undefined;
+      asked = p;
+      return [cub];
+    });
+    expect(asked).toBe("p1");
+    // Found in the graveyard: exiled too ("they'll exile all cards they find in any of the zones"), not in their hand.
+    expect(namesIn(s, s.exile)).toEqual(["Bear Cub"]);
+    expect(s.players.p2?.hand).toHaveLength(0);
+    expect(s.objects[idOf(s, "p1", "battlefield", "Opposition Agent")]?.linked).toEqual(s.exile);
   });
 });

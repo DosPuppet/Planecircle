@@ -79,8 +79,8 @@ export type Effect =
   /** `what`: only the designated objects or players, without a choice (Powerful Broker). */
   | { op: "proliferate"; times: Amount; what?: Ref }
   /**
-   * N counters on a matching permanent of the player; if they have none, they create the token first (family R4.6:
-   * Jace's empower, amass). `addSubtypes`: the permanent gets these subtypes (701.47a).
+   * N counters on a matching permanent of the player (their choice among several); if they have none, they create the
+   * token first (family R4.6: Jace's empower, amass). `addSubtypes`: the permanent gets these subtypes (701.47a).
    */
   | {
       op: "counterOnOrCreate";
@@ -90,6 +90,8 @@ export type Effect =
       kind: string;
       amount: Amount;
       addSubtypes?: string[];
+      /** The permanents that got the counters ("attach it to that Army": Goblin Plate Mail). */
+      store?: string;
     }
   /**
    * Suspend (702.62): the spell (removed from the stack, without being countered) or the card is exiled with N time
@@ -1130,6 +1132,7 @@ export type PayCost = Omit<
     | "forage"
     | "exile"
     | "behold"
+    | "reveal"
     | "poison"
   >,
   "collectEvidence"

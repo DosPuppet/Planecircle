@@ -65,6 +65,12 @@ export type ChoiceIntent =
   | "discover"
   /** 903.9a: return one's commander to the command zone (yes / no). */
   | "commanderZone"
+  /** Amass (701.47a), empower: the permanent that gets the counters, among several (PLAN-M M11a). */
+  | "amass"
+  /** Library of Leng: the cards discarded by an effect that go on top of the library instead (PLAN-M M11a). */
+  | "libraryTop"
+  /** Forage as an effect (701.61): three graveyard cards or a Food, then which ones (PLAN-M M11a). */
+  | "forage"
   | "other";
 
 interface ChoiceBase {
@@ -272,9 +278,21 @@ export type Decision =
   | { type: "bottom"; cards: ObjectId[] }
   | { type: "pass" }
   /** `landType`: basic land type chosen as it enters (Multiversal Passage). */
-  /** `chosen`: "as it enters, choose…" (Cavern of Souls: a creature type), among the action's options. */
+  /**
+   * `answer`: the answer to the land's first "as it enters" question (`ActionOption.choose`: Cavern of Souls' creature
+   * type, Scorched Ruins' two lands, the card a reveal land shows; PLAN-M M11b); `chosen`: the same as a single value
+   * (`""` for none), kept so that older records replay.
+   */
   /** `back`: play the land back face of a modal card whose front face is also a land (Blightstep Pathway). */
-  | { type: "playLand"; card: ObjectId; payLife?: boolean; landType?: string; chosen?: string; back?: boolean }
+  | {
+      type: "playLand";
+      card: ObjectId;
+      payLife?: boolean;
+      landType?: string;
+      chosen?: string;
+      answer?: ChoiceValue[];
+      back?: boolean;
+    }
   | ({ type: "cast"; card: ObjectId } & CastChoices)
   | ({ type: "activate"; source: ObjectId; ability: number } & CastChoices)
   /**
@@ -356,7 +374,10 @@ export interface ModeOption {
 export type ActionOption =
   | { type: "pass" }
   /** `landType`: basic land type chosen as it enters (Multiversal Passage). */
-  /** `choose`: the land's "as it enters, choose…" question, to ask when playing it (answer: `chosen`). */
+  /**
+   * `choose`: the land's first "as it enters" question, to ask when playing it (answer: `Decision.playLand.answer`);
+   * `autoOk`: outside full control, the interface keeps the suggestion without asking (a reveal land).
+   */
   /** `back` and `faceName`: the land back face of a modal card whose front face is also a land. */
   | {
       type: "playLand";

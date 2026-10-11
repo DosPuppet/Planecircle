@@ -76,10 +76,13 @@ const tappedTriland: CardScript = { abilities: [entersWith({ tapped: true })] };
 
 /** "Reveal" lands: tapped unless you reveal a [type] or [type] card from your hand (automatic choice). */
 const revealLand = (a: ManaType, b: ManaType, typeA: string, typeB: string): CardScript => ({
+  // "As this land enters, you may reveal a [typeA] or [typeB] card from your hand. If you don't, this land enters tapped":
+  // the card asked as it enters (a detail, answered with the suggestion outside full control; PLAN-M M11b).
+  asEnters: [...fx.mayReveal({ anySubtype: [typeA, typeB] })],
   abilities: [
     entersWith({
       tapped: true,
-      condition: cond.not(cond.amountAtLeast(amount.countIn("hand", { anySubtype: [typeA, typeB] }), 1)),
+      condition: cond.not(cond.beheld),
       label: msg("Tapped unless you reveal {a} or {b} from your hand", {
         a: LAND_WITH_ARTICLE[typeA] ?? typeA,
         b: LAND_WITH_ARTICLE[typeB] ?? typeB,
@@ -157,7 +160,6 @@ export const EDH_LANDS: Record<string, CardScript> = {
   "Tangled Islet": tappedTriland,
   "Seaside Citadel": { abilities: [entersWith({ tapped: true }), manaAbility(["G", "W", "U"])] },
   "Flooded Grove": filterLand("G", "U"),
-  // Automatic choice: a card of the right type in hand is revealed automatically if possible (docs/approximations.md).
   "Fortified Village": revealLand("G", "W", "Forest", "Plains"),
   "Port Town": revealLand("W", "U", "Plains", "Island"),
   "Vineglimmer Snarl": revealLand("G", "U", "Forest", "Island"),
@@ -206,12 +208,12 @@ export const EDH_LANDS: Record<string, CardScript> = {
       manaAbility(["B", "R"]),
     ],
   },
-  // Automatic choice: a Swamp or Mountain card in hand is revealed if possible (docs/approximations.md).
   "Foreboding Ruins": {
+    asEnters: [...fx.mayReveal({ anySubtype: ["Swamp", "Mountain"] })],
     abilities: [
       entersWith({
         tapped: true,
-        condition: cond.not(cond.amountAtLeast(amount.countIn("hand", { anySubtype: ["Swamp", "Mountain"] }), 1)),
+        condition: cond.not(cond.beheld),
         label: "Tapped unless you reveal a Swamp or Mountain card from your hand",
       }),
       manaAbility(["B", "R"]),
