@@ -65,10 +65,16 @@ export const HANDLERS: OpHandlers = {
         : e.ability;
     // Taii Wakeen: "this turn, noncombat damage from your sources is increased by X": the amount is frozen now.
     const add = base.replacement?.modify.add;
-    const ability =
+    const withAdd =
       base.replacement && add !== undefined && typeof add !== "number"
         ? { ...base, replacement: { ...base.replacement, modify: { ...base.replacement.modify, add: evalAmount(s, ctx, add) } } }
         : base;
+    // Will, Scion of Peace: "spells you cast this turn cost {X} less, where X is …": X is frozen now.
+    const reduce = withAdd.spellCost?.reduce;
+    const ability =
+      withAdd.spellCost && reduce !== undefined && typeof reduce !== "number"
+        ? { ...withAdd, spellCost: { ...withAdd.spellCost, reduce: Math.max(0, evalAmount(s, ctx, reduce)) } }
+        : withAdd;
     const who = (e.who ? resolveRef(s, ctx, e.who).filter((p) => isPlayer(s, p)) : [ctx.controller]).filter(
       (p) => p !== ability.cantAttack?.of,
     );
@@ -303,10 +309,16 @@ export const HANDLERS: OpHandlers = {
             request: {
               type: "number",
               intent: "other",
-              prompt: msg("{card}: secretly choose a number", { card: cardRefOf(s, ctx.sourceId) }),
+              prompt: e.prompt
+                ? msg("{card}: {prompt}", { card: cardRefOf(s, ctx.sourceId), prompt: e.prompt })
+                : msg("{card}: secretly choose a number", { card: cardRefOf(s, ctx.sourceId) }),
               min: 0,
               max: e.max,
-              suggested: [0],
+              suggested: [
+                e.suggested === undefined
+                  ? 0
+                  : Math.min(e.max, Math.max(0, evalAmount(s, { ...ctx, controller: p }, e.suggested))),
+              ],
             },
           },
         };

@@ -1019,27 +1019,28 @@ describe("Lost Caverns of Ixalan, lot K8: mythic, rare and uncommon cards", () =
       expect(run(8)).toBe(false);
     });
 
-    it("Ojer Kaslem: a single creature card (and a single land), even among several revealed creatures", () => {
+    it("Ojer Kaslem: a creature card and/or a land card in one choice (PLAN-M M8a), never two creatures", () => {
       let s = scenario({
         p1: {
           battlefield: ["Ojer Kaslem, Deepest Growth // Temple of Cultivation"],
-          library: ["Bear Cub", "Hulking Raptor", "Forest", "Island", "Opt", "Opt", "Swamp"],
+          library: ["Gingerbrute", "Hulking Raptor", "Forest", "Island", "Opt", "Opt", "Swamp"],
         },
       });
       const ojer = idOf(s, "p1", "battlefield", "Ojer Kaslem, Deepest Growth // Temple of Cultivation");
       const lib = s.players.p1?.library ?? [];
-      const maxes: number[] = [];
-      s = throughCombat(attack(s, [ojer]), (req) => {
-        if (req.type !== "pick" || req.intent !== "lookAtTop") return undefined;
-        maxes.push(req.max);
-        // One card per choice: the creature (Bear Cub, not Hulking Raptor), then the land.
-        return req.options.filter((id) => id === lib[0] || id === lib[2]);
-      });
-      expect(maxes).toEqual([1, 1]);
-      expect(idsOf(s, "p1", "battlefield", "Bear Cub")).toHaveLength(1);
-      expect(idsOf(s, "p1", "battlefield", "Hulking Raptor")).toHaveLength(0);
+      const [brute, raptor, forest] = [lib[0], lib[1], lib[2]] as [string, string, string];
+      s = advanceUntil(attack(s, [ojer]), (x) => x.pending?.kind === "choice" && x.pending.request.intent === "lookAtTop");
+      const req = s.pending?.kind === "choice" ? s.pending.request : undefined;
+      expect(req?.type === "pick" && [req.options.length, req.max]).toEqual([4, 2]);
+      // An artifact creature and a creature: two creature cards, refused.
+      expect(() => act(s, "p1", { type: "choose", values: [brute, raptor] })).toThrow(RulesError);
+      // The two cards enter together.
+      s = throughCombat(act(s, "p1", { type: "choose", values: [raptor, forest] }));
+      expect(idsOf(s, "p1", "battlefield", "Hulking Raptor")).toHaveLength(1);
       expect(idsOf(s, "p1", "battlefield", "Forest")).toHaveLength(1);
+      expect(idsOf(s, "p1", "battlefield", "Gingerbrute")).toHaveLength(0);
       expect(libraryNames(s)[0]).toBe("Swamp");
+      expect(libraryNames(s)).toHaveLength(5);
     });
 
     it("Temple of the Dead: activates only if a player (you, or any opponent) has one card or fewer in hand", () => {

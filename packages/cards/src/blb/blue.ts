@@ -316,8 +316,23 @@ export const BLUE: Record<string, CardScript> = {
     ],
   },
   "Portent of Calamity": {
-    // Approximation: the exiled cards are chosen automatically (one per type).
-    spell: spell([], [fx.portent, fx.castNow(ref.stored("free"), { free: true }), fx.toHand(ref.stored("rest"))]),
+    // "For each card type, you may exile a card of that type": one choice, at most one card per card type; four or
+    // more exiled: a spell among them may be cast for free, then the rest goes to the hand.
+    spell: spell(
+      [],
+      [
+        fx.lookAtTop(amount.x, {
+          count: amount.x,
+          onePerType: true,
+          to: { to: "exile" },
+          rest: "graveyard",
+          store: "ex",
+          revealAll: true,
+        }),
+        ...fx.when(cond.amountAtLeast(amount.v("ex"), 4), fx.castNow(ref.stored("ex"), { free: true })),
+        fx.toHand(ref.stored("ex")),
+      ],
+    ),
   },
   "Season of Weaving": {
     spell: pawprint(

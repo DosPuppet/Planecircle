@@ -127,14 +127,12 @@ describe("PLAN-J J5 [rules 182]: small approximation lifts", () => {
     expect(filterEvents(events, "p2").some((e) => e.type === "reveal" && e.look)).toBe(false);
   });
 
-  it("Riku of Many Paths: Expel the Interlopers (a number to choose, eleven engine modes) is not a modal spell", () => {
+  it("Riku of Many Paths: Expel the Interlopers (a number to choose) is not a modal spell", () => {
     let s = scenario({
       p1: { battlefield: ["Riku of Many Paths", ...lands("Plains", 5)], hand: ["Expel the Interlopers"] },
     });
-    const expel = idOf(s, "p1", "hand", "Expel the Interlopers");
-    const mode = s.defs[s.objects[expel]?.defId ?? ""]?.spell?.modes?.length ?? 0;
-    expect(mode).toBeGreaterThan(1);
-    s = cast(s, "p1", "Expel the Interlopers", { mode: 10 });
+    // Since PLAN-M M8a, the number is chosen as it resolves (a single mode).
+    s = cast(s, "p1", "Expel the Interlopers");
     expect(s.triggers).toHaveLength(0);
     expect(s.stack.filter((i) => i.kind === "ability")).toHaveLength(0);
   });

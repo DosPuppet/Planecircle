@@ -573,9 +573,12 @@ export const UNIQUE: Record<string, CardScript> = {
             msg("Garruk's emblem (until your next turn)"),
             msg("Whenever one or more creatures attack one of your opponents, they get +2/+2 and gain trample."),
             [
-              triggered(when.attackWith(1), [fx.pumpAll({ attacking: true, controller: "you" }, 2, 2, ["trample"])], {
-                label: "Attackers +2/+2, trample",
-              }),
+              // Any player's creatures attacking one of your opponents (a player, not a planeswalker).
+              triggered(
+                when.attackWith(1, { attacking: "opponent" }, true),
+                [fx.pumpAll({ attacking: "opponent" }, 2, 2, ["trample"])],
+                { label: "Attackers +2/+2, trample" },
+              ),
             ],
             true,
           ),

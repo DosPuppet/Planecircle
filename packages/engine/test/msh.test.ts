@@ -10,7 +10,7 @@ import { dealDamage, destroy, sourceFromObject } from "../src/actions";
 import { fx, manaAbility, ref, spell, target, triggered, when } from "../src/dsl";
 import { legalActions } from "../src/legal";
 import { manaAbilitiesOf } from "../src/mana";
-import { changeCounters, chars } from "../src/state";
+import { changeCounters, chars, moveObject } from "../src/state";
 import { plainText } from "../src/text";
 import { objectTurnEvents } from "../src/turnlog";
 import type { ActionOption, ChoiceValue, GameState, PlayerId } from "../src/types";
@@ -3650,7 +3650,7 @@ describe("lot A, multicolores", () => {
 
     it("The Kingpin of Crime: extort; pay 2 life when attacking: it deals damage according to its toughness", () => {
       let s = scenario({
-        p1: { battlefield: ["The Kingpin of Crime", "Plains", "Island"], hand: ["Opt"] },
+        p1: { battlefield: ["The Kingpin of Crime", "Plains", "Island"], hand: ["Opt", "Bear Cub"] },
       });
       s = settle(cast(s, "p1", "Opt"), answering([], true));
       expect(s.players.p2?.life).toBe(19);
@@ -3658,8 +3658,13 @@ describe("lot A, multicolores", () => {
       const kingpin = idOf(s, "p1", "battlefield", "The Kingpin of Crime");
       s = settle(declare(s, [kingpin]), answering([], true));
       expect(s.players.p1?.life).toBe(19);
+      // A rule for the turn (PLAN-M M8a): a creature that arrives afterwards is affected too, until end of turn.
+      const wall = moveObject(s, idOf(s, "p1", "hand", "Bear Cub"), "battlefield") as string;
+      expect(chars(s, wall).powerRules.map((r) => r.toughness)).toEqual(["ifGreater"]);
       s = advanceUntil(s, (x) => x.turn.step === "main2");
       expect(s.players.p2?.life).toBe(14);
+      s = advanceUntil(s, (x) => x.turn.active === "p2");
+      expect(chars(s, wall).powerRules).toEqual([]);
     });
 
     it("Madame Hydra: each Villain spell cast creates a 2/1 Villain with menace", () => {

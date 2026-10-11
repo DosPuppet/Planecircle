@@ -60,8 +60,6 @@ const restless = (
 
 /** Everflame, Heroes' Legacy (The Irencrag transformed): Equip {3} and "Equipped creature gets +3/+3." */
 const EVERFLAME_EQUIP = equipAbility({ mana: "{3}", label: msg("Equip {cost}", { cost: "{3}" }) });
-/** The Irencrag has not become Everflame yet (its original abilities only apply before). */
-const NOT_EVERFLAME = cond.sourceMatches({ notSubtype: "Equipment" });
 
 export const ARTIFACTS: Record<string, CardScript> = {
   "Collector's Vault": {
@@ -124,10 +122,10 @@ export const ARTIFACTS: Record<string, CardScript> = {
     ],
   },
   "The Irencrag": {
-    // "… and loses all other abilities": its two original abilities no longer apply once it has become an Equipment
-    // (equivalent; a "loses all abilities" effect would also remove the ones it gains).
+    // "… gains equip {3} and '…' and loses all other abilities": one modification, its abilities lost then the two
+    // new ones added (layer 6, in that order).
     abilities: [
-      manaAbility("C", 1, { condition: NOT_EVERFLAME }),
+      manaAbility("C", 1),
       triggered(
         when.enters({ types: ["Creature"], legendary: true, controller: "you" }),
         fx.may(
@@ -137,6 +135,7 @@ export const ARTIFACTS: Record<string, CardScript> = {
             {
               setName: "Everflame, Heroes' Legacy",
               addSubtypes: ["Equipment"],
+              loseAllAbilities: true,
               addAbilities: [
                 EVERFLAME_EQUIP,
                 staticAbility("attached", { power: 3, toughness: 3 }, { label: "Equipped creature gets +3/+3" }),
@@ -145,7 +144,7 @@ export const ARTIFACTS: Record<string, CardScript> = {
             "permanent",
           ),
         ),
-        { condition: NOT_EVERFLAME, label: "May become Everflame, Heroes' Legacy" },
+        { label: "May become Everflame, Heroes' Legacy" },
       ),
     ],
   },

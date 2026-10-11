@@ -39,3 +39,7 @@ Tests: `engine/test/blb.test.ts` (29 tests) and the smoke test `ai/test/smoke/bl
 - **Ral, Crackling Wit's emblem** has storm (the emblem text said "replicate"): `when.castSpellStorm` (castSpell trigger with `storm`: the event amount is the cast event's `spellsBefore`), so the copies are counted when the spell is cast, not at resolution.
 - **Gift of a permanent:** the "gift promised" trigger carries the chosen opponent (`StackItem.cast.giftTo`, copied when it is put on the stack) and its "if the gift was promised" reads the last known information (`LkiSnapshot.kicked`): a permanent gone before the trigger resolves still gives the gift to the chosen opponent.
 - **Tests:** `blb.test.ts` (+2: Ral's storm with a spell cast in response; Scrapshooter destroyed in response, three players).
+
+## PLAN-M M8a (rules 199)
+
+- **Portent of Calamity:** the player chooses the exiled cards, at most one per card type (`lookAtTop` with `onePerType`, all revealed, `store`), then the free cast with four or more; the `portent` operation is removed. 1 test added.

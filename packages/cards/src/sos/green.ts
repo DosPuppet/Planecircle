@@ -253,12 +253,19 @@ export const GREEN: Record<string, CardScript> = {
     spell: spell([], [fx.createTokens(FRACTAL, 1, undefined, "f"), fx.addCounters(ref.stored("f"), amount.x), fx.surveil(2)]),
   },
   "Zimone's Experiment": {
-    // The revealed cards stay on top of the library (the rest goes to the bottom in a random order), then the lands
-    // enter tapped and the creatures go to hand (like Break Out).
+    // The chosen cards are revealed, the rest goes to the bottom in a random order, then the lands enter tapped and the
+    // creatures go to hand, straight from the library.
     spell: spell(
       [],
       [
-        fx.lookAtTop(5, { filter: CREATURE_OR_LAND, count: 2, to: { to: "libraryTop" }, store: "z" }),
+        fx.chooseAmong(ref.filtered(ref.libraryTopCards(ref.you, 5), CREATURE_OR_LAND), ref.you, "z", {
+          anyZone: true,
+          anyNumber: true,
+          max: 2,
+          prompt: "Reveal up to two creature and/or land cards",
+        }),
+        fx.reveal(ref.stored("z")),
+        fx.moveTo(ref.except(ref.libraryTopCards(ref.you, 5), ref.stored("z")), { to: "libraryBottom", shuffle: true }),
         fx.moveTo(ref.filtered(ref.stored("z"), { types: ["Land"] }), { to: "battlefield", tapped: true }),
         fx.toHand(ref.filtered(ref.stored("z"), { types: ["Creature"] })),
       ],

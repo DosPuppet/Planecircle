@@ -25,6 +25,7 @@ import {
   idsOf,
   lands,
   nameOf,
+  namesIn,
   passAccepting,
   passUntil,
   scenario,
@@ -2901,6 +2902,27 @@ describe("Secrets of Strixhaven, lot A — vert", () => {
     const lib = s.players.p1?.library.map((id) => nameOf(s, id)) ?? [];
     expect(lib[0]).toBe("Swamp");
     expect([...lib.slice(1)].sort()).toEqual(["Lightning Strike", "Opt", "Serra Angel"]);
+  });
+
+  it("Zimone's Experiment: up to two among the creature and land cards (PLAN-M M8a); none chosen: all five underneath", () => {
+    let s = scenario({
+      p1: {
+        battlefield: lands("Forest", 4),
+        hand: ["Zimone's Experiment"],
+        library: ["Bear Cub", "Opt", "Island", "Serra Angel", "Lightning Strike", "Swamp"],
+      },
+    });
+    let shape: unknown[] = [];
+    s = settle(cast(s, "p1", "Zimone's Experiment"), (req, _p, cur) => {
+      if (req.type !== "pick") return undefined;
+      shape = [namesIn(cur, req.options), req.min, req.max];
+      return [];
+    });
+    expect(shape).toEqual([["Bear Cub", "Island", "Serra Angel"], 0, 2]);
+    expect(s.players.p1?.hand).toHaveLength(0);
+    const lib = s.players.p1?.library.map((id) => nameOf(s, id)) ?? [];
+    expect(lib).toHaveLength(6);
+    expect(lib[0]).toBe("Swamp");
   });
 
   it("Zimone's Experiment: the revealed land goes from the library to the battlefield, without passing through the hand (PLAN-H, H2)", () => {

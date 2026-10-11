@@ -46,3 +46,7 @@ The scripts are in `packages/cards/src/lci/`: `white`, `blue`, `black`, `red`, `
   - **fix**: `cdaValue` (P/T defined by an ability) accounts for the full filter, including in graveyards (Souls of the Lost); the log names arrivals on the battlefield.
 
 Tests: `engine/test/lci.test.ts` and the smoke test `ai/test/smoke/lci.test.ts`.
+
+## PLAN-M M8a (rules 199)
+
+- **Ojer Kaslem:** one choice of a creature card and/or a land card, put onto the battlefield together, all the cards revealed first (`lookAtTop` with `onePerType: ["Creature", "Land"]`, `reveal: "all"`); an artifact creature and a creature are refused. In the Presence of Ages uses the same type list. Test rewritten.

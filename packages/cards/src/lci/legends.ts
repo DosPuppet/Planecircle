@@ -522,15 +522,16 @@ export const LEGENDS: Record<string, CardScript> = {
     abilities: [
       triggered(
         when.combatDamageToPlayer,
-        // "a creature card and/or a land card": the creature first (the cards stay on top), then the land among the
-        // others. Approximation (timing): the creature enters just before the land.
+        // "a creature card and/or a land card": one choice, at most one card of each of those two types, put onto the
+        // battlefield together.
         [
-          fx.lookAtTop(amount.eventAmount, { filter: CREATURE, count: 1, to: { to: "battlefield" }, rest: "top", store: "c" }),
-          fx.lookAtTop(amount.plus(amount.eventAmount, amount.neg(amount.v("c"))), {
-            filter: { types: ["Land"] },
-            count: 1,
+          fx.lookAtTop(amount.eventAmount, {
+            filter: { anyOf: [CREATURE, { types: ["Land"] }] },
+            count: 2,
+            onePerType: ["Creature", "Land"],
             to: { to: "battlefield" },
             rest: "bottom",
+            revealAll: true,
           }),
         ],
         { label: "A creature and/or a land onto the battlefield" },

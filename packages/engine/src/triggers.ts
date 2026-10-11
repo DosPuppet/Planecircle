@@ -720,8 +720,7 @@ function matchTrigger(s: GameState, ev: RulesEvent, t: TriggerSpec, src: Source)
       // "your second spell each turn".
       if (t.nth !== undefined && s.players[ev.player]?.turnStats.spellsCast !== t.nth) return null;
       if (t.notTheirTurn && s.turn.active === ev.player) return null;
-      // Modal spell (700.2): "choose one / two / up to…" or spree; not the engine's modes for overload, cleave or a
-      // number to choose (Expel the Interlopers).
+      // Modal spell (700.2): "choose one / two / up to…" or spree; not the engine's modes for overload or cleave.
       if (t.modal) {
         const d = s.defs[s.objects[ev.stackId]?.defId ?? ""];
         if ((d?.spell?.modes?.length ?? 0) < 2 || !MODAL_TEXT.test(d?.text ?? "")) return null;

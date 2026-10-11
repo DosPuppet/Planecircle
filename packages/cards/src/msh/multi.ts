@@ -346,13 +346,30 @@ export const MULTI: Record<string, CardScript> = {
   "The Kingpin of Crime": {
     // Extort (702.101): read from the text.
     abilities: [
-      // Creatures that enter after the resolution are not affected (see docs/approximations.md).
+      // A rule for the turn, not a change of characteristics: the creatures that arrive later are affected too (the
+      // static of an emblem until end of turn).
       triggered(
         when.attackWith(),
         fx.mayPayLife(
           2,
           "Pay 2 life: creatures you control deal damage equal to their toughness if it's greater?",
-          fx.modifyAll(YOUR_CREATURES, { addPowerRules: [powerFor.combatToughness] }),
+          fx.emblem(
+            msg("The Kingpin of Crime (this turn)"),
+            msg(
+              "Creatures you control with toughness greater than their power assign combat damage equal to their toughness rather than their power.",
+            ),
+            [
+              staticAbility(
+                YOUR_CREATURES,
+                { addPowerRules: [powerFor.combatToughness] },
+                {
+                  label: "Combat damage equal to toughness if it's greater",
+                },
+              ),
+            ],
+            false,
+            true,
+          ),
         ),
         { label: "Pay 2 life: combat damage according to toughness" },
       ),

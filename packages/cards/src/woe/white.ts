@@ -2,7 +2,7 @@
  * Wilds of Eldraine — white cards (lot A). Adventures have one entry per face (the creature under its name, the
  * Adventure spell under the name of the Adventure); Bargain is read from the text (`cond.kicked`).
  */
-import { msg, type ObjectFilter, type TargetSpec, type TokenSpec, type TriggerSpec } from "@mtgx/engine";
+import type { ObjectFilter, TargetSpec, TokenSpec, TriggerSpec } from "@mtgx/engine";
 import {
   activated,
   amount,
@@ -11,6 +11,7 @@ import {
   CELEBRATION,
   CURSED_ROLE,
   chapter,
+  cmp,
   cond,
   createRole,
   FOOD,
@@ -206,12 +207,18 @@ export const WHITE: Record<string, CardScript> = {
       ],
     ),
   },
-  // "Choose a number between 0 and 10": one mode per number (chosen on casting rather than on resolution).
+  // "Choose a number between 0 and 10" as it resolves; suggestion: one more than the greatest power among your
+  // creatures (none of them is destroyed).
   "Expel the Interlopers": {
-    spell: modal(
-      ...Array.from({ length: 11 }, (_, n) =>
-        mode(msg("Chosen number: {n}", { n }), [], [fx.destroyAll({ types: ["Creature"], minPower: n })]),
-      ),
+    spell: spell(
+      [],
+      [
+        fx.chooseNumbers(ref.you, "n", 10, {
+          prompt: "Choose a number between 0 and 10",
+          suggested: amount.plus(amount.maxPower({ types: ["Creature"], controller: "you" }), 1),
+        }),
+        fx.destroyAll({ types: ["Creature"], compare: [cmp.power(">=", amount.numberChosen("n"))] }),
+      ],
     ),
   },
   "Frostbridge Guard": {

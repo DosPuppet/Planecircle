@@ -601,8 +601,11 @@ export function spellReduction(
   }
   const view = spellView(d, player);
   // Reductions granted to the player ("this turn" effects: Goblin Maskmaker).
-  for (const { ab } of playerStatics(s, player, "spellCost")) {
-    if (ab.spellCost && matchesView(view, ab.spellCost.filter, player)) r += ab.spellCost.reduce ?? 0;
+  for (const { id, ab } of playerStatics(s, player, "spellCost")) {
+    const reduce = ab.spellCost?.reduce;
+    if (!ab.spellCost || reduce === undefined || !matchesView(view, ab.spellCost.filter, player)) continue;
+    // An effect's amount was frozen as it resolved (Will, Scion of Peace); a static's is read now.
+    r += typeof reduce === "number" ? reduce : Math.max(0, evalAmount(s, staticContext(s, player, id ?? ""), reduce));
   }
   // "The next noncreature spell you cast this turn has affinity for artifacts" (Don & Raph).
   for (const e of s.playerEffects) {

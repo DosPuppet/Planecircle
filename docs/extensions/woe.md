@@ -147,3 +147,10 @@ The scripts are in `packages/cards/src/woe/`: `cards` (meta cards), `white`, `bl
   - the exiled card target `own: false` ("you don't own").
 - **Tests:** 7 rules tests ("lot C5") and 2 official rulings of Ashiok (`rulings.test.ts`).
 - **Deviations:** Sentinel of Lost Lore ("one or more" as optional targets), documented approximation; lifted in PLAN-H (H2): modal triggered ability (`oneOrMore`).
+
+## PLAN-M M8a (rules 199)
+
+- **The Irencrag:** "loses all other abilities" is `loseAllAbilities` with the added equip and static in the same modification; `staticSlots` (`layers.ts`) now keeps the statics granted by the same effect or a later one. Test extended.
+- **Brave the Wilds:** two modes, the target land only in the bargained one (mode conditions read at announcement). Test extended.
+- **Expel the Interlopers:** the number is chosen as the spell resolves (`fx.chooseNumbers` with a `prompt` and a `suggested` amount: one more than your greatest creature power), then `destroyAll` with `cmp.power(">=", amount.numberChosen("n"))`; one mode instead of eleven. Test rewritten.
+- **Will, Scion of Peace and Rowan, Scion of War:** a player effect for the turn (`fx.thisTurn({ spellCost })`), its `reduce` an amount frozen as the ability resolves (`spellCost.reduce` accepts an amount). Rowan's test extended (life lost afterwards, Rowan gone, next turn).

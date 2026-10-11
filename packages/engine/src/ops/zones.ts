@@ -157,8 +157,8 @@ function randomPick(s: GameState, r: Resolution, k: string, pool: readonly Objec
 }
 
 /** Can each card be given a card type it has, all different (matching, at most ten cards)? */
-function assignTypes(s: GameState, ids: ObjectId[]): boolean {
-  const types = (id: ObjectId) => s.defs[s.objects[id]?.defId ?? ""]?.types ?? [];
+function assignTypes(s: GameState, ids: ObjectId[], among?: CardType[]): boolean {
+  const types = (id: ObjectId) => (s.defs[s.objects[id]?.defId ?? ""]?.types ?? []).filter((t) => !among || among.includes(t));
   const used = new Map<string, ObjectId>();
   const place = (id: ObjectId, seen: Set<string>): boolean => {
     for (const t of types(id)) {
@@ -176,9 +176,9 @@ function assignTypes(s: GameState, ids: ObjectId[]): boolean {
 }
 
 /** "One card per type" suggestion: the cards in order, as long as they take a type still free. */
-function greedyOnePerType(s: GameState, ids: ObjectId[]): ObjectId[] {
+function greedyOnePerType(s: GameState, ids: ObjectId[], among?: CardType[]): ObjectId[] {
   const out: ObjectId[] = [];
-  for (const id of ids) if (assignTypes(s, [...out, id])) out.push(id);
+  for (const id of ids) if (assignTypes(s, [...out, id], among)) out.push(id);
   return out;
 }
 
@@ -1296,13 +1296,19 @@ export const HANDLERS: OpHandlers = {
     const chooser = e.chooser === "owner" ? whose : ctx.controller;
     const top = player.library.slice(0, evalAmount(s, ctx, e.n));
     if (top.length === 0) return;
+    // "Reveal the top N cards": shown to all players before the choice (once).
+    if (e.reveal === "all" && !r.vars[key("revealedAll")]) {
+      r.vars[key("revealedAll")] = [1];
+      emit({ type: "reveal", player: whose, defIds: top.map((id) => s.objects[id]?.defId ?? "") });
+    }
+    const typesAmong = Array.isArray(e.onePerType) ? e.onePerType : undefined;
     const maxMv = e.maxManaValue === undefined ? undefined : evalAmount(s, ctx, e.maxManaValue);
     const filter = maxMv === undefined ? e.filter : { ...e.filter, maxManaValue: maxMv };
     const options = top.filter((id) => !filter || matchesCard(s, ctx.controller, id, filter, ctx.sourceId));
     const count = evalAmount(s, ctx, e.count);
     // Suggestion that respects the total mana value limit (the first cards that fit).
     const withinTotal = (ids: string[]) => {
-      if (e.onePerType) return greedyOnePerType(s, options).slice(0, count);
+      if (e.onePerType) return greedyOnePerType(s, options, typesAmong).slice(0, count);
       if (e.maxTotalManaValue === undefined) return ids;
       let total = 0;
       return ids.filter((id) => {
@@ -1340,7 +1346,7 @@ export const HANDLERS: OpHandlers = {
       }
       picked = answer.map(String);
       // Atraxa, Grand Unifier: "for each card type, a card of that type" (each card taken for a different type).
-      if (e.onePerType && !assignTypes(s, picked)) throw new RulesError(msg("Only one card per card type"));
+      if (e.onePerType && !assignTypes(s, picked, typesAmong)) throw new RulesError(msg("Only one card per card type"));
       // "with total mana value N or less": a choice that exceeds it is refused.
       if (e.maxTotalManaValue !== undefined) {
         const total = picked.reduce((n, id) => n + manaValue(s.defs[s.objects[id]?.defId ?? ""]?.manaCost), 0);
@@ -1402,7 +1408,7 @@ export const HANDLERS: OpHandlers = {
     const arrival = arrivalChoices(s, r, ctx, picked, e.to, ownerOr(s, e.to, ctx.controller), key);
     if (!(arrival instanceof Map)) return arrival;
     // "You may reveal it and put it into your hand": the chosen cards are shown to all players.
-    if (e.reveal && picked.length)
+    if (e.reveal === true && picked.length)
       emit({ type: "reveal", player: whose, defIds: picked.map((id) => s.objects[id]?.defId ?? "") });
     store(r, e.store, picked.length);
     const taken = picked
@@ -1570,11 +1576,40 @@ export const HANDLERS: OpHandlers = {
       if (matchesCard(s, ctx.controller, id, { ...e.filter, controller: undefined })) found.push(id);
     }
     const revealed = player.library.slice(0, i);
+    // "Put any number of those cards …" (Aurora Awakener): the controller chooses among the revealed cards, which are
+    // shown first; the others join the rest.
+    if (e.anyNumber && e.to && found.length > 0) {
+      if (!r.vars[key("revealed")]) {
+        r.vars[key("revealed")] = [1];
+        emit({ type: "reveal", player: owner, defIds: revealed.map((id) => s.objects[id]?.defId ?? "") });
+      }
+      const answer = r.vars[key("among")];
+      if (!answer) {
+        return {
+          ask: {
+            player: ctx.controller,
+            key: key("among"),
+            request: {
+              type: "pick",
+              intent: "pickCards",
+              prompt: msg("Choose any number of these cards"),
+              options: found,
+              min: 0,
+              max: found.length,
+              suggested: found,
+            },
+          },
+        };
+      }
+      const chosen = answer.map(String);
+      found.splice(0, found.length, ...found.filter((id) => chosen.includes(id)));
+    }
     const arrival = e.to
       ? arrivalChoices(s, r, ctx, found, e.to, ownerOr(s, e.to, ctx.controller), key)
       : new Map<ObjectId, Arrival>();
     if (!(arrival instanceof Map)) return arrival;
-    emit({ type: "reveal", player: owner, defIds: revealed.map((id) => s.objects[id]?.defId ?? "") });
+    if (!r.vars[key("revealed")])
+      emit({ type: "reveal", player: owner, defIds: revealed.map((id) => s.objects[id]?.defId ?? "") });
     if (!e.to) {
       if (e.store) r.vars[`$ids:${e.store}`] = found;
       return;
@@ -1705,29 +1740,6 @@ export const HANDLERS: OpHandlers = {
         .map((id) => moveObject(s, id, "battlefield", { controller: s.objects[id]?.owner }))
         .filter((x): x is string => !!x);
     }
-    return;
-  },
-  portent(s, r, _e, ctx) {
-    const pl = s.players[ctx.controller];
-    if (!pl) return;
-    const revealed = pl.library.slice(0, Math.max(0, ctx.x));
-    const typesOf = (id: string) => s.defs[s.objects[id]?.defId ?? ""]?.types ?? [];
-    // One card per card type: the cards with the fewest types are assigned first.
-    const order: CardType[] = ["Battle", "Planeswalker", "Enchantment", "Artifact", "Sorcery", "Instant", "Creature", "Land"];
-    const picked: string[] = [];
-    for (const t of order) {
-      const c = revealed
-        .filter((id) => !picked.includes(id) && typesOf(id).includes(t))
-        .sort((a, b) => typesOf(a).length - typesOf(b).length)[0];
-      if (c) picked.push(c);
-    }
-    emit({ type: "reveal", player: ctx.controller, defIds: revealed.map((id) => s.objects[id]?.defId ?? "") });
-    const exiled = picked.map((id) => moveWithSpec(s, ctx.controller, id, { to: "exile" })).filter((x): x is string => !!x);
-    for (const id of revealed) if (!picked.includes(id) && s.objects[id]) moveAndLog(s, id, "graveyard");
-    // Four or more cards: a spell among them may be cast for free (optionally, during the resolution); the rest then
-    // goes to the hand.
-    r.vars["$ids:free"] = exiled.length >= 4 ? exiled.filter((id) => !typesOf(id).includes("Land")) : [];
-    r.vars["$ids:rest"] = exiled;
     return;
   },
   exileTop(s, r, e, ctx) {

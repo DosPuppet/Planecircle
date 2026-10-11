@@ -2247,6 +2247,28 @@ describe("Bloomburrow, lot K8 : rares (2)", () => {
     expect(namesIn(s, s.players.p1?.library)).toEqual(["Plains"]);
   });
 
+  it("Portent of Calamity: the player chooses one card per type (PLAN-M M8a); three chosen, no free spell", () => {
+    let s = scenario({
+      p1: {
+        battlefield: lands("Island", 6),
+        hand: ["Portent of Calamity"],
+        library: ["Forest", "Serra Angel", "Opt", "Duress", "Opt", "Plains"],
+      },
+    });
+    const lib = s.players.p1?.library ?? [];
+    const [forest, angel, opt1, , opt2] = lib as string[];
+    s = cast(s, "p1", "Portent of Calamity", { x: 5 });
+    s = passAccepting(s, (x) => x.pending?.kind === "choice");
+    const req = s.pending?.kind === "choice" ? s.pending.request : undefined;
+    expect(req?.type === "pick" && [req.options.length, req.min, req.max]).toEqual([5, 0, 5]);
+    // Two instants: refused.
+    expect(() => act(s, "p1", { type: "choose", values: [opt1 as string, opt2 as string] })).toThrow(RulesError);
+    s = resolve(act(s, "p1", { type: "choose", values: [forest as string, angel as string, opt1 as string] }));
+    expect(castNowOf(s)).toBeUndefined();
+    expect(handOf(s).sort()).toEqual(["Forest", "Opt", "Serra Angel"]);
+    expect(graveOf(s).sort()).toEqual(["Duress", "Opt", "Portent of Calamity"]);
+  });
+
   it("Portent of Calamity: fewer than four cards exiled — no free spell, they go to hand", () => {
     let s = scenario({
       p1: { battlefield: lands("Island", 3), hand: ["Portent of Calamity"], library: ["Forest", "Serra Angel", "Plains"] },

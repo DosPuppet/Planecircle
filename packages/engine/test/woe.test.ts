@@ -10,6 +10,7 @@ import { CELEBRATION, CURSED_ROLE, createRole, MONSTER_ROLE, WICKED_ROLE, YOUNG_
 import { dealDamage, destroy, payLife } from "../src/actions";
 import * as dsl from "../src/dsl";
 import { runEffect } from "../src/effects";
+import { RulesError } from "../src/errors";
 import { legalActions } from "../src/legal";
 import { chars, moveObject } from "../src/state";
 import { legalTargets as legalTargetsOf } from "../src/targets";
@@ -834,10 +835,32 @@ describe("Wilds of Eldraine, lot A — blanc", () => {
         p1: { battlefield: ["Bear Cub", ...lands("Plains", 5)], hand: ["Expel the Interlopers"] },
         p2: { battlefield: ["Serra Angel", "Llanowar Elves"] },
       });
-      s = settle(cast(s, "p1", "Expel the Interlopers", { mode: 2 }));
+      // The number is chosen as the spell resolves (PLAN-M M8a), from 0 to 10; suggestion: 3 (one more than the Bear
+      // Cub's power).
+      const cast0 = cast(s, "p1", "Expel the Interlopers");
+      let asked: unknown[] = [];
+      s = settle(cast0, (req) => {
+        if (req.type !== "number") return undefined;
+        asked = [req.min, req.max, req.suggested];
+        return [2];
+      });
+      expect(asked).toEqual([0, 10, [3]]);
       expect(idsOf(s, "p1", "graveyard", "Bear Cub")).toHaveLength(1);
       expect(idsOf(s, "p2", "graveyard", "Serra Angel")).toHaveLength(1);
       expect(idsOf(s, "p2", "battlefield", "Llanowar Elves")).toHaveLength(1);
+      // The suggestion keeps your creatures.
+      const t = settle(
+        cast(
+          scenario({
+            p1: { battlefield: ["Bear Cub", ...lands("Plains", 5)], hand: ["Expel the Interlopers"] },
+            p2: { battlefield: ["Serra Angel", "Llanowar Elves"] },
+          }),
+          "p1",
+          "Expel the Interlopers",
+        ),
+      );
+      expect(idsOf(t, "p1", "battlefield", "Bear Cub")).toHaveLength(1);
+      expect(idsOf(t, "p2", "graveyard", "Serra Angel")).toHaveLength(1);
     });
 
     it("Eerie Interference: prevents damage to you and your creatures, not that of a spell", () => {
@@ -3143,8 +3166,17 @@ describe("Wilds of Eldraine, lot A — vert", () => {
     });
     const [, land] = idsOf(s, "p1", "battlefield", "Forest") as [string, string];
     const candy = idOf(s, "p1", "battlefield", "Candy Trail");
+    // The target exists only when bargained (PLAN-M M8a): the bargained mode requires the bargain, the other excludes
+    // it.
+    const offer = legalActions(s, "p1").find((a) => a.type === "cast" && a.card === idOf(s, "p1", "hand", "Brave the Wilds"));
+    const modes = offer?.type === "cast" ? offer.modes : [];
+    expect(modes.map((m) => [m.targets.length, !!m.requiresKicker, !!m.forbidsKicker])).toEqual([
+      [0, false, true],
+      [1, true, false],
+    ]);
+    expect(() => cast(s, "p1", "Brave the Wilds", { t: [land] }, { mode: 1 })).toThrow(RulesError);
     s = settle(
-      cast(s, "p1", "Brave the Wilds", { t: [land] }, { kicked: true, sacrifice: [candy] }),
+      cast(s, "p1", "Brave the Wilds", { t: [land] }, { mode: 1, kicked: true, sacrifice: [candy] }),
       pickNames(() => s, "Plains"),
     );
     const c = chars(s, land);
@@ -3157,7 +3189,7 @@ describe("Wilds of Eldraine, lot A — vert", () => {
     let t = scenario({ p1: { battlefield: ["Forest", "Forest"], hand: ["Brave the Wilds"], library: ["Opt", "Plains"] } });
     const other = idsOf(t, "p1", "battlefield", "Forest")[1] as string;
     t = settle(
-      cast(t, "p1", "Brave the Wilds", { t: [other] }),
+      cast(t, "p1", "Brave the Wilds"),
       pickNames(() => t, "Plains"),
     );
     expect(chars(t, other).types).not.toContain("Creature");
@@ -3969,6 +4001,14 @@ describe("Wilds of Eldraine, lot A — multicolores, incolores et terrains", () 
       expect(c.subtypes).toContain("Equipment");
       expect(c.supertypes).toContain("Legendary");
       expect(legalActions(s, "p1").some((a) => a.type === "tapForMana" && a.source === crag)).toBe(false);
+      // "Loses all other abilities" (PLAN-M M8a): only equip and the static are left, the mana ability and the
+      // trigger are gone (a second legendary creature triggers nothing).
+      expect(c.abilities.map((a) => a.kind).sort()).toEqual(["activated", "static"]);
+      const before = s.players.p1?.hand.length;
+      s = settle(cast(s, "p1", "Test Legend Two"), (req) => {
+        throw new Error(`unexpected question ${req.intent}`);
+      });
+      expect(s.players.p1?.hand.length).toBe((before ?? 0) - 1);
       const bear = idOf(s, "p1", "battlefield", "Bear Cub");
       s = settle(activate(s, "p1", crag, { label: "Equip", targets: { t: [bear] } }));
       expect(s.objects[crag]?.attachedTo).toBe(bear);
@@ -4521,6 +4561,13 @@ describe("Wilds of Eldraine, lot C1: stealth, X counters divided, attached Auras
     const strike = idOf(s, "p1", "hand", "Lightning Strike");
     // {1}{R} minus {1}: {R}, unpayable without a land but displayed cost of mana value 1.
     expect(projectView(s, "p1").hand.find((c) => c.id === strike)?.castCost).toEqual({ text: "{R}", delta: -1 });
+    // PLAN-M M8a: X is fixed as the ability resolves (life lost afterwards doesn't count), and the reduction is the
+    // player's for the turn (it stays after Rowan leaves).
+    s.turnLog.push({ e: "lifeLoss", player: "p1", amount: 1 });
+    destroy(s, rowan);
+    expect(projectView(s, "p1").hand.find((c) => c.id === strike)?.castCost).toEqual({ text: "{R}", delta: -1 });
+    s = advanceUntil(s, (x) => x.turn.active === "p2");
+    expect(projectView(s, "p1").hand.find((c) => c.id === strike)?.castCost).toBeUndefined();
   });
 });
 

@@ -24,7 +24,9 @@ import {
   customCard,
   idOf,
   idsOf,
+  namesIn,
   passAccepting,
+  pickNamed,
   scenario,
   settle as settleAnswering,
   steal,
@@ -2038,16 +2040,26 @@ describe("Lorwyn Eclipsed, batch A — red", () => {
 
   it("End-Blaze Epiphany: X damage; if the creature dies this turn, exiles as many cards as its power, one playable", () => {
     let s = scenario({
-      p1: { battlefield: lands("Mountain", 4), hand: ["End-Blaze Epiphany"], library: lands("Island", 6) },
+      p1: { battlefield: lands("Mountain", 4), hand: ["End-Blaze Epiphany"], library: ["Opt", ...lands("Island", 5)] },
       p2: { battlefield: ["Bear Cub", "Serra Angel"] },
     });
     const bear = idOf(s, "p2", "battlefield", "Bear Cub");
-    s = answer(act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "End-Blaze Epiphany"), x: 3, targets: { t: [bear] } }));
+    // Power 2: two cards exiled (Opt and an Island); the card is chosen as the ability resolves (PLAN-M M8a), and only
+    // that one can be played.
+    let offered: (string | undefined)[] = [];
+    s = settleAnswering(
+      act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "End-Blaze Epiphany"), x: 3, targets: { t: [bear] } }),
+      (req, _p, cur) => {
+        if (req.type !== "pick" || req.intent !== "pickCards") return undefined;
+        offered = namesIn(cur, req.options).sort();
+        return pickNamed(cur, req, "Island");
+      },
+    );
+    expect(offered).toEqual(["Island", "Opt"]);
     expect(idsOf(s, "p2", "graveyard", "Bear Cub")).toHaveLength(1);
-    // Power 2: two cards exiled; playing one makes the other unplayable.
-    expect(s.exile.filter((id) => nameOf(s, id) === "Island")).toHaveLength(2);
-    expect(playableFromExile(s)).toHaveLength(2);
-    s = act(s, "p1", { type: "playLand", card: playableFromExile(s)[0] as string });
+    const island = s.exile.find((id) => nameOf(s, id) === "Island") as string;
+    expect(playableFromExile(s)).toEqual([island]);
+    s = act(s, "p1", { type: "playLand", card: island });
     expect(playableFromExile(s)).toHaveLength(0);
 
     // The creature survives: nothing is exiled.
@@ -2764,14 +2776,35 @@ describe("Lorwyn Eclipsed, batch A — green", () => {
     expect(s.players.p1?.graveyard).toHaveLength(0);
   });
 
-  it("Aurora Awakener: reveals up to X permanent cards, puts them onto the battlefield, the rest on the bottom", () => {
-    let s = scenario({
-      p1: {
-        battlefield: lands("Forest", 7).concat("Serra Angel"),
-        hand: ["Aurora Awakener"],
-        library: ["Opt", "Bear Cub", "Opt", "Shivan Dragon", "Llanowar Elves", "Forest"],
-      },
+  it("Aurora Awakener: reveals until X permanent cards, puts any number of them onto the battlefield, the rest on the bottom", () => {
+    const setup = () =>
+      scenario({
+        p1: {
+          battlefield: lands("Forest", 7).concat("Serra Angel"),
+          hand: ["Aurora Awakener"],
+          library: ["Opt", "Bear Cub", "Opt", "Shivan Dragon", "Llanowar Elves", "Forest"],
+        },
+      });
+    // "Any number" (PLAN-M M8a): only the Dragon; the Bear Cub joins the rest on the bottom.
+    let offered: (string | undefined)[] = [];
+    let t = settleAnswering(cast(setup(), "Aurora Awakener"), (req, _p, cur) => {
+      if (req.type !== "pick" || req.intent !== "pickCards") return undefined;
+      offered = namesIn(cur, req.options);
+      expect(req.min).toBe(0);
+      return pickNamed(cur, req, "Shivan Dragon");
     });
+    expect(offered).toEqual(["Bear Cub", "Shivan Dragon"]);
+    expect(idsOf(t, "p1", "battlefield", "Shivan Dragon")).toHaveLength(1);
+    expect(idsOf(t, "p1", "battlefield", "Bear Cub")).toHaveLength(0);
+    const rest = namesIn(t, t.players.p1?.library);
+    expect(rest.slice(0, 2)).toEqual(["Llanowar Elves", "Forest"]);
+    expect(rest.slice(2).sort()).toEqual(["Bear Cub", "Opt", "Opt"]);
+    // None: everything goes on the bottom.
+    t = settleAnswering(cast(setup(), "Aurora Awakener"), (req) => (req.intent === "pickCards" ? [] : undefined));
+    expect([...idsOf(t, "p1", "battlefield", "Bear Cub"), ...idsOf(t, "p1", "battlefield", "Shivan Dragon")]).toEqual([]);
+    expect(t.players.p1?.library).toHaveLength(6);
+    // The suggestion takes them all.
+    let s = setup();
     s = settle(cast(s, "Aurora Awakener"));
     // X = 2 (white and green): the Bear Cub and the Dragon enter; the two Opts go on the bottom.
     expect(idsOf(s, "p1", "battlefield", "Bear Cub")).toHaveLength(1);

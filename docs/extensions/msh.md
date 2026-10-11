@@ -137,3 +137,7 @@ The scripts are in `packages/cards/src/msh/`: `cards` (meta cards), `white`, `bl
   - the cost `exileGraveyardSymbols` ("exile [color] cards from your graveyard with total N symbols"), the reference `ref.costExiled` and `castCopiesFree(…, { maxCount })` (Baron Helmut Zemo's boast).
 - **Rules version:** 53.
 - **Tests:** 8 rules tests ("lot C3").
+
+## PLAN-M M8a (rules 199)
+
+- **The Kingpin of Crime:** the toughness rule is the static of an emblem until end of turn, so creatures that arrive afterwards follow it too. Test extended.

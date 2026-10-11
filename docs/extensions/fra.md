@@ -56,3 +56,7 @@
 
   They are added after the two FDN decks in `DECKS` (the tests and the bench use the first two). Balance checked by a round-robin tournament between heuristic AIs, 10 games per matchup: all the decks win between 38 and 59% of their games.
 - Remaining for FRA: Emrakul, Uldaros Theorix and Hall of Echoes, then the reimport of the French texts after 2 October.
+
+## PLAN-M M8a (rules 199)
+
+- **Garruk, Curse Breaker −4:** the emblem triggers whenever one or more creatures (any player's) attack one of your opponents, and only the creatures attacking an opponent get +2/+2 and trample (`when.attackWith(1, { attacking: "opponent" }, true)`). Jace, Reality Sculptor's −3 emblem was already exact. 1 test (`fra.test.ts`, three players).

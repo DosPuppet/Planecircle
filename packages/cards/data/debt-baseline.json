@@ -69,17 +69,14 @@
     "countersAboveBase": "Sovereign Okinec Ahau — operation specific to one card (R4.6)",
     "flickerChosen": "Another Round — operation specific to one card (R4.6)",
     "meld": "Vanille, Cheerful l'Cie — generic mechanic, a single card for now",
-    "portent": "Portent of Calamity — operation specific to one card (R4.6)",
     "speed": "Spikeshell Harrier — the only card that changes a player's speed by an effect (by: -1, only for the fastest player, never below 1); the op is shared with the inherent speed trigger (702.179, rulesTrigger, by: 1), PLAN-M M3a",
     "revealFaceDown": "Hauntwoods Shrieker — operation specific to one card (R4.6)",
     "tripleTriad": "Triple Triad — operation specific to one card (R4.6)",
-    "chooseNumbers": "Wheel of Misfortune — each player secretly chooses a number (ref.numberChoosers, amount.numberChosen); family of simultaneous secret choices: Mob Verdict and Prisoner's Dilemma (Deadpool deck) need it too, PLAN-M M10b",
     "removeFromCombat": "Reconnaissance — \"remove [the creature] from combat\" (506.4), a rules action shared by many cards (Maze of Ith family); generic op, a single card for now",
     "pair": "soulbond (702.95, Tandem Lookout): pairing of two creatures, the keyword's own action; shared by every soulbond card",
     "exchangeTextBox": "Deadpool, Trading Card — \"as it enters, you may exchange its text box and another creature's\" (612, layer 3, `LayerMods.textOf`): family of text-changing effects (Exchange of Words, Volrath's Shapeshifter), to reuse for them"
   },
   "variant": {
-    "Amount.numberChosen": "Wheel of Misfortune — union variant of a single card, tracked since the audit of 2026-10-07: to attach to a generic form when one exists",
     "Amount.pow": "Mathemagics — union variant of a single card, tracked since the audit of 2026-10-07: to attach to a generic form when one exists",
     "CastOption.foretell": "Sozin's Comet — foretell (702.143, read from the text; the special action is the shared exileToCast op with kind foretell, PLAN-M M3a): the foretell cast option of CardDef.castOptions (PLAN-M M5, former CardDef.foretell key); a single Standard card for now",
     "Condition.behold": "Molten Exhale — \"as though it had flash if you behold a Dragon\": can a Dragon be beheld now (flashIf); Theorist's Sanctum, its other user, became a real \"as it enters\" behold (PLAN-L L5)",
@@ -173,6 +170,7 @@
     "storeAll": "Dazzling Sphinx — exileUntil remembers every exiled card (\"the exiled cards that weren't cast\"); to reuse for any \"exile until … put the rest\" text",
     "storeGraveyard": "Intrude on the Mind — piles count output",
     "strictAmongAll": "Selvala, Heart of the Wilds — needs event context that resolveFilter does not have",
+    "suggested": "Expel the Interlopers — the suggested answer of a number chosen as a spell resolves (`chooseNumbers`, \"choose a number between 0 and 10\": one more than the greatest power among your creatures, so none of them is destroyed; the AI tries only small ranges, PLAN-M M8a): to reuse for any number chosen at resolution whose default isn't 0",
     "thenExtraTurn": "Emrakul, the Promised End — op extra gives the turn to the controller, not that player",
     "topDamage": "Clash of Elements — depends on the owner's choice, no result stored",
     "totalManaValue": "Fabrication Foundry — the pay effect exiles permanents you control with total mana value N or greater, the cheapest first (former exileForManaValue op, PLAN-M M4); to reuse for any \"exile/sacrifice … with total mana value N or greater\" paid during a resolution",
@@ -183,7 +181,7 @@
   "turnFields": {},
   "engineCardLiterals": {},
   "ceilings": {
-    "Single-card values": 136,
+    "Single-card values": 137,
     "CardDef": 52,
     "GameObject": 51,
     "StackItem": 29,
@@ -208,8 +206,8 @@
     "NextSpell": 9,
     "KickerDef": 5,
     "CardRules": 13,
-    "Effect": 139,
-    "Effect (fields)": 615,
+    "Effect": 138,
+    "Effect (fields)": 617,
     "TriggerSpec": 41,
     "TriggerSpec (fields)": 147,
     "Condition": 47,
@@ -325,6 +323,7 @@
     "PLAN-M M3b [rules 197]: Assimilation Aegis as a becomesAttached trigger (who: \"self\") with becomeCopy whileAttached (becomeCopy.attachment, the same duration form as Eriette's gainControl); TriggerSpec.becomesAttached and the attachment key leave the baseline (two cards), duration=whileAttached is no longer a single-card value; copyLinkedExile enters it (Secret Invasion alone): Single-card values 135 → 134, Effect (fields) 652 → 653",
     "PLAN-M M4: the pay family — one pay op (cost: PayCost, a Pick of CostDef; or, who, unless, skip, prompt, x, times, manaOf, exclude, totalManaValue, store) replaces mayPay, unlessPay, payCostOf, forage, collectEvidence, behold, exileForManaValue, payX and may (the fx helpers keep their signatures; the handler dispatches by shape to the former bodies, replays identical); CostDef gains discardRandom, poison and behold (the ward costs and the resolution behold, read only by the pay effect for now: the surface moves from Effect to CostDef); collectEvidence=\"X\" is written by one card (Incinerator of the Guilty: collect evidence X during a resolution, the X form of the other CostDef counts); the exileForManaValue op entry becomes singleCardKeys.totalManaValue; CardDef.ward.orMana becomes ward.or (a PayCost, like the effect's or): Single-card values 134 → 135, CostDef 27 → 30, Effect 147 → 139, Effect (fields) 653 → 614",
     "PLAN-M M5: CardDef rework (cda, kicker, additional costs, cast options, card rules); KickerDef, CardRules and the CastOption union measured: CardDef 91 → 52, AdditionalCost 12 → 16, KickerDef — → 5, CardRules — → 13, CastOption — → 10, CastOption (fields) — → 38",
-    "PLAN-M M7: castNow.haste (suspend, 702.62a: the suspended creature cast gains haste; every suspend card, Taigam), castSpell trigger storm (granted storm read from the cast event, Ral's emblem and Prismari), spellFate \"shuffle\" (Green Sun's Zenith, shuffled only as it resolves; beside \"bottom\"): Single-card values 135 → 136, Effect (fields) 614 → 615, TriggerSpec (fields) 146 → 147"
+    "PLAN-M M7: castNow.haste (suspend, 702.62a: the suspended creature cast gains haste; every suspend card, Taigam), castSpell trigger storm (granted storm read from the cast event, Ral's emblem and Prismari), spellFate \"shuffle\" (Green Sun's Zenith, shuffled only as it resolves; beside \"bottom\"): Single-card values 135 → 136, Effect (fields) 614 → 615, TriggerSpec (fields) 146 → 147",
+    "PLAN-M M8a: the portent op removed (Portent of Calamity as lookAtTop onePerType): Effect 139 → 138; revealUntilN.anyNumber (Aurora Awakener), chooseNumbers.prompt and suggested (Expel the Interlopers): Effect (fields) 615 → 617 (portent's own field gone); the >= operator of FilterCompare first written (Expel the Interlopers: power greater than or equal to the chosen number): Single-card values 136 → 137: Single-card values 136 → 137, Effect 139 → 138, Effect (fields) 615 → 617"
   ]
 }

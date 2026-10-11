@@ -1817,16 +1817,22 @@ describe("lot A, rouge", () => {
       it("I: until your next turn, each creature attacks if able", () => {
         let s = scenario({
           p1: { battlefield: lands("Mountain", 5), hand: ["Maximum Carnage"] },
-          p2: { battlefield: ["Bear Cub"] },
+          p2: { battlefield: ["Bear Cub", "Forest"], hand: ["Llanowar Elves"] },
         });
         s = settle(cast(s, "p1", "Maximum Carnage"));
         const bear = idOf(s, "p2", "battlefield", "Bear Cub");
         expect(chars(s, bear).blockRules.map((r) => r.goadedBy)).toEqual(["p1"]);
+        // A creature that arrives afterwards is affected too (ruling; PLAN-M M8a).
+        s = advanceUntil(s, (x) => x.turn.active === "p2" && x.turn.step === "main1" && x.pending?.kind === "priority");
+        s = settle(cast(s, "p2", "Llanowar Elves"));
+        const elves = idOf(s, "p2", "battlefield", "Llanowar Elves");
+        expect(chars(s, elves).blockRules.map((r) => r.goadedBy)).toEqual(["p1"]);
         s = advanceUntil(s, (x) => x.turn.active === "p2" && x.pending?.kind === "declareAttackers");
         expect(() => act(s, "p2", { type: "declareAttackers", attackers: [] })).toThrow();
         s = act(s, "p2", { type: "declareAttackers", attackers: [{ id: bear, defender: "p1" }] });
         s = advanceUntil(s, (x) => x.turn.active === "p1" && x.turn.step === "main1");
         expect(chars(s, bear).blockRules).toEqual([]);
+        expect(chars(s, elves).blockRules).toEqual([]);
       });
 
       it("I, with three players: each creature attacks a player other than you if able", () => {

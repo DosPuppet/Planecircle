@@ -207,7 +207,9 @@ export const RED: Record<string, CardScript> = {
           ref.target(),
           [
             fx.exileTop(ref.you, amount.powerOf(ref.eventObject), "x"),
-            fx.grantPlay(ref.stored("x"), { untilYourNextTurn: true, oneOf: true }),
+            // "Then choose a card exiled this way": chosen as the ability resolves.
+            fx.chooseAmong(ref.stored("x"), ref.you, "c", { anyZone: true, prompt: "Choose the card you may play" }),
+            fx.grantPlay(ref.stored("c"), { untilYourNextTurn: true }),
           ],
           { label: "Exile cards equal to its power; you may play one of them" },
         ),

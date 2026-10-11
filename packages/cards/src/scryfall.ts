@@ -1580,6 +1580,6 @@ function withReveal<T>(x: T, ops: ReadonlySet<string>): T {
   if (!x || typeof x !== "object") return x;
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(x)) out[k] = withReveal(v, ops);
-  if (typeof out.op === "string" && ops.has(out.op)) out.reveal = true;
+  if (typeof out.op === "string" && ops.has(out.op) && out.reveal !== "all") out.reveal = true;
   return out as T;
 }

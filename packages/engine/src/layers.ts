@@ -980,7 +980,11 @@ function staticSlots(s: GameState, defOfId: (id: ObjectId) => string): StaticSlo
   // A source that loses all its abilities (Witness Protection, "loses all abilities" effect) no longer applies its
   // own; approximation of 613.8 at one level.
   const lost = new Set<ObjectId>();
-  for (const e of s.effects) if (e.loseAllAbilities) for (const id of e.affected) lost.add(id);
+  // Lost through a resolution effect: the statics granted by that effect or a later one still apply (The Irencrag:
+  // "gains … and loses all other abilities"); the most recent loss counts.
+  const lostAt = new Map<ObjectId, number>();
+  for (const e of s.effects)
+    if (e.loseAllAbilities) for (const id of e.affected) lostAt.set(id, Math.max(lostAt.get(id) ?? 0, e.timestamp));
   for (const id of s.battlefield) {
     const o = obj(s, id);
     if (!o.attachedTo) continue;
@@ -991,7 +995,7 @@ function staticSlots(s: GameState, defOfId: (id: ObjectId) => string): StaticSlo
   // Static that removes the abilities of the permanents of a filter ("nonbasic lands are Mountains", 305.7): the
   // affected permanents according to their base characteristics, without the source itself (same approximation).
   for (const id of s.battlefield) {
-    if (lost.has(id)) continue;
+    if (lost.has(id) || lostAt.has(id)) continue;
     const o = obj(s, id);
     for (const ab of s.defs[defOfId(id)]?.abilities ?? []) {
       if (ab.kind !== "static" || typeof ab.affects === "string" || !ab.mods.loseAllAbilities) continue;
@@ -1012,6 +1016,7 @@ function staticSlots(s: GameState, defOfId: (id: ObjectId) => string): StaticSlo
   }
   for (const id of [...s.battlefield, ...emblems]) {
     if (lost.has(id)) continue;
+    const lossAt = lostAt.get(id);
     const o = obj(s, id);
     const own = o.zone === "battlefield" ? defOfId(id) : o.defId;
     const ownDef = s.defs[own];
@@ -1019,23 +1024,24 @@ function staticSlots(s: GameState, defOfId: (id: ObjectId) => string): StaticSlo
     // (113.6).
     // Layer 3 (612): a text box taken from another definition (Deadpool, Trading Card) brings its static abilities.
     const text = o.zone === "battlefield" && !o.faceDown ? textBoxOf(s, id) : undefined;
-    const printed = o.faceDown
-      ? []
-      : text
-        ? (s.defs[text]?.abilities ?? [])
-        : o.zone === "command"
-          ? commandZoneAbilities(s, id)
-          : o.zone === "battlefield" && ownDef?.layout === "split" && ownDef.faceDefs
-            ? roomBase(o, ownDef).abilities
-            : ownDef
-              ? levelAbilities(o, ownDef)
-              : [];
+    const printed =
+      o.faceDown || lossAt !== undefined
+        ? []
+        : text
+          ? (s.defs[text]?.abilities ?? [])
+          : o.zone === "command"
+            ? commandZoneAbilities(s, id)
+            : o.zone === "battlefield" && ownDef?.layout === "split" && ownDef.faceDefs
+              ? roomBase(o, ownDef).abilities
+              : ownDef
+                ? levelAbilities(o, ownDef)
+                : [];
     // Statics granted by a resolution effect (Roar of the Fifth People, chapter II: "gains 'Creatures you control
     // have…'"). A static granted by another static isn't handled (613.8).
     // 613.7a: most recent timestamp between the object and the effect that grants the ability.
     const grantedAt = new Map<AbilityDef, number>();
     for (const e of s.effects) {
-      if (!e.affected.includes(id)) continue;
+      if (!e.affected.includes(id) || (lossAt !== undefined && e.timestamp < lossAt)) continue;
       for (const ab of e.addAbilities ?? []) if (ab.kind === "static") grantedAt.set(ab, Math.max(o.timestamp, e.timestamp));
     }
     for (const ab of grantedAt.size ? [...printed, ...grantedAt.keys()] : printed) {

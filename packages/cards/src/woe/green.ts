@@ -22,6 +22,7 @@ import {
   HUMAN_W,
   MONSTER_ROLE,
   manaAbility,
+  modal,
   mode,
   playerStatic,
   ROYAL_ROLE,
@@ -174,21 +175,25 @@ export const GREEN: Record<string, CardScript> = {
     ],
   },
   "Brave the Wilds": {
-    // Approximation: the target ("if this spell was bargained, target land") is optional, and offered even without
-    // bargaining (it is then not affected).
-    spell: spell(
-      [target.optional(target.permanent("t", ["Land"], { controller: "you" }, "land you control"))],
-      [
-        ...fx.when(
-          cond.kicked,
-          fx.modify(
-            ref.target(),
-            { addTypes: ["Creature"], addSubtypes: ["Elemental"], setPower: 3, setToughness: 3, addKeywords: ["haste"] },
-            "permanent",
-          ),
+    // "If this spell was bargained, target land …": the target exists only when bargained (two modes, each under the
+    // bargain or its absence, read at announcement).
+    spell: modal(
+      { ...mode("Search for a basic land card", [], [fx.search(BASIC_LAND)]), condition: cond.not(cond.kicked) },
+      {
+        ...mode(
+          "Bargained: a land becomes a 3/3 Elemental with haste; search for a basic land card",
+          [target.permanent("t", ["Land"], { controller: "you" }, "land you control")],
+          [
+            fx.modify(
+              ref.target(),
+              { addTypes: ["Creature"], addSubtypes: ["Elemental"], setPower: 3, setToughness: 3, addKeywords: ["haste"] },
+              "permanent",
+            ),
+            fx.search(BASIC_LAND),
+          ],
         ),
-        fx.search(BASIC_LAND),
-      ],
+        condition: cond.kicked,
+      },
     ),
   },
   "Commune with Nature": {

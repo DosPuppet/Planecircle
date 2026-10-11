@@ -327,16 +327,18 @@ export type Effect =
       store?: string;
       /** Exactly `count` cards ("put one of them into your hand"), not "up to". */
       exact?: boolean;
-      /** At most one card per card type (Atraxa, Grand Unifier). */
-      onePerType?: boolean;
+      /** At most one card per card type (Atraxa, Grand Unifier); a list: only those types count ("a creature card and/or
+       * a land card": Ojer Kaslem, In the Presence of Ages). */
+      onePerType?: boolean | CardType[];
       /**
        * Who chooses the cards and orders the rest: the controller (by default; Portent: another player's library), or
        * the library's owner (`owner`: "each player looks at … and may reveal", Explore the Vastlands).
        */
       chooser?: "owner";
       /** "You may reveal [a card] from among them and put it into your hand": the chosen cards are shown to all players
-       * (read from the text, `scryfall.ts`). */
-      reveal?: boolean;
+       * (read from the text, `scryfall.ts`); `all`: "reveal the top N cards" (all of them, before the choice: Ojer
+       * Kaslem, Portent of Calamity). */
+      reveal?: boolean | "all";
     }
   /** Search one's library for up to `count` cards matching the filter, then shuffle. */
   | {
@@ -529,8 +531,18 @@ export type Effect =
    * nothing moves, the matching cards are remembered (`store`, Sanar).
    */
   /** `who`: the revealed library (yours by default; Jhoira: a target opponent); `rest: "graveyard"`: the other revealed
-   * cards go to the graveyard (Consuming Aberration: "then puts those cards into their graveyard"). */
-  | { op: "revealUntilN"; filter: ObjectFilter; n: Amount; to?: MoveSpec; store?: string; who?: Ref; rest?: "graveyard" }
+   * cards go to the graveyard (Consuming Aberration: "then puts those cards into their graveyard"); `anyNumber`: "put any
+   * number of those cards …" (Aurora Awakener), chosen by the controller, the others join the rest. */
+  | {
+      op: "revealUntilN";
+      filter: ObjectFilter;
+      n: Amount;
+      to?: MoveSpec;
+      store?: string;
+      who?: Ref;
+      rest?: "graveyard";
+      anyNumber?: boolean;
+    }
   /** The controller separates the top N cards into two piles, an opponent chooses one (to the hand), the other to the graveyard. */
   /** `revealed`: two revealed piles (Intrude on the Mind); `storeGraveyard`: number of cards put into the graveyard. */
   /** `opponentSeparates`: an opponent separates the revealed cards, the controller chooses their pile (Fact or Fiction). */
@@ -675,9 +687,10 @@ export type Effect =
   | { op: "becomeMonarch"; who?: Ref }
   /**
    * Each designated player secretly chooses a number (from 0 to `max`), in APNAP order, without seeing the others';
-   * stored under `store`, read by `ref.numberChoosers` and `amount.numberChosen` (Wheel of Misfortune).
+   * stored under `store`, read by `ref.numberChoosers` and `amount.numberChosen` (Wheel of Misfortune). `prompt`: the
+   * question ("choose a number", not secret: Expel the Interlopers); `suggested`: the suggested number (0 by default).
    */
-  | { op: "chooseNumbers"; who: Ref; store: string; max: number }
+  | { op: "chooseNumbers"; who: Ref; store: string; max: number; prompt?: string; suggested?: Amount }
   /** `thenExtraTurn`: after that turn, that player takes an extra turn (Emrakul, the Promised End). */
   | { op: "controlNextTurn"; who: Ref; combatOnly?: boolean; thenExtraTurn?: boolean }
   /** "Your life total becomes N" (The Endstone). */
@@ -984,12 +997,7 @@ export type Effect =
       times?: Amount;
     }
   /** Gift (702.174): the chosen opponent gets the promised gift. */
-  | { op: "gift"; kind: GiftKind; token?: TokenSpec }
-  /**
-   * Portent of Calamity: reveal X cards, exile one per card type (automatic choice), the rest to the graveyard.
-   * Stores `$ids:free` (the spell to cast for free if four or more cards were exiled) and `$ids:rest`.
-   */
-  | { op: "portent" };
+  | { op: "gift"; kind: GiftKind; token?: TokenSpec };
 
 /** What a gift offers: a card, a Food, a tapped Fish, a Treasure. */
 /**

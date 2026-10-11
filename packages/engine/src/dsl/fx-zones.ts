@@ -1,5 +1,5 @@
 import { msg } from "../text";
-import type { Amount, Effect, MoveSpec, ObjectFilter, Ref } from "../types";
+import type { Amount, CardType, Effect, MoveSpec, ObjectFilter, Ref } from "../types";
 import { ref } from "./refs";
 import { allMatching } from "./shared";
 
@@ -99,13 +99,22 @@ export const zonesFx = {
     amount: n,
     ...opts,
   }),
-  revealUntilN: (filter: ObjectFilter, n: Amount, to?: MoveSpec, store?: string, who?: Ref): Effect => ({
+  /** `anyNumber`: "put any number of those cards [to]", the controller chooses (the others join the rest). */
+  revealUntilN: (
+    filter: ObjectFilter,
+    n: Amount,
+    to?: MoveSpec,
+    store?: string,
+    who?: Ref,
+    opts: { anyNumber?: boolean } = {},
+  ): Effect => ({
     op: "revealUntilN",
     filter,
     n,
     to,
     store,
     ...(who ? { who } : {}),
+    ...(opts.anyNumber ? { anyNumber: true } : {}),
   }),
   piles: (n: number, opts: { revealed?: boolean; storeGraveyard?: string; opponentSeparates?: boolean } = {}): Effect => ({
     op: "piles",
@@ -321,10 +330,12 @@ export const zonesFx = {
       who?: Ref;
       /** The cards taken are picked at random (Getaway Barrel). */
       random?: boolean;
-      /** One card per card type at most (Atraxa, Grand Unifier). */
-      onePerType?: boolean;
+      /** One card per card type at most (Atraxa, Grand Unifier); a list: only those types count. */
+      onePerType?: boolean | CardType[];
       /** The owner of the library chooses ("each player looks at …", with `who`). */
       chooser?: "owner";
+      /** "Reveal the top N cards": all of them are shown before the choice. */
+      revealAll?: boolean;
     } = {},
   ): Effect => ({
     op: "lookAtTop",
@@ -332,7 +343,8 @@ export const zonesFx = {
     ...(opts.who ? { who: opts.who } : {}),
     ...(opts.chooser ? { chooser: opts.chooser } : {}),
     ...(opts.random ? { random: true } : {}),
-    ...(opts.onePerType ? { onePerType: true } : {}),
+    ...(opts.onePerType ? { onePerType: opts.onePerType } : {}),
+    ...(opts.revealAll ? { reveal: "all" as const } : {}),
     filter: opts.filter,
     count: opts.count ?? 1,
     to: opts.to ?? { to: "hand" },
@@ -412,5 +424,4 @@ export const zonesFx = {
     what: { kind: "zone", zone: "battlefield", who: { kind: "you" }, filter },
     untap: true,
   }),
-  portent: { op: "portent" } as Effect,
 };

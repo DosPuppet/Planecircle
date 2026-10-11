@@ -1,5 +1,5 @@
 /** Marvel's Spider-Man — red cards (lot A). */
-import type { TriggerSpec, Zone } from "@mtgx/engine";
+import { msg, type TriggerSpec, type Zone } from "@mtgx/engine";
 import {
   activated,
   amount,
@@ -122,22 +122,30 @@ export const RED: Record<string, CardScript> = {
   },
   "Maximum Carnage": {
     abilities: [
-      // Approximation: only the creatures present on resolution are affected. The requirements are those of being goaded
-      // by you (`goadedBy`), without the word.
+      // "Until your next turn, each creature …": a rule for every creature, those that arrive later too (ruling), as the
+      // static of an emblem until your next turn. The requirements are those of being goaded by you (`goadedBy`),
+      // without the word.
       chapter(
         [1],
         [
-          fx.modifyAll(
-            { types: ["Creature"] },
-            {
-              addBlockRules: [
+          fx.emblem(
+            msg("Maximum Carnage (until your next turn)"),
+            msg("Each creature attacks each combat if able and attacks a player other than you if able."),
+            [
+              staticAbility(
+                { types: ["Creature"] },
                 {
-                  goadedBy: "you",
-                  label: "Maximum Carnage: attacks each combat if able, and a player other than its controller if able",
+                  addBlockRules: [
+                    {
+                      goadedBy: "you",
+                      label: "Maximum Carnage: attacks each combat if able, and a player other than its controller if able",
+                    },
+                  ],
                 },
-              ],
-            },
-            "untilYourNextTurn",
+                { label: "Each creature attacks each combat if able, and a player other than you" },
+              ),
+            ],
+            true,
           ),
         ],
         { label: "Chapter I — until your next turn, each creature attacks if able, and a player other than you" },

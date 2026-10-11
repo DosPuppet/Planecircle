@@ -241,7 +241,14 @@ export const GREEN: Record<string, CardScript> = {
     // "A creature card and/or a land card": at most one of each type.
     spell: spell(
       [],
-      [fx.lookAtTop(4, { filter: { anyOf: [CREATURE, { types: ["Land"] }] }, count: 2, onePerType: true, rest: "graveyard" })],
+      [
+        fx.lookAtTop(4, {
+          filter: { anyOf: [CREATURE, { types: ["Land"] }] },
+          count: 2,
+          onePerType: ["Creature", "Land"],
+          rest: "graveyard",
+        }),
+      ],
     ),
   },
   "Ixalli's Lorekeeper": {

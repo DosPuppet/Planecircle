@@ -52,8 +52,11 @@ const ANOTHER_CREATURE_ENTERED: Condition = cond.any(
 /** "another target permanent" */
 const ANOTHER_PERMANENT: TargetSpec = targetObj("t", { other: true }, "other permanent");
 
-/** Aurora Awakener: "reveal cards until you reveal X permanent cards" (all of them go onto the battlefield). */
-const AURORA_REVEAL: Effect[] = [fx.revealUntilN({ permanent: true }, VIVID, { to: "battlefield" })];
+/** Aurora Awakener: "reveal cards until you reveal X permanent cards. Put any number of those permanent cards onto the
+ * battlefield". */
+const AURORA_REVEAL: Effect[] = [
+  fx.revealUntilN({ permanent: true }, VIVID, { to: "battlefield" }, undefined, undefined, { anyNumber: true }),
+];
 
 /** Trystan, Callous Cultivator: "mill three cards; then if there is an Elf card in your graveyard, 2 life". */
 const TRYSTAN_CULTIVATOR: Effect[] = [fx.mill(3), ...fx.when(ELF_IN_GRAVEYARD, fx.gainLife(2))];
@@ -129,7 +132,7 @@ export const GREEN: Record<string, CardScript> = {
   "Aurora Awakener": {
     abilities: [
       triggered(when.entersSelf, AURORA_REVEAL, {
-        label: "Vivid — reveal up to X permanent cards and put them onto the battlefield",
+        label: "Vivid — reveal until X permanent cards, put any number of them onto the battlefield",
       }),
     ],
   },

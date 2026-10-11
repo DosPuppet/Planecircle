@@ -254,10 +254,14 @@ export const MULTI: Record<string, CardScript> = {
       triggered(
         when.yourEndStep,
         [
-          ...fx.mayFor(
-            ref.target(),
-            "Sacrifice two nonland, nontoken permanents (otherwise, the opponent draws two cards)?",
-            fx.sacrifice(ref.target(), { notTypes: ["Land"], token: false }, 2, { store: "sac" }),
+          // A cost they may pay only in full: offered only if they control two such permanents.
+          ...fx.when(
+            cond.amountAtLeast(amount.refCount(ref.permanentsOf(ref.target(), { notTypes: ["Land"], token: false })), 2),
+            fx.mayFor(
+              ref.target(),
+              "Sacrifice two nonland, nontoken permanents (otherwise, the opponent draws two cards)?",
+              fx.sacrifice(ref.target(), { notTypes: ["Land"], token: false }, 2, { store: "sac" }),
+            ),
           ),
           // "If they don't": two permanents were not sacrificed.
           ...fx.when(cond.not(cond.amountAtLeast(amount.refCount(ref.stored("sac")), 2)), fx.draw(2)),
@@ -306,12 +310,18 @@ export const MULTI: Record<string, CardScript> = {
     ],
   },
   "Break Out": {
-    // The revealed creature card is first put back on top (the rest goes to the bottom in a random order), then put onto
-    // the battlefield if its mana value is 2 or less and you want to, otherwise into your hand.
+    // The revealed creature card goes straight from the library onto the battlefield (mana value 2 or less, if you want)
+    // or into your hand; the rest goes to the bottom in a random order (nothing reads the library in between).
     spell: spell(
       [],
       [
-        fx.lookAtTop(6, { filter: { types: ["Creature"] }, count: 1, to: { to: "libraryTop" }, store: "c" }),
+        fx.chooseAmong(ref.filtered(ref.libraryTopCards(ref.you, 6), { types: ["Creature"] }), ref.you, "c", {
+          anyZone: true,
+          optional: true,
+          prompt: "You may reveal a creature card",
+        }),
+        fx.reveal(ref.stored("c")),
+        fx.moveTo(ref.except(ref.libraryTopCards(ref.you, 6), ref.stored("c")), { to: "libraryBottom", shuffle: true }),
         ...fx.when(
           cond.refMatches(ref.stored("c"), { maxManaValue: 2 }),
           fx.may(

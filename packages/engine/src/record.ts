@@ -566,8 +566,18 @@ export const RECORD_VERSION = 1;
  *   resolves; Quina's Frog (and Worldwalker Helm's Map) also for token copies; a permanent chosen for another cost of a
  *   spell (sacrifice, "discard or sacrifice", the kicker's permanent) no longer sacrifices itself for its mana (crash
  *   found by the fuzz: Demand Answers with a Treasure, Bogslither's Embrace blighting Traxos)
+ * - 199: PLAN-M M8a: Garruk, Curse Breaker's −4 triggers on any player's creatures attacking one of your opponents and
+ *   pumps only those; The Irencrag loses its other abilities as an Equipment (statics granted with or after a "loses
+ *   all abilities" effect still apply); Brave the Wilds targets only when bargained; End-Blaze Epiphany's card chosen as
+ *   the ability resolves; Aurora Awakener puts any number of the revealed permanent cards; Ojer Kaslem and In the
+ *   Presence of Ages take a creature and/or a land card in one choice (never two creatures), Ojer revealing them all;
+ *   Portent of Calamity's exiled cards chosen by the player (op `portent` removed); Zimone's Experiment and Break Out
+ *   move the chosen cards straight from the library; The Kingpin of Crime and Maximum Carnage affect creatures that
+ *   arrive later (emblem statics); Expel the Interlopers' number chosen as it resolves; Rakdos, Patron of Chaos offers
+ *   the sacrifice only to an opponent who can sacrifice two; Will and Rowan, Scion: a player effect for the turn, X
+ *   fixed as the ability resolves
  */
-export const RULES_VERSION = 198;
+export const RULES_VERSION = 199;
 
 /** One checkpoint every N decisions (plus the last one of the game). */
 export const CHECKPOINT_EVERY = 25;

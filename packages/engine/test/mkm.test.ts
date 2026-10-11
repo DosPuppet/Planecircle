@@ -3577,6 +3577,35 @@ describe("Murders at Karlov Manor, lot A — multicolor", () => {
       expect(s.players.p1?.library).toHaveLength(6);
     });
 
+    it("the creature card is chosen among the six, revealed and moved straight from the library; none chosen: all six underneath (PLAN-M M8a)", () => {
+      const setup = () =>
+        scenario({
+          p1: {
+            battlefield: ["Mountain", "Forest"],
+            hand: ["Break Out"],
+            library: ["Forest", "Bear Cub", "Opt", "Fire Elemental", "Swamp", "Plains", "Mountain"],
+          },
+        });
+      let s = setup();
+      const lib = [...(s.players.p1?.library ?? [])];
+      let offered: number[] = [];
+      s = settle(cast(s, "p1", "Break Out"), (req) => {
+        if (req.type !== "pick") return undefined;
+        offered = [req.min, req.max];
+        expect(req.options).toEqual([lib[1], lib[3]]);
+        return [lib[3] as string];
+      });
+      expect(offered).toEqual([0, 1]);
+      expect(names(s, s.players.p1?.hand)).toEqual(["Fire Elemental"]);
+      expect(s.players.p1?.library).toHaveLength(6);
+      // Declined: nothing to hand, the six cards on the bottom.
+      let t = setup();
+      t = settle(cast(t, "p1", "Break Out"), (req) => (req.type === "pick" ? [] : undefined));
+      expect(t.players.p1?.hand).toHaveLength(0);
+      expect(nameOf(t, t.players.p1?.library[0] ?? "")).toBe("Mountain");
+      expect(t.players.p1?.library).toHaveLength(7);
+    });
+
     it("a more expensive creature goes to hand", () => {
       let s = scenario({
         p1: { battlefield: ["Mountain", "Forest"], hand: ["Break Out"], library: ["Fire Elemental", "Opt", "Forest"] },
@@ -4041,6 +4070,22 @@ describe("Murders at Karlov Manor, lot A — multicolor", () => {
       expect(s.players.p1?.hand).toHaveLength(0);
       expect(s.players.p2?.graveyard).toHaveLength(2);
       expect(idsOf(s, "p2", "battlefield", "Forest")).toHaveLength(1);
+    });
+
+    it("with a single nonland, nontoken permanent, they can't sacrifice two: no question, you draw (PLAN-M M8a)", () => {
+      let asked = 0;
+      let s = scenario({
+        p1: { battlefield: ["Rakdos, Patron of Chaos"], library: lands("Swamp", 5) },
+        p2: { battlefield: ["Bear Cub", "Forest"] },
+      });
+      s = advanceUntil(s, (x) => x.turn.step === "end" && x.stack.length > 0);
+      s = settle(s, (req) => {
+        if (req.type === "yesNo") asked++;
+        return undefined;
+      });
+      expect(asked).toBe(0);
+      expect(s.players.p1?.hand).toHaveLength(2);
+      expect(idsOf(s, "p2", "battlefield", "Bear Cub")).toHaveLength(1);
     });
   });
 

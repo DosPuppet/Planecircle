@@ -166,3 +166,8 @@ Three rules tests in `engine/test/mkm.test.ts`.
 
 - **Suspect** (701.60c): `GameObject.suspected` holds the timestamp at which the permanent became suspected; menace and "can't block" are a layer 6 entry with that timestamp (like ability counters), so a later "loses all abilities" removes them (it stays suspected) and an earlier one does not.
 - **Tests:** `mkm.test.ts` (+1).
+
+## PLAN-M M8a (rules 199)
+
+- **Break Out:** the creature card is chosen with `chooseAmong` among the top six and goes straight from the library (battlefield or hand); the rest on the bottom in a random order. 1 test added.
+- **Rakdos, Patron of Chaos:** the sacrifice is offered only to an opponent who controls two nonland, nontoken permanents (otherwise you draw). 1 test added.

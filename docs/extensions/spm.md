@@ -113,3 +113,7 @@ The scripts are in `packages/cards/src/spm/`: `cards` (meta cards), `white`, `bl
   - `RULES_VERSION` = 54, golden games regenerated.
 - **Approximations:** Arachne (the opposing hand is not shown), Black Cat (face-up exile).
 - **Tests:** 8 rules tests ("lot C3") and one in `rulings.test.ts`.
+
+## PLAN-M M8a (rules 199)
+
+- **Maximum Carnage:** chapter I is the static of an emblem until your next turn (ruling: every creature, those that arrive afterwards too). Test extended.

@@ -3257,3 +3257,34 @@ describe("Reality Fracture, batch K8: mythic, rare and uncommon cards", () => {
     });
   });
 });
+
+describe("Reality Fracture, PLAN-M M8a", () => {
+  it("Garruk, Curse Breaker −4: until your next turn, creatures attacking one of your opponents (any player's) get +2/+2 and trample", () => {
+    let s = scenario({
+      players: 3,
+      p1: { battlefield: ["Garruk, Curse Breaker"] },
+      p2: { battlefield: ["Bear Cub", "Savannah Lions"] },
+    });
+    const garruk = idOf(s, "p1", "battlefield", "Garruk, Curse Breaker");
+    const minus4 = legalActions(s, "p1")
+      .filter((a) => a.type === "activate" && a.source === garruk)
+      .at(-1);
+    s = settle(act(s, "p1", { type: "activate", source: garruk, ability: (minus4 as { ability: number }).ability }));
+    const bear = idOf(s, "p2", "battlefield", "Bear Cub");
+    const lions = idOf(s, "p2", "battlefield", "Savannah Lions");
+    // p2's turn: the Bear Cub attacks p3 (an opponent of Garruk's controller), the Lions attack p1.
+    s = advanceUntil(s, (x) => x.turn.active === "p2" && x.pending?.kind === "declareAttackers");
+    s = act(s, "p2", {
+      type: "declareAttackers",
+      attackers: [
+        { id: bear, defender: "p3" },
+        { id: lions, defender: "p1" },
+      ],
+    });
+    s = passAccepting(s, (x) => x.stack.length === 0 && x.pending?.kind === "priority");
+    expect([chars(s, bear).power, chars(s, bear).toughness]).toEqual([4, 4]);
+    expect(chars(s, bear).keywords).toContain("trample");
+    expect([chars(s, lions).power, chars(s, lions).toughness]).toEqual([2, 1]);
+    expect(chars(s, lions).keywords).not.toContain("trample");
+  });
+});

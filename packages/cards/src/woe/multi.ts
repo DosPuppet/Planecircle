@@ -7,7 +7,6 @@ import {
   CELEBRATION,
   chapter,
   cond,
-  costReducer,
   createRole,
   entersWith,
   FOOD,
@@ -126,15 +125,8 @@ export const MULTI: Record<string, CardScript> = {
       activated({
         tap: true,
         sorcerySpeed: true,
-        effects: [
-          fx.modify(ref.self, {
-            addAbilities: [
-              costReducer({ colors: ["B", "R"] }, 0, "Your black and/or red spells cost {X} less (life lost)", {
-                genericAmount: amount.lifeLostThisTurn,
-              }),
-            ],
-          }),
-        ],
+        // As Will, Scion of Peace: X fixed as the ability resolves.
+        effects: [fx.thisTurn({ spellCost: { filter: { colors: ["B", "R"] }, reduce: amount.lifeLostThisTurn } })],
         label: "Your black and/or red spells cost {X} less this turn",
       }),
     ],
@@ -299,20 +291,11 @@ export const MULTI: Record<string, CardScript> = {
   },
   "Will, Scion of Peace": {
     abilities: [
-      // Approximation: the reduction is granted to Will until end of turn (it stops if he leaves the battlefield); X is
-      // read on each spell cast (life gained this turn).
+      // A player effect for the turn (it doesn't depend on Will staying), X fixed as the ability resolves (ruling).
       activated({
         tap: true,
         sorcerySpeed: true,
-        effects: [
-          fx.modify(ref.self, {
-            addAbilities: [
-              costReducer({ colors: ["W", "U"] }, 0, "Your white and/or blue spells cost {X} less (life gained)", {
-                genericAmount: amount.lifeGainedThisTurn,
-              }),
-            ],
-          }),
-        ],
+        effects: [fx.thisTurn({ spellCost: { filter: { colors: ["W", "U"] }, reduce: amount.lifeGainedThisTurn } })],
         label: "Your white and/or blue spells cost {X} less this turn",
       }),
     ],

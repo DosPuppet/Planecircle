@@ -1233,9 +1233,10 @@ export interface PlayerStaticAbilityDef {
    * Cost of matching spells: {N} less (`reduce`, Goblin Maskmaker: "face-down spells you cast this
    * turn"); mana is spent as though it were mana of any color (`anyMana`, Case File Auditor); fewer
    * colored symbols (`colored`, Aang, Master of Elements: "{W}{U}{B}{R}{G} less"), each removing
-   * a symbol of its color, otherwise {1} of the generic (601.2f).
+   * a symbol of its color, otherwise {1} of the generic (601.2f). An amount `reduce` of an effect is frozen as it
+   * resolves ("cost {X} less this turn, where X is …": Will, Scion of Peace).
    */
-  spellCost?: { filter: ObjectFilter; reduce?: number; anyMana?: boolean; colored?: ManaCost["colored"] };
+  spellCost?: { filter: ObjectFilter; reduce?: Amount; anyMana?: boolean; colored?: ManaCost["colored"] };
   /** Triggers doubled or suppressed (family G, R4.5). */
   triggerMod?: TriggerMod;
   /** Replacement or prevention of a numeric event, set by an effect (families E and F, R1). */

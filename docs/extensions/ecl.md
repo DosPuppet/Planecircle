@@ -94,3 +94,8 @@ The scripts are in `packages/cards/src/ecl/`: `cards` (meta cards, phase 1), `wh
 ## PLAN-M M7 (rules 198)
 
 - **Kindle the Inner Flame:** the copy's "At the beginning of the end step, sacrifice this token" is an ability of the token (`SACRIFICE_TOKEN_AT_END_STEP`).
+
+## PLAN-M M8a (rules 199)
+
+- **End-Blaze Epiphany:** the playable card is chosen as the delayed ability resolves (`chooseAmong` among the exiled cards, then `grantPlay` on that one). Test rewritten.
+- **Aurora Awakener:** "any number" of the revealed permanent cards (`revealUntilN` with `anyNumber`: a pick from 0 to all, the others join the rest on the bottom). Test extended.
