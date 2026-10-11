@@ -5,6 +5,7 @@ import {
   amount,
   cond,
   doesntUntap,
+  flashback,
   fx,
   hero,
   manaAbility,
@@ -32,8 +33,8 @@ export const BLUE: Record<string, CardScript> = {
     ),
   },
   "Dragoon's Wyvern": { abilities: [triggered(when.entersSelf, [hero()], { label: "1/1 Hero" })] },
-  "Dreams of Laguna": { flashback: "{3}{U}", spell: spell([], [fx.surveil(1), fx.draw(1)]) },
-  Eject: { cantBeCountered: true, spell: spell([target.nonland("t")], [fx.bounce(ref.target()), fx.draw(1)]) },
+  "Dreams of Laguna": { castOptions: [flashback("{3}{U}")], spell: spell([], [fx.surveil(1), fx.draw(1)]) },
+  Eject: { rules: { cantBeCountered: true }, spell: spell([target.nonland("t")], [fx.bounce(ref.target()), fx.draw(1)]) },
   Ether: {
     abilities: [
       activated({
@@ -95,7 +96,7 @@ export const BLUE: Record<string, CardScript> = {
     ),
   },
   "Retrieve the Esper": {
-    flashback: "{5}{U}",
+    castOptions: [flashback("{5}{U}")],
     spell: spell(
       [],
       [

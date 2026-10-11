@@ -15,6 +15,7 @@ import {
   ELEPHANT_5,
   eventReplacement,
   flurry,
+  fromGraveyard,
   fx,
   INSTANT_SORCERY,
   loyalty,
@@ -105,7 +106,7 @@ export const LEGENDS: Record<string, CardScript> = {
 
   // --- Black -------------------------------------------------------------------
   "Hundred-Battle Veteran": {
-    castFromGraveyard: { finality: true },
+    castOptions: [fromGraveyard({ finality: true })],
     abilities: [
       staticAbility(
         "self",

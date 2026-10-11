@@ -247,7 +247,7 @@ export const BLUE: Record<string, CardScript> = {
     ],
   },
   "Serpent of the Pass": {
-    flashIf: THREE_LESSONS,
+    rules: { flashIf: THREE_LESSONS },
     costReduction: { generic: amount.countIn("graveyard", { notTypes: ["Creature", "Land"] }) },
   },
   "Sokka's Haiku": {

@@ -14,6 +14,7 @@ import {
   FOOD_ABILITY,
   fx,
   INSECT_WARRIOR,
+  kicker,
   modal,
   mode,
   NINJA,
@@ -261,8 +262,7 @@ export const BLACK: Record<string, CardScript> = {
     spell: spell([], [fx.search({})]),
   },
   "Stomped by the Foot": {
-    kicker: "{0}",
-    kickerCost: { sacrifice: CREATURE_OR_ARTIFACT },
+    kicker: kicker("{0}", { sacrifice: CREATURE_OR_ARTIFACT }),
     spell: spell([target.creature()], [fx.pump(ref.target(), amount.kicked(-5, -2), amount.kicked(-5, -2))]),
   },
   "Super Shredder": {

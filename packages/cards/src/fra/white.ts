@@ -10,6 +10,7 @@ import {
   cond,
   empower,
   entersWith,
+  flashback,
   fx,
   loyalty,
   manaAbility,
@@ -59,7 +60,7 @@ export const WHITE: Record<string, CardScript> = {
     ],
   },
   "Generous Revival": {
-    flashback: "{4}{W}",
+    castOptions: [flashback("{4}{W}")],
     spell: spell(
       [target.cardInGraveyard("t", { types: ["Creature"], maxManaValue: 3 }, "you", "creature card of value 3 or less")],
       [fx.toBattlefield(ref.target(), { counters: { kind: "+1/+1", n: 1 } })],
@@ -98,7 +99,7 @@ export const WHITE: Record<string, CardScript> = {
     ],
   },
   "Predictive Preparations": {
-    flashback: "{3}{W}",
+    castOptions: [flashback("{3}{W}")],
     spell: spell([target.upTo(2, target.creature("t"))], [fx.addCounters(ref.target(), 1)]),
   },
   "Prophesied End": {

@@ -12,6 +12,7 @@ import {
   ELEMENTAL_UR,
   entersWith,
   FRACTAL,
+  flashback,
   fx,
   INCREMENT,
   INFUSION,
@@ -311,7 +312,7 @@ export const MULTI: Record<string, CardScript> = {
     ],
   },
   "Pursue the Past": {
-    flashback: "{2}{R}{W}",
+    castOptions: [flashback("{2}{R}{W}")],
     spell: spell(
       [],
       [fx.gainLife(2), fx.discard(1, ref.you, { optional: true, store: "d" }), ...fx.when(cond.v("d"), fx.draw(2))],
@@ -721,7 +722,7 @@ export const MULTI: Record<string, CardScript> = {
     ],
   },
   "Molten Note": {
-    flashback: "{6}{R}{W}",
+    castOptions: [flashback("{6}{R}{W}")],
     spell: spell(
       [target.creature()],
       [fx.damage(amount.manaSpent, ref.target()), fx.untapAll({ types: ["Creature"], controller: "you" })],

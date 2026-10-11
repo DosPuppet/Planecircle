@@ -5,6 +5,7 @@
 import type { CardScript, EventReplacement, TargetSpec, TokenSpec } from "@mtgx/engine";
 import {
   activated,
+  altCost,
   altCostMode,
   amount,
   cond,
@@ -52,7 +53,7 @@ const CREATURE_OF_CHOSEN_TYPE = { types: ["Creature" as const], chosen: "subtype
 export const EDH_STAPLES: Record<string, CardScript> = {
   // --- Protection ---
   "Teferi's Protection": {
-    exileOnResolve: true,
+    rules: { exileOnResolve: true },
     spell: spell(
       [],
       [...lifeCantChange, fx.untilYourNextTurn({ protection: "everything" }), fx.phaseOut(ref.permanentsOf(ref.you, {}))],
@@ -85,12 +86,14 @@ export const EDH_STAPLES: Record<string, CardScript> = {
 
   // --- Counterspells ---
   "Force of Negation": {
-    altCost: {
-      mana: "{0}",
-      condition: cond.not(cond.yourTurn),
-      label: "Force of Negation — exile a blue card from your hand (not on your turn)",
-      pay: { exileFromHand: { filter: { colors: ["U"] }, count: 1 } },
-    },
+    castOptions: [
+      altCost({
+        mana: "{0}",
+        condition: cond.not(cond.yourTurn),
+        label: "Force of Negation — exile a blue card from your hand (not on your turn)",
+        pay: { exileFromHand: { filter: { colors: ["U"] }, count: 1 } },
+      }),
+    ],
     spell: spell([target.spell("t", { notTypes: ["Creature"] }, "noncreature spell")], [fx.counterExile(ref.target())]),
   },
   Rewind: {
@@ -105,12 +108,14 @@ export const EDH_STAPLES: Record<string, CardScript> = {
 
   // --- Removal ---
   "Snuff Out": {
-    altCost: {
-      mana: "{0}",
-      condition: cond.controls({ subtype: "Swamp" }),
-      label: "Snuff Out — pay 4 life (you control a Swamp)",
-      pay: { life: 4 },
-    },
+    castOptions: [
+      altCost({
+        mana: "{0}",
+        condition: cond.controls({ subtype: "Swamp" }),
+        label: "Snuff Out — pay 4 life (you control a Swamp)",
+        pay: { life: 4 },
+      }),
+    ],
     spell: spell([target.creature("t", { not: { colors: ["B"] } })], [{ op: "destroy", what: ref.target(), noRegenerate: true }]),
   },
   Vindicate: {

@@ -9,6 +9,7 @@ import {
   cond,
   fx,
   ILLUSION_VILLAIN,
+  kicker,
   modal,
   mode,
   playerStatic,
@@ -215,7 +216,7 @@ export const BLUE: Record<string, CardScript> = {
     ),
   },
   "Whoosh!": {
-    kicker: "{1}{U}",
+    kicker: kicker("{1}{U}"),
     spell: spell([target.nonland()], [fx.bounce(ref.target()), ...fx.when(cond.kicked, fx.draw(1))]),
   },
 };

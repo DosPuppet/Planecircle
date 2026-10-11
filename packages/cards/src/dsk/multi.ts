@@ -9,6 +9,7 @@ import {
   eerie,
   entersWith,
   fastLand,
+  flashback,
   fx,
   GREMLIN,
   glimmer,
@@ -141,7 +142,7 @@ export const MULTI: Record<string, CardScript> = {
     ],
   },
   "Rite of the Moth": {
-    flashback: "{3}{W}{W}{B}",
+    castOptions: [flashback("{3}{W}{W}{B}")],
     spell: spell(
       [target.cardInGraveyard("t", { types: ["Creature"] }, "you", "creature card in your graveyard")],
       [fx.toBattlefield(ref.target(), { counters: { kind: "finality", n: 1 } })],

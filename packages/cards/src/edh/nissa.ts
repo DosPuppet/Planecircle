@@ -146,7 +146,7 @@ export const EDH_NISSA: Record<string, CardScript> = {
   },
   // Flash: read from the text. "Choose up to one": each mode has an optional target.
   "Hullbreaker Horror": {
-    cantBeCountered: true,
+    rules: { cantBeCountered: true },
     abilities: [
       triggeredModal(
         when.castSpell("you"),
@@ -167,7 +167,7 @@ export const EDH_NISSA: Record<string, CardScript> = {
     ],
   },
   "Nezahal, Primal Tide": {
-    cantBeCountered: true,
+    rules: { cantBeCountered: true },
     abilities: [
       playerStatic({ maxHandSize: "none", label: "You have no maximum hand size" }),
       triggered(when.castSpell("opponent", { notTypes: ["Creature"] }), [fx.draw(1)], {

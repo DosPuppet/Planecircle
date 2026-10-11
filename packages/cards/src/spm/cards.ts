@@ -41,7 +41,7 @@ export const CARDS: Record<string, CardScript> = {
   },
   // --- Green -----------------------------------------------------------------
   "Sandman, Shifting Scoundrel": {
-    cdaPT: amount.count({ types: ["Land"], controller: "you" }),
+    cda: { pt: amount.count({ types: ["Land"], controller: "you" }) },
     abilities: [
       blockAbility(block.notByPowerLE2),
       activated({

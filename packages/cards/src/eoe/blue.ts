@@ -7,6 +7,7 @@ import {
   DRONE,
   doesntUntap,
   fx,
+  kicker,
   lander,
   modal,
   mode,
@@ -55,7 +56,7 @@ export const BLUE: Record<string, CardScript> = {
     ],
   },
   "Consult the Star Charts": {
-    kicker: "{1}{U}",
+    kicker: kicker("{1}{U}"),
     spell: spell(
       [],
       [fx.lookAtTop(amount.count({ types: ["Land"], controller: "you" }), { count: amount.kicked(2, 1), rest: "bottom" })],
@@ -224,7 +225,7 @@ export const BLUE: Record<string, CardScript> = {
   },
   "Tractor Beam": {
     enchant: { filter: { anyOf: [{ types: ["Creature"] }, { subtype: "Spacecraft" }] }, label: "creature or Spacecraft" },
-    controlsEnchanted: true,
+    rules: { controlsEnchanted: true },
     abilities: [triggered(when.entersSelf, [fx.tap(ref.attached)], { label: "Tap it" }), doesntUntap("attached")],
   },
 };

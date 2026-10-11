@@ -35,7 +35,7 @@ export const CARDS: Record<string, CardScript> = {
   },
   // --- Green -----------------------------------------------------------------
   "Surrak, Elusive Hunter": {
-    cantBeCountered: true,
+    rules: { cantBeCountered: true },
     abilities: [
       triggered(when.targetedByOpponent({ types: ["Creature"], controller: "you" }, true), [fx.draw(1)], {
         label: "Draw a card",
@@ -93,7 +93,7 @@ export const CARDS: Record<string, CardScript> = {
     ),
   },
   "Inevitable Defeat": {
-    cantBeCountered: true,
+    rules: { cantBeCountered: true },
     spell: spell([target.nonland()], [fx.exile(ref.target()), fx.loseLife(3, ref.controllerOf(ref.target())), fx.gainLife(3)]),
   },
   "Jeskai Revelation": {

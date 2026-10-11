@@ -9,6 +9,8 @@ import {
   amount,
   BASIC_LAND,
   cond,
+  flashback,
+  fromGraveyard,
   fx,
   manaAbility,
   playerStatic,
@@ -114,8 +116,10 @@ export const EDH_FANTASTIC: Record<string, CardScript> = {
   },
   // Flying: read from the text.
   "Dragon Man, Reformed Robot": {
-    cdaPower: amount.max(amount.maxManaValue({ ...NONCREATURE, permanent: true, controller: "you" }), MAX_NONCREATURE_GRAVEYARD),
-    castFromGraveyard: { discard: 1 },
+    castOptions: [fromGraveyard({ discard: 1 })],
+    cda: {
+      power: amount.max(amount.maxManaValue({ ...NONCREATURE, permanent: true, controller: "you" }), MAX_NONCREATURE_GRAVEYARD),
+    },
   },
   "Franklin Richards, Ascendant": {
     abilities: [heroCombat([fx.discover(6)], "Discover 6")],
@@ -434,8 +438,7 @@ export const EDH_FANTASTIC: Record<string, CardScript> = {
     spell: spell([], [fx.draw(1, ref.eachOpponent, "deal"), fx.draw(amount.v("dealPlayers"))]),
   },
   "Deep Analysis": {
-    flashback: "{1}{U}",
-    flashbackCost: { payLife: 3 },
+    castOptions: [flashback("{1}{U}", { payLife: 3 })],
     spell: spell([target.player("p")], [fx.draw(2, ref.target("p"))]),
   },
   "Fantastic Elasticity": {
@@ -464,7 +467,7 @@ export const EDH_FANTASTIC: Record<string, CardScript> = {
     ),
   },
   "Galvanic Iteration": {
-    flashback: "{1}{U}{R}",
+    castOptions: [flashback("{1}{U}{R}")],
     spell: spell([], [fx.copyNextSpell]),
   },
   "Hull Breach": {
@@ -527,7 +530,7 @@ export const EDH_FANTASTIC: Record<string, CardScript> = {
     spell: spell([target.player("p", "opponent")], [fx.draw(amount.refCount(ref.handOf(ref.target("p"))))]),
   },
   "Seize the Day": {
-    flashback: "{2}{R}",
+    castOptions: [flashback("{2}{R}")],
     spell: spell([target.creature()], [fx.untap(ref.target()), fx.extraCombatAfterMain]),
   },
   "Taunt from the Rampart": {

@@ -11,6 +11,7 @@ import {
   FROG,
   fx,
   HERO,
+  kicker,
   playerStatic,
   prevention,
   ref,
@@ -106,13 +107,11 @@ export const LEGENDS2: Record<string, CardScript> = {
     ],
   },
   "Vayne's Treachery": {
-    kicker: "{0}",
-    kickerCost: { sacrifice: CREATURE_OR_ARTIFACT },
+    kicker: kicker("{0}", { sacrifice: CREATURE_OR_ARTIFACT }),
     spell: spell([target.creature("t")], [fx.pump(ref.target(), amount.kicked(-6, -2), amount.kicked(-6, -2))]),
   },
   "Chocobo Kick": {
-    kicker: "{0}",
-    kickerCost: { bounce: { types: ["Land"] } },
+    kicker: kicker("{0}", { bounce: { types: ["Land"] } }),
     spell: spell(
       [target.creature("s", { controller: "you" }), target.creature("t", { controller: "opponent" })],
       [

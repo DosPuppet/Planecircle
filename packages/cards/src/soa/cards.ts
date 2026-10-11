@@ -1,6 +1,7 @@
 /** Mystical Archive (SOA): card scripts (PLAN-G). */
 import { type Effect, msg, type TokenSpec } from "@mtgx/engine";
 import {
+  altCost,
   altCostMode,
   amount,
   BASIC_LAND,
@@ -190,9 +191,11 @@ export const CARDS: Record<string, CardScript> = {
   "Awaken the Woods": { spell: spell([], [fx.createTokens(FOREST_DRYAD, amount.x)]) },
   Berserk: {
     // "Cast this spell only before the combat damage step."
-    castCondition: cond.not(
-      cond.any(cond.step("combatDamage"), cond.step("endCombat"), cond.step("main2"), cond.step("end"), cond.step("cleanup")),
-    ),
+    rules: {
+      castCondition: cond.not(
+        cond.any(cond.step("combatDamage"), cond.step("endCombat"), cond.step("main2"), cond.step("end"), cond.step("cleanup")),
+      ),
+    },
     spell: spell(
       [target.creature()],
       [
@@ -276,21 +279,25 @@ export const CARDS: Record<string, CardScript> = {
   // — G4e: hard sub-lot —
   Dismember: { spell: spell([target.creature()], [fx.pump(ref.target(), -5, -5)]) },
   "Force of Will": {
-    altCost: {
-      mana: "{0}",
-      condition: cond.all(),
-      label: "Force of Will — 1 life and a blue card exiled from your hand",
-      pay: { life: 1, exileFromHand: { filter: { colors: ["U"] }, count: 1 } },
-    },
+    castOptions: [
+      altCost({
+        mana: "{0}",
+        condition: cond.all(),
+        label: "Force of Will — 1 life and a blue card exiled from your hand",
+        pay: { life: 1, exileFromHand: { filter: { colors: ["U"] }, count: 1 } },
+      }),
+    ],
     spell: spell([target.spell()], [fx.counter(ref.target())]),
   },
   Daze: {
-    altCost: {
-      mana: "{0}",
-      condition: cond.all(),
-      label: "Daze — return an Island you control",
-      pay: { bounce: { types: ["Land"], subtype: "Island" } },
-    },
+    castOptions: [
+      altCost({
+        mana: "{0}",
+        condition: cond.all(),
+        label: "Daze — return an Island you control",
+        pay: { bounce: { types: ["Land"], subtype: "Island" } },
+      }),
+    ],
     spell: spell([target.spell()], [fx.unlessPays(ref.controllerOf(ref.target()), { mana: "{1}" }, fx.counter(ref.target()))]),
   },
   "Angel's Grace": {

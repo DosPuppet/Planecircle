@@ -18,6 +18,7 @@ import {
   empower,
   entersWith,
   eventReplacement,
+  flashback,
   fx,
   graveyardReplacement,
   loyalty,
@@ -553,8 +554,7 @@ export const UNIQUE: Record<string, CardScript> = {
     ],
   },
   Tarmogoyf: {
-    cdaPower: amount.cardTypesInGraveyards,
-    cdaToughness: amount.plus(amount.cardTypesInGraveyards, 1),
+    cda: { power: amount.cardTypesInGraveyards, toughness: amount.plus(amount.cardTypesInGraveyards, 1) },
   },
   "Garruk, Curse Breaker": {
     abilities: [
@@ -591,7 +591,7 @@ export const UNIQUE: Record<string, CardScript> = {
     abilities: [manaAbility(["W", "U", "B", "R", "G"], 1, { distinctPowers: true })],
   },
   "Ruric Thar, Magecrusher": {
-    cantBeCountered: true,
+    rules: { cantBeCountered: true },
     abilities: [
       staticAbility(
         "self",
@@ -629,7 +629,7 @@ export const UNIQUE: Record<string, CardScript> = {
     ],
   },
   "Recursive Recruitment": {
-    flashback: "{6}{U}{B}",
+    castOptions: [flashback("{6}{U}{B}")],
     spell: spell(
       [],
       [
@@ -639,8 +639,7 @@ export const UNIQUE: Record<string, CardScript> = {
     ),
   },
   "Twinned Vision": {
-    flashback: "{1}{U/R}{U/R}",
-    flashbackCost: { discard: 1 },
+    castOptions: [flashback("{1}{U/R}{U/R}", { discard: 1 })],
     spell: spell([], [fx.when(cond.spellCastFromHand, fx.draw(1)), fx.when(cond.not(cond.spellCastFromHand), fx.draw(2))]),
   },
   "Twisted Fates": {

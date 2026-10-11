@@ -150,7 +150,7 @@ export const MULTI: Record<string, CardScript> = {
     ],
   },
   "Dragonfly Swarm": {
-    cdaPower: amount.countIn("graveyard", { notTypes: ["Creature", "Land"] }),
+    cda: { power: amount.countIn("graveyard", { notTypes: ["Creature", "Land"] }) },
     abilities: [
       triggered(when.diesSelf, [fx.draw(1)], {
         condition: cond.amountAtLeast(LESSON_IN_GRAVEYARD, 1),
@@ -433,7 +433,7 @@ export const MULTI: Record<string, CardScript> = {
     ],
   },
   "Suki, Kyoshi Warrior": {
-    cdaPower: amount.count(YOUR_CREATURES),
+    cda: { power: amount.count(YOUR_CREATURES) },
     abilities: [
       triggered(when.attacksSelf, [fx.createTappedTokens(ALLY, 1, { attacking: true })], {
         label: "A 1/1 Ally tapped and attacking",

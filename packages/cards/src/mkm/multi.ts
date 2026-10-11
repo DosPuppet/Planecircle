@@ -7,6 +7,7 @@ import {
   BASIC_LAND,
   type CardScript,
   cond,
+  cost,
   costReducer,
   DETECTIVE,
   DOG,
@@ -185,7 +186,7 @@ export const MULTI: Record<string, CardScript> = {
   // --- Dimir (blue and black) --------------------------------------------------
   "Coerced to Kill": {
     enchant: { filter: { types: ["Creature"] }, label: "creature" },
-    controlsEnchanted: true,
+    rules: { controlsEnchanted: true },
     abilities: [
       staticAbility(
         "attached",
@@ -782,7 +783,7 @@ export const MULTI: Record<string, CardScript> = {
     ),
   },
   "Officious Interrogation": {
-    costPerExtraTarget: "{W}{U}",
+    additionalCost: { costPerExtraTarget: cost("{W}{U}") },
     spell: spell(
       [{ ...target.player("p"), label: "player", count: 8, optional: true }],
       [investigate(amount.refCount(ref.permanentsOf(ref.target("p"), { types: ["Creature"] })))],
@@ -953,7 +954,7 @@ export const MULTI: Record<string, CardScript> = {
   // --- Standard-legal MKM promos (imported in lot C19 of PLAN-C) ------------------------------------------------
   "Melek, Reforged Researcher": {
     // P/T: twice the number of instant and sorcery cards in your graveyard.
-    cdaPT: amount.plus(amount.countIn("graveyard", INSTANT_SORCERY), amount.countIn("graveyard", INSTANT_SORCERY)),
+    cda: { pt: amount.plus(amount.countIn("graveyard", INSTANT_SORCERY), amount.countIn("graveyard", INSTANT_SORCERY)) },
     abilities: [
       costReducer(INSTANT_SORCERY, 3, "The first instant or sorcery each turn costs {3} less", {
         condition: cond.not(cond.amountAtLeast(amount.instantSorceryCast, 1)),

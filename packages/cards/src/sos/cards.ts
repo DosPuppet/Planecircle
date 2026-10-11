@@ -10,6 +10,7 @@ import {
   cmp,
   cond,
   entersWith,
+  flashback,
   fx,
   INSTANT_SORCERY,
   loyalty,
@@ -141,7 +142,7 @@ export const CARDS: Record<string, CardScript> = {
   },
   "Petrified Hamlet": {
     // The name is chosen by the enters triggered ability.
-    chosenNameAbilities: "forbid",
+    rules: { chosenNameAbilities: "forbid" },
     abilities: [
       triggered(when.entersSelf, [fx.chooseForSelf("landName")], { label: "Choose a land card name" }),
       manaAbility("C"),
@@ -223,7 +224,7 @@ export const CARDS: Record<string, CardScript> = {
     ],
   },
   "Practiced Offense": {
-    flashback: "{1}{W}",
+    castOptions: [flashback("{1}{W}")],
     // "Your choice of": chosen on resolution (608.2d), it is not a modal spell.
     spell: spell(
       [target.player("p"), target.creature("c")],
@@ -253,7 +254,7 @@ export const CARDS: Record<string, CardScript> = {
 
   // --- Lot M6 -----------------------------------------------------------------
   Daydream: {
-    flashback: "{2}{W}",
+    castOptions: [flashback("{2}{W}")],
     spell: spell(
       [target.creature("t", { controller: "you" })],
       [fx.exileCard(ref.target(), { name: "d" }), fx.toBattlefield(ref.stored("d"), { counters: { kind: "+1/+1", n: 1 } })],

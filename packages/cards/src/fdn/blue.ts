@@ -10,9 +10,12 @@ import {
   DRAKE,
   doesntUntap,
   FAERIE,
+  flashback,
+  flashFor,
   flashForAll,
   fx,
   INSTANT_SORCERY,
+  kicker,
   manaAbility,
   playerStatic,
   prevention,
@@ -28,7 +31,7 @@ import {
 } from "./common";
 
 export const BLUE: Record<string, CardScript> = {
-  "Think Twice": { flashback: "{2}{U}", spell: spell([], [fx.draw(1)]) },
+  "Think Twice": { castOptions: [flashback("{2}{U}")], spell: spell([], [fx.draw(1)]) },
   Opt: { spell: spell([], [fx.scry(1), fx.draw(1)]) },
   "Arcane Epiphany": {
     costReduction: { generic: 1, condition: cond.controls({ subtype: "Wizard" }) },
@@ -92,7 +95,7 @@ export const BLUE: Record<string, CardScript> = {
   },
   "Icewind Elemental": { abilities: [triggered(when.entersSelf, fx.loot(1), { label: "draws then discards" })] },
   "Inspiration from Beyond": {
-    flashback: "{5}{U}{U}",
+    castOptions: [flashback("{5}{U}{U}")],
     spell: spell(
       [],
       [
@@ -160,7 +163,7 @@ export const BLUE: Record<string, CardScript> = {
     ),
   },
   "Self-Reflection": {
-    flashback: "{3}{U}",
+    castOptions: [flashback("{3}{U}")],
     spell: spell([target.creature("t", { controller: "you" })], [fx.copyToken(ref.target())]),
   },
   Refute: { spell: spell([target.spell()], [fx.counter(ref.target()), ...fx.loot(1)]) },
@@ -207,7 +210,7 @@ export const BLUE: Record<string, CardScript> = {
   },
   "Spectral Sailor": { abilities: [activated({ mana: "{3}{U}", effects: [fx.draw(1)], label: "Draw a card" })] },
   "Curator of Destinies": {
-    cantBeCountered: true,
+    rules: { cantBeCountered: true },
     abilities: [triggered(when.entersSelf, [fx.piles(5)], { label: "two piles" })],
   },
   "Sphinx of Forgotten Lore": {
@@ -242,7 +245,7 @@ export const BLUE: Record<string, CardScript> = {
   },
   Confiscate: {
     enchant: { filter: { permanent: true }, label: "permanent" },
-    controlsEnchanted: true,
+    rules: { controlsEnchanted: true },
   },
   "Corsair Captain": {
     abilities: [
@@ -317,7 +320,7 @@ export const BLUE: Record<string, CardScript> = {
     ],
   },
   "Harbinger of the Tides": {
-    flashExtraCost: "{2}",
+    castOptions: [flashFor("{2}")],
     abilities: [
       triggered(when.entersSelf, fx.may("Return the target tapped creature?", fx.bounce(ref.target())), {
         targets: [targetObj("t", { types: ["Creature"], controller: "opponent", tapped: true }, "opponent's tapped creature")],
@@ -326,7 +329,7 @@ export const BLUE: Record<string, CardScript> = {
     ],
   },
   "Into the Roil": {
-    kicker: "{1}{U}",
+    kicker: kicker("{1}{U}"),
     spell: spell([target.nonland()], [fx.toHand(ref.target()), ...fx.when(cond.kicked, fx.draw(1))]),
   },
   "Kitesail Corsair": {
@@ -342,13 +345,13 @@ export const BLUE: Record<string, CardScript> = {
     abilities: [activated({ mana: "{3}{U}{U}", effects: [fx.draw(2)], label: "Draw two cards" })],
   },
   "Mystical Teachings": {
-    flashback: "{5}{B}",
+    castOptions: [flashback("{5}{B}")],
     spell: spell([], [fx.search({ anyOf: [{ types: ["Instant"] }, { keyword: "flash" }] })]),
   },
   Negate: { spell: spell([target.spell("t", { notTypes: ["Creature"] }, "noncreature spell")], [fx.counter(ref.target())]) },
   "Quick Study": { spell: spell([], [fx.draw(2)]) },
   "Rite of Replication": {
-    kicker: "{5}",
+    kicker: kicker("{5}"),
     spell: spell([target.creature()], [fx.copyToken(ref.target(), { count: amount.kicked(5, 1) })]),
   },
   "River's Rebuke": {
@@ -363,7 +366,7 @@ export const BLUE: Record<string, CardScript> = {
     ],
   },
   "Sphinx of the Final Word": {
-    cantBeCountered: true,
+    rules: { cantBeCountered: true },
     abilities: [
       playerStatic({
         uncounterable: { filter: { types: ["Instant", "Sorcery"] } },

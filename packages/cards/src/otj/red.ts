@@ -221,7 +221,7 @@ export const RED: Record<string, CardScript> = {
     abilities: [staticAbility("self", { power: -1, toughness: -1 }, { perHand: true, label: "-1/-1 for each card in hand" })],
   },
   "Take for a Ride": {
-    flashIf: cond.crime,
+    rules: { flashIf: cond.crime },
     spell: spell(
       [target.creature("t")],
       [fx.gainControl(ref.target()), fx.untap(ref.target()), fx.pump(ref.target(), 0, 0, ["haste"])],

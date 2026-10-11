@@ -222,7 +222,7 @@ export const BLACK: Record<string, CardScript> = {
     ],
   },
   "Long Goodbye": {
-    cantBeCountered: true,
+    rules: { cantBeCountered: true },
     spell: spell([target.creatureOrPlaneswalker("t", { maxManaValue: 3 })], [fx.destroy(ref.target())]),
   },
   "Macabre Reconstruction": {
@@ -301,7 +301,7 @@ export const BLACK: Record<string, CardScript> = {
     ],
   },
   "Slice from the Shadows": {
-    cantBeCountered: true,
+    rules: { cantBeCountered: true },
     spell: spell([target.creature()], [fx.pump(ref.target(), amount.neg(amount.x), amount.neg(amount.x))]),
   },
   "Slimy Dualleech": {

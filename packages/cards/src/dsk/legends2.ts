@@ -12,6 +12,7 @@ import {
   cost,
   entersWith,
   eventReplacement,
+  fromGraveyard,
   fx,
   graveyardReplacement,
   loyalty,
@@ -192,7 +193,7 @@ export const LEGENDS2: Record<string, CardScript> = {
     ],
   },
   "Undead Sprinter": {
-    castFromGraveyard: { condition: cond.creatureDiedMatching({ types: ["Creature"], notSubtype: "Zombie" }) },
+    castOptions: [fromGraveyard({ condition: cond.creatureDiedMatching({ types: ["Creature"], notSubtype: "Zombie" }) })],
     abilities: [
       entersWith({ counters: 1, condition: cond.castFromGraveyard, label: "+1/+1 counter (cast from your graveyard)" }),
     ],

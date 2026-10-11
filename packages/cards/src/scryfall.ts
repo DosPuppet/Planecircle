@@ -934,8 +934,8 @@ function splitSubtypes(right: string): string[] {
 }
 
 /**
- * Additional costs of the spell (PLAN-M M5): the script's, X paid other than with mana and waterbending read from the
- * text, the surcharge per extra target and "forage or pay" of the script.
+ * Additional costs of the spell (PLAN-M M5): the script's, with X paid other than with mana and waterbending read from
+ * the text.
  */
 function additionalCostOf(
   script: CardScript | undefined,
@@ -946,8 +946,6 @@ function additionalCostOf(
     ...script?.additionalCost,
     ...(xCost ? { xCost } : {}),
     ...(waterbend !== undefined ? { waterbend } : {}),
-    ...(script?.costPerExtraTarget ? { costPerExtraTarget: parseManaCost(script.costPerExtraTarget) } : {}),
-    ...(script?.forageOrPay ? { forageOrPay: parseManaCost(script.forageOrPay) } : {}),
   };
   return script?.additionalCost || Object.keys(add).length ? add : undefined;
 }
@@ -961,10 +959,25 @@ function cardRulesOf(rules: CardRules): CardRules | undefined {
 /** The alternative cost of a card (`CastOption` of kind `alternative`). */
 type AlternativeCost = Extract<CastOption, { kind: "alternative" }>;
 
+/** Order of the cast options in a definition (the order they had before PLAN-M M12; they are read by kind). */
+const CAST_OPTION_ORDER: CastOption["kind"][] = [
+  "flashback",
+  "graveyard",
+  "mayhem",
+  "madness",
+  "warp",
+  "plot",
+  "foretell",
+  "flash",
+  "alternative",
+  "faceDown",
+];
+
 /**
- * The other ways to cast the card (PLAN-M M5), read from the text or written by the script: flashback (or harmonize,
- * the same casting for the harmonize cost), from the graveyard (retrace: by discarding a land card in addition),
- * mayhem, madness, warp, plot, foretell, flash for a surcharge, the alternative cost, face down (disguise, morph).
+ * The other ways to cast the card (PLAN-M M5): read from the text (flashback or harmonize, the same casting for the
+ * harmonize cost; retrace; mayhem, madness, warp, plot, foretell, the alternative cost, face down with disguise or
+ * morph), and those of the script (PLAN-M M12), which override a deduced option of the same kind field by field
+ * (a flashback with extra costs keeps harmonize; a disguise reduction keeps morph).
  */
 function castOptionsOf(
   raw: RawCard,
@@ -975,40 +988,29 @@ function castOptionsOf(
   alternative: AlternativeCost | undefined,
 ): CastOption[] | undefined {
   const text = raw.oracleText;
-  const flashbackCost = script?.flashback ?? flashback;
-  const graveyard =
-    script?.castFromGraveyard ?? (/^Retrace\b/m.test(text) ? { discard: 1, discardFilter: { types: ["Land"] } } : undefined);
   const madness = parseKeywordCost(text, "Madness") ?? parseMadnessPay(text);
   const plot = parsePlot(text);
   const foretell = parseForetell(text);
   const disguise = parseDisguise(text);
-  const options: (CastOption | undefined)[] = [
-    flashbackCost
-      ? {
-          kind: "flashback",
-          cost: parseManaCost(flashbackCost),
-          ...(script?.flashbackCost ? { extra: script.flashbackCost } : {}),
-          ...(harmonize ? { harmonize: true } : {}),
-        }
-      : undefined,
-    graveyard ? { kind: "graveyard", ...graveyard } : undefined,
+  const deduced: (CastOption | undefined)[] = [
+    flashback ? { kind: "flashback", cost: parseManaCost(flashback), ...(harmonize ? { harmonize: true } : {}) } : undefined,
+    /^Retrace\b/m.test(text) ? { kind: "graveyard", discard: 1, discardFilter: { types: ["Land"] } } : undefined,
     mayhem ? { kind: "mayhem", cost: parseManaCost(mayhem) } : undefined,
     madness ? { kind: "madness", cost: madness } : undefined,
     parseWarp(text),
     plot ? { kind: "plot", cost: plot } : undefined,
     foretell ? { kind: "foretell", cost: foretell } : undefined,
-    script?.flashExtraCost ? { kind: "flash", cost: parseManaCost(script.flashExtraCost) } : undefined,
     alternative,
     disguise
-      ? {
-          kind: "faceDown",
-          cost: disguise,
-          ...(/^Morph \{/m.test(stripReminder(text)) ? { morph: true as const } : {}),
-          ...(script?.disguiseReduction ? { reducedBy: script.disguiseReduction } : {}),
-        }
+      ? { kind: "faceDown", cost: disguise, ...(/^Morph \{/m.test(stripReminder(text)) ? { morph: true as const } : {}) }
       : undefined,
   ];
-  const out = options.filter((o): o is CastOption => !!o);
+  const out: CastOption[] = [];
+  for (const kind of CAST_OPTION_ORDER) {
+    const found = deduced.find((o) => o?.kind === kind);
+    const written = script?.castOptions?.find((o) => o.kind === kind);
+    if (found || written) out.push({ ...found, ...written } as CastOption);
+  }
   return out.length ? out : undefined;
 }
 
@@ -1019,6 +1021,25 @@ function singleDef(raw: RawCard, script: CardScript | undefined, set: string): C
   const types = words.filter((w): w is CardType => CARD_TYPES.has(w as CardType));
   const subtypes = splitSubtypes(right);
 
+  // The script's fields merged with what is read from the text or compiled are taken out; the others (`cda`,
+  // `enchant`, `leyline`, `faceUpCounters`) are copied as written (PLAN-M M12).
+  const {
+    abilities: _abilities,
+    spell: _spell,
+    keywords: _keywords,
+    kicker: _kicker,
+    castOptions: _castOptions,
+    rules: _rules,
+    additionalCost: _additionalCost,
+    costReduction: _costReduction,
+    asEnters: _asEnters,
+    caseSolved: _caseSolved,
+    prepareSpell: _prepareSpell,
+    stationAbilities: _stationAbilities,
+    classLevels: _classLevels,
+    caseToSolve: _caseToSolve,
+    ...copied
+  } = script ?? {};
   let implemented = !!script || onlyKeywords(raw.oracleText);
   // "Prepare" cards: playable only if the script describes their spell.
   if (raw.prepare && !script?.prepareSpell) implemented = false;
@@ -1031,13 +1052,7 @@ function singleDef(raw: RawCard, script: CardScript | undefined, set: string): C
   const power = parseInt0(raw.power);
   const toughness = parseInt0(raw.toughness);
   // Variable P/T (*): only if the script defines them (characteristic-defining ability).
-  if (
-    (power === null || toughness === null) &&
-    script?.cdaPT === undefined &&
-    script?.cdaPower === undefined &&
-    script?.cdaToughness === undefined
-  )
-    implemented = false;
+  if ((power === null || toughness === null) && script?.cda === undefined) implemented = false;
 
   const keywords = new Set<Keyword>();
   // "Hexproof from X" is not full hexproof (Scryfall also lists "Hexproof").
@@ -1315,9 +1330,8 @@ function singleDef(raw: RawCard, script: CardScript | undefined, set: string): C
       : script?.spell;
   // Station: a threshold whose abilities (other than keywords) are not scripted makes the card unhandled.
   if (stationIncomplete) implemented = false;
-  const kickerMana = script?.kicker
-    ? parseManaCost(script.kicker)
-    : replicate || squad || multikicker
+  const kickerMana =
+    replicate || squad || multikicker
       ? parseManaCost(replicate ?? squad ?? multikicker ?? "")
       : offspring
         ? parseManaCost(offspring)
@@ -1351,21 +1365,19 @@ function singleDef(raw: RawCard, script: CardScript | undefined, set: string): C
                         : exileGraveyard
                           ? "exileGraveyard"
                           : undefined;
-  const kickerPay: KickerDef["pay"] =
-    script?.kickerCost ??
-    (bargain
-      ? { sacrifice: BARGAIN_FILTER }
-      : blight
-        ? { blight }
-        : teamwork
-          ? { tapPower: teamwork }
-          : evidence
-            ? { collectEvidence: evidence }
-            : exileGraveyard
-              ? { exileGraveyard }
-              : lifeOrPay
-                ? { life: Number(lifeOrPay[1]) }
-                : undefined);
+  const kickerPay: KickerDef["pay"] = bargain
+    ? { sacrifice: BARGAIN_FILTER }
+    : blight
+      ? { blight }
+      : teamwork
+        ? { tapPower: teamwork }
+        : evidence
+          ? { collectEvidence: evidence }
+          : exileGraveyard
+            ? { exileGraveyard }
+            : lifeOrPay
+              ? { life: Number(lifeOrPay[1]) }
+              : undefined;
   const kickerOrPay = blightOrPay
     ? parseManaCost(blightOrPay)
     : exileOrPay
@@ -1373,18 +1385,14 @@ function singleDef(raw: RawCard, script: CardScript | undefined, set: string): C
       : lifeOrPay
         ? parseManaCost(lifeOrPay[2] as string)
         : undefined;
-  const kickerDef: KickerDef | undefined = kickerMana
-    ? { mana: kickerMana, kind: kickerKind, pay: kickerPay, orPay: kickerOrPay, gift }
-    : undefined;
-  const alternative: AlternativeCost | undefined = script?.altCost
-    ? {
-        kind: "alternative",
-        mana: parseManaCost(script.altCost.mana),
-        condition: script.altCost.condition,
-        label: script.altCost.label,
-        ...(script.altCost.pay ? { pay: script.altCost.pay } : {}),
-      }
-    : script?.forageOrPay && manaCost
+  // The script's kicker (its mana, a kicker without mana) overrides what is read from the text, field by field.
+  const kickerDef: KickerDef | undefined =
+    kickerMana || script?.kicker
+      ? ({ mana: kickerMana, kind: kickerKind, pay: kickerPay, orPay: kickerOrPay, gift, ...script?.kicker } as KickerDef)
+      : undefined;
+  // "Forage or pay [mana]" (Feed the Cycle): the mana is the additional cost, foraging the alternative.
+  const alternative: AlternativeCost | undefined =
+    script?.additionalCost?.forageOrPay && manaCost
       ? {
           kind: "alternative",
           mana: manaCost,
@@ -1491,33 +1499,18 @@ function singleDef(raw: RawCard, script: CardScript | undefined, set: string): C
       ...bloomburrowAbilities,
     ],
     ...levelFields,
-    enchant: script?.enchant,
+    ...copied,
     loyalty: raw.loyalty ? Number(raw.loyalty) : undefined,
-    leyline: script?.leyline,
-    cda:
-      script?.cdaPT !== undefined || script?.cdaPower !== undefined || script?.cdaToughness !== undefined
-        ? { pt: script?.cdaPT, power: script?.cdaPower, toughness: script?.cdaToughness }
-        : undefined,
     ward,
     spell,
     kicker: kickerDef,
     rules: cardRulesOf({
-      cantBeCountered: script?.cantBeCountered,
       cantBeCopied: /This spell can't be copied\./.test(raw.oracleText) || undefined,
-      exileOnResolve: script?.exileOnResolve,
-      shuffleIntoLibrary: script?.shuffleIntoLibrary,
       paradigm: paradigm || undefined,
       storied: storied || undefined,
-      controlsEnchanted: script?.controlsEnchanted,
-      opponentDiscardToBattlefield: script?.opponentDiscardToBattlefield,
-      equipDiscountWhenTargeted: script?.equipDiscountWhenTargeted,
-      chosenNameAbilities: script?.chosenNameAbilities,
-      castCondition: script?.castCondition,
-      flashIf: script?.flashIf,
-      whenCast: script?.whenCast,
+      ...script?.rules,
     }),
     castOptions: castOptionsOf(raw, script, harmonize ?? flashbackMana, !!harmonize, mayhem, alternative),
-    faceUpCounters: script?.faceUpCounters,
     asEnters: asEntersOf(script?.asEnters, raw.oracleText),
     shockLand: shockLand || undefined,
     additionalCost: additionalCostOf(

@@ -13,6 +13,7 @@ import {
   entersWith,
   FISH,
   FOOD_ABILITY,
+  flashback,
   fx,
   INSTANT_SORCERY,
   kin,
@@ -132,7 +133,7 @@ export const BLUE: Record<string, CardScript> = {
     ],
   },
   "Eluge, the Shoreless Sea": {
-    cdaPT: amount.count({ types: ["Land"], subtype: "Island", controller: "you" }),
+    cda: { pt: amount.count({ types: ["Land"], subtype: "Island", controller: "you" }) },
     abilities: [
       ...[when.entersSelf, when.attacksSelf].map((w) =>
         triggered(
@@ -197,7 +198,7 @@ export const BLUE: Record<string, CardScript> = {
   },
   Kitnap: {
     enchant: { filter: { types: ["Creature"] }, label: "creature" },
-    controlsEnchanted: true,
+    rules: { controlsEnchanted: true },
     abilities: [
       triggered(when.entersSelf, [fx.tap(ref.attached)], { label: "Taps the creature" }),
       // "If the gift wasn't promised": read on the Aura (the gift of a permanent is not known to its effects).
@@ -294,7 +295,7 @@ export const BLUE: Record<string, CardScript> = {
     ],
   },
   "Otterball Antics": {
-    flashback: "{3}{U}",
+    castOptions: [flashback("{3}{U}")],
     spell: spell(
       [],
       [

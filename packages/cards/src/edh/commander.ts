@@ -7,6 +7,7 @@ import type { CardScript, ManaType } from "@mtgx/engine";
 import {
   ANY_COLOR,
   activated,
+  altCost,
   amount,
   cond,
   entersWith,
@@ -85,15 +86,15 @@ export const COMMANDER_CARDS: Record<string, CardScript> = {
     ],
   },
   "Fierce Guardianship": {
-    altCost: freeWithCommander,
+    castOptions: [altCost(freeWithCommander)],
     spell: spell([target.spell("t", { notTypes: ["Creature"] }, "noncreature spell")], [fx.counter(ref.target())]),
   },
   "Deadly Rollick": {
-    altCost: freeWithCommander,
+    castOptions: [altCost(freeWithCommander)],
     spell: spell([target.creature()], [fx.exile(ref.target())]),
   },
   "Flawless Maneuver": {
-    altCost: freeWithCommander,
+    castOptions: [altCost(freeWithCommander)],
     spell: spell([], [fx.pumpAll({ controller: "you" }, 0, 0, ["indestructible"])]),
   },
   // Eminence: the first ability also works from the command zone.

@@ -191,7 +191,7 @@ export const GREEN: Record<string, CardScript> = {
       ),
     ],
   },
-  "Gigantic Big Bear": { cantBeCountered: true },
+  "Gigantic Big Bear": { rules: { cantBeCountered: true } },
   "Guardian of the Halls": {
     abilities: [activated({ mana: "{5}{G}{G}", effects: [fx.addCounters(ref.self, 3)], label: "Three +1/+1 counters" })],
   },
@@ -207,7 +207,7 @@ export const GREEN: Record<string, CardScript> = {
       ),
     ],
   },
-  "Mirkwood Pathmaker": { cdaPT: amount.count(YOUR_LANDS) },
+  "Mirkwood Pathmaker": { cda: { pt: amount.count(YOUR_LANDS) } },
   "Nasty Little Rabbit": {
     abilities: [
       triggered(when.yourCombat, [fx.addCounters(ref.self, 1)], {

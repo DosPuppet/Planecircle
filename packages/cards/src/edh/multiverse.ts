@@ -177,8 +177,7 @@ export const EDH_MULTIVERSE: Record<string, CardScript> = {
   },
   "Omnath, Locus of the Void": {
     // "+1/+1 for each unspent mana you have": base power and toughness 6 plus that mana.
-    cdaPower: amount.plus(6, amount.manaInPool),
-    cdaToughness: amount.plus(6, amount.manaInPool),
+    cda: { power: amount.plus(6, amount.manaInPool), toughness: amount.plus(6, amount.manaInPool) },
     abilities: [
       playerStatic({ keepUnspentMana: { types: [], becomes: "C" }, label: "Unspent mana becomes colorless" }),
       triggered(when.landfall, [fx.addMana("C", "C")], { label: "Landfall: {C}{C}" }),
@@ -246,7 +245,7 @@ export const EDH_MULTIVERSE: Record<string, CardScript> = {
 
   // --- Creatures -----------------------------------------------------------------------------------------------------
   "Akroma, Angel of Fury": {
-    cantBeCountered: true,
+    rules: { cantBeCountered: true },
     abilities: [
       protectionAbility(protection.from({ colors: ["W", "U"] }, "Protection from white and from blue")),
       activated({ mana: "{R}", effects: [fx.pump(ref.self, 1, 0)], label: "+1/+0" }),
@@ -652,7 +651,7 @@ export const EDH_MULTIVERSE: Record<string, CardScript> = {
     ),
   },
   "Teferi's Reproach": {
-    exileOnResolve: true,
+    rules: { exileOnResolve: true },
     spell: spell(
       [target.player("t", "opponent")],
       [

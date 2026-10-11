@@ -11,6 +11,7 @@ import {
   cond,
   doesntUntap,
   equipAbility,
+  flashback,
   fx,
   modal,
   mode,
@@ -222,7 +223,7 @@ export const BLUE: Record<string, CardScript> = {
     ],
   },
   "Plunder the Trollshaws": {
-    flashback: "{3}{U}",
+    castOptions: [flashback("{3}{U}")],
     spell: spell(
       [],
       [...fx.when(cond.spellCastFromGraveyard, fx.draw(2)), ...fx.when(cond.not(cond.spellCastFromGraveyard), fx.draw(1))],

@@ -10,7 +10,9 @@ import {
   chapter,
   cond,
   DWARF,
+  flashback,
   fx,
+  kicker,
   modal,
   mode,
   playerStatic,
@@ -88,7 +90,7 @@ export const WHITE: Record<string, CardScript> = {
     ],
   },
   "The Eagles Are Coming!": {
-    kicker: "{2}{W}{W}",
+    kicker: kicker("{2}{W}{W}"),
     spell: spell(
       [{ ...target.creature("t", CREATURE_YOU_OWN), label: "creature you own", kickedCount: 99 }],
       [
@@ -98,7 +100,7 @@ export const WHITE: Record<string, CardScript> = {
     ),
   },
   "Esgaroth Garrison": {
-    cdaPower: amount.count(CREATURES_YOU_CONTROL),
+    cda: { power: amount.count(CREATURES_YOU_CONTROL) },
     abilities: [triggered(when.entersSelf, recruit(), { label: "Recruit" })],
   },
   "Fíli the Pathfinder": {
@@ -152,7 +154,7 @@ export const WHITE: Record<string, CardScript> = {
     spell: spell([target.creature()], [fx.damage(5, ref.target())]),
   },
   "Moment of Glory": {
-    flashback: "{4}{W}",
+    castOptions: [flashback("{4}{W}")],
     spell: spell(
       [target.creature("t", { controller: "you" })],
       [

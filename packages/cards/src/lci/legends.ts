@@ -405,8 +405,7 @@ export const LEGENDS: Record<string, CardScript> = {
   },
   "Souls of the Lost": {
     additionalCost: { discard: 1, discardOr: { sacrifice: true } },
-    cdaPower: PERMANENT_CARDS,
-    cdaToughness: amount.plus(PERMANENT_CARDS, 1),
+    cda: { power: PERMANENT_CARDS, toughness: amount.plus(PERMANENT_CARDS, 1) },
   },
   "Starving Revenant": {
     abilities: [

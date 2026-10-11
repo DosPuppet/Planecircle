@@ -12,6 +12,7 @@ import {
   entersWith,
   firebending,
   fx,
+  kicker,
   manaAbility,
   playerStatic,
   ref,
@@ -51,7 +52,7 @@ const filterAnyColor = activated({
 export const ARTIFACTS: Record<string, CardScript> = {
   // --- Colorless Lessons -------------------------------------------------------
   "Aang's Journey": {
-    kicker: "{2}",
+    kicker: kicker("{2}"),
     spell: spell(
       [],
       [

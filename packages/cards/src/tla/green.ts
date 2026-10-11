@@ -15,6 +15,7 @@ import {
   eventReplacement,
   exhaust,
   FOOD,
+  flashback,
   fx,
   manaAbility,
   modal,
@@ -296,7 +297,7 @@ export const GREEN: Record<string, CardScript> = {
     ],
   },
   Rockalanche: {
-    flashback: "{5}{G}",
+    castOptions: [flashback("{5}{G}")],
     spell: spell([LAND_YOU_CONTROL], fx.earthbend(ref.target(), amount.count({ subtype: "Forest", controller: "you" }))),
   },
   "Rocky Rebuke": {
@@ -379,7 +380,7 @@ export const GREEN: Record<string, CardScript> = {
     ],
   },
   "Toph, the Blind Bandit": {
-    cdaPower: amount.countersAmong({ types: ["Land"], controller: "you" }, "+1/+1"),
+    cda: { power: amount.countersAmong({ types: ["Land"], controller: "you" }, "+1/+1") },
     abilities: [
       triggered(when.entersSelf, [...fx.earthbend(ref.target(), 2)], {
         targets: [LAND_YOU_CONTROL],

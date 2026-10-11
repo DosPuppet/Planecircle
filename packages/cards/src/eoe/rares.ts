@@ -329,7 +329,7 @@ export const RARES: Record<string, CardScript> = {
     ],
   },
   "Frenzied Baloth": {
-    cantBeCountered: true,
+    rules: { cantBeCountered: true },
     abilities: [
       playerStatic({
         uncounterable: { filter: { types: ["Creature"] } },
@@ -366,7 +366,7 @@ export const RARES: Record<string, CardScript> = {
       ),
     ],
   },
-  Cosmogoyf: { cdaPower: OWNED_IN_EXILE, cdaToughness: amount.plus(OWNED_IN_EXILE, 1) },
+  Cosmogoyf: { cda: { power: OWNED_IN_EXILE, toughness: amount.plus(OWNED_IN_EXILE, 1) } },
 
   // --- Multicolor ------------------------------------------------------------
   "Sami, Wildcat Captain": {

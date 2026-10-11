@@ -13,9 +13,11 @@ import {
   doesntUntap,
   entersWith,
   eventReplacement,
+  flashback,
   fx,
   GOBLIN,
   INSTANT_SORCERY,
+  kicker,
   manaAbility,
   modal,
   mode,
@@ -44,7 +46,7 @@ export const RED: Record<string, CardScript> = {
     ],
   },
   "Shivan Dragon": { abilities: [activated({ mana: "{R}", effects: [fx.pump(ref.self, 1, 0)], label: "+1/+0" })] },
-  "Burst Lightning": { kicker: "{4}", spell: spell([target.any()], [fx.damage(amount.kicked(4, 2), ref.target())]) },
+  "Burst Lightning": { kicker: kicker("{4}"), spell: spell([target.any()], [fx.damage(amount.kicked(4, 2), ref.target())]) },
   Boltwave: { spell: spell([], [fx.damage(3, ref.eachOpponent)]) },
   Abrade: {
     spell: modal(
@@ -62,7 +64,7 @@ export const RED: Record<string, CardScript> = {
   "Thrill of Possibility": { additionalCost: { discard: 1 }, spell: spell([], [fx.draw(2)]) },
   "Seize the Spoils": { additionalCost: { discard: 1 }, spell: spell([], [fx.draw(2), fx.createTokens(TREASURE)]) },
   "Bulk Up": {
-    flashback: "{4}{R}{R}",
+    castOptions: [flashback("{4}{R}{R}")],
     spell: spell([target.creature()], [fx.pump(ref.target(), amount.powerOf(ref.target()), 0)]),
   },
   "Dragonlord's Servant": { abilities: [costReducer({ subtype: "Dragon" }, 1, "Dragons: {1} less")] },
@@ -163,7 +165,7 @@ export const RED: Record<string, CardScript> = {
     ],
   },
   Electroduplicate: {
-    flashback: "{2}{R}{R}",
+    castOptions: [flashback("{2}{R}{R}")],
     spell: spell(
       [target.creature("t", { controller: "you" })],
       [fx.copyToken(ref.target(), { addKeywords: ["haste"], addAbilities: [SACRIFICE_TOKEN_AT_END_STEP] })],

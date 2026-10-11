@@ -231,7 +231,7 @@ export const CRAFT: Record<string, CardScript> = {
       craft("{4}{R}", { filter: { subtype: "Dinosaur" }, count: 1, orMore: true }),
     ],
   },
-  "Mastercraft Raptor": { cdaPower: amount.linkedTotalPower },
+  "Mastercraft Raptor": { cda: { power: amount.linkedTotalPower } },
   // --- Green ------------------------------------------------------------------
   "Jade Seedstones": {
     abilities: [
@@ -277,7 +277,7 @@ export const CRAFT: Record<string, CardScript> = {
     abilities: [manaAbility(["W", "U", "B", "R", "G"]), craft("{5}", { count: 1, orMore: true, distinctColors: true })],
   },
   "Sunbird Effigy": {
-    cdaPT: amount.linkedColors,
+    cda: { pt: amount.linkedColors },
     abilities: [
       activated({
         tap: true,

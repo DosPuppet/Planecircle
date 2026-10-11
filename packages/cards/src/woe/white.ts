@@ -304,7 +304,7 @@ export const WHITE: Record<string, CardScript> = {
       }),
     ],
   },
-  "Regal Bunnicorn": { cdaPT: amount.count({ notTypes: ["Land"], controller: "you" }) },
+  "Regal Bunnicorn": { cda: { pt: amount.count({ notTypes: ["Land"], controller: "you" }) } },
   "Return Triumphant": {
     spell: spell(
       [target.cardInGraveyard("t", { types: ["Creature"], maxManaValue: 3 }, "you", "creature card with MV 3 or less")],

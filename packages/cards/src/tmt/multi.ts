@@ -405,7 +405,7 @@ export const MULTI: Record<string, CardScript> = {
     ),
   },
   "Tokka & Rahzar, Terrible Twos": {
-    cantBeCountered: true,
+    rules: { cantBeCountered: true },
     abilities: [
       triggered(when.castSpell("any", { manaSpentBelowValue: true }), [fx.damage(3, ref.eventPlayer)], {
         label: "3 damage to the player who spent less than the mana value",

@@ -17,6 +17,7 @@ import {
   DRAGON_FIREBENDING,
   entersWith,
   fx,
+  kicker,
   manaAbility,
   modal,
   mode,
@@ -212,7 +213,7 @@ export const CARDS: Record<string, CardScript> = {
     ],
   },
   "Avatar's Wrath": {
-    exileOnResolve: true,
+    rules: { exileOnResolve: true },
     spell: spell(
       [target.upTo(1, target.creature())],
       [
@@ -348,7 +349,7 @@ export const CARDS: Record<string, CardScript> = {
     ),
   },
   "Firebending Lesson": {
-    kicker: "{4}",
+    kicker: kicker("{4}"),
     spell: spell([target.creature()], [fx.damage(amount.kicked(5, 2), ref.target())]),
   },
   "Accumulate Wisdom": {

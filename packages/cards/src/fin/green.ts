@@ -5,6 +5,7 @@ import {
   amount,
   chocobo,
   cond,
+  flashback,
   fx,
   jobGear,
   manaAbility,
@@ -113,7 +114,7 @@ export const GREEN: Record<string, CardScript> = {
       }),
     ],
   },
-  "Gysahl Greens": { flashback: "{6}{G}", spell: spell([], [chocobo()]) },
+  "Gysahl Greens": { castOptions: [flashback("{6}{G}")], spell: spell([], [chocobo()]) },
   "Jumbo Cactuar": { abilities: [triggered(when.attacksSelf, [fx.pump(ref.self, 9999, 0)], { label: "+9999/+0" })] },
   "Loporrit Scout": {
     abilities: [

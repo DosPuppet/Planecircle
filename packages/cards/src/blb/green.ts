@@ -264,7 +264,7 @@ export const GREEN: Record<string, CardScript> = {
     ),
   },
   "Lumra, Bellow of the Woods": {
-    cdaPT: amount.count({ types: ["Land"], controller: "you" }),
+    cda: { pt: amount.count({ types: ["Land"], controller: "you" }) },
     abilities: [
       triggered(
         when.entersSelf,

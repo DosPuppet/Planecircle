@@ -355,7 +355,7 @@ export const BLUE: Record<string, CardScript> = {
     ],
   },
   "Out Cold": {
-    cantBeCountered: true,
+    rules: { cantBeCountered: true },
     spell: spell([target.upTo(2, target.creature())], [fx.tap(ref.target()), fx.counters(ref.target(), "stun"), investigate()]),
   },
   "Proft's Eidetic Memory": {

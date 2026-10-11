@@ -87,7 +87,7 @@ export const BLUE: Record<string, CardScript> = {
     ),
   },
   "Glen Elendra's Answer": {
-    cantBeCountered: true,
+    rules: { cantBeCountered: true },
     spell: spell([], [fx.counter(ref.stackItemsOf(ref.eachOpponent), "n"), fx.createTokens(FAERIE_UB, amount.v("n"))]),
   },
   // Convoke read from the text.
@@ -288,7 +288,7 @@ export const BLUE: Record<string, CardScript> = {
     ],
   },
   "Illusion Spinners": {
-    flashIf: cond.controls({ subtype: "Faerie" }),
+    rules: { flashIf: cond.controls({ subtype: "Faerie" }) },
     abilities: [
       staticAbility(
         "self",

@@ -324,7 +324,7 @@ export const EDH_COUNTER_BLITZ: Record<string, CardScript> = {
 
   // --- Other creatures ---------------------------------------------------------------------------------------------
   "Altered Ego": {
-    cantBeCountered: true,
+    rules: { cantBeCountered: true },
     // "… except it enters with X additional +1/+1 counters" (X of the spell; 0 if it wasn't cast).
     asEnters: [fx.chooseCopy({ types: ["Creature"] }, { anyController: true, counters: { kind: "+1/+1", n: amount.x } })],
   },

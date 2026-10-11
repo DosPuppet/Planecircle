@@ -16,6 +16,7 @@ import {
   fx,
   graveyardReplacement,
   investigate,
+  kicker,
   loyalty,
   manaAbility,
   modal,
@@ -262,7 +263,7 @@ export const CARDS: Record<string, CardScript> = {
     ],
   },
   // Trample, hexproof: read from the text.
-  "Carnage Tyrant": { cantBeCountered: true },
+  "Carnage Tyrant": { rules: { cantBeCountered: true } },
   Polyraptor: {
     abilities: [triggered(when.isDealtDamage, [fx.copyToken(ref.self)], { label: "Enrage: a token copy" })],
   },
@@ -520,7 +521,7 @@ export const CARDS: Record<string, CardScript> = {
   "Sylvan Tutor": { spell: spell([], [fx.search({ types: ["Creature"] }, { to: "libraryTop" })]) },
   // Indestructible: read from the text.
   "Toski, Bearer of Secrets": {
-    cantBeCountered: true,
+    rules: { cantBeCountered: true },
     abilities: [
       staticAbility("self", { addKeywords: ["mustAttack"] }, { label: "Attacks each combat if able" }),
       triggered(when.combatDamage(YOUR_CREATURES, true), [fx.draw(1)], {
@@ -623,7 +624,7 @@ export const CARDS: Record<string, CardScript> = {
     ],
   },
   "Goblin Bushwhacker": {
-    kicker: "{R}",
+    kicker: kicker("{R}"),
     abilities: [
       triggered(when.entersSelf, [fx.pumpAll(YOUR_CREATURES, 1, 0, ["haste"])], {
         condition: cond.kicked,
@@ -844,7 +845,7 @@ export const CARDS: Record<string, CardScript> = {
       }),
     ],
   },
-  "Nexus of Fate": { shuffleIntoLibrary: true, spell: spell([], [fx.extraTurn]) },
+  "Nexus of Fate": { rules: { shuffleIntoLibrary: true }, spell: spell([], [fx.extraTurn]) },
   "Paradox Haze": {
     enchant: { filter: {}, label: "player", player: true },
     abilities: [
@@ -1377,7 +1378,7 @@ export const CARDS: Record<string, CardScript> = {
   // Council's dilemma (701.38): each player votes, starting with you and in turn order; then an extra turn for each vote
   // for time, and a permanent owned by the voter (whoever controls it) for each vote for money.
   Expropriate: {
-    exileOnResolve: true,
+    rules: { exileOnResolve: true },
     spell: spell(
       [],
       [

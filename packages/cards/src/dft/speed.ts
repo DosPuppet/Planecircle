@@ -15,6 +15,7 @@ import {
   entersWith,
   eventReplacement,
   exhaust,
+  fromGraveyard,
   fx,
   GOBLIN,
   MOUNT_OR_VEHICLE,
@@ -62,7 +63,7 @@ export const SPEED: Record<string, CardScript> = {
   },
   "Lightwheel Enhancements": {
     enchant: { filter: CREATURE_OR_VEHICLE, label: "creature or Vehicle" },
-    castFromGraveyard: { condition: MAX },
+    castOptions: [fromGraveyard({ condition: MAX })],
     abilities: [
       staticAbility("attached", { power: 1, toughness: 1, addKeywords: ["vigilance"] }, { label: "+1/+1 and has vigilance" }),
     ],
@@ -504,7 +505,7 @@ export const SPEED: Record<string, CardScript> = {
     ],
   },
   "Mendicant Core, Guidelight": {
-    cdaPower: amount.count({ types: ["Artifact"], controller: "you" }),
+    cda: { power: amount.count({ types: ["Artifact"], controller: "you" }) },
     abilities: [
       triggered(
         when.castSpell("you", { types: ["Artifact"] }),

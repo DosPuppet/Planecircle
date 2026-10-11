@@ -6,7 +6,9 @@ import {
   type CardScript,
   CREATURE_YOU_CONTROL,
   cond,
+  cost,
   FOOD,
+  flashback,
   fx,
   GAINED_OR_LOST,
   kin,
@@ -150,7 +152,7 @@ export const BLACK: Record<string, CardScript> = {
     ),
   },
   "Feed the Cycle": {
-    forageOrPay: "{B}",
+    additionalCost: { forageOrPay: cost("{B}") },
     spell: spell([target.creatureOrPlaneswalker()], [fx.destroy(ref.target())]),
   },
   Fell: { spell: spell([target.creature()], [fx.destroy(ref.target())]) },
@@ -257,7 +259,7 @@ export const BLACK: Record<string, CardScript> = {
     ],
   },
   "Ruthless Negotiation": {
-    flashback: "{4}{B}",
+    castOptions: [flashback("{4}{B}")],
     spell: spell(
       [target.player("t", "opponent")],
       [fx.exileFromOwnHand(ref.target(), "x"), ...fx.when(cond.spellCastFromGraveyard, fx.draw(1))],

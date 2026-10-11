@@ -16,6 +16,7 @@ import {
   createRole,
   doesntUntap,
   entersWith,
+  flashFor,
   fx,
   INSTANT_SORCERY,
   playerStatic,
@@ -104,7 +105,7 @@ export const BLUE: Record<string, CardScript> = {
     spell: spell([target.nonland()], [fx.bounce(ref.target()), fx.draw(1)]),
   },
   "Asinine Antics": {
-    flashExtraCost: "{2}",
+    castOptions: [flashFor("{2}")],
     spell: spell([], createRole(CURSED_ROLE, ref.permanentsOf(ref.eachOpponent, { types: ["Creature"] }))),
   },
   "Aquatic Alchemist": {

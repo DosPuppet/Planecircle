@@ -14,6 +14,7 @@ import {
   exhaust,
   FOOD,
   fx,
+  kicker,
   modal,
   mode,
   playerStatic,
@@ -330,7 +331,7 @@ export const BLACK: Record<string, CardScript> = {
     ],
   },
   "Zuko's Conviction": {
-    kicker: "{4}",
+    kicker: kicker("{4}"),
     spell: spell(
       [target.cardInGraveyard("t", { types: ["Creature"] }, "you", "creature card from your graveyard")],
       [

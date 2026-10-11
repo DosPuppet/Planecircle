@@ -5,6 +5,7 @@ import {
   amount,
   chocobo,
   cond,
+  flashback,
   fx,
   jobGear,
   manaAbility,
@@ -37,7 +38,7 @@ export const RED: Record<string, CardScript> = {
     ],
   },
   "Call the Mountain Chocobo": {
-    flashback: "{5}{R}",
+    castOptions: [flashback("{5}{R}")],
     spell: spell([], [fx.search({ types: ["Land"], subtype: "Mountain" }), chocobo()]),
   },
   "Choco-Comet": { spell: spell([target.any("t")], [fx.damage(amount.x, ref.target()), chocobo()]) },
@@ -66,7 +67,7 @@ export const RED: Record<string, CardScript> = {
   "Haste Magic": {
     spell: spell([target.creature("t")], [fx.pump(ref.target(), 3, 1, ["haste"]), fx.impulse(1, "yourNextEndStep")]),
   },
-  "Laughing Mad": { additionalCost: { discard: 1 }, flashback: "{3}{R}", spell: spell([], [fx.draw(2)]) },
+  "Laughing Mad": { additionalCost: { discard: 1 }, castOptions: [flashback("{3}{R}")], spell: spell([], [fx.draw(2)]) },
   "Light of Judgment": {
     // "Destroy up to one Equipment attached to that creature": chosen on resolution, not targeted.
     spell: spell(
@@ -132,7 +133,7 @@ export const RED: Record<string, CardScript> = {
     ),
   },
   "Sorceress's Schemes": {
-    flashback: "{4}{R}",
+    castOptions: [flashback("{4}{R}")],
     // "Target instant or sorcery card from your graveyard or exiled card with flashback you own" (PLAN-L L4).
     spell: spell(
       [

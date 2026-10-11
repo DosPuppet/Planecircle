@@ -128,7 +128,7 @@ export const CARDS: Record<string, CardScript> = {
       }),
     ],
   },
-  "Dwarven Mauler": { equipDiscountWhenTargeted: 2 },
+  "Dwarven Mauler": { rules: { equipDiscountWhenTargeted: 2 } },
   "Thorin, Mountain-king": {
     abilities: [
       triggered(

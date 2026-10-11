@@ -36,7 +36,7 @@ import type {
   EventReplacementAbilityDef,
   FilterCompare,
   GraveyardReplacementAbilityDef,
-  Keyword,
+  KickerDef,
   LayerMods,
   ManaAbilityDef,
   ManaCost,
@@ -71,86 +71,73 @@ export {
   when,
 } from "./dsl/when";
 
-/** Behavior of a card, merged with its characteristics (from Scryfall). */
-export interface CardScript {
-  abilities?: AbilityDef[];
-  spell?: SpellDef;
-  /** Kicker cost, e.g. "{4}". */
-  kicker?: string;
-  /** Kicker without mana (with `kicker: "{0}"`): a permanent sacrificed or returned, chosen automatically. */
-  kickerCost?: {
-    sacrifice?: ObjectFilter;
-    bounce?: ObjectFilter;
-    blight?: number;
-    tapPower?: number;
-    collectEvidence?: number;
-    /** "Exile N cards from your graveyard or pay [mana]" (Soaring Stoneglider), with `kickerOrPay`. */
-    exileGraveyard?: number;
-  };
-  /** Flashback cost, e.g. "{4}{R}{R}". */
-  flashback?: string;
-  /** "Flashback—[cost], discard a card" or "Flashback—tap three creatures": costs on top of the flashback. */
-  flashbackCost?: AdditionalCost;
-  faceUpCounters?: CardDef["faceUpCounters"];
-  /** "This spell can't be countered." */
-  cantBeCountered?: boolean;
-  /** "This spell can't be copied." */
-  cantBeCopied?: boolean;
-  /** "This spell costs [mana] more for each target beyond the first", e.g. "{W}{U}". */
-  costPerExtraTarget?: string;
-  /** "This [disguise] cost is reduced by {1} for each…" (Fugitive Codebreaker). */
-  disguiseReduction?: Amount;
-  /** Aura: "Enchant [filter]". */
-  /** `player`: "Enchant player" (Grievous Wound). */
-  /** `graveyard`: "enchant creature card in a graveyard" (Animate Dead). */
-  enchant?: { filter: ObjectFilter; label: string; player?: boolean; graveyard?: boolean };
-  /** May begin the game on the battlefield (Leyline). */
-  leyline?: CardDef["leyline"];
-  /** Alternative cost: "you may pay {B} rather than… if [condition]". */
-  altCost?: { mana: string; condition: Condition; label: string; pay?: AltCostPay };
-  /** P/T defined by an ability (starred P/T on the card). */
-  cdaPT?: Amount;
-  /**
-   * "As it enters" (614.1c, 614.12): choices (`fx.chooseForSelf`, `fx.chooseCopy`, `fx.devour`) and other effects done
-   * while the permanent enters; counters put on `ref.self` are the ones it enters with.
-   */
-  asEnters?: Effect[];
-  shuffleIntoLibrary?: boolean;
-  /** Activated abilities of sources with the chosen name: {N} more (Skyseer's Chariot) or forbidden except mana (`"forbid"`). */
-  chosenNameAbilities?: number | "forbid";
-  equipDiscountWhenTargeted?: number;
-  /** "[This card] has flash as long as …" */
-  flashIf?: Condition;
-  /** "… if you controlled [X] as you cast this spell": evaluated on casting (`cond.metWhenCast`). */
-  whenCast?: Condition;
-  exileOnResolve?: boolean;
-  /** "You may cast this card from your graveyard [if…]" */
-  castFromGraveyard?: Omit<Extract<CastOption, { kind: "graveyard" }>, "kind">;
-  /** Only the power is variable (Enigma Drake). */
-  cdaPower?: Amount;
-  /** Only the toughness is variable (Tarmogoyf, with `cdaPower`). */
-  cdaToughness?: Amount;
-  /** "… as though it had flash if you pay {2} more" */
-  flashExtraCost?: string;
-  opponentDiscardToBattlefield?: boolean;
-  /** Aura: "You control enchanted permanent". */
-  controlsEnchanted?: boolean;
-  additionalCost?: AdditionalCost;
-  costReduction?: { generic: Amount; colored?: ManaCost["colored"]; condition?: Condition };
-  keywords?: Keyword[];
-  /** "You can't cast this spell unless…" */
-  castCondition?: Condition;
+/**
+ * Behavior of a card, merged with its characteristics (from Scryfall) by `singleDef` (`cards/src/scryfall.ts`): the
+ * `CardDef` fields a script writes (PLAN-M M12), in their grouped forms, plus a few script-only fields compiled by
+ * `singleDef`. A script's cast option, kicker, card rule or additional cost is merged with what is read from the text
+ * (an option of the same kind overrides it field by field); the other fields are copied as written.
+ */
+export type CardScript = Partial<
+  Pick<
+    CardDef,
+    | "abilities"
+    | "spell"
+    | "keywords"
+    | "kicker"
+    | "castOptions"
+    | "rules"
+    | "additionalCost"
+    | "costReduction"
+    | "cda"
+    | "asEnters"
+    | "enchant"
+    | "leyline"
+    | "faceUpCounters"
+    | "caseSolved"
+  >
+> & {
   /** Reality Fracture: effect of the prepared spell (the cost and the type come from Scryfall). */
   prepareSpell?: SpellDef;
   /** Station (702.184): non-keyword abilities of each "N+" threshold (the keywords are read from the text). */
   stationAbilities?: Record<number, AbilityDef[]>;
   /** Class (716): abilities added at levels 2, 3… (the level costs are read from the text). */
   classLevels?: AbilityDef[][];
-  /** Case (719): "To solve — [condition]" and "Solved — …" abilities. */
+  /** Case (719): "To solve — [condition]" (compiled into the `solveCase` ability). */
   caseToSolve?: Condition;
-  caseSolved?: AbilityDef[];
-  /** "As an additional cost, forage or pay [mana]" (Feed the Cycle). */
-  forageOrPay?: string;
+};
+
+/** Script cast option (PLAN-M M12): "Flashback [mana]" (702.34); `extra`: costs on top of it ("Flashback—{1}{U}, Pay 3 life"). */
+export function flashback(mana: string, extra?: AdditionalCost): CastOption {
+  return { kind: "flashback", cost: parseManaCost(mana), ...(extra ? { extra } : {}) };
+}
+
+/** Script cast option: "You may cast this card from your graveyard [if…]" (`CastOption` of kind `graveyard`). */
+export function fromGraveyard(opts: Omit<Extract<CastOption, { kind: "graveyard" }>, "kind"> = {}): CastOption {
+  return { kind: "graveyard", ...opts };
+}
+
+/** Script cast option: "You may cast this spell as though it had flash if you pay [mana] more to cast it." */
+export function flashFor(mana: string): CastOption {
+  return { kind: "flash", cost: parseManaCost(mana) };
+}
+
+/** Script cast option: "You may pay [mana] rather than pay this spell's mana cost [if…]" (118.9); `pay`: paid along with it. */
+export function altCost(opts: { mana: string; condition: Condition; label: string; pay?: AltCostPay }): CastOption {
+  return {
+    kind: "alternative",
+    mana: parseManaCost(opts.mana),
+    condition: opts.condition,
+    label: opts.label,
+    ...(opts.pay ? { pay: opts.pay } : {}),
+  };
+}
+
+/**
+ * Script kicker (702.33): "Kicker [mana]"; `pay`: a kicker without mana (`kicker("{0}", …)`), a permanent sacrificed or
+ * returned, chosen automatically. Its kind, "or pay" and gift are read from the text.
+ */
+export function kicker(mana: string, pay?: KickerDef["pay"]): KickerDef {
+  return { mana: parseManaCost(mana), ...(pay ? { pay } : {}) };
 }
 
 /** Turn log (`turnlog.ts`): number of matching events (or sum of the damage). */

@@ -265,7 +265,7 @@ export const BLUE: Record<string, CardScript> = {
     abilities: [triggered(when.entersSelf, fx.loot(1), { label: "ctx:loot|Draw a card, then discard a card" })],
   },
   "Turtles in Time": {
-    exileOnResolve: true,
+    rules: { exileOnResolve: true },
     spell: spell([], [fx.bounce(ref.permanentsOf(ref.eachPlayer, { types: ["Creature"] })), fx.mayShuffleHandGraveyardDraw(7)]),
   },
   "Utrom Scientists": {

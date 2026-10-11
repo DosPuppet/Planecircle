@@ -37,7 +37,7 @@ export const BLUE: Record<string, CardScript> = {
   },
   "Djinn of Fool's Fall": {},
   "Duelist of the Mind": {
-    cdaPower: amount.cardsDrawnThisTurn,
+    cda: { power: amount.cardsDrawnThisTurn },
     abilities: [
       triggered(when.crime, fx.may("Draw, then discard?", ...fx.loot(1)), {
         oncePerTurn: true,

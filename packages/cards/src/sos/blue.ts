@@ -49,7 +49,7 @@ export const BLUE: Record<string, CardScript> = {
     ],
   },
   "Divergent Equation": {
-    exileOnResolve: true,
+    rules: { exileOnResolve: true },
     spell: spell(
       [
         {
@@ -242,7 +242,7 @@ export const BLUE: Record<string, CardScript> = {
     abilities: [INCREMENT, triggered(when.entersSelf, [fx.surveil(2)], { label: "Surveil 2" })],
   },
   "Wisdom of Ages": {
-    exileOnResolve: true,
+    rules: { exileOnResolve: true },
     spell: spell(
       [],
       [

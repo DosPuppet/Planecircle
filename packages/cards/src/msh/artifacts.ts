@@ -287,7 +287,7 @@ export const ARTIFACTS: Record<string, CardScript> = {
     abilities: [entersWith({ tapped: true }), manaAbility("C", 3)],
   },
   "Super-Adaptoid": {
-    cdaPower: amount.count({ types: ["Creature"], controller: "you", legendary: true }),
+    cda: { power: amount.count({ types: ["Creature"], controller: "you", legendary: true }) },
     abilities: [when.entersSelf, when.attacksSelf].map((w) =>
       triggered(
         w,

@@ -8,6 +8,7 @@ import type { CardScript, Effect, ObjectFilter } from "@mtgx/engine";
 import {
   ANY_COLOR,
   activated,
+  altCost,
   amount,
   cond,
   fx,
@@ -235,18 +236,20 @@ export const EDH_VIVI: Record<string, CardScript> = {
     spell: spell([target.spell("t", { manaValue: 1 }, "spell with mana value 1")], [fx.counter(ref.target())]),
   },
   Misdirection: {
-    altCost: pitch("U"),
+    castOptions: [altCost(pitch("U"))],
     spell: spell(
       [{ id: "t", label: "spell with a single target", filter: { stackItems: { singleTarget: true, only: "spells" } } }],
       [fx.changeTarget(ref.target())],
     ),
   },
   "Mogg Salvage": {
-    altCost: {
-      mana: "{0}",
-      condition: cond.all(opponentControls("Island"), cond.controls({ subtype: "Mountain" })),
-      label: "Without paying its mana cost (an opponent controls an Island, you control a Mountain)",
-    },
+    castOptions: [
+      altCost({
+        mana: "{0}",
+        condition: cond.all(opponentControls("Island"), cond.controls({ subtype: "Mountain" })),
+        label: "Without paying its mana cost (an opponent controls an Island, you control a Mountain)",
+      }),
+    ],
     spell: spell([target.permanent("t", ["Artifact"], {}, "artifact")], [fx.destroy(ref.target())]),
   },
   "Pact of Negation": {
@@ -273,7 +276,7 @@ export const EDH_VIVI: Record<string, CardScript> = {
     ),
   },
   Pyrokinesis: {
-    altCost: pitch("R"),
+    castOptions: [altCost(pitch("R"))],
     spell: spell([target.between(1, 4, target.creature())], [fx.damageDivided(4, ref.target())]),
   },
   "Red Elemental Blast": {
@@ -283,15 +286,17 @@ export const EDH_VIVI: Record<string, CardScript> = {
     ),
   },
   Snapback: {
-    altCost: pitch("U"),
+    castOptions: [altCost(pitch("U"))],
     spell: spell([target.creature()], [fx.bounce(ref.target())]),
   },
   Submerge: {
-    altCost: {
-      mana: "{0}",
-      condition: cond.all(opponentControls("Forest"), cond.controls({ subtype: "Island" })),
-      label: "Without paying its mana cost (an opponent controls a Forest, you control an Island)",
-    },
+    castOptions: [
+      altCost({
+        mana: "{0}",
+        condition: cond.all(opponentControls("Forest"), cond.controls({ subtype: "Island" })),
+        label: "Without paying its mana cost (an opponent controls a Forest, you control an Island)",
+      }),
+    ],
     spell: spell([target.creature()], [fx.moveTo(ref.target(), { to: "libraryTop" })]),
   },
   "Tormod's Crypt": {

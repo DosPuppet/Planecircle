@@ -13,7 +13,9 @@ import {
   entersWith,
   eventReplacement,
   FOOD,
+  fromGraveyard,
   fx,
+  kicker,
   manaAbility,
   modal,
   mode,
@@ -274,14 +276,14 @@ export const GREEN: Record<string, CardScript> = {
     ),
   },
   "Gnarlid Colony": {
-    kicker: "{2}{G}",
+    kicker: kicker("{2}{G}"),
     abilities: [
       entersWith({ counters: 2, condition: cond.kicked, label: "Kicker: two counters" }),
       staticAbility(WITH_P1P1, { addKeywords: ["trample"] }),
     ],
   },
   "Grow from the Ashes": {
-    kicker: "{2}",
+    kicker: kicker("{2}"),
     spell: spell([], [fx.search(BASIC_LAND, { to: "battlefield" }, amount.kicked(2, 1))]),
   },
   "Inspiring Call": {
@@ -353,7 +355,7 @@ export const GREEN: Record<string, CardScript> = {
     ],
   },
   "Quilled Greatwurm": {
-    castFromGraveyard: { removeCountersAmong: 6 },
+    castOptions: [fromGraveyard({ removeCountersAmong: 6 })],
     abilities: [
       triggered(when.combatDamage(CREATURE_YOU_CONTROL), [fx.addCounters(ref.eventObject, amount.eventAmount)], {
         condition: cond.yourTurn,

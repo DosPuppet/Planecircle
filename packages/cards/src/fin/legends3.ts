@@ -5,6 +5,7 @@ import {
   amount,
   chapter,
   cond,
+  flashback,
   fx,
   manaAbility,
   playerStatic,
@@ -173,7 +174,7 @@ export const LEGENDS3: Record<string, CardScript> = {
     ],
   },
   "Memories Returning": {
-    flashback: "{7}{U}{U}",
+    castOptions: [flashback("{7}{U}{U}")],
     // You and the chosen opponent take turns among the five revealed cards (PLAN-L L4): each choice is made among those
     // not chosen yet (`chooseAmong` keeps them as "<name>Rest").
     spell: spell(
@@ -244,7 +245,7 @@ export const LEGENDS3: Record<string, CardScript> = {
     ],
   },
   "Cloud, Planet's Champion": {
-    equipDiscountWhenTargeted: 2,
+    rules: { equipDiscountWhenTargeted: 2 },
     abilities: [
       staticAbility(
         "self",

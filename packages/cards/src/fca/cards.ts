@@ -117,7 +117,7 @@ export const CARDS: Record<string, CardScript> = {
   // — G7: Through the Ages —
   // Vigilance: read from the text.
   "Adeline, Resplendent Cathar": {
-    cdaPower: amount.count(YOUR_CREATURES),
+    cda: { power: amount.count(YOUR_CREATURES) },
     abilities: [
       triggered(
         when.attackWith(),
@@ -452,7 +452,7 @@ export const CARDS: Record<string, CardScript> = {
     ],
   },
   "Dovin's Veto": {
-    cantBeCountered: true,
+    rules: { cantBeCountered: true },
     spell: spell([target.spell("t", { notTypes: ["Creature"] }, "noncreature spell")], [fx.counter(ref.target())]),
   },
   "Isshin, Two Heavens as One": {

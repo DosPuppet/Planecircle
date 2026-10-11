@@ -444,7 +444,7 @@ export const BLUE: Record<string, CardScript> = {
   },
   // Flying: read from the text.
   "Namor the Sub-Mariner": {
-    cdaPower: amount.count({ subtype: "Merfolk", controller: "you" }),
+    cda: { power: amount.count({ subtype: "Merfolk", controller: "you" }) },
     abilities: [
       triggered(
         when.castSpell("you", { notTypes: ["Creature"] }),

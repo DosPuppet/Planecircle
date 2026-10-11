@@ -9,6 +9,7 @@ import {
   type CardScript,
   cond,
   entersWith,
+  flashback,
   fx,
   INKLING,
   REPARTEE,
@@ -31,7 +32,7 @@ export const WHITE: Record<string, CardScript> = {
     spell: spell([target.creature()], [fx.destroy(ref.target())]),
   },
   "Antiquities on the Loose": {
-    flashback: "{4}{W}{W}",
+    castOptions: [flashback("{4}{W}{W}")],
     spell: spell(
       [],
       [
@@ -54,7 +55,7 @@ export const WHITE: Record<string, CardScript> = {
     ],
   },
   "Dig Site Inventory": {
-    flashback: "{W}",
+    castOptions: [flashback("{W}")],
     spell: spell([YOUR_CREATURE()], [fx.addCounters(ref.target(), 1), fx.modify(ref.target(), { addKeywords: ["vigilance"] })]),
   },
   "Eager Glyphmage": {
@@ -252,8 +253,7 @@ export const WHITE: Record<string, CardScript> = {
   },
   "Group Project": {
     // "Flashback—Tap three untapped creatures you control": flashback without mana, with this extra cost.
-    flashback: "{0}",
-    flashbackCost: { tap: { filter: { types: ["Creature"], controller: "you" }, count: 3 } },
+    castOptions: [flashback("{0}", { tap: { filter: { types: ["Creature"], controller: "you" }, count: 3 } })],
     spell: spell([], [fx.createTokens(SPIRIT_RW)]),
   },
   // "Exile two cards from your graveyard or pay {1}{W}": read from the text (kicker without mana or extra mana).

@@ -32,7 +32,7 @@ export const GREEN: Record<string, CardScript> = {
     ],
   },
   "Balustrade Wurm": {
-    cantBeCountered: true,
+    rules: { cantBeCountered: true },
     abilities: [
       activated({
         mana: "{2}{G}{G}",

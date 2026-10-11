@@ -54,7 +54,7 @@ export const BLUE: Record<string, CardScript> = {
   },
   "Duskmourn's Domination": {
     enchant: { filter: { types: ["Creature"] }, label: "creature" },
-    controlsEnchanted: true,
+    rules: { controlsEnchanted: true },
     abilities: [staticAbility("attached", { power: -3, loseAllAbilities: true }, { label: "-3/-0, loses all abilities" })],
   },
   "Enter the Enigma": {

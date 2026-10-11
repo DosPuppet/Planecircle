@@ -7,6 +7,7 @@ import type { Amount, CardScript, Effect, ObjectFilter, Ref, TokenSpec } from "@
 import {
   ANY_COLOR,
   activated,
+  altCost,
   amount,
   cond,
   costReducer,
@@ -63,7 +64,7 @@ const DEVIL: TokenSpec = {
 export const EDH_RAKDOS: Record<string, CardScript> = {
   // --- Commander ----------------------------------------------------------------------------------------------------
   "Rakdos, Lord of Riots": {
-    castCondition: cond.opponentLostLife,
+    rules: { castCondition: cond.opponentLostLife },
     abilities: [
       costReducer({ types: ["Creature"] }, 0, "Creature spells you cast cost {1} less for each 1 life your opponents have lost", {
         genericAmount: OPPONENTS_LOST,
@@ -431,7 +432,7 @@ export const EDH_RAKDOS: Record<string, CardScript> = {
       }),
     ],
   },
-  "Blightsteel Colossus": { shuffleIntoLibrary: true },
+  "Blightsteel Colossus": { rules: { shuffleIntoLibrary: true } },
   "Cityscape Leveler": {
     // Unearth {8}: read from the text.
     abilities: [
@@ -480,7 +481,9 @@ export const EDH_RAKDOS: Record<string, CardScript> = {
     ),
   },
   "Deflecting Swat": {
-    altCost: { mana: "{0}", condition: cond.controls({ commander: true }), label: "Free if you control a commander" },
+    castOptions: [
+      altCost({ mana: "{0}", condition: cond.controls({ commander: true }), label: "Free if you control a commander" }),
+    ],
     spell: spell([{ id: "t", label: "spell or ability", filter: { stackItems: {} } }], [fx.changeTarget(ref.target())]),
   },
   "Wheel of Misfortune": {

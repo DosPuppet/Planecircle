@@ -5,7 +5,7 @@
  * Crypt Ghast, Nykthos, Lake of the Dead) and edicts (the Marauders, Merciless Executioner, Flare of Malice).
  */
 import type { CardScript, Effect, ObjectFilter, Ref, TokenSpec } from "@mtgx/engine";
-import { THOPTER } from "../fra/common";
+import { altCost, fromGraveyard, THOPTER } from "../fra/common";
 import {
   activated,
   amount,
@@ -188,7 +188,7 @@ export const EDH_SEPHIROTH: Record<string, CardScript> = {
   },
   Gravecrawler: {
     keywords: ["cantBlock"],
-    castFromGraveyard: { condition: cond.controls({ subtype: "Zombie" }) },
+    castOptions: [fromGraveyard({ condition: cond.controls({ subtype: "Zombie" }) })],
   },
   "Great Unclean One": {
     abilities: [
@@ -410,12 +410,14 @@ export const EDH_SEPHIROTH: Record<string, CardScript> = {
     spell: spell([target.creatureOrPlaneswalker()], [fx.destroy(ref.target())]),
   },
   "Flare of Malice": {
-    altCost: {
-      mana: "{0}",
-      condition: cond.all(),
-      label: "Sacrifice a nontoken black creature",
-      pay: { sacrifice: { filter: { types: ["Creature"], colors: ["B"], token: false }, count: 1 } },
-    },
+    castOptions: [
+      altCost({
+        mana: "{0}",
+        condition: cond.all(),
+        label: "Sacrifice a nontoken black creature",
+        pay: { sacrifice: { filter: { types: ["Creature"], colors: ["B"], token: false }, count: 1 } },
+      }),
+    ],
     spell: spell([], [fx.sacrifice(ref.eachOpponent, { types: ["Creature", "Planeswalker"] }, 1, { greatestManaValue: true })]),
   },
   "Malakir Rebirth": {

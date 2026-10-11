@@ -75,7 +75,7 @@ export const MULTI: Record<string, CardScript> = {
       }),
     ],
   },
-  "Burrowguard Mentor": { cdaPT: amount.count(CREATURE_YOU_CONTROL) },
+  "Burrowguard Mentor": { cda: { pt: amount.count(CREATURE_YOU_CONTROL) } },
   "Camellia, the Seedmiser": {
     abilities: [
       staticAbility(kin(["Squirrel"], { other: true }), { addKeywords: ["menace"] }, { label: "Menace" }),

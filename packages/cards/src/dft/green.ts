@@ -93,7 +93,7 @@ export const GREEN: Record<string, CardScript> = {
     ],
   },
   "Lumbering Worldwagon": {
-    cdaPower: amount.count({ types: ["Land"], controller: "you" }),
+    cda: { power: amount.count({ types: ["Land"], controller: "you" }) },
     abilities: [
       triggered(
         when.entersSelf,

@@ -106,7 +106,7 @@ export const MULTI: Record<string, CardScript> = {
   },
   "Kraven, Proud Predator": {
     // Top of the Food Chain: power is the greatest mana value among your permanents (toughness 4).
-    cdaPower: amount.maxManaValue({ controller: "you" }),
+    cda: { power: amount.maxManaValue({ controller: "you" }) },
   },
   "Mary Jane Watson": {
     abilities: [
@@ -243,7 +243,7 @@ export const MULTI: Record<string, CardScript> = {
   },
   "Spider-Man 2099": {
     // From the Future: "You can't cast Spider-Man 2099 during your first, second, or third turns of the game".
-    castCondition: cond.turnsTakenAtLeast(4),
+    rules: { castCondition: cond.turnsTakenAtLeast(4) },
     abilities: [
       triggered(when.yourEndStep, [fx.damage(amount.powerOf(ref.self), ref.target())], {
         // A spell cast or a land played from anywhere other than your hand.

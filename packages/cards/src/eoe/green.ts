@@ -84,7 +84,7 @@ export const GREEN: Record<string, CardScript> = {
       }),
     ],
   },
-  "Harmonious Grovestrider": { cdaPT: amount.count({ types: ["Land"], controller: "you" }) },
+  "Harmonious Grovestrider": { cda: { pt: amount.count({ types: ["Land"], controller: "you" }) } },
   "Hemosymbic Mite": {
     abilities: [
       triggered(when.tapsSelf, [fx.pump(ref.target(), amount.powerOf(ref.self), amount.powerOf(ref.self))], {

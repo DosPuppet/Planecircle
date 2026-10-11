@@ -72,7 +72,7 @@ export const RED: Record<string, CardScript> = {
   },
   "Molten Exhale": {
     // "As though it had flash if you behold a Dragon as an additional cost": cast that way, beholding is required.
-    flashIf: cond.behold(DRAGON_CARD),
+    rules: { flashIf: cond.behold(DRAGON_CARD) },
     additionalCost: { behold: { filter: DRAGON_CARD } },
     spell: spell([target.creatureOrPlaneswalker()], [fx.damage(4, ref.target())]),
   },
@@ -208,7 +208,7 @@ export const RED: Record<string, CardScript> = {
   "Wild Ride": { spell: spell([target.creature()], [fx.pump(ref.target(), 3, 0, ["haste"])]) },
   "Zurgo's Vanguard": {
     // Mobilize 1: read from the text.
-    cdaPower: amount.count(CREATURE_YOU_CONTROL),
+    cda: { power: amount.count(CREATURE_YOU_CONTROL) },
   },
 
   // --- Batch B ----------------------------------------------------------------

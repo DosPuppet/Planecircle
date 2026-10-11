@@ -170,7 +170,7 @@ export const BLACK: Record<string, CardScript> = {
   },
   "Faerie Fencing": {
     // "if you controlled a Faerie as you cast this spell": checked on casting.
-    whenCast: cond.controls({ subtype: "Faerie" }),
+    rules: { whenCast: cond.controls({ subtype: "Faerie" }) },
     spell: spell(
       [target.creature()],
       [
@@ -469,7 +469,7 @@ export const BLACK: Record<string, CardScript> = {
       [fx.damage(amount.powerOf(ref.target("c")), ref.target("t"), ref.target("c")), fx.sacrificeIt(ref.target("c"))],
     ),
   },
-  "Cruel Somnophage": { cdaPT: amount.countIn("graveyard", { types: ["Creature"] }, "all") },
+  "Cruel Somnophage": { cda: { pt: amount.countIn("graveyard", { types: ["Creature"] }, "all") } },
   "Can't Wake Up": { spell: spell([target.player()], [fx.mill(4, ref.target())]) },
   "Devouring Sugarmaw": {
     abilities: [

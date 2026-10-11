@@ -354,7 +354,7 @@ export const EDH_URDRAGON: Record<string, CardScript> = {
     ],
   },
   "Dragonlord Dromoka": {
-    cantBeCountered: true,
+    rules: { cantBeCountered: true },
     abilities: [
       playerStatic({
         castLimit: { who: "opponents", during: "yourTurn" },

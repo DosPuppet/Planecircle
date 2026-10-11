@@ -9,6 +9,7 @@ import {
   cond,
   entersWith,
   eventReplacement,
+  fromGraveyard,
   fx,
   manaAbility,
   playerStatic,
@@ -54,7 +55,7 @@ export const UNIQUE: Record<string, CardScript> = {
   },
   "Alien Symbiosis": {
     enchant: { filter: { types: ["Creature"] }, label: "creature" },
-    castFromGraveyard: { discard: 1 },
+    castOptions: [fromGraveyard({ discard: 1 })],
     abilities: [
       staticAbility(
         "attached",

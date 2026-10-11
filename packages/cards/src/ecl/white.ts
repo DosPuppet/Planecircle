@@ -322,7 +322,7 @@ export const WHITE: Record<string, CardScript> = {
     ],
   },
   "Morningtide's Light": {
-    exileOnResolve: true,
+    rules: { exileOnResolve: true },
     spell: spell(
       [target.upTo(99, target.creature())],
       [

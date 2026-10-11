@@ -17,6 +17,7 @@ import {
   fx,
   HUMAN,
   KNIGHT,
+  kicker,
   manaAbility,
   modal,
   mode,
@@ -91,7 +92,7 @@ export const WHITE: Record<string, CardScript> = {
     abilities: [triggered(when.enters(OTHER_CREATURE_YOU_CONTROL), [fx.gainLife(1)], { label: "+1 life" })],
   },
   "Divine Resilience": {
-    kicker: "{2}{W}",
+    kicker: kicker("{2}{W}"),
     spell: spell(
       [{ ...target.creature("t", { controller: "you" }), kickedCount: 99 }],
       [fx.pump(ref.target(), 0, 0, ["indestructible"])],
@@ -168,7 +169,7 @@ export const WHITE: Record<string, CardScript> = {
     ],
   },
   "Sun-Blessed Healer": {
-    kicker: "{1}{W}",
+    kicker: kicker("{1}{W}"),
     abilities: [
       triggered(when.entersSelf, [fx.toBattlefield(ref.target())], {
         targets: [target.cardInGraveyard("t", { permanent: true, notTypes: ["Land"], maxManaValue: 2 })],
@@ -351,7 +352,7 @@ export const WHITE: Record<string, CardScript> = {
       ]),
     ],
   },
-  "Crusader of Odric": { cdaPT: amount.count({ types: ["Creature"], controller: "you" }) },
+  "Crusader of Odric": { cda: { pt: amount.count({ types: ["Creature"], controller: "you" }) } },
   "Dawnwing Marshal": {
     abilities: [activated({ mana: "{4}{W}", effects: [fx.pumpAll({ controller: "you" }, 1, 1)], label: "Your creatures +1/+1" })],
   },

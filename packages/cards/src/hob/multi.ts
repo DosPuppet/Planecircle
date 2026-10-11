@@ -51,7 +51,7 @@ export const MULTI: Record<string, CardScript> = {
     ],
   },
   "Bard's Company": {
-    flashIf: cond.controls({ subtype: "Human" }),
+    rules: { flashIf: cond.controls({ subtype: "Human" }) },
     abilities: [
       staticAbility({ ...YOUR_CREATURES, other: true }, { power: 1, toughness: 1 }, { label: "Your other creatures: +1/+1" }),
       ...[when.entersSelf, when.attacksSelf].map((trigger) => triggered(trigger, recruit(), { label: "Recruiting" })),

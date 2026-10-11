@@ -183,7 +183,7 @@ export const ARTIFACTS: Record<string, CardScript> = {
     abilities: [staticAbility("attached", { addKeywords: ["deathtouch", "lifelink"] }, { label: "Deathtouch and lifelink" })],
   },
   "Cultivator's Caravan": { abilities: [manaAbility(["W", "U", "B", "R", "G"])] },
-  "Darksteel Colossus": { shuffleIntoLibrary: true },
+  "Darksteel Colossus": { rules: { shuffleIntoLibrary: true } },
   "Diamond Mare": {
     asEnters: [fx.chooseForSelf("color")],
     abilities: [triggered(when.castSpell("you", { chosen: "color" }), [fx.gainLife(1)], { label: "+1 life" })],
@@ -284,7 +284,7 @@ export const ARTIFACTS: Record<string, CardScript> = {
   // "As this artifact enters, look at an opponent's hand, then choose any card name."
   "Sorcerous Spyglass": {
     asEnters: [fx.chooseOpponent("o"), fx.look(ref.handOf(ref.stored("o"))), fx.chooseForSelf("cardName")],
-    chosenNameAbilities: "forbid",
+    rules: { chosenNameAbilities: "forbid" },
   },
   "Soul-Guide Lantern": {
     abilities: [

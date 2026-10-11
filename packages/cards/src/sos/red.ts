@@ -10,6 +10,7 @@ import {
   cond,
   ELEMENTAL_UR,
   entersWith,
+  flashback,
   fx,
   INSTANT_SORCERY,
   modal,
@@ -77,7 +78,7 @@ export const RED: Record<string, CardScript> = {
     abilities: [activated({ tap: true, discard: 1, effects: [fx.draw(1)], label: "Discard a card: draw a card" })],
   },
   "Duel Tactics": {
-    flashback: "{1}{R}",
+    castOptions: [flashback("{1}{R}")],
     spell: spell([target.creature()], [fx.damage(1, ref.target()), fx.pump(ref.target(), 0, 0, ["cantBlock"])]),
   },
   // First strike read from the text; prepared spell: Lightning Bolt.
@@ -207,7 +208,7 @@ export const RED: Record<string, CardScript> = {
     ],
   },
   "Tome Blast": {
-    flashback: "{4}{R}",
+    castOptions: [flashback("{4}{R}")],
     spell: spell([target.any()], [fx.damage(2, ref.target())]),
   },
   "Unsubtle Mockery": {

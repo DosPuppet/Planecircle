@@ -52,7 +52,7 @@ export const MULTI: Record<string, CardScript> = {
     ],
   },
   "Koma, World-Eater": {
-    cantBeCountered: true,
+    rules: { cantBeCountered: true },
     abilities: [triggered(when.combatDamageToPlayer, [fx.createTokens(KOMAS_COIL, 4)], { label: "four 3/3 Koma's Coils" })],
   },
   "Anthem of Champions": { abilities: [staticAbility(CREATURE_YOU_CONTROL, { power: 1, toughness: 1 })] },
@@ -197,7 +197,7 @@ export const MULTI: Record<string, CardScript> = {
     ],
   },
   "Consuming Aberration": {
-    cdaPT: amount.countIn("graveyard", {}, "opponents"),
+    cda: { pt: amount.countIn("graveyard", {}, "opponents") },
     abilities: [
       // "Each opponent reveals cards from the top of their library until they reveal a land card, then puts those cards
       // into their graveyard."
@@ -215,7 +215,7 @@ export const MULTI: Record<string, CardScript> = {
   },
   Progenitus: {
     abilities: [protectionAbility(protection.everything)],
-    shuffleIntoLibrary: true,
+    rules: { shuffleIntoLibrary: true },
   },
   "Thousand-Year Storm": {
     abilities: [
@@ -289,7 +289,7 @@ export const MULTI: Record<string, CardScript> = {
       }),
     ],
   },
-  "Enigma Drake": { cdaPower: amount.countIn("graveyard", INSTANT_SORCERY) },
+  "Enigma Drake": { cda: { power: amount.countIn("graveyard", INSTANT_SORCERY) } },
   "Garna, Bloodfist of Keld": {
     abilities: [
       triggered(
@@ -384,7 +384,7 @@ export const MULTI: Record<string, CardScript> = {
     ],
   },
   "Wilt-Leaf Liege": {
-    opponentDiscardToBattlefield: true,
+    rules: { opponentDiscardToBattlefield: true },
     abilities: [
       staticAbility(
         { ...CREATURE_YOU_CONTROL, other: true, colors: ["G"] },

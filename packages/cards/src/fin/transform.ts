@@ -10,6 +10,7 @@ import {
   entersWith,
   eventReplacement,
   FOOD,
+  flashback,
   fx,
   graveyardReplacement,
   KNIGHT_2,
@@ -289,7 +290,7 @@ export const TRANSFORM: Record<string, CardScript> = {
       }),
     ],
   },
-  "Neo Exdeath, Dimension's End": { cdaPower: amount.countIn("graveyard", PERMANENT_CARD) },
+  "Neo Exdeath, Dimension's End": { cda: { power: amount.countIn("graveyard", PERMANENT_CARD) } },
   "Garland, Knight of Cornelia": {
     abilities: [
       triggered(when.castSpell("you", { notTypes: ["Creature"] }), [fx.surveil(1)], { label: "Surveil 1" }),
@@ -468,7 +469,7 @@ export const TRANSFORM: Record<string, CardScript> = {
     ],
   },
   "Esper Origins": {
-    flashback: "{3}{G}",
+    castOptions: [flashback("{3}{G}")],
     spell: {
       modes: [
         {

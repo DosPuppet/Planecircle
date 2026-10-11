@@ -11,6 +11,7 @@ import {
   empower,
   entersWith,
   FOREST_TENTACLE,
+  flashback,
   fx,
   HEARTWOOD,
   loyalty,
@@ -39,7 +40,7 @@ const puppetbeastBoost = (kw: "trample" | "hexproof" | "haste", label: string) =
   });
 
 export const GREEN: Record<string, CardScript> = {
-  "Bestial Incursion": { flashback: "{5}{G}", spell: spell([], [fx.createTokens(BEAST_TRAMPLE)]) },
+  "Bestial Incursion": { castOptions: [flashback("{5}{G}")], spell: spell([], [fx.createTokens(BEAST_TRAMPLE)]) },
   "Budding Insurgent": {
     abilities: [
       activated({
@@ -227,7 +228,7 @@ export const GREEN: Record<string, CardScript> = {
     ],
   },
   "Fblthp, Knows the Way": {
-    cdaPower: amount.basicLandTypes,
+    cda: { power: amount.basicLandTypes },
     abilities: [
       triggered(when.entersSelf, [{ ...fx.search(BASIC_LAND, { to: "hand" }, amount.sourceX), distinctNames: true } as Effect], {
         label: "up to X basic lands with different names",

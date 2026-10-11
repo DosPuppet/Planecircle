@@ -67,7 +67,7 @@ export const GREEN: Record<string, CardScript> = {
     ],
   },
   "Colossal Rattlewurm": {
-    flashIf: cond.controls({ subtype: "Desert" }),
+    rules: { flashIf: cond.controls({ subtype: "Desert" }) },
     abilities: [
       activated({
         mana: "{1}{G}",

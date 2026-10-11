@@ -366,7 +366,7 @@ export const MULTI: Record<string, CardScript> = {
     },
   },
   "The Mycotyrant": {
-    cdaPT: amount.count({ types: ["Creature"], controller: "you", anySubtype: ["Fungus", "Saproling"] }),
+    cda: { pt: amount.count({ types: ["Creature"], controller: "you", anySubtype: ["Fungus", "Saproling"] }) },
     abilities: [
       triggered(when.yourEndStep, [fx.createTokens(FUNGUS, amount.descendedThisTurn)], {
         label: "A Fungus for each descent",

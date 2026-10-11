@@ -2,6 +2,7 @@
 import { type Effect, msg, type TargetSpec, type TokenSpec } from "@mtgx/engine";
 import {
   activated,
+  altCost,
   altCostMode,
   amount,
   BASIC_LAND,
@@ -162,11 +163,13 @@ export const CARDS: Record<string, CardScript> = {
     ),
   },
   "Archive Trap": {
-    altCost: {
-      mana: "{0}",
-      condition: cond.amountAtLeast(amount.turnEvents({ event: "search", who: "opponent" }), 1),
-      label: "An opponent searched their library — {0}",
-    },
+    castOptions: [
+      altCost({
+        mana: "{0}",
+        condition: cond.amountAtLeast(amount.turnEvents({ event: "search", who: "opponent" }), 1),
+        label: "An opponent searched their library — {0}",
+      }),
+    ],
     spell: spell([target.player("t", "opponent")], [fx.mill(13, ref.target())]),
   },
   "Archmage's Charm": {
@@ -201,16 +204,18 @@ export const CARDS: Record<string, CardScript> = {
     ),
   },
   "Mindbreak Trap": {
-    altCost: {
-      mana: "{0}",
-      condition: cond.amountAtLeast(
-        amount.refCount(
-          ref.playersWhere(ref.eachOpponent, cond.amountAtLeast(amount.turnEvents({ event: "cast", who: "you" }), 3)),
+    castOptions: [
+      altCost({
+        mana: "{0}",
+        condition: cond.amountAtLeast(
+          amount.refCount(
+            ref.playersWhere(ref.eachOpponent, cond.amountAtLeast(amount.turnEvents({ event: "cast", who: "you" }), 3)),
+          ),
+          1,
         ),
-        1,
-      ),
-      label: "An opponent cast three spells — {0}",
-    },
+        label: "An opponent cast three spells — {0}",
+      }),
+    ],
     spell: spell([target.upTo(99, target.spell())], [fx.exile(ref.target())]),
   },
   Repulse: { spell: spell([target.creature()], [fx.bounce(ref.target()), fx.draw(1)]) },
@@ -303,7 +308,7 @@ export const CARDS: Record<string, CardScript> = {
   // Cycling: read from the text.
   Thornado: { spell: spell([target.creature("t", { keyword: "flying" })], [fx.destroy(ref.target())]) },
   "Abrupt Decay": {
-    cantBeCountered: true,
+    rules: { cantBeCountered: true },
     spell: spell(
       [target.nonland("t", { maxManaValue: 3 }, "nonland permanent with mana value 3 or less")],
       [fx.destroy(ref.target())],
@@ -517,7 +522,7 @@ export const CARDS: Record<string, CardScript> = {
       [fx.exileTop(ref.target(), amount.x, "v"), fx.castNow(ref.stored("v"), { free: true, many: true, maxManaValue: amount.x })],
     ),
   },
-  "Void Rend": { cantBeCountered: true, spell: spell([target.nonland()], [fx.destroy(ref.target())]) },
+  "Void Rend": { rules: { cantBeCountered: true }, spell: spell([target.nonland()], [fx.destroy(ref.target())]) },
   Voidslime: {
     spell: spell([{ id: "t", label: "spell or ability", filter: { stackItems: {} } }], [fx.counter(ref.target())]),
   },
@@ -544,12 +549,14 @@ export const CARDS: Record<string, CardScript> = {
   },
   // — G4e: hard sub-lot —
   "Force of Vigor": {
-    altCost: {
-      mana: "{0}",
-      condition: cond.not(cond.yourTurn),
-      label: "Force of Vigor — exile a green card from your hand",
-      pay: { exileFromHand: { filter: { colors: ["G"] }, count: 1 } },
-    },
+    castOptions: [
+      altCost({
+        mana: "{0}",
+        condition: cond.not(cond.yourTurn),
+        label: "Force of Vigor — exile a green card from your hand",
+        pay: { exileFromHand: { filter: { colors: ["G"] }, count: 1 } },
+      }),
+    ],
     spell: spell(
       [target.upTo(2, target.permanent("t", ["Artifact", "Enchantment"], {}, "artifact or enchantment"))],
       [fx.destroy(ref.target())],
@@ -591,12 +598,14 @@ export const CARDS: Record<string, CardScript> = {
     spell: spell([target.creature()], [fx.destroy(ref.target())]),
   },
   Commandeer: {
-    altCost: {
-      mana: "{0}",
-      condition: cond.all(),
-      label: "Exile two blue cards from your hand",
-      pay: { exileFromHand: { filter: { colors: ["U"] }, count: 2 } },
-    },
+    castOptions: [
+      altCost({
+        mana: "{0}",
+        condition: cond.all(),
+        label: "Exile two blue cards from your hand",
+        pay: { exileFromHand: { filter: { colors: ["U"] }, count: 2 } },
+      }),
+    ],
     spell: spell(
       [{ id: "t", label: "noncreature spell", filter: { spells: { notTypes: ["Creature"] } } }],
       [fx.gainControl(ref.target()), fx.changeTarget(ref.target())],
@@ -620,7 +629,7 @@ export const CARDS: Record<string, CardScript> = {
     ),
   },
   "Unlicensed Hearse": {
-    cdaPT: amount.refCount(ref.linked),
+    cda: { pt: amount.refCount(ref.linked) },
     abilities: [
       activated({
         tap: true,

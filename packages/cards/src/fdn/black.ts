@@ -1,6 +1,7 @@
 /** Foundations — black cards. */
 import {
   activated,
+  altCost,
   amount,
   type CardScript,
   CREATURE_OPP,
@@ -10,8 +11,10 @@ import {
   cost,
   entersWith,
   FOOD,
+  flashback,
   fx,
   INSECT,
+  kicker,
   modal,
   mode,
   protection,
@@ -109,7 +112,7 @@ export const BLACK: Record<string, CardScript> = {
     ],
   },
   "Revenge of the Rats": {
-    flashback: "{2}{B}{B}",
+    castOptions: [flashback("{2}{B}{B}")],
     spell: spell([], [fx.createTappedTokens(RAT, amount.countIn("graveyard", { types: ["Creature"] }))]),
   },
   "Sanguine Syphoner": { abilities: [triggered(when.attacksSelf, fx.drain(1), { label: "drains 1" })] },
@@ -289,11 +292,13 @@ export const BLACK: Record<string, CardScript> = {
     ],
   },
   "Blasphemous Edict": {
-    altCost: {
-      mana: "{B}",
-      condition: cond.battlefieldCount({ types: ["Creature"] }, 13),
-      label: "Pay {B} (13 or more creatures on the battlefield)",
-    },
+    castOptions: [
+      altCost({
+        mana: "{B}",
+        condition: cond.battlefieldCount({ types: ["Creature"] }, 13),
+        label: "Pay {B} (13 or more creatures on the battlefield)",
+      }),
+    ],
     spell: spell([], [fx.sacrifice(ref.eachPlayer, { types: ["Creature"] }, 13)]),
   },
   "Nine-Lives Familiar": {
@@ -459,7 +464,7 @@ export const BLACK: Record<string, CardScript> = {
     ),
   },
   "Gatekeeper of Malakir": {
-    kicker: "{B}",
+    kicker: kicker("{B}"),
     abilities: [
       triggered(when.entersSelf, [fx.sacrifice(ref.target(), { types: ["Creature"] })], {
         targets: [target.player()],
@@ -518,7 +523,7 @@ export const BLACK: Record<string, CardScript> = {
     ],
   },
   "Nullpriest of Oblivion": {
-    kicker: "{3}{B}",
+    kicker: kicker("{3}{B}"),
     abilities: [
       triggered(when.entersSelf, [fx.toBattlefield(ref.target())], {
         targets: [target.cardInGraveyard("t", { types: ["Creature"] })],

@@ -15,6 +15,7 @@ import {
   embalmAbility,
   entersWith,
   exhaust,
+  fromGraveyard,
   fx,
   loyalty,
   MOUNT_OR_VEHICLE,
@@ -44,7 +45,7 @@ const onePerPlayer = (t: TargetSpec): TargetSpec => ({ ...target.upTo(MAX_PLAYER
 
 export const UNIQUE: Record<string, CardScript> = {
   // --- White -----------------------------------------------------------------
-  "Skyseer's Chariot": { asEnters: [fx.chooseForSelf("cardName")], chosenNameAbilities: 2 },
+  "Skyseer's Chariot": { asEnters: [fx.chooseForSelf("cardName")], rules: { chosenNameAbilities: 2 } },
 
   // --- Blue ------------------------------------------------------------------
   "Possession Engine": {
@@ -140,7 +141,7 @@ export const UNIQUE: Record<string, CardScript> = {
       activated({ mana: "{2}{B}", payLife: 2, effects: [fx.draw(1)], label: "Draw" }),
     ],
   },
-  "Wickerfolk Indomitable": { castFromGraveyard: { payLife: 2, sacrifice: CREATURE_OR_ARTIFACT } },
+  "Wickerfolk Indomitable": { castOptions: [fromGraveyard({ payLife: 2, sacrifice: CREATURE_OR_ARTIFACT })] },
 
   // --- Red -------------------------------------------------------------------
   "Chandra, Spark Hunter": {
@@ -172,7 +173,7 @@ export const UNIQUE: Record<string, CardScript> = {
     ],
   },
   "Daretti, Rocketeer Engineer": {
-    cdaPower: amount.maxManaValue({ types: ["Artifact"], controller: "you" }),
+    cda: { power: amount.maxManaValue({ types: ["Artifact"], controller: "you" }) },
     abilities: [
       ...(["entersSelf", "attacksSelf"] as const).map((w) =>
         triggered(

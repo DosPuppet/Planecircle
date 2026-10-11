@@ -7,6 +7,7 @@ import {
   amount,
   type CardScript,
   cond,
+  cost,
   DETECTIVE,
   fx,
   GOBLIN,
@@ -72,7 +73,7 @@ export const RED: Record<string, CardScript> = {
     ],
   },
   "Caught Red-Handed": {
-    cantBeCountered: true,
+    rules: { cantBeCountered: true },
     spell: spell(
       [target.creature()],
       [fx.gainControl(ref.target()), fx.untap(ref.target()), fx.pump(ref.target(), 0, 0, ["haste"]), fx.suspect(ref.target())],
@@ -345,7 +346,7 @@ export const RED: Record<string, CardScript> = {
     ],
   },
   "Suspicious Detonation": {
-    cantBeCountered: true,
+    rules: { cantBeCountered: true },
     costReduction: { generic: 3, condition: cond.sacrificedThisTurn },
     spell: spell([target.creature()], [fx.damage(4, ref.target())]),
   },
@@ -382,7 +383,7 @@ export const RED: Record<string, CardScript> = {
     ],
   },
   "Fugitive Codebreaker": {
-    disguiseReduction: amount.countIn("graveyard", INSTANT_SORCERY),
+    castOptions: [{ kind: "faceDown", cost: cost("{5}{R}"), reducedBy: amount.countIn("graveyard", INSTANT_SORCERY) }],
     abilities: [
       triggered(when.turnedFaceUp, [fx.discard(amount.cardsIn("hand"), ref.you), fx.draw(3)], {
         label: "Discard your hand, then draw three cards",

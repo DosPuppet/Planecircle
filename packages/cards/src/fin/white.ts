@@ -6,6 +6,7 @@ import {
   CREATURE_YOU_CONTROL,
   cond,
   EQUIPMENT_YOU,
+  flashback,
   fx,
   hero,
   KNIGHT_2,
@@ -64,7 +65,7 @@ export const WHITE: Record<string, CardScript> = {
     ],
   },
   "Auron's Inspiration": {
-    flashback: "{2}{W}{W}",
+    castOptions: [flashback("{2}{W}{W}")],
     spell: spell([], [fx.pumpAll({ types: ["Creature"], attacking: true }, 2, 0)]),
   },
   "Battle Menu": {
@@ -116,7 +117,7 @@ export const WHITE: Record<string, CardScript> = {
     spell: spell([target.nonland("t")], [fx.destroy(ref.target())]),
   },
   "From Father to Son": {
-    flashback: "{4}{W}{W}{W}",
+    castOptions: [flashback("{4}{W}{W}{W}")],
     spell: spell(
       [],
       [
@@ -217,7 +218,7 @@ export const WHITE: Record<string, CardScript> = {
       [fx.damage(amount.plus(amount.count(CREATURE_YOU_CONTROL), amount.count(EQUIPMENT_YOU)), ref.target())],
     ),
   },
-  "Snow Villiers": { cdaPower: amount.count(CREATURE_YOU_CONTROL) },
+  "Snow Villiers": { cda: { power: amount.count(CREATURE_YOU_CONTROL) } },
   Ultima: { spell: spell([], [fx.destroyAll({ types: ["Artifact", "Creature"] }), fx.endTurn]) },
   "Weapons Vendor": {
     abilities: [

@@ -8,6 +8,7 @@ import {
   cond,
   DRAGON_6,
   doesntUntap,
+  flashback,
   fx,
   modal,
   mode,
@@ -285,7 +286,7 @@ export const RED: Record<string, CardScript> = {
     ],
   },
   "Tidings of War": {
-    flashback: "{3}{R}",
+    castOptions: [flashback("{3}{R}")],
     spell: spell(
       [],
       [

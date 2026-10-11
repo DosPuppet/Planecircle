@@ -11,7 +11,9 @@ import {
   eventReplacement,
   exhaust,
   firebending,
+  flashback,
   fx,
+  kicker,
   MONK_R,
   modal,
   mode,
@@ -107,7 +109,7 @@ export const RED: Record<string, CardScript> = {
     ],
   },
   "Fire Nation Attacks": {
-    flashback: "{8}{R}",
+    castOptions: [flashback("{8}{R}")],
     spell: spell([], [fx.createTokens(SOLDIER_FIRE, 2)]),
   },
   "Fire Nation Cadets": {
@@ -154,7 +156,7 @@ export const RED: Record<string, CardScript> = {
     ],
   },
   "Jet's Brainwashing": {
-    kicker: "{3}",
+    kicker: kicker("{3}"),
     spell: spell(
       [target.creature()],
       [
@@ -210,7 +212,7 @@ export const RED: Record<string, CardScript> = {
     ],
   },
   "Solstice Revelations": {
-    flashback: "{6}{R}",
+    castOptions: [flashback("{6}{R}")],
     spell: spell(
       [],
       [

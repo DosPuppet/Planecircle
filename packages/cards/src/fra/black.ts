@@ -90,7 +90,7 @@ export const BLACK: Record<string, CardScript> = {
     ],
   },
   "Proft, Sinister Mastermind": {
-    castCondition: cond.threshold,
+    rules: { castCondition: cond.threshold },
     abilities: [
       activated({
         mana: "{B}",

@@ -6,6 +6,7 @@ import {
   CREATURE_YOU_CONTROL,
   cond,
   entersWith,
+  flashFor,
   fx,
   mercenary,
   OTHER_CREATURE_YOU_CONTROL,
@@ -157,7 +158,7 @@ export const WHITE: Record<string, CardScript> = {
     ],
   },
   "Mystical Tether": {
-    flashExtraCost: "{2}",
+    castOptions: [flashFor("{2}")],
     abilities: [
       triggered(when.entersSelf, [fx.exileUntilLeaves(ref.target())], {
         targets: [target.permanent("t", ["Artifact", "Creature"], { controller: "opponent" }, "artifact or creature")],
@@ -290,7 +291,7 @@ export const WHITE: Record<string, CardScript> = {
   },
   "Steer Clear": {
     // "if you controlled a Mount as you cast this spell": checked on casting.
-    whenCast: cond.controls({ subtype: "Mount" }),
+    rules: { whenCast: cond.controls({ subtype: "Mount" }) },
     spell: spell(
       [target.creature("t", { anyOf: [{ attacking: true }, { blocking: true }] })],
       [fx.when(cond.metWhenCast, fx.damage(4, ref.target())), fx.when(cond.not(cond.metWhenCast), fx.damage(2, ref.target()))],

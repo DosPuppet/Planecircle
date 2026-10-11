@@ -9,6 +9,7 @@ import {
   cond,
   entersWith,
   eventReplacement,
+  flashback,
   fx,
   GOBLIN_BR,
   manaAbility,
@@ -123,7 +124,7 @@ export const RED: Record<string, CardScript> = {
     ],
   },
   // Double strike read from the text; Vivid: power equal to the number of colors among your permanents.
-  Squawkroaster: { cdaPower: amount.colorsAmong() },
+  Squawkroaster: { cda: { power: amount.colorsAmong() } },
   // "As an additional cost, blight X": read from the text (`xCost: "blight"`, X at most the greatest toughness).
   "Soul Immolation": {
     spell: spell([], [fx.damageAll(amount.x, { types: ["Creature"], controller: "opponent" }, ref.eachOpponent)]),
@@ -281,7 +282,7 @@ export const RED: Record<string, CardScript> = {
   },
   "Hexing Squelcher": {
     // Its own ward ("Pay 2 life") is read from the text.
-    cantBeCountered: true,
+    rules: { cantBeCountered: true },
     abilities: [
       playerStatic({ uncounterable: {}, label: "Your spells can't be countered" }),
       staticAbility(
@@ -297,8 +298,7 @@ export const RED: Record<string, CardScript> = {
   "Kindle the Inner Flame": {
     // Flashback—{1}{R}, behold three Elementals (your Elementals and the Elemental cards in your hand, revealed;
     // PLAN-L L5).
-    flashback: "{1}{R}",
-    flashbackCost: { behold: { filter: ELEMENTAL, required: true, count: 3 } },
+    castOptions: [flashback("{1}{R}", { behold: { filter: ELEMENTAL, required: true, count: 3 } })],
     spell: spell(
       [target.creature("t", { controller: "you" })],
       [fx.copyToken(ref.target(), { addKeywords: ["haste"], addAbilities: [SACRIFICE_TOKEN_AT_END_STEP] })],

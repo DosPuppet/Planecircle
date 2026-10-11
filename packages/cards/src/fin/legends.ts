@@ -9,6 +9,7 @@ import {
   doesntUntap,
   entersWith,
   eventReplacement,
+  flashback,
   fx,
   manaAbility,
   playerStatic,
@@ -220,7 +221,7 @@ export const LEGENDS: Record<string, CardScript> = {
     ],
   },
   "Nibelheim Aflame": {
-    flashback: "{5}{R}{R}",
+    castOptions: [flashback("{5}{R}{R}")],
     spell: spell(
       [target.creature("t", { controller: "you" })],
       [
@@ -230,7 +231,7 @@ export const LEGENDS: Record<string, CardScript> = {
     ),
   },
   "Random Encounter": {
-    flashback: "{6}{R}{R}",
+    castOptions: [flashback("{6}{R}{R}")],
     spell: spell(
       [],
       [

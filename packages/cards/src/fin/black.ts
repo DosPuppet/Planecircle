@@ -5,6 +5,7 @@ import {
   amount,
   cond,
   entersWith,
+  flashback,
   fx,
   HORROR,
   modal,
@@ -115,7 +116,7 @@ export const BLACK: Record<string, CardScript> = {
     ),
   },
   "The Final Days": {
-    flashback: "{4}{B}{B}",
+    castOptions: [flashback("{4}{B}{B}")],
     spell: spell(
       [],
       [
@@ -210,7 +211,10 @@ export const BLACK: Record<string, CardScript> = {
       ),
     ],
   },
-  "Resentful Revelation": { flashback: "{6}{B}", spell: spell([], [fx.lookAtTop(3, { count: 1, rest: "graveyard" })]) },
+  "Resentful Revelation": {
+    castOptions: [flashback("{6}{B}")],
+    spell: spell([], [fx.lookAtTop(3, { count: 1, rest: "graveyard" })]),
+  },
   "Sephiroth's Intervention": { spell: spell([target.creature("t")], [fx.destroy(ref.target()), fx.gainLife(2)]) },
   "Shambling Cie'th": {
     abilities: [

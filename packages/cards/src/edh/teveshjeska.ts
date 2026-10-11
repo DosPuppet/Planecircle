@@ -7,6 +7,7 @@
 import type { Amount, CardScript, Effect, Ref, TokenSpec } from "@mtgx/engine";
 import {
   activated,
+  altCost,
   altCostMode,
   amount,
   block,
@@ -17,6 +18,7 @@ import {
   entersWith,
   escalate,
   eventReplacement,
+  flashback,
   fx,
   loyalty,
   loyaltyX,
@@ -151,12 +153,14 @@ export const EDH_TEVESH_JESKA: Record<string, CardScript> = {
     ],
   },
   "Demon of Death's Gate": {
-    altCost: {
-      mana: "{0}",
-      condition: cond.all(),
-      label: "Pay 6 life and sacrifice three black creatures",
-      pay: { life: 6, sacrifice: { filter: { types: ["Creature"], colors: ["B"] }, count: 3 } },
-    },
+    castOptions: [
+      altCost({
+        mana: "{0}",
+        condition: cond.all(),
+        label: "Pay 6 life and sacrifice three black creatures",
+        pay: { life: 6, sacrifice: { filter: { types: ["Creature"], colors: ["B"] }, count: 3 } },
+      }),
+    ],
   },
   "Falthis, Shadowcat Familiar": {
     abilities: [
@@ -386,8 +390,7 @@ export const EDH_TEVESH_JESKA: Record<string, CardScript> = {
     ),
   },
   "Dread Return": {
-    flashback: "{0}",
-    flashbackCost: { sacrifice: { filter: { types: ["Creature"] }, count: 3 } },
+    castOptions: [flashback("{0}", { sacrifice: { filter: { types: ["Creature"] }, count: 3 } })],
     spell: spell([target.cardInGraveyard("t", { types: ["Creature"] })], [fx.toBattlefield(ref.target())]),
   },
   Hellfire: {
