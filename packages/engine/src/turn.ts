@@ -22,7 +22,15 @@ import { rethrowAsRules } from "./errors";
 import { bumpFor, copiedDefId, copiedDefMap, copyingIn, effectivePower, snapshot } from "./layers";
 import { MAX_FLOW_STEPS, MAX_SBA_PASSES } from "./limits";
 import { manaValue, payMana } from "./mana";
-import { answerCastNow, answerResolutionChoice, dropNowPermissions, RulesError, resolveTop } from "./stack";
+import {
+  answerCastNow,
+  answerResolutionChoice,
+  dropNowPermissions,
+  queueOffStack,
+  RulesError,
+  resolveTop,
+  runOffStack,
+} from "./stack";
 import { announceNext } from "./stackChoices";
 import {
   alivePlayers,
@@ -77,6 +85,7 @@ import type {
   ObjectId,
   PendingDecision,
   PlayerId,
+  Resolution,
   StackItem,
   Step,
 } from "./types";
@@ -121,6 +130,9 @@ export function advance(s: GameState): void {
         stateBasedActions(s);
         // An active player eliminated by these actions ends the turn (`eliminate` changes the flow).
         if (s.over || s.pending || s.flow !== "priority") break;
+        // PLAN-M M11c: an action outside the stack (a return from a linked exile that asks questions), then the
+        // checks again.
+        if (runOffStack(s)) break;
         // New targets of a copy, division: before the triggers (ward depends on it) and priority.
         if (announceNext(s)) break;
         if (processTriggers(s) || s.flow !== "priority") break;
@@ -324,16 +336,35 @@ export function answerLeylines(s: GameState, player: PlayerId, cards: ObjectId[]
     const placed = moveObject(s, id, "battlefield");
     if (l === true) continue;
     if (l.counter && placed && s.objects[placed]) changeCounters(s, obj(s, placed), l.counter, 1);
-    // "If you do, exile a card from your hand": automatic choice, the nonland card with the lowest mana value (a
-    // land if there is none).
-    if (l.exileFromHand) {
+    // "If you do, exile a card from your hand": asked at the first check of the game, before anyone has priority
+    // (PLAN-M M11c, an action outside the stack); suggestion: the nonland card with the lowest mana value (a land if
+    // there is none), first in the list.
+    const placedDef = placed ? s.objects[placed]?.defId : undefined;
+    if (l.exileFromHand && placed && placedDef) {
       const hand = s.players[player]?.hand ?? [];
       const mv = (h: ObjectId) => {
         const d = s.defs[obj(s, h).defId];
         return d?.types.includes("Land") ? 100 : manaValue(d?.manaCost);
       };
-      const pick = [...hand].sort((a, b) => mv(a) - mv(b))[0];
-      if (pick) moveObject(s, pick, "exile");
+      const cards = [...hand].sort((a, b) => mv(a) - mv(b));
+      if (cards.length)
+        queueOffStack(s, {
+          controller: player,
+          sourceId: placed,
+          sourceDefId: placedDef,
+          effects: [
+            {
+              op: "pickFromZone",
+              zone: "hand",
+              filter: {},
+              count: 1,
+              pool: { kind: "target", id: "hand" },
+              to: { to: "exile" },
+              prompt: msg("{card}: exile a card from your hand", { card: cardRef(placedDef) }),
+            },
+          ],
+          bound: { hand: cards },
+        });
     }
   }
   s.flow = "mulligan";
@@ -538,7 +569,7 @@ function finishCleanup(s: GameState): void {
   // priority, then a new cleanup step takes place.
   const acted = stateBasedActions(s);
   if (s.over) return;
-  if (acted || s.pending || s.triggers.length > 0) {
+  if (acted || s.pending || s.triggers.length > 0 || s.offStack?.length) {
     s.turn.cleanupAgain = true;
     givePriority(s);
     return;
@@ -1793,7 +1824,7 @@ export function eliminate(s: GameState, losers: PlayerId[]): void {
   if (s.flow === "mulligan") return;
   // Concession in the middle of a resolution (800.4a): the player who was asked the question, or the controller of what
   // resolves, leaves the game; the resolution resumes without them, or stops if the object left the stack with them.
-  const resolvingGone = !!s.resolving && !s.stack.some((x) => x.id === s.resolving?.item.id);
+  const resolvingGone = !!s.resolving && resolutionGone(s, s.resolving);
   const resume = s.flow === "resolving" && !!s.resolving?.awaiting && (pendingLeaving || resolvingGone);
   if (resume) {
     s.pending = null;
@@ -1822,7 +1853,7 @@ export function eliminate(s: GameState, losers: PlayerId[]): void {
 function resumeWithoutLeaver(s: GameState, pending: PendingDecision | null): void {
   const r = s.resolving;
   if (!r?.awaiting) return;
-  if (!pending || !s.stack.some((x) => x.id === r.item.id)) {
+  if (!pending || resolutionGone(s, r)) {
     s.resolving = null;
     dropNowPermissions(s);
     afterResolution(s);
@@ -1838,9 +1869,22 @@ function resumeWithoutLeaver(s: GameState, pending: PendingDecision | null): voi
   } else afterResolution(s);
 }
 
+/**
+ * 800.4a: what resolves has left with a player: a spell or ability that left the stack; a resolution without the stack
+ * (mana ability, action outside the stack, PLAN-M M11c) whose controller left.
+ */
+function resolutionGone(s: GameState, r: Resolution): boolean {
+  return r.returnPriority ? !!s.players[r.controller]?.lost : !s.stack.some((x) => x.id === r.item.id);
+}
+
 function removePlayerObjects(s: GameState, p: PlayerId): void {
   const player = s.players[p];
   if (!player) return;
+  // Their actions outside the stack (PLAN-M M11c) cease to exist.
+  if (s.offStack) {
+    s.offStack = s.offStack.filter((a) => a.controller !== p);
+    if (s.offStack.length === 0) delete s.offStack;
+  }
   bump(s);
   // 800.4a: the effects that give them control of objects end (layer 2: `syncControl` ignores the effects and
   // the Auras of a player who has left the game), then what they still control is exiled.

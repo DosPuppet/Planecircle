@@ -28,7 +28,19 @@ import {
 } from "../src/turn";
 import { countTurnEvents } from "../src/turnlog";
 import type { CardDef, ChoiceRequest, ChoiceValue, Effect, GameState, TokenSpec } from "../src/types";
-import { act, advanceUntil, customCard, idOf, idsOf, lands, passAccepting, passUntil, scenario } from "./helpers";
+import {
+  act,
+  advanceUntil,
+  customCard,
+  idOf,
+  idsOf,
+  lands,
+  passAccepting,
+  passUntil,
+  picking,
+  scenario,
+  settle as settleAnswering,
+} from "./helpers";
 
 const ench = (name: string, ab: CardDef["abilities"][number]) =>
   customCard({ name, types: ["Enchantment"], typeLine: "Enchantment", abilities: [ab] });
@@ -1632,5 +1644,72 @@ describe("PLAN-M M7: general approximations lifted", () => {
       expect(s.objects[land]?.tapped).toBe(false);
       expect(s.players.p1?.life).toBe(18);
     }
+  });
+});
+
+describe("PLAN-M M11c: arrivals outside a resolution ask their questions (actions outside the stack)", () => {
+  /** p1 exiles p2's `name` with Stormplain Detainment ("until this enchantment leaves the battlefield"). */
+  const detain = (s0: GameState, name: string) => {
+    const victim = idOf(s0, "p2", "battlefield", name);
+    let s = act(s0, "p1", { type: "cast", card: idOf(s0, "p1", "hand", "Stormplain Detainment") });
+    s = settleAnswering(s, picking([victim]));
+    expect(s.exile.map((id) => chars(s, id).name)).toEqual([name]);
+    return s;
+  };
+  const choiceOf = (s: GameState) => (s.pending?.kind === "choice" ? s.pending : undefined);
+
+  it("303.4f, 610.3: an Aura returning from a linked exile with two possible hosts asks its owner which one", () => {
+    let s = scenario({
+      p1: { battlefield: [...lands("Plains", 3), "Bear Cub", "Bear Cub"], hand: ["Stormplain Detainment"] },
+      p2: { hand: ["Pacifism"] },
+    });
+    const [cub1, cub2] = idsOf(s, "p1", "battlefield", "Bear Cub") as [string, string];
+    moveObject(s, idOf(s, "p2", "hand", "Pacifism"), "battlefield", { enters: { attachTo: cub1 } });
+    s = detain(s, "Pacifism");
+    // The Detainment leaves: the return waits for the next check, then the owner chooses the host.
+    destroy(s, idOf(s, "p1", "battlefield", "Stormplain Detainment"));
+    expect(s.offStack).toHaveLength(1);
+    s = act(s, "p1", { type: "pass" });
+    const asked = choiceOf(s);
+    expect(asked?.player).toBe("p2");
+    expect(asked?.request.type === "pick" && asked.request.options).toEqual(expect.arrayContaining([cub1, cub2]));
+    expect(asked?.request.suggested).toEqual([cub1]);
+    s = act(s, "p2", { type: "choose", values: [cub2] });
+    const pacifism = idOf(s, "p2", "battlefield", "Pacifism");
+    expect(s.objects[pacifism]?.attachedTo).toBe(cub2);
+    expect(s.offStack).toBeUndefined();
+    // Priority comes back as it was (p2, after p1's pass).
+    expect(s.pending).toMatchObject({ kind: "priority", player: "p2" });
+  });
+
+  it('614.1c: Mox Diamond returning from a linked exile asks for the land card to discard ("as it enters")', () => {
+    for (const discard of [true, false]) {
+      let s = scenario({
+        p1: { battlefield: lands("Plains", 3), hand: ["Stormplain Detainment"] },
+        p2: { battlefield: ["Mox Diamond"], hand: ["Forest", "Opt"] },
+      });
+      s = detain(s, "Mox Diamond");
+      destroy(s, idOf(s, "p1", "battlefield", "Stormplain Detainment"));
+      s = act(s, "p1", { type: "pass" });
+      const asked = choiceOf(s);
+      expect(asked?.player).toBe("p2");
+      expect(asked?.request.type === "pick" && asked.request.options).toEqual(idsOf(s, "p2", "hand", "Forest"));
+      s = act(s, "p2", { type: "choose", values: discard ? idsOf(s, "p2", "hand", "Forest") : [] });
+      // Discarded: it stays; otherwise it goes to the graveyard instead (it never enters).
+      expect(idsOf(s, "p2", "battlefield", "Mox Diamond")).toHaveLength(discard ? 1 : 0);
+      expect(idsOf(s, "p2", "graveyard", discard ? "Forest" : "Mox Diamond")).toHaveLength(1);
+      expect(s.exile).toHaveLength(0);
+    }
+  });
+
+  it("a permanent with nothing to ask returns at once (no action outside the stack)", () => {
+    let s = scenario({
+      p1: { battlefield: lands("Plains", 3), hand: ["Stormplain Detainment"] },
+      p2: { battlefield: ["Shivan Dragon"] },
+    });
+    s = detain(s, "Shivan Dragon");
+    destroy(s, idOf(s, "p1", "battlefield", "Stormplain Detainment"));
+    expect(s.offStack).toBeUndefined();
+    expect(idsOf(s, "p2", "battlefield", "Shivan Dragon")).toHaveLength(1);
   });
 });

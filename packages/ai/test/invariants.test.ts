@@ -50,6 +50,13 @@ describe("checkInvariants", () => {
     expect(heuristicChoice(s, "p1", { ...request, min: 0, suggested: [] })).toEqual([]);
   });
 
+  it("an action outside the stack still waiting at priority is reported (PLAN-M M11c)", () => {
+    const s = base();
+    const bear = idOf(s, "p1", "battlefield", "Bear Cub");
+    s.offStack = [{ controller: "p1", sourceId: bear, sourceDefId: s.objects[bear]?.defId ?? "", effects: [], bound: {} }];
+    expect(checkInvariants(s, sizes(s))).toEqual(["action outside the stack still waiting at priority (1)"]);
+  });
+
   it("a stale characteristics cache (forgotten bump) is reported, field by field", () => {
     const s = base();
     const bear = idOf(s, "p1", "battlefield", "Bear Cub");

@@ -650,8 +650,12 @@ export const RECORD_VERSION = 1;
  *   "as it enters" question with the decision (`playLand.answer`, several values), also when its effects do more than
  *   choose (Scorched Ruins, Lake of the Dead: the lands sacrificed); the reveal lands (Port Town, Fortified Village,
  *   Vineglimmer Snarl, Foreboding Ruins) ask the card revealed.
+ * - 208: PLAN-M M11c: actions outside the stack (`GameState.offStack`), run at the next check before priority: a card
+ *   returning from a linked exile with a real choice (an Aura's host among several, "as it enters" effects such as Mox
+ *   Diamond's discard, devour or Sin's counters, riot, a shock land's life) returns through `moveTo` and asks its
+ *   questions; Gemstone Caverns asks which card of the hand is exiled.
  */
-export const RULES_VERSION = 207;
+export const RULES_VERSION = 208;
 
 /** One checkpoint every N decisions (plus the last one of the game). */
 export const CHECKPOINT_EVERY = 25;

@@ -16,7 +16,7 @@ import { boardAmount, type EffectContext, evalAmount, type OpResult, runEffectWi
 import { collectEvents } from "./events";
 import { copiableExceptions, copiedDefId, mergeMods, textBoxOf } from "./layers";
 import { manaValue } from "./mana";
-import { willHaveRiot } from "./stack";
+import { queueOffStack, willHaveRiot } from "./stack";
 import { changeCounters, chars, cloneState, FACE_DOWN_ID, moveObject, newId, nextTimestamp, P1P1, setPrepared } from "./state";
 import { controlledAbilitiesWithSource, playerStatic } from "./statics";
 import { matchesCard, matchesObjectFilter, protectedFrom, sourceView, withChosen } from "./targets";
@@ -180,8 +180,8 @@ export type EntersChoices = Pick<
  * How the "as it enters" loop answers its questions:
  * - `ask`: they are asked (the resolution is suspended, then the effect resumes with the answer);
  * - `auto`: the suggested answer (after a random draw, which would not be replayed);
- * - `default`: the suggested answer, and only the choices (entering outside a resolution: return from a linked exile,
- *   copy token, ninjutsu; the permanent is already entering, the other effects are not done);
+ * - `default`: the suggested answer, and only the choices (an entering that doesn't ask, `applyEntersReplacements`;
+ *   the permanent is already entering, the other effects are not done);
  * - `probe`: the first question only, without doing anything (land offered by `legalActions`);
  * - `{ first }`: the answer given with the decision to play a land, then the suggested answers.
  */
@@ -594,12 +594,13 @@ export function applyEntersReplacements(s: GameState, o: GameObject, ctx: Enters
   if (ctx.cast) o.cast = { ...ctx.cast };
   const own = s.defs[o.defId];
   // 303.4f: an Aura entering without being cast enchants an object chosen by its controller (automatically here: the
-  // first possible one; the move operations ask for it during a resolution).
+  // first possible one; the move operations ask for it during a resolution, and a return from a linked exile outside
+  // the stack, PLAN-M M11c).
   const attachTo = ctx.attachTo ?? (own?.enchant && !own.enchant.player ? auraHosts(s, o.controller, o.id)[0] : undefined);
   if (attachTo) o.attachedTo = attachTo;
-  // 614.1c, 614.12: the "as it enters" effects that were not done before the move (entering outside a resolution:
-  // return from a linked exile, copy token, ninjutsu): the choices only, with the suggested answer. A face-down
-  // permanent has none (708.2).
+  // 614.1c, 614.12: the "as it enters" effects that were not done before the move (an entering that doesn't ask: a
+  // card returning to the battlefield inside another operation, such as Another Round's flicker or the creature that
+  // Animate Dead returns): the choices only, with the suggested answer. A face-down permanent has none (708.2).
   if (!ctx.asEnters && !ctx.copyOf) {
     const res = asEntersChoices(s, {}, { id: o.id, defId: copiedDefId(s, o.id), controller: o.controller }, "", "default");
     if (!("ask" in res)) ctx = withEntersChoices(ctx, res);
@@ -743,11 +744,38 @@ export function releaseLinkedExile(s: GameState, sourceId: ObjectId): void {
   if (links.length === 0) return;
   s.linkedExile = s.linkedExile.filter((l) => l.sourceId !== sourceId);
   for (const l of links) {
-    for (const id of l.cards) {
+    const back = l.cards.filter((id) => s.objects[id]?.zone === "exile");
+    // PLAN-M M11c: a return with a real choice (an Aura's host among several, "as it enters" effects, riot, a shock
+    // land) is an action outside the stack, run at the next check: the cards return together through `moveTo`, which
+    // asks the questions of an arrival.
+    const first = s.objects[back[0] ?? ""];
+    if (!l.toHand && first && back.some((id) => arrivalAsks(s, id))) {
+      queueOffStack(s, {
+        controller: first.owner,
+        sourceId: first.id,
+        sourceDefId: first.defId,
+        effects: [{ op: "moveTo", what: { kind: "target", id: "back" }, spec: { to: "battlefield" } }],
+        bound: { back },
+      });
+      continue;
+    }
+    for (const id of back) {
       const o = s.objects[id];
-      if (o?.zone === "exile") moveObject(s, id, l.toHand ? "hand" : "battlefield", { controller: o.owner });
+      if (o) moveObject(s, id, l.toHand ? "hand" : "battlefield", { controller: o.owner });
     }
   }
+}
+
+/**
+ * Does this card, put onto the battlefield under its owner's control, ask a question as it enters (PLAN-M M11c)? An
+ * Aura with several possible hosts (303.4f), "as it enters" effects (614.1c, 614.12), riot, a shock land.
+ */
+function arrivalAsks(s: GameState, id: ObjectId): boolean {
+  const o = s.objects[id];
+  const d = o ? s.defs[o.defId] : undefined;
+  if (!o || !d) return false;
+  if (d.enchant && !d.enchant.player) return auraHosts(s, o.owner, id).length > 1;
+  return !!d.shockLand || !!d.asEnters?.length || willHaveRiot(s, o.owner, d);
 }
 
 /**

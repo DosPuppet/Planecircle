@@ -121,6 +121,7 @@ import type {
   NextSpell,
   ObjectFilter,
   ObjectId,
+  OffStackAction,
   PendingStackChoice,
   PlayerId,
   PlayFromZone,
@@ -4559,6 +4560,50 @@ function resolveManaAbilityNow(s: GameState, item: StackItem): void {
   };
   // A choice (color of the mana) suspends the resolution; the answer will give priority back (`game.ts`).
   if (continueResolution(s)) s.flow = "priority";
+}
+
+/** PLAN-M M11c: an action outside the stack, run at the next check before priority (`runOffStack`). */
+export function queueOffStack(s: GameState, action: OffStackAction): void {
+  s.offStack = [...(s.offStack ?? []), action];
+}
+
+/**
+ * PLAN-M M11c: runs the next action waiting outside the stack (`GameState.offStack`: an arrival outside a resolution
+ * that asks questions, Gemstone Caverns' exile), after the state-based actions and before priority. It resolves without
+ * the stack, like a mana ability (605.3b): its questions suspend it, then priority comes back as it was (`game.ts`).
+ * Returns true if an action was run.
+ */
+export function runOffStack(s: GameState): boolean {
+  const next = s.offStack?.[0];
+  if (!next || s.resolving) return false;
+  if (s.offStack && s.offStack.length > 1) s.offStack = s.offStack.slice(1);
+  else delete s.offStack;
+  const item: StackItem = {
+    id: "offStack",
+    kind: "ability",
+    controller: next.controller,
+    sourceId: next.sourceId,
+    sourceDefId: next.sourceDefId,
+    abilityIndex: -1,
+    mode: 0,
+    targets: {},
+    x: 0,
+    kicked: false,
+    sourceSnapshot: { keywords: [], power: 0, controller: next.controller },
+    inline: { targets: [], effects: next.effects, bound: next.bound },
+  };
+  s.resolving = {
+    item,
+    effects: next.effects,
+    pc: 0,
+    controller: next.controller,
+    targets: { ...next.bound },
+    vars: {},
+    awaiting: null,
+    returnPriority: { ...s.priority },
+  };
+  continueResolution(s);
+  return true;
 }
 
 /** "Target" words of a stack item (Bolt Bend). */

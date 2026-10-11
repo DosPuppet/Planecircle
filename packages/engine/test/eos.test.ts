@@ -360,12 +360,21 @@ describe("Stellar Sights", () => {
     });
 
     it("Gemstone Caverns: in the opening hand without starting, on the battlefield with a luck counter", () => {
-      const s = scenario({ p2: { hand: ["Gemstone Caverns", "Bear Cub", "Forest"] } });
+      let s = scenario({ p2: { hand: ["Gemstone Caverns", "Bear Cub", "Forest"] } });
       answerLeylines(s, "p2", [idOf(s, "p2", "hand", "Gemstone Caverns")]);
       const gem = idOf(s, "p2", "battlefield", "Gemstone Caverns");
       expect(s.objects[gem]?.counters.luck).toBe(1);
-      // A card from hand exiled (the cheapest nonland); one mana of any color.
-      expect(s.exile.map((id) => nameOf(s, id))).toEqual(["Bear Cub"]);
+      // "If you do, exile a card from your hand": asked at the next check (PLAN-M M11c); suggestion: the cheapest
+      // nonland card. One mana of any color.
+      expect(s.exile).toEqual([]);
+      s = act(s, "p1", { type: "pass" });
+      const asked = s.pending?.kind === "choice" ? s.pending : undefined;
+      expect(asked?.player).toBe("p2");
+      expect(asked?.request.type === "pick" && asked.request.options.map((id) => nameOf(s, id))).toEqual(["Bear Cub", "Forest"]);
+      expect(asked?.request.suggested.map((id) => nameOf(s, String(id)))).toEqual(["Bear Cub"]);
+      s = act(s, "p2", { type: "choose", values: idsOf(s, "p2", "hand", "Forest") });
+      expect(s.exile.map((id) => nameOf(s, id))).toEqual(["Forest"]);
+      expect(s.pending?.kind).toBe("priority");
       const abs = manaAbilitiesOf(s, gem);
       expect(abs.map((a) => a.produce.length)).toEqual([1, 5]);
       // The first player cannot.

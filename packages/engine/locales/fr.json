@@ -565,6 +565,7 @@
  "{card}: divide {n} +1/+1 counters among the targets": "{card} : répartissez {n} marqueurs +1/+1 entre les cibles",
  "{card}: divide {n} damage among the targets": "{card} : répartissez {n} blessures entre les cibles",
  "{card}: exchange its text box with another creature's?": "{card} : échanger sa zone de texte avec celle d'une autre créature ?",
+ "{card}: exile a card from your hand": "{card} : exilez une carte de votre main",
  "{card}: exile up to {n} card(s) from your graveyard": "{card} : exilez jusqu'à {n} carte(s) de votre cimetière",
  "{card}: forage (exile three cards from your graveyard or sacrifice a Food)?": "{card} : fourrager (exiler trois cartes de votre cimetière ou sacrifier une Nourriture) ?",
  "{card}: in position {n} from the top or on the bottom of your library?": "{card} : en position {n} depuis le dessus ou au-dessous de votre bibliothèque ?",

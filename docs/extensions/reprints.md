@@ -82,8 +82,9 @@ its artwork (51 cards). Details in the plan's follow-up.
 | Gemstone Caverns | conditional `leyline`: if you are not the starting player, with a luck counter, a card exiled from hand |
 
 - **Tests:** `eos.test.ts` (+8).
-- **Approximations:** Gemstone Caverns automatically exiles the non-land card of lowest mana value; Reflecting Pool does
-  not see what other Reflecting Pools would produce.
+- **Approximations:** Gemstone Caverns asks which card is exiled at the first check of the game (PLAN-M M11c; before,
+  the non-land card of lowest mana value automatically); Reflecting Pool does not see what other Reflecting Pools would
+  produce.
 
 ## G4a — Special Guests from LCI, MKM and OTJ ✅ (31 cards; SPG 38 / 132)
 

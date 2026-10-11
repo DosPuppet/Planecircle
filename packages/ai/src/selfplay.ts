@@ -148,6 +148,9 @@ export function checkInvariants(s: GameState, deckSizes: Record<string, number>)
     const to = s.objects[id]?.attachedTo;
     if (to && !onBattlefield.has(to) && !s.players[to]) errors.push(`${id} attached to ${to}, not on the battlefield`);
   }
+  // Actions outside the stack (PLAN-M M11c) are run before priority, and no resolution is left over.
+  if (settled && s.offStack?.length) errors.push(`action outside the stack still waiting at priority (${s.offStack.length})`);
+  if (settled && s.resolving) errors.push("resolution still in progress at priority");
   for (const a of s.combat?.attackers ?? []) if (!onBattlefield.has(a.id)) errors.push(`attacker ${a.id} not on the battlefield`);
   for (const b of s.combat?.blockers ?? []) if (!onBattlefield.has(b.id)) errors.push(`blocker ${b.id} not on the battlefield`);
   if (s.pending && s.players[s.pending.player]?.lost)

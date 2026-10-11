@@ -376,6 +376,21 @@ export interface InlineAbility {
   label?: string;
 }
 
+/**
+ * An action outside the stack that asks questions (PLAN-M M11c): an arrival outside a resolution with a real choice
+ * (a card returning from a linked exile: an Aura's host, its "as it enters" effects, riot, a shock land), Gemstone
+ * Caverns' card exiled from the hand. Run at the next check, before priority, as a resolution without the stack
+ * (`runOffStack`, `stack.ts`), like a mana ability (605.3b).
+ */
+export interface OffStackAction {
+  controller: PlayerId;
+  sourceId: ObjectId;
+  sourceDefId: string;
+  effects: Effect[];
+  /** References frozen on creation (the returning cards, the cards of the hand). */
+  bound: Record<string, string[]>;
+}
+
 /** Timing of a delayed ability: next end step, end step of your next turn, end of combat. */
 export type DelayedTiming =
   | "nextEndStep"
@@ -984,6 +999,8 @@ export interface GameState {
    */
   loop?: { passes: number; seen: string[]; growth?: { h: string; stack: number; field: number }[] };
   resolving: Resolution | null;
+  /** Actions outside the stack waiting for the next check (PLAN-M M11c); absent when there are none. */
+  offStack?: OffStackAction[];
   /** Replacement and prevention effects created by resolutions (until end of turn). */
   replacements: CreatedReplacement[];
   /** Triggered abilities waiting to be put on the stack. */
