@@ -4570,6 +4570,57 @@ describe("Lorwyn Eclipsed, batch C", () => {
     expect(idsOf(t, "p1", "hand", elfWarrior.name)).toHaveLength(1);
   });
 
+  // PLAN-M M10a: "As an additional cost …, you may choose a creature type and behold two creatures of that type": the
+  // type and the beheld creatures are chosen as it is cast (cost slots), the card found is held in the library, then
+  // goes onto the battlefield only if the cost was paid and the card is of the chosen type.
+  it("Celestial Reunion: the type is chosen with the optional cost; the card goes where it belongs, straight from the library", () => {
+    const setup = () =>
+      scenario({
+        p1: {
+          battlefield: [...lands("Forest", 3), "Llanowar Elves"],
+          hand: ["Celestial Reunion", "Llanowar Elves", "Bear Cub"],
+          library: [elfWarrior, "Forest"],
+        },
+      });
+    let s = setup();
+    const reunion = idOf(s, "p1", "hand", "Celestial Reunion");
+    const elves = [idOf(s, "p1", "battlefield", "Llanowar Elves"), idOf(s, "p1", "hand", "Llanowar Elves")];
+    const offer = legalActions(s, "p1").find((a) => a.type === "cast" && a.card === reunion);
+    const picks = offer?.type === "cast" ? (offer.picks ?? []) : [];
+    const typePick = picks.find((p) => p.slot === "creatureType");
+    // Elf and Druid: the two Llanowar Elves share both (the Bear is alone of its type).
+    expect([...(typePick?.options ?? [])].sort()).toEqual(["Druid", "Elf"]);
+    expect(typePick?.optional).toBe(true);
+    const beholdPick = picks.find((p) => p.slot === "behold");
+    expect([...(beholdPick?.options ?? [])].sort()).toEqual([...elves].sort());
+    // One group of creatures per type offered, in the order of the types.
+    expect(beholdPick?.oneOf?.map((g) => [...g.options].sort())).toEqual(typePick?.options.map(() => [...elves].sort()));
+    const run = (picked: { creatureType?: string[]; behold?: string[] }) => {
+      let cur = setup();
+      cur = act(cur, "p1", { type: "cast", card: reunion, x: 2, picks: picked });
+      return chooseWanted(cur, [cur.players.p1?.library[0] as string]);
+    };
+    // Elf chosen: the Elf Warrior found enters the battlefield, from the library.
+    const elf = run({ creatureType: ["Elf"], behold: elves });
+    expect(idsOf(elf, "p1", "battlefield", elfWarrior.name)).toHaveLength(1);
+    expect(elf.turnLog.some((e) => e.e === "zone" && e.from === "library" && e.to === "battlefield")).toBe(true);
+    // Druid chosen: the Elf Warrior isn't a Druid, it goes into the hand.
+    const druid = run({ creatureType: ["Druid"], behold: elves });
+    expect(idsOf(druid, "p1", "hand", elfWarrior.name)).toHaveLength(1);
+    // The cost not paid: into the hand.
+    const none = run({ behold: [] });
+    expect(idsOf(none, "p1", "hand", elfWarrior.name)).toHaveLength(1);
+    // A creature not of the chosen type can't be beheld; a type not offered either.
+    s = setup();
+    const bear = idOf(s, "p1", "hand", "Bear Cub");
+    expect(() =>
+      act(s, "p1", { type: "cast", card: reunion, x: 2, picks: { creatureType: ["Elf"], behold: [elves[0] as string, bear] } }),
+    ).toThrow(RulesError);
+    expect(() =>
+      act(s, "p1", { type: "cast", card: reunion, x: 2, picks: { creatureType: ["Warrior"], behold: elves } }),
+    ).toThrow(RulesError);
+  });
+
   it("Raiding Schemes: tapping two creatures of the noncreature spell's color copies it", () => {
     let s = scenario({
       p1: {

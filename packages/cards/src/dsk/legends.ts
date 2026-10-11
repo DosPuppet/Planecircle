@@ -675,16 +675,11 @@ export const LEGENDS: Record<string, CardScript> = {
         exileSelf: true,
         exileFromGraveyard: { filter: { name: "Say Its Name" }, count: 2 },
         sorcerySpeed: true,
+        // Graveyard, hand and/or library, one choice; the library is shuffled only if it was searched.
         effects: [
-          fx.pickFromZone("graveyard", { name: "Altanak, the Thrice-Called" }, { to: "battlefield" }, { min: 0, store: "g" }),
-          ...fx.when(
-            cond.not(cond.v("g")),
-            fx.pickFromZone("hand", { name: "Altanak, the Thrice-Called" }, { to: "battlefield" }, { min: 0, store: "h" }),
-          ),
-          ...fx.when(
-            cond.all(cond.not(cond.v("g")), cond.not(cond.v("h"))),
-            fx.search({ name: "Altanak, the Thrice-Called" }, { to: "battlefield" }),
-          ),
+          fx.search({ name: "Altanak, the Thrice-Called" }, { to: "battlefield" }, 1, undefined, undefined, undefined, {
+            alsoFrom: ["graveyard", "hand"],
+          }),
         ],
         label: "Search for Altanak",
       }),

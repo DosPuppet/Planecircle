@@ -273,7 +273,9 @@ export const UNIQUE: Record<string, CardScript> = {
         when.entersSelf,
         [
           // Library and/or graveyard, one choice (PLAN-L L4).
-          fx.search({ types: ["Creature"], noAbilities: true }, { to: "hand" }, 1, undefined, undefined, undefined, true),
+          fx.search({ types: ["Creature"], noAbilities: true }, { to: "hand" }, 1, undefined, undefined, undefined, {
+            alsoFrom: ["graveyard"],
+          }),
         ],
         { label: "A creature card with no abilities" },
       ),

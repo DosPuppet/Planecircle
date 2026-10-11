@@ -2039,6 +2039,42 @@ describe("Duskmourn, lot K8: uncommons (1)", () => {
     expect(namesIn(u, u.players.p1?.graveyard).sort()).toEqual(["Altanak, the Thrice-Called", "Bear Cub"]);
   });
 
+  // PLAN-M M10a: "search your graveyard, hand, and/or library for a card named Altanak … If you search your library
+  // this way, shuffle": one choice among the three zones.
+  it("Say Its Name: Altanak chosen among the graveyard, the hand and the library; the library searched only if taken from it", () => {
+    const run = (from: "graveyard" | "hand" | "library") => {
+      let s = scenario({
+        p1: {
+          hand: ["Altanak, the Thrice-Called"],
+          graveyard: ["Say Its Name", "Say Its Name", "Say Its Name", "Altanak, the Thrice-Called"],
+          library: ["Forest", "Altanak, the Thrice-Called", "Forest"],
+        },
+      });
+      const ids = {
+        graveyard: idOf(s, "p1", "graveyard", "Altanak, the Thrice-Called"),
+        hand: idOf(s, "p1", "hand", "Altanak, the Thrice-Called"),
+        library: s.players.p1?.library[1] as string,
+      };
+      const say = idOf(s, "p1", "graveyard", "Say Its Name");
+      s = passUntil(activateNth(s, say), (x) => x.pending?.kind === "choice");
+      const p = s.pending;
+      const req = p?.kind === "choice" ? p.request : undefined;
+      expect(req?.type === "pick" && [req.intent, req.max, [...req.options].sort()]).toEqual([
+        "search",
+        1,
+        Object.values(ids).sort(),
+      ]);
+      return settle(act(s, "p1", { type: "choose", values: [ids[from]] }));
+    };
+    for (const from of ["graveyard", "hand", "library"] as const) {
+      const s = run(from);
+      expect(idsOf(s, "p1", "battlefield", "Altanak, the Thrice-Called")).toHaveLength(1);
+      expect(s.turnLog.some((e) => e.e === "search")).toBe(from === "library");
+      expect(idsOf(s, "p1", "graveyard", "Altanak, the Thrice-Called")).toHaveLength(from === "graveyard" ? 0 : 1);
+      expect(idsOf(s, "p1", "hand", "Altanak, the Thrice-Called")).toHaveLength(from === "hand" ? 0 : 1);
+    }
+  });
+
   it("Arabella: when attacking, X damage to each opponent and X life, X the number of your creatures with power 2 or less", () => {
     let s = scenario({ p1: { battlefield: ["Arabella, Abandoned Doll", "Bear Cub", "Shivan Dragon"] } });
     s = attack(s, [idOf(s, "p1", "battlefield", "Arabella, Abandoned Doll")]);

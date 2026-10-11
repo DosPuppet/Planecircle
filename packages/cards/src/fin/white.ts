@@ -102,7 +102,9 @@ export const WHITE: Record<string, CardScript> = {
         when.entersSelf,
         [
           // Library and/or graveyard, one choice (PLAN-L L4).
-          fx.search({ types: ["Artifact"], maxManaValue: 2 }, { to: "hand" }, 1, undefined, undefined, undefined, true),
+          fx.search({ types: ["Artifact"], maxManaValue: 2 }, { to: "hand" }, 1, undefined, undefined, undefined, {
+            alsoFrom: ["graveyard"],
+          }),
         ],
         { label: "An artifact with mana value 2 or less" },
       ),

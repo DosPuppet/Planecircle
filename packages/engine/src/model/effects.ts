@@ -370,6 +370,11 @@ export type Effect =
       filter: ObjectFilter;
       /** With `who`, read from the point of view of the searching player (Winds of Abandon: as many as their exiled creatures). */
       count: Amount;
+      /**
+       * Without `to`, the found cards are held (PLAN-M M10a): they stay where they are (revealed with `reveal`),
+       * remembered under `store`, unshuffled; the effects that follow route them, then shuffle ("put it onto the
+       * battlefield if it's a land, otherwise into your hand, then shuffle": Archdruid's Charm).
+       */
       to?: MoveSpec;
       who?: Ref;
       /** "Search that player's library" (Sphinx Ambassador): the controller searches the designated player's library. */
@@ -384,10 +389,17 @@ export type Effect =
       /** "… reveal it": the found cards are shown to all players (read from the text, `scryfall.ts`). */
       reveal?: boolean;
       /**
-       * "Search your library and/or graveyard" (Vision Quest, Delivery Moogle…): the graveyard's matching cards are
-       * offered with the library's, in one choice; the library is shuffled unless the card comes from the graveyard.
+       * "Search your library and/or graveyard" (Vision Quest, Delivery Moogle…), "your graveyard, hand, and/or library"
+       * (Say Its Name, Agency Outfitter): the matching cards of these zones are offered with the library's, in one
+       * choice; the library counts as searched (event, shuffle) when nothing is found or a card comes from it.
        */
-      alsoGraveyard?: boolean;
+      alsoFrom?: ("graveyard" | "hand")[];
+      /**
+       * One filter per card ("a basic land card and a Shrine card": Aang's Journey; "a card named Magnifying Glass
+       * and/or a card named Thinking Cap": Agency Outfitter): up to one card for each filter (`count` ignored), each
+       * card found taken for a different filter.
+       */
+      each?: ObjectFilter[];
     }
   | { op: "shuffle"; who: Ref }
   /** Exchanges control of two permanents (Trade the Helm). */

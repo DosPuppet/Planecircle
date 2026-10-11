@@ -33,6 +33,7 @@ import {
   lands,
   nameOf,
   passBoth,
+  passUntil,
   pickNamed,
   scenario,
   settle,
@@ -42,6 +43,9 @@ import {
 } from "./helpers";
 
 type S = GameState;
+/** The logged moves of this turn, `from>to` (a card searched for and held: straight from the library to its zone). */
+const zoneMoves = (s: S) =>
+  s.turnLog.flatMap((e) => (e.e === "zone" && e.from !== "stack" && e.to !== "stack" ? [`${e.from}>${e.to}`] : []));
 describe("Murders at Karlov Manor", () => {
   describe("surveil lands (Thundering Falls, Meticulous Archive, Underground Mortuary)", () => {
     it("enter tapped, then surveil 1: the top card may go to the graveyard", () => {
@@ -1000,6 +1004,48 @@ describe("Murders at Karlov Manor, lot A — blue", () => {
       expect(idsOf(s, "p1", "battlefield", "Thinking Cap")).toHaveLength(1);
       expect(s.players.p1?.graveyard).toHaveLength(0);
       expect(s.players.p1?.library).toHaveLength(2);
+    });
+
+    // PLAN-M M10a: "search your graveyard, hand and/or library for a card named Magnifying Glass and/or a card named
+    // Thinking Cap": one choice among the three zones, one card of each name at most; shuffle only if the library was
+    // searched.
+    it("one choice among graveyard, hand and library, one card per name; the library is shuffled only if searched", () => {
+      const setup = () =>
+        scenario({
+          p1: {
+            battlefield: lands("Island", 6),
+            hand: ["Agency Outfitter", "Thinking Cap"],
+            graveyard: ["Magnifying Glass"],
+            library: ["Forest", "Thinking Cap", "Magnifying Glass", "Forest"],
+          },
+        });
+      let s = setup();
+      const handCap = idOf(s, "p1", "hand", "Thinking Cap");
+      const yardGlass = idOf(s, "p1", "graveyard", "Magnifying Glass");
+      const [libCap, libGlass] = [s.players.p1?.library[1] as string, s.players.p1?.library[2] as string];
+      let asked: ChoiceRequest | undefined;
+      s = settle(cast(s, "p1", "Agency Outfitter"), (req) => {
+        if (req.type !== "pick" || req.intent !== "search") return undefined;
+        asked = req;
+        return [handCap, yardGlass];
+      });
+      expect(asked?.type === "pick" && [...asked.options].sort()).toEqual([handCap, yardGlass, libCap, libGlass].sort());
+      expect(asked?.type === "pick" && asked.max).toBe(2);
+      expect(idsOf(s, "p1", "battlefield", "Magnifying Glass")).toHaveLength(1);
+      expect(idsOf(s, "p1", "battlefield", "Thinking Cap")).toHaveLength(1);
+      expect(s.players.p1?.library.map((id) => nameOf(s, id))).toEqual(["Forest", "Thinking Cap", "Magnifying Glass", "Forest"]);
+      expect(s.turnLog.some((e) => e.e === "search")).toBe(false);
+      // Two cards of the same name: refused.
+      let t = setup();
+      t = passUntil(cast(t, "p1", "Agency Outfitter"), (x) => x.pending?.kind === "choice");
+      const p = t.pending;
+      expect(p?.kind === "choice" && p.request.type === "pick" && p.request.intent).toBe("search");
+      const cap2 = t.players.p1?.library[1] as string;
+      expect(() => act(t, "p1", { type: "choose", values: [idOf(t, "p1", "hand", "Thinking Cap"), cap2] })).toThrow(RulesError);
+      // A card from the library: the library was searched.
+      t = settle(act(t, "p1", { type: "choose", values: [cap2] }));
+      expect(idsOf(t, "p1", "battlefield", "Thinking Cap")).toHaveLength(1);
+      expect(t.turnLog.some((e) => e.e === "search")).toBe(true);
     });
   });
 
@@ -2936,6 +2982,8 @@ describe("Murders at Karlov Manor, lot A — green", () => {
       const creature = run("Bear Cub");
       expect(names(creature, creature.players.p1?.hand)).toEqual(["Bear Cub"]);
       expect(onBattlefield(creature, "p1", "Bear Cub")).toHaveLength(0);
+      // PLAN-M M10a: the land goes straight from the library to the battlefield (never through the hand), revealed.
+      expect(zoneMoves(land)).toEqual(["library>battlefield"]);
     });
 
     it("mode 2: a +1/+1 counter on your creature, which deals damage equal to its power", () => {
@@ -3087,6 +3135,32 @@ describe("Murders at Karlov Manor, lot A — green", () => {
       expect(fresh.length).toBeGreaterThan(0);
       expect(names(s, s.players.p1?.hand)).toEqual(["Forest"]);
       expect(pt(s, r.id)).toEqual([7, 7]);
+    });
+
+    // PLAN-M M10a: the two Forests are held in the library (revealed), the player chooses the one put onto the
+    // battlefield tapped; it never goes through the hand.
+    it("the player chooses which Forest found enters tapped; straight from the library", () => {
+      let s = scenario({
+        p1: {
+          battlefield: [...lands("Forest", 6), "Island", "Island"],
+          hand: ["Flourishing Bloom-Kin"],
+          library: ["Forest", "Island", "Forest", "Bear Cub"],
+        },
+      });
+      const [first, second] = [s.players.p1?.library[0] as string, s.players.p1?.library[2] as string];
+      const r = castDisguisedThenTurnUp(s, "Flourishing Bloom-Kin");
+      let asked: string[] = [];
+      s = settle(r.s, (req) => {
+        if (req.type !== "pick" || req.intent === "search") return undefined;
+        asked = [...req.options];
+        return [second];
+      });
+      expect(asked.sort()).toEqual([first, second].sort());
+      const entered = idsOf(s, "p1", "battlefield", "Forest").filter((id) => s.objects[id]?.uid === r.s.objects[second]?.uid);
+      expect(entered).toHaveLength(1);
+      expect(s.objects[entered[0] as string]?.tapped).toBe(true);
+      expect(names(s, s.players.p1?.hand)).toEqual(["Forest"]);
+      expect(zoneMoves(s).filter((m) => m.endsWith(">battlefield"))).toEqual(["library>battlefield"]);
     });
   });
 
@@ -4310,13 +4384,14 @@ describe("Murders at Karlov Manor, lot A — multicolor", () => {
       });
       const island = idOf(s, "p1", "hand", "Island");
       const swamp = idOf(s, "p1", "graveyard", "Swamp");
-      s = settle(cast(s, "p1", "Worldsoul's Rage", { x: 2, targets: { t: ["p2"] } }), (req) =>
-        req.type === "pick" && req.options.includes(island)
-          ? [island]
-          : req.type === "pick" && req.options.includes(swamp)
-            ? [swamp]
-            : undefined,
-      );
+      // PLAN-M M10a: one choice among the hand and the graveyard together (four land cards, up to two).
+      let asked: ChoiceRequest | undefined;
+      s = settle(cast(s, "p1", "Worldsoul's Rage", { x: 2, targets: { t: ["p2"] } }), (req) => {
+        if (req.type !== "pick" || !req.options.includes(island)) return undefined;
+        asked = req;
+        return [island, swamp];
+      });
+      expect(asked?.type === "pick" && [asked.options.length, asked.min, asked.max]).toEqual([4, 0, 2]);
       expect(s.players.p2?.life).toBe(18);
       expect(idsOf(s, "p1", "battlefield", "Island")).toHaveLength(1);
       expect(idsOf(s, "p1", "battlefield", "Swamp")).toHaveLength(1);

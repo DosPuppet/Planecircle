@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import { destroy } from "../src/actions";
 import { addControlEffect } from "../src/control";
 import * as dsl from "../src/dsl";
+import { RulesError } from "../src/errors";
 import { bump } from "../src/layers";
 import { legalActions } from "../src/legal";
 import { manaAbilitiesOf } from "../src/mana";
@@ -33,6 +34,7 @@ import {
   namesIn,
   passAccepting,
   passBoth,
+  passUntil,
   picking,
   scenario,
   settle,
@@ -2820,14 +2822,17 @@ describe("lot A, vert", () => {
       const lib = s.players.p1?.library ?? [];
       const want = lib.filter((_, i) => i !== 1 && i !== 5);
       let asked = 0;
+      let offered: string[] = [];
       s = settle(cast(s, "p1", "Elemental Teachings"), (req, player, cur) => {
         if (req.type !== "pick") return undefined;
         if (player === "p1") return want.filter((id) => req.options.includes(id));
-        // The opponent chooses the Island, then the Mountain (the revealed cards changed zones).
+        // The opponent chooses the Island, then the Mountain (PLAN-M M10a: among the cards found, held in the library).
         asked++;
+        if (asked === 1) offered = [...req.options];
         return req.options.filter((id) => ["Island", "Mountain"].includes(nameOf(cur, id) ?? "")).slice(0, 1);
       });
       expect(asked).toBe(2);
+      expect(offered.sort()).toEqual([...want].sort());
       expect(idsOf(s, "p1", "graveyard", "Island")).toHaveLength(1);
       expect(idsOf(s, "p1", "graveyard", "Mountain")).toHaveLength(1);
       const placed = [...idsOf(s, "p1", "battlefield", "Plains"), ...idsOf(s, "p1", "battlefield", "Forest")].filter(
@@ -2839,6 +2844,11 @@ describe("lot A, vert", () => {
       expect(placed).toHaveLength(7);
       expect(s.players.p1?.hand).toHaveLength(0);
       expect(s.players.p1?.library.map((id) => nameOf(s, id)).sort()).toEqual(["Forest", "Opt"]);
+      // Straight from the library (never through the hand).
+      const froms = s.turnLog.flatMap((e) =>
+        e.e === "zone" && (e.to === "battlefield" || e.to === "graveyard") && e.from !== "stack" ? [e.from] : [],
+      );
+      expect(froms).toEqual(["library", "library", "library", "library"]);
     });
 
     it("Flopsie: a +1/+1 counter on each of your creatures; power 4 or greater: only one blocker", () => {
@@ -3990,6 +4000,31 @@ describe("lot A, colorless cards and lands", () => {
         expect(idsOf(s, "p1", "hand", "Test Shrine")).toHaveLength(1);
         expect(s.players.p1?.life).toBe(22);
         expect(s.battlefield.filter((id) => nameOf(s, id) === "Plains" && s.objects[id]?.tapped)).toHaveLength(4);
+      });
+
+      // PLAN-M M10a: kicked, a single search (one filter per card: a basic land card and a Shrine card), one shuffle.
+      it("kicked: one search for both cards, each card for a different filter", () => {
+        let s = scenario({
+          p1: {
+            battlefield: lands("Plains", 4),
+            hand: ["Aang's Journey"],
+            library: ["Opt", shrine, "Island", "Forest"],
+          },
+        });
+        const [shrineId, island, forest] = (s.players.p1?.library ?? []).slice(1);
+        s = passUntil(cast(s, "p1", "Aang's Journey", { kicked: true }), (x) => x.pending?.kind === "choice");
+        const p = s.pending;
+        const req = p?.kind === "choice" ? p.request : undefined;
+        expect(req?.type === "pick" && [req.intent, req.max, [...req.options].sort()]).toEqual([
+          "search",
+          2,
+          [shrineId, island, forest].sort(),
+        ]);
+        expect(() => act(s, "p1", { type: "choose", values: [island as string, forest as string] })).toThrow(RulesError);
+        s = settle(act(s, "p1", { type: "choose", values: [forest as string, shrineId as string] }));
+        expect(idsOf(s, "p1", "hand", "Forest")).toHaveLength(1);
+        expect(idsOf(s, "p1", "hand", "Test Shrine")).toHaveLength(1);
+        expect(s.turnLog.filter((e) => e.e === "search")).toHaveLength(1);
       });
     });
 

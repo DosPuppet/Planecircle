@@ -592,15 +592,19 @@ export const MULTI: Record<string, CardScript> = {
     ],
   },
   "Dina's Guidance": {
-    // The card found goes to your hand, then you may put it into your graveyard instead.
+    // The card found is held (revealed), then put into your hand or your graveyard, as you choose.
     spell: spell(
       [],
       [
-        fx.search({ types: ["Creature"] }, { to: "hand" }, 1, undefined, "c"),
-        ...fx.may(
-          "Put the card found into your graveyard rather than your hand?",
-          fx.moveTo(ref.stored("c"), { to: "graveyard" }),
+        fx.searchHold({ types: ["Creature"] }, "c", 1, { reveal: true }),
+        ...fx.when(
+          cond.v("c"),
+          fx.yourChoice("Put the card found into your hand or your graveyard?", "where", [
+            { label: msg("Your hand"), effects: [fx.toHand(ref.stored("c"))] },
+            { label: msg("Your graveyard"), effects: [fx.moveTo(ref.stored("c"), { to: "graveyard" })] },
+          ]),
         ),
+        fx.shuffle(ref.you),
       ],
     ),
   },

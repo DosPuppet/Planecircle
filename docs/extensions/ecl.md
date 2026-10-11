@@ -104,3 +104,8 @@ The scripts are in `packages/cards/src/ecl/`: `cards` (meta cards, phase 1), `wh
 
 - **Dream Harvest:** "you may cast cards exiled this way": `grantPlay.castOnly` (a land card, or the land back face of a modal card, can't be played). Test added (Sink into Stupor // Soporific Springs).
 - **Squawkroaster:** Vivid counts the colors of your permanents from the previous layer pass (613.8, like domain's land types), no longer their printed colors. Test added.
+
+## PLAN-M M10a (rules 203)
+
+- **Celestial Reunion:** "as an additional cost, you may choose a creature type and behold two creatures of that type" is a real optional cost (`additionalCost.behold { count: 2, ofChosenType }`): the type is a cost slot (`creatureType`, label options: the types that two of your creatures or creature cards in hand have), the beheld objects must have it (the behold slot offers one group per type, `oneOf`), and the type is noted on the spell (`chosen.creatureType`). On resolution the creature card found is held (revealed): onto the battlefield if the cost was paid and it is of the chosen type (`cond.beheld` and `refMatches { chosen: "subtype" }`), otherwise into the hand; then shuffle. `Condition.beholdSharingType` is gone. Test added (Elf or Druid, no behold, a creature of another type and a type not offered refused).
+- **Left:** the types offered are those named by the candidates (two changelings alone offer only their printed types; `docs/approximations.md`).

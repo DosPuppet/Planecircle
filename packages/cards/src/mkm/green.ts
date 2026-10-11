@@ -81,9 +81,11 @@ export const GREEN: Record<string, CardScript> = {
         "Search for a creature or land card",
         [],
         [
-          // The card found goes through the hand; a land then goes onto the battlefield tapped.
-          fx.search(CREATURE_OR_LAND, { to: "hand" }, 1, undefined, "found"),
-          fx.pickFromZone("hand", { types: ["Land"] }, { to: "battlefield", tapped: true }, { pool: ref.stored("found") }),
+          // The card found is held (revealed), then routed: a land onto the battlefield tapped, otherwise into the hand.
+          fx.searchHold(CREATURE_OR_LAND, "found", 1, { reveal: true }),
+          fx.toBattlefield(ref.filtered(ref.stored("found"), { types: ["Land"] }), { tapped: true }),
+          fx.toHand(ref.filtered(ref.stored("found"), { not: { types: ["Land"] } })),
+          fx.shuffle(ref.you),
         ],
       ),
       mode(
@@ -160,14 +162,15 @@ export const GREEN: Record<string, CardScript> = {
       triggered(
         when.turnedFaceUp,
         [
-          // The Forests found go through the hand; one of them then goes onto the battlefield tapped.
-          fx.search({ types: ["Land"], subtype: "Forest" }, { to: "hand" }, 2, undefined, "forests"),
-          fx.pickFromZone(
-            "hand",
-            { subtype: "Forest" },
-            { to: "battlefield", tapped: true },
-            { pool: ref.stored("forests"), prompt: "The Forest to put onto the battlefield tapped" },
-          ),
+          // The Forests found are held (revealed): one onto the battlefield tapped, the other into the hand.
+          fx.searchHold({ types: ["Land"], subtype: "Forest" }, "forests", 2, { reveal: true }),
+          fx.chooseAmong(ref.stored("forests"), ref.you, "tapped", {
+            anyZone: true,
+            prompt: "The Forest to put onto the battlefield tapped",
+          }),
+          fx.toBattlefield(ref.stored("tapped"), { tapped: true }),
+          fx.toHand(ref.stored("tappedRest")),
+          fx.shuffle(ref.you),
         ],
         { label: "Search for two Forests: one onto the battlefield, the other into your hand" },
       ),

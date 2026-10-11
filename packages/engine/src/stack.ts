@@ -37,7 +37,7 @@ import { RulesError, rethrowAsRules } from "./errors";
 import { copiedDefId, effectivePower, hasKeyword } from "./layers";
 import { MAX_X } from "./limits";
 import { canPay, costToText, type ManaPurpose, manaAbilitiesOf, manaValue, payMana, totalCost } from "./mana";
-import { firstOfEachName, hasName, isNameAllowed } from "./names";
+import { firstOfEachName, hasName, isCreatureType, isNameAllowed } from "./names";
 import { asEntersChoices, ENTERS_PREFIX, withEntersChoices } from "./replacement";
 import {
   bent,
@@ -2137,33 +2137,74 @@ function beholdSuggestions(s: GameState, options: ObjectId[], required: boolean 
   return options.length >= count ? options.slice(0, count) : [];
 }
 
+/** Does the permanent or the card have this creature type (a changeling has them all)? */
+function hasCreatureTypeNow(s: GameState, player: PlayerId, id: ObjectId, type: string, card: ObjectId): boolean {
+  return s.objects[id]?.zone === "battlefield"
+    ? matchesObjectFilter(s, player, id, { subtype: type }, card)
+    : matchesCard(s, player, id, { subtype: type }, card);
+}
+
+/**
+ * "Choose a creature type and behold N creatures of that type" (Celestial Reunion, PLAN-M M10a): the creature types
+ * named by the options that N of them have (a changeling counts for each), the most common first; and, for each, the
+ * options that have it.
+ */
+function beholdTypes(
+  s: GameState,
+  player: PlayerId,
+  card: ObjectId,
+  options: ObjectId[],
+  count: number,
+): Map<string, ObjectId[]> {
+  const named = [...new Set(options.flatMap((id) => chars(s, id).subtypes.filter(isCreatureType)))];
+  const out = named
+    .map((t) => [t, options.filter((id) => hasCreatureTypeNow(s, player, id, t, card))] as const)
+    .filter(([, ids]) => ids.length >= count)
+    .sort((a, b) => b[1].length - a[1].length);
+  return new Map(out);
+}
+
 /**
  * The permanents or cards beheld on casting (`count` of them, distinct): the chosen ones (checked; empty list: none,
- * unless beholding is mandatory), otherwise the suggestion.
+ * unless beholding is mandatory), otherwise the suggestion. `ofChosenType`: the chosen creature type (by default, the
+ * first one they all have), which each of them has.
  */
 function beholdChoice(
   s: GameState,
   player: PlayerId,
   card: ObjectId,
   d: CardDef,
-  chosen: ObjectId[] | undefined,
+  picks: CastChoices["picks"],
   flashback: boolean,
-): ObjectId[] {
+): { ids: ObjectId[]; type?: string } {
+  const chosen = picks?.behold;
   const behold = additionalCostOf(d, flashback)?.behold;
   if (!behold) {
     if (chosen?.length) throw new RulesError(msg("This spell doesn't ask you to behold"));
-    return [];
+    return { ids: [] };
   }
   const count = behold.count ?? 1;
-  const options = beholdOptions(s, player, card, behold.filter, behold.exiled);
-  const ids = chosen === undefined ? beholdSuggestions(s, options, behold.required, count) : chosen;
+  const all = beholdOptions(s, player, card, behold.filter, behold.exiled);
+  const types = behold.ofChosenType ? beholdTypes(s, player, card, all, count) : undefined;
+  const options = types ? [...new Set([...types.values()].flat())] : all;
+  const suggestedType = types ? [...types.keys()][0] : undefined;
+  const ids =
+    chosen === undefined
+      ? types
+        ? (types.get(suggestedType ?? "")?.slice(0, count) ?? [])
+        : beholdSuggestions(s, options, behold.required, count)
+      : chosen;
   if (ids.length === 0) {
     if (behold.required) throw new RulesError(msg("Choose what the additional cost asks for"));
-    return [];
+    return { ids: [] };
   }
   if (ids.length !== count || new Set(ids).size !== ids.length || ids.some((id) => !options.includes(id)))
     throw new RulesError(msg("Invalid behold choice"));
-  return ids;
+  if (!types) return { ids };
+  const type = picks?.creatureType?.[0] ?? [...types.keys()].find((t) => ids.every((id) => types.get(t)?.includes(id)));
+  if (!type || !ids.every((id) => types.get(type)?.includes(id)))
+    throw new RulesError(msg("The beheld creatures must be of the chosen type"));
+  return { ids, type };
 }
 
 /** Slot of each additional cost chosen by the player. */
@@ -2407,7 +2448,8 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
   const autoPaid = autoAdditional(s, player, card, dm, flashback);
   if (!autoPaid) throw new RulesError(msg("Can't pay the additional cost"));
   const auto = chosenAdditional(s, player, card, dm, flashback, autoPaid, choices.picks);
-  const beheldIds = beholdChoice(s, player, card, d, choices.picks?.behold, flashback);
+  const beheld = beholdChoice(s, player, card, d, choices.picks, flashback);
+  const beheldIds = beheld.ids;
   const beheldId = beheldIds[0];
   // "… if you controlled a Faerie as you cast this spell": evaluated now (601.2), before the payment.
   const whenCast = cardRule(d, "whenCast");
@@ -2625,6 +2667,8 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
     uncounterable: uncounterable || undefined,
   };
   s.stack.push(item);
+  // "Choose a creature type and behold …" (Celestial Reunion): the type is noted on the spell ("the chosen type").
+  if (beheld.type) obj(s, stackId).chosen = { ...obj(s, stackId).chosen, creatureType: beheld.type };
   // Beholding cards from the hand: they are revealed.
   const revealed = beheldIds.filter((id) => s.objects[id]?.zone === "hand");
   if (revealed.length) emit({ type: "reveal", player, defIds: revealed.map((id) => s.objects[id]?.defId ?? "") });
@@ -3657,8 +3701,25 @@ export function spellPicks(
   // Behold: a permanent or a card from the hand (or `count` of them), or nothing ("you may", or pay the extra cost).
   const behold = additionalCostOf(d, flashback)?.behold;
   if (behold) {
-    const options = beholdOptions(s, player, card, behold.filter, behold.exiled);
-    const suggested = beholdSuggestions(s, options, behold.required, behold.count ?? 1);
+    const all = beholdOptions(s, player, card, behold.filter, behold.exiled);
+    // Celestial Reunion: the creature type first, then the creatures of that type.
+    const types = behold.ofChosenType ? beholdTypes(s, player, card, all, behold.count ?? 1) : undefined;
+    const options = types ? [...new Set([...types.values()].flat())] : all;
+    const firstType = types ? [...types.keys()][0] : undefined;
+    const suggested =
+      types && firstType
+        ? (types.get(firstType)?.slice(0, behold.count ?? 1) ?? [])
+        : beholdSuggestions(s, options, behold.required, behold.count ?? 1);
+    if (types && firstType)
+      out.push({
+        slot: "creatureType",
+        label: msg("The creature type of the creatures to behold"),
+        count: 1,
+        options: [...types.keys()],
+        labels: Object.fromEntries([...types.keys()].map((t) => [t, t])),
+        suggested: [firstType],
+        ...(behold.required ? {} : { optional: true }),
+      });
     if (options.length)
       out.push({
         slot: "behold",
@@ -3674,6 +3735,8 @@ export function spellPicks(
         count: behold.count ?? 1,
         options,
         suggested,
+        // Celestial Reunion: the creatures of one type, a group per type (in the order of the type's options).
+        ...(types ? { oneOf: [...types.values()].map((ids) => ({ count: behold.count ?? 1, options: ids })) } : {}),
         ...(behold.required ? {} : { optional: true }),
       });
   }

@@ -604,11 +604,6 @@ export type Condition =
   | { kind: "targetMatches"; spec: string; filter: ObjectFilter }
   /** During the resolution: the designated object matches the filter ("if it's a Cat"). */
   | { kind: "refMatches"; ref: Ref; filter: ObjectFilter }
-  /**
-   * Celestial Reunion: you can behold `count` creatures (your creatures, creature cards in your hand) of a type the
-   * designated object also has (during the resolution).
-   */
-  | { kind: "beholdSharingType"; ref: Ref; count: number }
   /** The event object (last known information) matches the filter ("if it was attacking"). */
   | { kind: "eventObjectMatches"; filter: ObjectFilter }
   /** An amount evaluated from the controller's point of view reaches N ("total power 8 or greater"). */

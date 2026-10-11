@@ -55,9 +55,17 @@ export const ARTIFACTS: Record<string, CardScript> = {
     spell: spell(
       [],
       [
-        fx.search(BASIC_LAND, { to: "hand" }),
-        // Kicked: a basic land and a Shrine card (two searches, each followed by a shuffle).
-        ...fx.when(cond.kicked, fx.search({ subtype: "Shrine" }, { to: "hand" })),
+        // Kicked: one search for a basic land card and a Shrine card (one filter per card), one shuffle.
+        ...fx.ifElse(
+          cond.kicked,
+          [
+            fx.search({}, { to: "hand" }, 1, undefined, undefined, undefined, {
+              each: [BASIC_LAND, { subtype: "Shrine" }],
+              reveal: true,
+            }),
+          ],
+          [fx.search(BASIC_LAND, { to: "hand" }, 1, undefined, undefined, undefined, { reveal: true })],
+        ),
         fx.gainLife(2),
       ],
     ),

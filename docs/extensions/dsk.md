@@ -62,3 +62,7 @@ Tests: `engine/test/dsk.test.ts` (18 tests) and the smoke test `ai/test/smoke/ds
 - **Acrobatic Cheerleader:** "this ability triggers only once": `once` on the triggered ability, noted on the object (`GameObject.used`, like the "activate only once" abilities); the flying counter is no longer the marker. Test added.
 - **Rip, Spawn Hunter:** the creature and Vehicle cards put into hand have different powers (`lookAtTop.distinctPower`: suggestion one card per power, a pick of two same powers refused); the top X cards are revealed. Test added.
 - **Unable to Scream:** "as long as enchanted creature is face down, it can't be turned face up": the restriction `cantBeTurnedFaceUp` (keyword), granted by a second static to the enchanted face-down creature (`{ attached: "host", faceDown: true }`); read by the turn-face-up special action, `turnFaceUp` (effects too) and `revealFaceDown`. Test added.
+
+## PLAN-M M10a (rules 203)
+
+- **Say Its Name:** the graveyard ability searches the graveyard, the hand and the library in one choice (`search.alsoFrom`); the library is shuffled (and the search event emitted) only if Altanak comes from it. Test added.

@@ -392,9 +392,6 @@ export function checkCondition(
       const lki = s.objects[sourceId] ? undefined : s.lki[sourceId];
       return !!lki && matchesView(lki, c.filter, controller, sourceId);
     }
-    // Read during the resolution only (`evalCondition`).
-    case "beholdSharingType":
-      return false;
     case "targetMatches":
     case "refMatches":
     case "eventObjectMatches": {

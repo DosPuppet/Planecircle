@@ -140,3 +140,7 @@ The scripts are in `packages/cards/src/sos/`: `cards` (meta cards), `white`, `bl
 ## PLAN-M M8b (rules 200)
 
 - **Transcendent Archaic:** "if you draw one or more cards this way": the draw operation stores the cards actually drawn (`draw.store`; `drawCards` returns them), read by `cond.v`. Test added (Mornsong Aria: no card drawn, no discard).
+
+## PLAN-M M10a (rules 203)
+
+- **Dina's Guidance:** the creature card found is held in the library (revealed), then the player chooses "your hand" or "your graveyard" (`fx.yourChoice`); it goes straight there, then shuffle. Test rewritten.

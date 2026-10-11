@@ -1,5 +1,5 @@
 /** Avatar: The Last Airbender: green cards (lot A). */
-import type { Effect, ModeDef, ObjectFilter } from "@mtgx/engine";
+import type { ModeDef, ObjectFilter } from "@mtgx/engine";
 import { msg } from "@mtgx/engine";
 import {
   activated,
@@ -35,6 +35,8 @@ const LESSONS = amount.countIn("graveyard", { subtype: "Lesson" });
 /** Greatest power among the creatures you control. */
 const GREATEST_POWER = amount.maxPower(CREATURES_YOU_CONTROL);
 const ANY_COLOR = ["W", "U", "B", "R", "G"] as const;
+/** Elemental Teachings: the opponent's choice among the cards found. */
+const GRAVEYARD_PICK = "A card to put into its owner's graveyard";
 
 export const GREEN: Record<string, CardScript> = {
   "Allies at Last": {
@@ -121,15 +123,17 @@ export const GREEN: Record<string, CardScript> = {
   },
   "Earthbending Lesson": { spell: spell([LAND_YOU_CONTROL], fx.earthbend(ref.target(), 4)) },
   "Elemental Teachings": {
-    // The cards found are revealed by way of the hand, then an opponent chooses two of them for the graveyard.
+    // The cards found are held (revealed); an opponent chooses two of them for the graveyard, the rest onto the
+    // battlefield tapped, then shuffle.
     spell: spell(
       [],
       [
-        { ...fx.search({ types: ["Land"] }, { to: "hand" }, 4, undefined, "f"), distinctNames: true } as Effect,
-        fx.chooseAmong(ref.stored("f"), ref.eachOpponent, "g1", { anyZone: true }),
-        fx.chooseAmong(ref.stored("g1Rest"), ref.eachOpponent, "g2", { anyZone: true }),
+        fx.searchHold({ types: ["Land"] }, "f", 4, { reveal: true, distinctNames: true }),
+        fx.chooseAmong(ref.stored("f"), ref.eachOpponent, "g1", { anyZone: true, prompt: GRAVEYARD_PICK }),
+        fx.chooseAmong(ref.stored("g1Rest"), ref.eachOpponent, "g2", { anyZone: true, prompt: GRAVEYARD_PICK }),
         fx.moveTo(ref.union(ref.stored("g1"), ref.stored("g2")), { to: "graveyard" }),
         fx.toBattlefield(ref.stored("g2Rest"), { tapped: true }),
+        fx.shuffle(ref.you),
       ],
     ),
   },

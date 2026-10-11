@@ -3,6 +3,21 @@ import type { Amount, CardType, Effect, MoveSpec, ObjectFilter, Ref } from "../t
 import { ref } from "./refs";
 import { allMatching } from "./shared";
 
+/** Options of a search (`fx.search`, `fx.searchHold`). */
+interface SearchOpts {
+  alsoFrom?: ("graveyard" | "hand")[];
+  each?: ObjectFilter[];
+  reveal?: boolean;
+  distinctNames?: boolean;
+}
+
+const searchOpts = (o: SearchOpts): Partial<Extract<Effect, { op: "search" }>> => ({
+  ...(o.alsoFrom?.length ? { alsoFrom: o.alsoFrom } : {}),
+  ...(o.each ? { each: o.each, count: o.each.length } : {}),
+  ...(o.reveal ? { reveal: true } : {}),
+  ...(o.distinctNames ? { distinctNames: true } : {}),
+});
+
 /** `fx` builders (dsl.ts) of zones: moving, destroying, sacrificing, exiling, milling, searching, looking at and revealing cards (`ops/zones.ts`). */
 export const zonesFx = {
   destroy: (what: Ref, store?: string): Effect => ({ op: "destroy", what, store }),
@@ -411,8 +426,11 @@ export const zonesFx = {
     who?: Ref,
     store?: string,
     manaValue?: Amount,
-    /** "Search your library and/or graveyard": one choice among both zones. */
-    alsoGraveyard?: boolean,
+    /**
+     * `alsoFrom`: "search your library and/or graveyard" (and hand), one choice among these zones; `each`: one filter per
+     * card ("a basic land card and a Shrine card"); `reveal`: the found cards are shown to all players.
+     */
+    opts: SearchOpts = {},
   ): Effect => ({
     op: "search",
     filter,
@@ -421,7 +439,20 @@ export const zonesFx = {
     who,
     store,
     manaValue,
-    ...(alsoGraveyard ? { alsoGraveyard } : {}),
+    ...searchOpts(opts),
+  }),
+  /**
+   * A search whose found cards are held (PLAN-M M10a): they stay in the library (revealed with `reveal`), remembered
+   * under `store`, unshuffled; the effects that follow route them (`ref.stored(store)`), then `fx.shuffle(ref.you)`
+   * where the Oracle text shuffles ("put it onto the battlefield tapped if it's a land card, otherwise into your hand,
+   * then shuffle": Archdruid's Charm).
+   */
+  searchHold: (filter: ObjectFilter, store: string, count: Amount = 1, opts: SearchOpts = {}): Effect => ({
+    op: "search",
+    filter,
+    count,
+    store,
+    ...searchOpts(opts),
   }),
   /** Untaps the matching permanents you control. */
   untapAll: (filter: ObjectFilter): Effect => ({

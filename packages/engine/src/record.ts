@@ -615,8 +615,16 @@ export const RECORD_VERSION = 1;
  *   all tapped lands (Frantic Search, Rewind, Unwind, Finale of Revelation); Scholar of New Horizons asks whether the
  *   Plains enters; Creeping Bloodsucker gains the life really dealt; the automatic payment with an "in any combination"
  *   source making more mana than needed (Vivi Ornitier) puts the rest into the pool instead of failing
+ * - 203: PLAN-M M10a: searches that hold the found cards in the library (revealed), then route them: Archdruid's Charm
+ *   and Flourishing Bloom-Kin put the land straight onto the battlefield (the player chooses which Forest), Dina's
+ *   Guidance asks hand or graveyard, Elemental Teachings' opponent chooses among the held cards, then shuffle;
+ *   Celestial Reunion's creature type and two beheld creatures are an optional cost chosen as it is cast; Aang's
+ *   Journey kicked is one search (a basic land card and a Shrine card, one shuffle); searches over the graveyard, the
+ *   hand and the library in one choice (Say Its Name, Agency Outfitter: shuffled only if the library was searched) and
+ *   Worldsoul's Rage's lands chosen among the hand and the graveyard together; Opposition Agent exiles only the cards
+ *   found in the library
  */
-export const RULES_VERSION = 202;
+export const RULES_VERSION = 203;
 
 /** One checkpoint every N decisions (plus the last one of the game). */
 export const CHECKPOINT_EVERY = 25;

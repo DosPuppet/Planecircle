@@ -94,13 +94,19 @@ export const GREEN: Record<string, CardScript> = {
     ],
   },
   "Celestial Reunion": {
-    // The optional additional cost (choose a type, behold two creatures of that type) is checked on resolution, for a
-    // type of the card found (approximation: the player always pays this cost when they can).
+    // "As an additional cost, you may choose a creature type and behold two creatures of that type" (PLAN-M M10a): the
+    // type is chosen with the cost and noted on the spell. The card found is held (revealed), then routed.
+    additionalCost: { behold: { filter: { types: ["Creature"] }, count: 2, ofChosenType: true } },
     spell: spell(
       [],
       [
-        fx.search({ types: ["Creature"], compare: [cmp.manaValue("<=", amount.x)] }, { to: "hand" }, 1, undefined, "f"),
-        ...fx.when(cond.beholdSharingType(ref.stored("f"), 2), fx.moveTo(ref.stored("f"), { to: "battlefield" })),
+        fx.searchHold({ types: ["Creature"], compare: [cmp.manaValue("<=", amount.x)] }, "f", 1, { reveal: true }),
+        ...fx.ifElse(
+          cond.all(cond.beheld, cond.refMatches(ref.stored("f"), { chosen: "subtype" })),
+          [fx.toBattlefield(ref.stored("f"))],
+          [fx.toHand(ref.stored("f"))],
+        ),
+        fx.shuffle(ref.you),
       ],
     ),
   },

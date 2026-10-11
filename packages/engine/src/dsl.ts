@@ -963,7 +963,6 @@ export const cond = {
   sourceMatches: (filter: ObjectFilter): Condition => ({ kind: "sourceMatches", filter }),
   targetMatches: (spec: string, filter: ObjectFilter): Condition => ({ kind: "targetMatches", spec, filter }),
   refMatches: (r: Ref, filter: ObjectFilter): Condition => ({ kind: "refMatches", ref: r, filter }),
-  beholdSharingType: (r: Ref, count: number): Condition => ({ kind: "beholdSharingType", ref: r, count }),
   eventObjectMatches: (filter: ObjectFilter): Condition => ({ kind: "eventObjectMatches", filter }),
   lifeGainedAtLeast: (n: number): Condition => turnAtLeast({ event: "lifeGain", who: "you", sum: true }, n),
   amountAtLeast: (a: Amount, n: number): Condition => ({ kind: "amountAtLeast", amount: a, n }),

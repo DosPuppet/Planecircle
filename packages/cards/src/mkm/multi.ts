@@ -339,21 +339,16 @@ export const MULTI: Record<string, CardScript> = {
       [target.any()],
       [
         fx.damage(amount.x, ref.target()),
-        // Up to X land cards in total: first from the hand, then from the graveyard for the rest.
+        // Up to X land cards in total, chosen among the hand and the graveyard together.
         fx.pickFromZone(
           "hand",
           { types: ["Land"] },
           { to: "battlefield", tapped: true },
-          { count: amount.x, min: 0, store: "h", prompt: "Land cards from your hand to put onto the battlefield" },
-        ),
-        fx.pickFromZone(
-          "graveyard",
-          { types: ["Land"] },
-          { to: "battlefield", tapped: true },
           {
-            count: amount.plus(amount.x, amount.neg(amount.refCount(ref.stored("h")))),
+            count: amount.x,
             min: 0,
-            prompt: "Land cards from your graveyard to put onto the battlefield",
+            pool: ref.union(ref.zone("hand", ref.you), ref.zone("graveyard", ref.you)),
+            prompt: "Land cards from your hand and/or graveyard to put onto the battlefield tapped",
           },
         ),
       ],

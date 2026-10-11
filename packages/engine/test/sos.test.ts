@@ -3901,13 +3901,25 @@ describe("Secrets of Strixhaven, lot A — multicolores", () => {
             library: ["Forest", "Serra Angel", "Forest"],
           },
         });
-        s = settle(cast(s, "p1", "Dina's Guidance"), (req) => (req.type === "yesNo" ? [toGraveyard ? 1 : 0] : undefined));
+        // PLAN-M M10a: the card found is held in the library (revealed), then the destination is chosen.
+        let labels: string[] = [];
+        s = settle(cast(s, "p1", "Dina's Guidance"), (req) => {
+          if (req.type !== "pick" || req.intent !== "other") return undefined;
+          labels = req.options.map((o) => req.labels?.[o] ?? "");
+          return [toGraveyard ? "1" : "0"];
+        });
+        expect(labels).toEqual(["Your hand", "Your graveyard"]);
         return s;
       };
       expect(idsOf(run(false), "p1", "hand", "Serra Angel")).toHaveLength(1);
       const g = run(true);
       expect(idsOf(g, "p1", "graveyard", "Serra Angel")).toHaveLength(1);
       expect(g.players.p1?.hand).toHaveLength(0);
+      // Straight from the library to the graveyard (never through the hand).
+      expect(g.turnLog.filter((e) => e.e === "zone" && e.to === "graveyard").map((e) => e.e === "zone" && e.from)).toEqual([
+        "library",
+        "stack",
+      ]);
     });
 
     it("Essenceknit Scholar: a Pest on entering; at your end step, if one of your creatures died, draw", () => {

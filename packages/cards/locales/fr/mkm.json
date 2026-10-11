@@ -183,8 +183,7 @@
  "It deals damage equal to its power to each opponent": "Elle inflige autant de blessures que sa force à chaque adversaire",
  "It's no longer suspected?": "Elle n'est plus suspecte ?",
  "Its controller may exile that many cards from the top of their library": "Son contrôleur peut exiler autant de cartes du dessus de sa bibliothèque",
- "Land cards from your graveyard to put onto the battlefield": "Cartes de terrain de votre cimetière à mettre sur le champ de bataille",
- "Land cards from your hand to put onto the battlefield": "Cartes de terrain de votre main à mettre sur le champ de bataille",
+ "Land cards from your hand and/or graveyard to put onto the battlefield tapped": "Cartes de terrain de votre main et/ou de votre cimetière à mettre sur le champ de bataille engagées",
  "Lands, creature and enchantment spells from the top of your library": "Terrains, sorts de créature et d'enchantement du dessus de votre bibliothèque",
  "Look at six cards: an enchantment into your hand": "Regardez six cartes : un enchantement en main",
  "Look at the top card": "Regardez la carte du dessus",
@@ -351,7 +350,5 @@
  "player": "joueur",
  "spell or nonland permanent": "sort ou permanent non-terrain",
  "token an opponent controls": "jeton adverse",
- "token you control": "jeton que vous contrôlez",
- "{card} (graveyard)": "{card} (cimetière)",
- "{card} (hand)": "{card} (main)"
+ "token you control": "jeton que vous contrôlez"
 }

@@ -336,24 +336,6 @@ export function evalCondition(s: GameState, ctx: EffectContext, c: Condition): b
         return !!v && matchesView(v, f, ctx.controller, ctx.sourceId);
       });
     }
-    case "beholdSharingType": {
-      const found = resolveRef(s, ctx, c.ref);
-      const v = found[0] ? viewOf(s, found[0]) : undefined;
-      if (!v) return false;
-      const pl = s.players[ctx.controller];
-      const candidates = [
-        ...s.battlefield.filter((id) => s.objects[id]?.controller === ctx.controller && isCreature(s, id)),
-        ...(pl?.hand ?? []).filter((id) => s.defs[s.objects[id]?.defId ?? ""]?.types.includes("Creature")),
-      ].filter((id) => !found.includes(id) && id !== ctx.sourceId);
-      const views = candidates.map((id) => viewOf(s, id)).filter((x): x is NonNullable<typeof x> => !!x);
-      // Possible types: those of the object, or (changeling) those of the creatures to behold.
-      const types = new Set(
-        (v.keywords.includes("changeling") ? views.flatMap((x) => x.subtypes) : v.subtypes).filter((t) => t !== "*"),
-      );
-      return [...types].some(
-        (t) => views.filter((x) => matchesView(x, { subtype: t }, ctx.controller, ctx.sourceId)).length >= c.count,
-      );
-    }
     case "targetMatches":
       // "If [the target] …" during the resolution (target still present, or its last information).
       return (ctx.targets[c.spec] ?? []).some((id) => {

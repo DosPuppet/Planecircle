@@ -158,10 +158,17 @@ function randomPick(s: GameState, r: Resolution, k: string, pool: readonly Objec
 
 /** Can each card be given a card type it has, all different (matching, at most ten cards)? */
 function assignTypes(s: GameState, ids: ObjectId[], among?: CardType[]): boolean {
-  const types = (id: ObjectId) => (s.defs[s.objects[id]?.defId ?? ""]?.types ?? []).filter((t) => !among || among.includes(t));
+  return assignSlots(ids, (id) => (s.defs[s.objects[id]?.defId ?? ""]?.types ?? []).filter((t) => !among || among.includes(t)));
+}
+
+/**
+ * Can each card take a different slot among its own (a matching: card types for "one card per type", the filters of a
+ * search "for a basic land card and a Shrine card")?
+ */
+function assignSlots(ids: ObjectId[], slotsOf: (id: ObjectId) => readonly string[]): boolean {
   const used = new Map<string, ObjectId>();
   const place = (id: ObjectId, seen: Set<string>): boolean => {
-    for (const t of types(id)) {
+    for (const t of slotsOf(id)) {
       if (seen.has(t)) continue;
       seen.add(t);
       const holder = used.get(t);
@@ -1464,21 +1471,34 @@ export const HANDLERS: OpHandlers = {
       const maxMv = e.maxManaValue !== undefined ? evalAmount(s, ctx, e.maxManaValue) : undefined;
       // "mana value X or less": the X of the resolving spell (Nature's Rhythm).
       const base = withX(s, e.filter, ctx);
-      // "Library and/or graveyard": the graveyard's cards first (they are public), then the library's.
-      const pool = e.alsoGraveyard ? [...player.graveyard, ...player.library] : player.library;
-      const options = pool.filter((id) =>
-        matchesCard(
-          s,
-          p,
-          id,
-          {
-            ...base,
-            ...(exactMv === undefined ? {} : { manaValue: exactMv }),
-            ...(maxMv === undefined ? {} : { maxManaValue: maxMv }),
-          },
-          ctx.sourceId,
-        ),
+      // "Library and/or graveyard" (and hand): the graveyard's cards first (they are public), then the hand's, then the
+      // library's.
+      const also = e.alsoFrom ?? [];
+      const pool = [
+        ...(also.includes("graveyard") ? player.graveyard : []),
+        ...(also.includes("hand") ? player.hand : []),
+        ...player.library,
+      ];
+      // "A basic land card and a Shrine card": the filters a card can be taken for.
+      const each = e.each?.map((f) => withX(s, f, ctx));
+      const slotsOf = (id: ObjectId) =>
+        (each ?? []).flatMap((f, i) => (matchesCard(s, p, id, f, ctx.sourceId) ? [String(i)] : []));
+      const options = pool.filter(
+        (id) =>
+          matchesCard(
+            s,
+            p,
+            id,
+            {
+              ...base,
+              ...(exactMv === undefined ? {} : { manaValue: exactMv }),
+              ...(maxMv === undefined ? {} : { maxManaValue: maxMv }),
+            },
+            ctx.sourceId,
+          ) &&
+          (!each || slotsOf(id).length > 0),
       );
+      const wanted = each ? each.length : count;
       // Opposition Agent: an opponent controls this search (the most recent), and the cards found are exiled with it.
       // Not when the controller searches another player's library (`library`: "while they're searching their libraries").
       const agent = libraries
@@ -1488,9 +1508,16 @@ export const HANDLERS: OpHandlers = {
             .sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0))[0]?.id;
       const searcher = libraries ? ctx.controller : (agent && s.objects[agent]?.controller) || p;
       let picked: string[] = [];
-      if (options.length > 0 && count > 0) {
+      if (options.length > 0 && wanted > 0) {
         const answer = r.vars[key(`search-${p}`)];
         if (!answer) {
+          // Another player's library (Sphinx Ambassador): the greatest toughness first, like a choice among them.
+          const ordered = libraries ? [...options].sort((a, b) => chars(s, b).toughness - chars(s, a).toughness) : options;
+          const suggested: ObjectId[] = [];
+          for (const id of ordered) {
+            if (suggested.length >= Math.min(wanted, options.length)) break;
+            if (!each || assignSlots([...suggested, id], slotsOf)) suggested.push(id);
+          }
           return {
             ask: {
               player: searcher,
@@ -1498,24 +1525,24 @@ export const HANDLERS: OpHandlers = {
               request: {
                 type: "pick",
                 intent: "search",
-                prompt: e.alsoGraveyard
-                  ? msg("Search your library and/or graveyard: up to {n} card(s)", { n: count })
-                  : libraries
-                    ? msg("Search that player's library: up to {n} card(s)", { n: count })
-                    : msg("Search your library: up to {n} card(s)", { n: count }),
+                prompt: also.includes("hand")
+                  ? msg("Search your graveyard, hand and/or library: up to {n} card(s)", { n: wanted })
+                  : also.length
+                    ? msg("Search your library and/or graveyard: up to {n} card(s)", { n: wanted })
+                    : libraries
+                      ? msg("Search that player's library: up to {n} card(s)", { n: wanted })
+                      : msg("Search your library: up to {n} card(s)", { n: wanted }),
                 options,
                 min: 0,
-                max: Math.min(count, options.length),
-                // A card held, not moved (Sphinx Ambassador): the greatest toughness first, like a choice among them.
-                suggested: (e.to ? options : [...options].sort((a, b) => chars(s, b).toughness - chars(s, a).toughness)).slice(
-                  0,
-                  Math.min(count, options.length),
-                ),
+                max: Math.min(wanted, options.length),
+                suggested,
               },
             },
           };
         }
         picked = answer.map(String);
+        // "A basic land card and a Shrine card": each card for a different filter.
+        if (each && !assignSlots(picked, slotsOf)) throw new RulesError(msg("One card for each kind of card searched for"));
         // "with different names": a single copy of each name.
         if (e.distinctNames) picked = firstOfEachName(picked, (id) => (s.objects[id] ? chars(s, id).name : id));
       }
@@ -1525,12 +1552,16 @@ export const HANDLERS: OpHandlers = {
         emit({ type: "reveal", player: p, defIds: picked.map((id) => s.objects[id]?.defId ?? "") });
       }
       const to = e.to;
-      const arrival =
-        agent || !to ? new Map() : arrivalChoices(s, r, ctx, picked, to, ownerOr(s, to, p), (x) => key(`${p}-${x}`));
+      // Opposition Agent: the cards found in the library are exiled with it (held cards too); those taken from the
+      // graveyard or the hand weren't found by searching the library.
+      const exiledByAgent = agent ? picked.filter((id) => player.library.includes(id)) : [];
+      const kept = picked.filter((id) => !exiledByAgent.includes(id));
+      const arrival = !to ? new Map() : arrivalChoices(s, r, ctx, kept, to, ownerOr(s, to, p), (x) => key(`${p}-${x}`));
       if (!(arrival instanceof Map)) return arrival;
       r.vars[key(`sdone-${p}`)] = [1];
-      // "If you search your library this way, shuffle": a card taken from the graveyard means the library wasn't searched.
-      const searchedLibrary = !e.alsoGraveyard || !picked.some((id) => player.graveyard.includes(id));
+      // "If you search your library this way, shuffle": cards taken only from the graveyard or the hand mean the library
+      // wasn't searched.
+      const searchedLibrary = !also.length || picked.length === 0 || picked.some((id) => player.library.includes(id));
       // Another player's library (Sphinx Ambassador): the search event names it ("searches their library" doesn't
       // trigger, nor the turn log of searches of one's own library).
       if (searchedLibrary && libraries) rulesEvent(s, { e: "search", player: searcher, library: p });
@@ -1538,26 +1569,27 @@ export const HANDLERS: OpHandlers = {
         rulesEvent(s, { e: "search", player: p });
         logTurnEvent(s, { e: "search", player: p });
       }
-      // The found cards stay where they are, remembered (the effects that follow use them, then shuffle).
+      for (const id of exiledByAgent) {
+        const exiled = moveObject(s, id, "exile");
+        const holder = agent ? s.objects[agent] : undefined;
+        if (exiled && holder) holder.linked = [...(holder.linked ?? []), exiled];
+      }
+      // Held (PLAN-M M10a): the found cards stay where they are, remembered (the effects that follow route them, then
+      // shuffle).
       if (!to) {
-        if (e.store) r.vars[`$ids:${e.store}`] = [...(r.vars[`$ids:${e.store}`] ?? []), ...picked];
+        if (e.store) r.vars[`$ids:${e.store}`] = [...(r.vars[`$ids:${e.store}`] ?? []), ...kept];
+        store(r, e.store, (r.vars[`$ids:${e.store}`] ?? []).length);
         continue;
       }
       // 701.23: shuffle after searching; "on top" applies after the shuffle.
-      const toTop = to.to === "libraryTop" && !agent;
-      for (const id of picked) {
-        if (agent) {
-          const exiled = moveObject(s, id, "exile");
-          const holder = s.objects[agent];
-          if (exiled && holder) holder.linked = [...(holder.linked ?? []), exiled];
-          continue;
-        }
+      const toTop = to.to === "libraryTop";
+      for (const id of kept) {
         if (toTop) continue;
         const moved = moveWithSpec(s, p, id, evalMoveSpec(s, ctx, to), arrival.get(id));
         if (e.store && moved) r.vars[`$ids:${e.store}`] = [...(r.vars[`$ids:${e.store}`] ?? []), moved];
       }
       if (searchedLibrary) shuffle(s, player.library);
-      if (toTop) for (const id of picked) player.library = [id, ...player.library.filter((x) => x !== id)];
+      if (toTop) for (const id of kept) player.library = [id, ...player.library.filter((x) => x !== id)];
     }
     return;
   },

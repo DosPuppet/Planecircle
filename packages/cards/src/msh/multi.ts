@@ -514,7 +514,7 @@ export const MULTI: Record<string, CardScript> = {
           undefined,
           "v",
           undefined,
-          true,
+          { alsoFrom: ["graveyard"] },
         ),
         ...fx.when(cond.xAtLeast(4), fx.modify(ref.stored("v"), { addKeywords: ["haste"] })),
       ],

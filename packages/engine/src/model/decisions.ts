@@ -214,10 +214,12 @@ export type CostSlot =
   /** Muldrotha: the permanent type a card with several uses (options: types, not objects). */
   | "permanentType"
   /** Kíli the Resourceful: pay {0} (`free`) or the printed cost (`printed`) (options: labels, not objects). */
-  | "freeCost";
+  | "freeCost"
+  /** "Choose a creature type and behold two creatures of that type" (Celestial Reunion): the type (options: types). */
+  | "creatureType";
 
-/** Slots whose options are labels, not objects (kinds of counters, permanent types, a way to pay). */
-export const LABEL_SLOTS: readonly CostSlot[] = ["counterKind", "permanentType", "freeCost"];
+/** Slots whose options are labels, not objects (kinds of counters, permanent types, a way to pay, creature types). */
+export const LABEL_SLOTS: readonly CostSlot[] = ["counterKind", "permanentType", "freeCost", "creatureType"];
 
 /** A cost paid with objects, as offered to the player (`legalActions`) and checked on payment. */
 export interface CostPick {

@@ -420,7 +420,19 @@ export interface AdditionalCost {
    * Monstrous Emergence); `exiled`: a matching exiled card instead of a card from hand (Close Encounter).
    */
   /** `count`: "behold three Elementals" (Kindle the Inner Flame's flashback): that many distinct objects. */
-  behold?: { filter: ObjectFilter; orPay?: ManaCost; required?: boolean; exiled?: ExiledFilter; count?: number };
+  /**
+   * `ofChosenType`: "choose a creature type and behold two creatures of that type" (Celestial Reunion, PLAN-M M10a):
+   * the type is a cost choice (`creatureType` slot), noted on the spell (`chosen.creatureType`, read by
+   * `{ chosen: "subtype" }`).
+   */
+  behold?: {
+    filter: ObjectFilter;
+    orPay?: ManaCost;
+    required?: boolean;
+    exiled?: ExiledFilter;
+    count?: number;
+    ofChosenType?: boolean;
+  };
   /** Collect evidence X, X being the total mana value of the targeted permanents (Urgent Necropsy). */
   collectEvidenceTargetsManaValue?: boolean;
   /**

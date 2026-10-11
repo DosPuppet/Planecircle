@@ -1,6 +1,5 @@
 /** Murders at Karlov Manor — blue cards. */
-import { cardRef, msg, type TokenSpec } from "@mtgx/engine";
-import { slug } from "../scryfall";
+import type { TokenSpec } from "@mtgx/engine";
 import {
   activated,
   amount,
@@ -34,29 +33,6 @@ const sacrificeArtifactToDraw = [
   ...fx.when(cond.v("s"), fx.draw(1)),
 ];
 
-/**
- * Agency Outfitter: each named card is searched for in the graveyard, then in the hand, then in the library (only one
- * of each name in all).
- */
-const fetchNamed = (name: string, key: string) => [
-  fx.pickFromZone(
-    "graveyard",
-    { name },
-    { to: "battlefield" },
-    { min: 0, store: `${key}g`, prompt: msg("{card} (graveyard)", { card: cardRef(slug(name)) }) },
-  ),
-  ...fx.when(
-    cond.not(cond.v(`${key}g`)),
-    fx.pickFromZone(
-      "hand",
-      { name },
-      { to: "battlefield" },
-      { min: 0, store: `${key}h`, prompt: msg("{card} (hand)", { card: cardRef(slug(name)) }) },
-    ),
-  ),
-  ...fx.when(cond.not(cond.any(cond.v(`${key}g`), cond.v(`${key}h`))), fx.search({ name }, { to: "battlefield" })),
-];
-
 /** "Enchant creature". */
 const ENCHANT_CREATURE: CardScript["enchant"] = { filter: { types: ["Creature"] }, label: "creature" };
 
@@ -80,9 +56,17 @@ const THOPTER_0: TokenSpec = {
 export const BLUE: Record<string, CardScript> = {
   "Agency Outfitter": {
     abilities: [
-      triggered(when.entersSelf, [...fetchNamed("Magnifying Glass", "mg"), ...fetchNamed("Thinking Cap", "tc")], {
-        label: "Search for a Magnifying Glass and a Thinking Cap",
-      }),
+      // Graveyard, hand and/or library, one choice: up to one card of each name.
+      triggered(
+        when.entersSelf,
+        [
+          fx.search({}, { to: "battlefield" }, 1, undefined, undefined, undefined, {
+            alsoFrom: ["graveyard", "hand"],
+            each: [{ name: "Magnifying Glass" }, { name: "Thinking Cap" }],
+          }),
+        ],
+        { label: "Search for a Magnifying Glass and a Thinking Cap" },
+      ),
     ],
   },
   "Behind the Mask": {

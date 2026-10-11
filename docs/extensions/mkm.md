@@ -175,3 +175,9 @@ Three rules tests in `engine/test/mkm.test.ts`.
 ## PLAN-M M8b (rules 200)
 
 - **Karlov Watchdog:** "permanents your opponents control can't be turned face up during your turn" is the restriction `cantBeTurnedFaceUp` granted to your opponents' face-down permanents during your turn (the `CastLimit.faceUp` flag is gone); an effect can no longer turn them face up either. Test extended.
+
+## PLAN-M M10a (rules 203)
+
+- **Archdruid's Charm, Flourishing Bloom-Kin:** the search holds the cards found in the library (`fx.searchHold`, revealed), then routes them: the land onto the battlefield tapped, a creature into the hand (Archdruid's Charm); the player chooses which Forest enters tapped, the other goes into the hand (Bloom-Kin; a single Forest found enters); then shuffle. Nothing goes through the hand any more. Test added (Bloom-Kin) and extended (Archdruid's Charm).
+- **Agency Outfitter:** one search over the graveyard, the hand and the library (`search.alsoFrom`), up to one card of each name (`search.each`, one filter per card); the library is shuffled (and the search event emitted) only if a card comes from it or nothing is found. Test added.
+- **Worldsoul's Rage:** the up to X land cards are chosen among the hand and the graveyard together (`pickFromZone` over `ref.union` of the two zones). Test rewritten.
