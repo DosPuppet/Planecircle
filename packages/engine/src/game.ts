@@ -291,7 +291,8 @@ function apply(s: GameState, submitter: PlayerId, d: Decision): void {
         // 608.2g: cast one of the offered cards (or pass to decline), then the resolution resumes.
         expect(d, "pass", "cast", "tapForMana", "undoMana");
         if (d.type === "tapForMana" || d.type === "undoMana") {
-          if (d.type === "tapForMana") activateManaAbility(s, player, d.source, d.ability, d.colors ?? d.color);
+          if (d.type === "tapForMana")
+            activateManaAbility(s, player, d.source, d.ability, d.colors ?? d.color, false, [], d.picks?.costTap);
           else undoMana(s, player, d.source);
           s.pending = p;
           return;
@@ -322,7 +323,7 @@ function apply(s: GameState, submitter: PlayerId, d: Decision): void {
           activateAbility(s, player, d.source, d.ability, d);
           break;
         case "tapForMana":
-          activateManaAbility(s, player, d.source, d.ability, d.colors ?? d.color);
+          activateManaAbility(s, player, d.source, d.ability, d.colors ?? d.color, false, [], d.picks?.costTap);
           break;
         case "undoMana":
           undoMana(s, player, d.source);

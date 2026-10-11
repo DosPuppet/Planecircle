@@ -5,7 +5,7 @@
  */
 import { RulesError } from "./errors";
 import { msg } from "./text";
-import type { Decision, GameState } from "./types";
+import { type CostSlot, type Decision, type GameState, LABEL_SLOTS } from "./types";
 
 type Rec = Record<string, unknown>;
 
@@ -44,11 +44,22 @@ function castChoices(s: GameState, d: Rec): void {
     objectRefs(s, (d[f] as string[] | undefined) ?? []);
   }
   opt(d, "targets", (v) => !!v && typeof v === "object" && !Array.isArray(v) && Object.values(v).every(isStrArray));
-  // Objects paid as a cost, by slot: lists of ids of existing objects (repeated for counters).
+  picksShape(s, d);
+}
+
+/**
+ * Objects paid as a cost, by slot: lists of ids of existing objects (repeated for counters; `id:kind` for a kind of
+ * counter on an object). The label slots (kinds of counters, permanent types, a way to pay) are not objects: their
+ * values are checked by the payment of the cost.
+ */
+function picksShape(s: GameState, d: Rec): void {
   opt(d, "picks", (v) => !!v && typeof v === "object" && !Array.isArray(v) && Object.values(v).every(isStrArray));
-  // Counter kinds (`counterKind`): these are not objects; checked by the payment of the cost.
   for (const [slot, ids] of Object.entries((d.picks as Record<string, string[]> | undefined) ?? {}))
-    if (slot !== "counterKind") objectRefs(s, ids);
+    if (!LABEL_SLOTS.includes(slot as CostSlot))
+      objectRefs(
+        s,
+        ids.map((id) => id.split(":")[0] as string),
+      );
 }
 
 function pairs(v: unknown, a: string, b: string): boolean {
@@ -93,6 +104,7 @@ export function checkDecisionShape(s: GameState, raw: Decision): void {
       if (!isIndex(d.ability)) bad("ability");
       opt(d, "color", isStr);
       opt(d, "colors", isStrArray);
+      picksShape(s, d);
       return;
     case "declareAttackers":
       if (!pairs(d.attackers, "id", "defender")) bad("attackers");

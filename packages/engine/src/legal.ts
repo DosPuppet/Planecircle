@@ -14,6 +14,7 @@ import {
   manaSources,
   manaValue,
   phyrexianLifeOptions,
+  tapAnotherPick,
   totalCost,
 } from "./mana";
 import { asEntersChoices } from "./replacement";
@@ -43,6 +44,7 @@ import {
   evidenceCards,
   FACE_DOWN_SPELL,
   fixedCost,
+  freeCostPick,
   graveyardToExile,
   greatestToughness,
   harmonizeOptions,
@@ -60,6 +62,7 @@ import {
   mayActivate,
   modeConditionHolds,
   modesOf,
+  pickHasChoice,
   sacrificeOptions,
   sneakOptions,
   sneakTiming,
@@ -113,6 +116,7 @@ import type {
   ActionOption,
   CardDef,
   Condition,
+  CostPick,
   GameState,
   ManaCost,
   ObjectFilter,
@@ -575,6 +579,21 @@ export function legalActions(s: GameState, player: PlayerId): ActionOption[] {
     // Web-slinging: the tapped creature returned by default (Nyxbloom Ancient no longer triples the mana).
     const webBounce = alt && isWebSlinging(s, player, d) ? webSlingingOptions(s, player)[0] : undefined;
     const altGone = [altPaid?.bounce, ...(altPaid?.sacrifice ?? []), webBounce].filter((x): x is string => !!x);
+    // Emerge: only the victims that leave the reduced cost payable are offered.
+    const emergeVictims = (p: CostPick): CostPick => ({
+      ...p,
+      options: p.options.filter(
+        (v) =>
+          v === p.suggested[0] ||
+          canPay(
+            s,
+            player,
+            withExtra(spellCost(s, player, d, { ...base, alternative: true, victim: v })),
+            new Set([...(exclude ?? []), v]),
+            { ...purpose, gone: new Set([...(gone ?? []), v]) },
+          ),
+      ),
+    });
     const altAvailable =
       !!alt &&
       (!alt.collectEvidence || !!evidenceCards(s, player, card, alt.collectEvidence)) &&
@@ -759,12 +778,14 @@ export function legalActions(s: GameState, player: PlayerId): ActionOption[] {
       kickerTap: kickerPay?.tapPower ? crewSpec(s, player, card, kickerPay.tapPower) : undefined,
       // Objects paid as a cost (evidence, exile from the graveyard, blight X), when the player has a choice to make.
       ...(() => {
-        const picks = spellPicks(s, player, card, d, undefined, flashback, terms.removeCounters).filter(
-          (p) =>
-            (p.when !== "kicked" || kickerAffordable) &&
-            (p.when !== "alternative" || altAvailable) &&
-            (p.atMost || p.minTotal || p.optional || p.options.length > p.count || (p.repeat && p.options.length > 1)),
-        );
+        const picks = spellPicks(s, player, card, d, undefined, terms)
+          .map((p) => (p.slot === "altSacrifice" && alt?.pay?.sacrificeReduce ? emergeVictims(p) : p))
+          .filter(
+            (p) =>
+              (p.when !== "kicked" || kickerAffordable) &&
+              (p.when !== "alternative" || altAvailable) &&
+              (p.atMost || p.optional || pickHasChoice(p)),
+          );
         return picks.length ? { picks } : {};
       })(),
     });
@@ -886,9 +907,11 @@ export function legalActions(s: GameState, player: PlayerId): ActionOption[] {
         })(),
         // Objects paid as a cost, when the player has a choice to make.
         ...(() => {
-          const picks = activationPicks(s, player, id, ab).filter(
-            (p) => p.atMost || p.countIsX || p.minTotal || p.options.length > p.count || (p.repeat && p.options.length > 1),
-          );
+          const picks = activationPicks(s, player, id, ab).filter((p) => p.atMost || p.countIsX || pickHasChoice(p));
+          // Kíli the Resourceful: {0} or the printed cost.
+          const free =
+            ab !== printed ? freeCostPick(s, player, id, printed, index, targets.find((t) => t.id === "t")?.legal) : undefined;
+          if (free) picks.push(free);
           return picks.length ? { picks } : {};
         })(),
         additional:
@@ -916,6 +939,8 @@ export function legalActions(s: GameState, player: PlayerId): ActionOption[] {
   for (const src of manaSources(s, player, undefined, { manual: true })) {
     if (src.ability < 0) continue;
     const ab = manaAbilitiesOf(s, src.id)[src.ability];
+    // Gene Pollinator, Relic of Legends: the other permanent to tap, when there is a choice.
+    const tapPick = ab?.tapAnother ? tapAnotherPick(s, src.id, src.ability) : undefined;
     if (ab)
       out.push({
         type: "tapForMana",
@@ -923,6 +948,7 @@ export function legalActions(s: GameState, player: PlayerId): ActionOption[] {
         ability: src.ability,
         colors: ab.produce,
         ...(src.combination && src.amount > 1 ? { amount: src.amount, combination: true as const } : {}),
+        ...(tapPick ? { picks: [tapPick] } : {}),
       });
   }
   // 702.61: split second — no spells or abilities (except mana) while the spell is on the stack; special actions

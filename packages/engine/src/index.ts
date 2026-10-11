@@ -40,7 +40,7 @@ export {
   replayStates,
 } from "./record";
 export { createScenario, type ScenarioOptions, type ScenarioPermanent, type ScenarioPlayer } from "./scenario";
-export { isPermanentCard, modesOf, RulesError, spellCost } from "./stack";
+export { isPermanentCard, modesOf, pickHasChoice, RulesError, spellCost } from "./stack";
 export {
   alivePlayers,
   apnapOrder,

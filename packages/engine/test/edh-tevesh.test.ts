@@ -93,6 +93,28 @@ describe("Tevesh Szat & Jeska (EDH)", () => {
       expect(legalActions(t, "p1").some((a) => a.type === "cast")).toBe(false);
     });
 
+    it("Demon of Death's Gate: the player chooses the three sacrificed black creatures (PLAN-M M6)", () => {
+      let s = scenario({
+        p1: { battlefield: [BLACK_VANILLA, BLACK_VANILLA, BLACK_VANILLA, "Zulaport Cutthroat"], hand: ["Demon of Death's Gate"] },
+      });
+      const shades = s.battlefield.filter((id) => nameOf(s, id) === "Test Shade");
+      const zulaport = idOf(s, "p1", "battlefield", "Zulaport Cutthroat");
+      const offer = legalActions(s, "p1").find((a) => a.type === "cast" && nameOf(s, a.card) === "Demon of Death's Gate");
+      const pick = offer?.type === "cast" ? offer.picks?.find((p) => p.slot === "altSacrifice") : undefined;
+      expect(pick?.suggested).toEqual(shades);
+      // Two shades and the Cutthroat: one shade stays.
+      const chosen = [shades[1] as string, shades[2] as string, zulaport];
+      s = settle(castIt(s, "p1", "Demon of Death's Gate", { alternative: true, picks: { altSacrifice: chosen } }));
+      expect(s.battlefield.filter((id) => s.objects[id]?.controller === "p1")).toContain(shades[0]);
+      expect(battlefieldNames(s, "p1")).toEqual(["Demon of Death's Gate", "Test Shade"]);
+      // Two objects for three: refused.
+      const t = scenario({
+        p1: { battlefield: [BLACK_VANILLA, BLACK_VANILLA, BLACK_VANILLA], hand: ["Demon of Death's Gate"] },
+      });
+      const two = t.battlefield.slice(0, 2);
+      expect(() => castIt(t, "p1", "Demon of Death's Gate", { alternative: true, picks: { altSacrifice: two } })).toThrow();
+    });
+
     it("Herald of Slaanesh: Demon spells cost {2} less; other Demons you control have haste", () => {
       let s = scenario({
         p1: { battlefield: ["Herald of Slaanesh", ...lands("Swamp", 2)], hand: ["Abyssal Persecutor"] },

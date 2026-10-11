@@ -468,6 +468,28 @@ describe("Commander (EDH): single cards, L to Z (L11)", () => {
       expect(s.players.p1?.hand).toHaveLength(1);
     });
 
+    it("O'aka, Traveling Merchant: the player chooses the kind of the removed counter (PLAN-M M6)", () => {
+      const start = () =>
+        scenario({
+          p1: { battlefield: ["O'aka, Traveling Merchant", { name: "Bear Cub", counters: { "+1/+1": 2, charge: 1 } }] },
+        });
+      let s = start();
+      const oaka = idOf(s, "p1", "battlefield", "O'aka, Traveling Merchant");
+      const bear = idOf(s, "p1", "battlefield", "Bear Cub");
+      const pick = activations(s, "p1", oaka)[0]?.picks?.find((p) => p.slot === "counterFrom");
+      expect(pick?.options).toEqual([bear, `${bear}:+1/+1`, `${bear}:charge`]);
+      expect(pick?.labels?.[`${bear}:+1/+1`]).toBeDefined();
+      // By default, the charge counter (+1/+1 last); chosen, a +1/+1 counter.
+      const byDefault = settle(activate(start(), "p1", oaka));
+      expect(byDefault.objects[bear]?.counters).toEqual({ "+1/+1": 2 });
+      s = settle(activate(s, "p1", oaka, { picks: { counterFrom: [`${bear}:+1/+1`] } }));
+      expect(s.objects[bear]?.counters).toMatchObject({ "+1/+1": 1, charge: 1 });
+      expect(s.players.p1?.hand).toHaveLength(1);
+      // A kind the permanent doesn't carry: refused.
+      const t = start();
+      expect(() => activate(t, "p1", oaka, { picks: { counterFrom: [`${bear}:-1/-1`] } })).toThrow();
+    });
+
     it("Ob Nixilis, the Ascended: destroys the opponents' tapped creatures, 1 life each; an Angel at an end step after life gained", () => {
       let s = scenario({
         p1: { battlefield: lands("Plains", 7), hand: ["Ob Nixilis, the Ascended"] },

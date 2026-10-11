@@ -164,6 +164,20 @@ describe("Sephiroth, Sephiroth's Singularity (EDH)", () => {
       expect(graveyardNames(s, "p2")).toEqual(["Consecrated Sphinx"]);
     });
 
+    it("Flare of Malice: the player chooses the sacrificed black creature (PLAN-M M6; lowest mana value suggested)", () => {
+      let s = scenario({
+        p1: { battlefield: ["Zulaport Cutthroat", "Gix, Yawgmoth Praetor"], hand: ["Flare of Malice"] },
+        p2: { battlefield: ["Savannah Lions"] },
+      });
+      const offer = legalActions(s, "p1").find((a) => a.type === "cast" && nameOf(s, a.card) === "Flare of Malice");
+      const pick = offer?.type === "cast" ? offer.picks?.find((p) => p.slot === "altSacrifice") : undefined;
+      expect(namesIn(s, pick?.suggested)).toEqual(["Zulaport Cutthroat"]);
+      const gix = idOf(s, "p1", "battlefield", "Gix, Yawgmoth Praetor");
+      s = settle(castIt(s, "p1", "Flare of Malice", { alternative: true, picks: { altSacrifice: [gix] } }));
+      expect(graveyardNames(s, "p1")).toEqual(["Flare of Malice", "Gix, Yawgmoth Praetor"]);
+      expect(idsOf(s, "p1", "battlefield", "Zulaport Cutthroat")).toHaveLength(1);
+    });
+
     it("Braids, Arisen Nightmare: an opponent who doesn't sacrifice a permanent sharing a type loses 2 life and you draw", () => {
       const start = () =>
         scenario({

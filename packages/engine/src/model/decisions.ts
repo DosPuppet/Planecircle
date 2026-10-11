@@ -197,7 +197,27 @@ export type CostSlot =
   | "costTap"
   | "costGraveyard"
   /** Behold: the permanent or the card in hand beheld (none: don't behold). */
-  | "behold";
+  | "behold"
+  /**
+   * Alternative cost (PLAN-M M6): the cards exiled from the hand (Force of Will), the returned permanent (Daze), the
+   * sacrificed permanents (the Flares, Demon of Death's Gate, emerge).
+   */
+  | "handExile"
+  | "altReturn"
+  | "altSacrifice"
+  /** "Discard X cards" (Gix, Yawgmoth Praetor). */
+  | "discardX"
+  /** Cards of a color exiled from the graveyard for their mana symbols of that color (Baron Helmut Zemo). */
+  | "symbolExile"
+  /** Forage (701.61) as a cost: three cards from the graveyard or a Food (`oneOf`). */
+  | "forage"
+  /** Muldrotha: the permanent type a card with several uses (options: types, not objects). */
+  | "permanentType"
+  /** Kíli the Resourceful: pay {0} (`free`) or the printed cost (`printed`) (options: labels, not objects). */
+  | "freeCost";
+
+/** Slots whose options are labels, not objects (kinds of counters, permanent types, a way to pay). */
+export const LABEL_SLOTS: readonly CostSlot[] = ["counterKind", "permanentType", "freeCost"];
 
 /** A cost paid with objects, as offered to the player (`legalActions`) and checked on payment. */
 export interface CostPick {
@@ -211,10 +231,16 @@ export interface CostPick {
   suggested: ObjectId[];
   /** Removing counters: the same object may come back, at most as many times as it has counters. */
   repeat?: Record<ObjectId, number>;
-  /** Options that are not objects (kinds of counters, `counterKind`): their label. */
+  /**
+   * Options that are not objects (kinds of counters, `counterKind`; `id:kind`, a kind of counter on an object): their
+   * label, which may cite cards (`cardRef`).
+   */
   labels?: Record<string, string>;
-  /** Collect evidence N: cards with total mana value N or greater (`count` ignored). */
-  minTotal?: { n: number; values: Record<ObjectId, number> };
+  /**
+   * Collect evidence N: cards with total mana value N or greater (`count` ignored). `fromTargets` (Urgent Necropsy):
+   * N is the total mana value of the chosen targets, read from this table (`n` is then 0 until the targets are known).
+   */
+  minTotal?: { n: number; values: Record<ObjectId, number>; fromTargets?: Record<ObjectId, number> };
   /** Spell: only if it is kicked (or bargained…), or cast for its alternative cost. */
   when?: "kicked" | "alternative";
   /**
@@ -224,6 +250,13 @@ export interface CostPick {
   atMost?: boolean;
   /** The player may choose nothing ("you may behold"): an empty list is an answer. */
   optional?: boolean;
+  /**
+   * Payment detail (PLAN-M M6): outside full control, the interface keeps the suggestion without asking (Kíli's {0},
+   * the permanent tapped by Gene Pollinator).
+   */
+  autoOk?: true;
+  /** Exactly one of these groups, all of its `count` objects among its `options` (forage: three cards, or a Food). */
+  oneOf?: { count: number; options: ObjectId[] }[];
 }
 
 export type Decision =
@@ -241,7 +274,15 @@ export type Decision =
    * `color`: the type of the mana (one of the ability's); `colors`: the type of each mana of an "in any combination"
    * ability (as many as it produces; PLAN-L L3).
    */
-  | { type: "tapForMana"; source: ObjectId; ability: number; color?: ManaType; colors?: ManaType[] }
+  /** `picks.costTap`: the other permanent tapped for the cost (Gene Pollinator, Relic of Legends; PLAN-M M6). */
+  | {
+      type: "tapForMana";
+      source: ObjectId;
+      ability: number;
+      color?: ManaType;
+      colors?: ManaType[];
+      picks?: Partial<Record<CostSlot, ObjectId[]>>;
+    }
   /** Undoes tapping a source for its mana, as long as that mana hasn't been used (`GameState.manaUndo`). */
   | { type: "undoMana"; source: ObjectId }
   | { type: "declareAttackers"; attackers: { id: ObjectId; defender: PlayerId }[] }
@@ -423,7 +464,16 @@ export type ActionOption =
       picks?: CostPick[];
     }
   /** `amount` and `combination`: an "in any combination" ability that produces several mana (a division to ask). */
-  | { type: "tapForMana"; source: ObjectId; ability: number; colors: ManaType[]; amount?: number; combination?: true };
+  | {
+      type: "tapForMana";
+      source: ObjectId;
+      ability: number;
+      colors: ManaType[];
+      amount?: number;
+      combination?: true;
+      /** The other permanent to tap for the cost, when there is a choice (`costTap`, `autoOk`). */
+      picks?: CostPick[];
+    };
 
 // ---------------------------------------------------------------------------
 // Events (log, animations)

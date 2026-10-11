@@ -22,6 +22,7 @@ Each entry carries its nature:
 - `auto choice` **Untap up to N lands:** the lands are chosen automatically.
 - `auto choice` **Mana abilities with a cost (605.1a):** they resolve without the stack, but only when activated by hand: the automatic payment does not use them (Ramos, Capital City, Loot, the Pathfinder, Phyrexian Altar, Phyrexian Tower, Sunken Ruins...; the automatic payment never sacrifices a creature).
 - `auto choice` **Amass (701.47a):** the counters go on your first Army (no choice when you control several).
+- `auto choice` **Payment details (as on Arena):** outside full control, the automatic payment chooses the objects that help pay (waterbend, convoke, improvise, delve, Cave, after the lands), uses the {0} of Kíli the Resourceful for the first equip of the turn, and chooses the other permanent tapped by Gene Pollinator or Relic of Legends (one without a mana ability first); in full control, the player chooses them (PLAN-M M6).
 - `timing` **Commander to a hand or a library (903.9b):** it is a replacement, but the question ("Put ... into the command zone?") is asked right after its arrival in hand or in the library, at the next check, as from a graveyard or exile (903.9a); a trigger "when a card is put into your hand" would therefore see it go by. Never answered by the autopilot.
 - `rule` **"At the beginning of the end step, sacrifice this token":** modeled by a delayed ability rather than an ability of the token.
 - `rule` **Shock lands put onto the battlefield at random by an effect** (a card taken at random): they enter tapped, without offering to pay 2 life; put onto the battlefield by the other effects (search, return from the graveyard, cards looked at or revealed), the question is asked of the player who will control them.
@@ -45,9 +46,6 @@ In the order they were added, set by set.
 - **Several sets:**
   - `rule` Soulstone Sanctuary ("all creature types"): any subtype except the known land, artifact and enchantment ones;
   - `rule` Moonlit Meditation, Mirrormind Crown: the token copies created by an effect ("create a token that's a copy of …": Kindle the Inner Flame, myriad) are not replaced (the "you may" is asked for the other tokens, amass, endure and gifts included since PLAN-L L5).
-- **Foundations (`docs/extensions/fdn.md`):**
-  - `auto choice` Quilled Greatwurm (and Dawnhand Dissident): you divide the removed counters among your creatures, but the kind of counters removed from a single creature is chosen for you (−1/−1 first, +1/+1 last);
-  - `auto choice` Muldrotha: a card with several permanent types automatically uses the first type still free.
 - **Final Fantasy (`docs/extensions/fin.md`):**
   - `rule` Quina, Qu Gourmet: no Frog for the copy tokens;
   - `rule` Sin, Spira's Punishment: six copies at most per trigger;
@@ -61,8 +59,6 @@ In the order they were added, set by set.
 - **The Big Score (`docs/extensions/otj-big.md`):**
   - `rule` Memory Vessel: you can still play the cards in your hand;
   - `rule` Grand Abolisher: mana abilities are not blocked.
-- **Edge of Eternities (`docs/extensions/eoe.md`):**
-  - `auto choice` Gene Pollinator: the extra tapped permanent is chosen automatically (a permanent without a mana ability first).
 - **Tarkir: Dragonstorm (`docs/extensions/tdm.md`):**
   - `timing` Sidisi, Regent of the Mire: the card with mana value X + 1 is targeted by a reflexive ability, once the cost is paid;
   - `rule` Teval (Cavern): an exiled card pays generic {1}, but also a {C}; outside full control, the automatic payment uses mana first, then exiles the cards in graveyard order (in full control, the player chooses them);
@@ -78,7 +74,7 @@ In the order they were added, set by set.
   - `auto choice` Haunted Screen: the automatic payment can pay the life of the {G}/{U}/{R} ability.
 - **Bloomburrow (`docs/extensions/blb.md`):**
   - `rule` Gift of a permanent: if it left the battlefield before its "gift promised" trigger resolves, the gift goes to the next opponent in turn order, and not to the chosen opponent (exact in a duel);
-  - `auto choice` Forage: automatic choice, three cards from the graveyard (lands first) if there are at least three, otherwise a Food (a token preferably);
+  - `auto choice` Forage during a resolution ("you may forage. If you do…"): three cards from the graveyard (lands first) if there are at least three, otherwise a Food (a token preferably); as a cost (Feed the Cycle, Osteomancer Adept, Thornvault Forager), the player chooses (PLAN-M M6);
   - `timing` The Infamous Cruelclaw: the card is discarded before casting the spell (and not as a replacement cost during casting);
   - `auto choice` Portent of Calamity: the exiled cards are chosen automatically (one per type);
   - `rule` Rottenmouth Viper: at most as many permanents are sacrificed as the generic cost to pay (one more sacrifice would reduce nothing, but would count for "whenever you sacrifice");
@@ -94,8 +90,6 @@ In the order they were added, set by set.
   - `rule` Emrakul, the Exigent Doom: the ability granted to the land ends as soon as the card leaves exile, in any way (and not only when it is cast); once cast, it lasts until the spell is cast (601.2i) and can be used to pay for it.
 - **Standard meta (plan P4, `docs/extensions/meta.md`):**
   - `rule` Teamwork: the power of the tapped creatures is counted as for crew (a pilot counts 2 more);
-  - `auto choice` Collect evidence "X, X being the total mana value of the targeted permanents" (Urgent Necropsy): the exiled cards are chosen by the engine (the cheapest that suffices, otherwise the most expensive); elsewhere, the player chooses them;
-  - `auto choice` Kíli the Resourceful: the {0} is always used for the first equip ability of the turn (declining it, to pay a cost on purpose, is never offered);
   - `rule` Interdimensional Web Watch: the two mana are usable for any spell cast from anywhere but the hand (and not only from exile).
 - **Lorwyn Eclipsed (`docs/extensions/ecl.md`):**
   - `rule` Rhys, the Evermore: removes all −1/−1 counters from the target, and only those (neither the number nor the other kinds of counters can be chosen);
@@ -134,7 +128,6 @@ In the order they were added, set by set.
   - `rule` Expose the Culprit: the exiled cards are not shuffled into a face-down pile before being cloaked (you know each of your face-down cards);
   - `rule` A Killer Among Us: the chosen type is not revealed separately; the ability checks the type at resolution.
 - **Avatar: The Last Airbender (`docs/extensions/tla.md`):**
-  - `auto choice` Waterbend, convoke, improvise, Cave: outside full control, the objects that pay are chosen by the automatic payment, after the lands (as on Arena); in full control, the player chooses them;
   - `timing` Elemental Teachings: the cards found go through your hand (revealed), then the opponent chooses two;
   - `rule` Raucous Audience: two mana abilities, each under its condition;
   - `rule` Azula, Cunning Usurper: the exiled cards are cast during your turn with mana of any type, but without flash;
@@ -152,7 +145,6 @@ In the order they were added, set by set.
   - `rule` The Kingpin of Crime: "deal damage equal to their toughness" only affects the creatures present at resolution;
   - `rule` Cosmic Cube: the card chosen among the six goes through exile while it is being cast (visible to all), then goes to the bottom if you decline;
   - `rule` Kang the Conqueror: "during that turn, power-up abilities can't be activated" is not applied to the extra turn;
-  - `auto choice` Baron Helmut Zemo: the black cards exiled for boast are chosen by the engine (those richest in {B} first, the fewest cards possible);
   - `timing` Worlds Within Worlds: each player chooses and puts their creatures in turn (APNAP order), and not simultaneously;
   - `rule` The Ruinous Wrecking Crew: "up to X modes" is written as combinations of modes, each under the condition X ≥ its number of modes.
 - **Marvel's Spider-Man (`docs/extensions/spm.md`):**
@@ -163,8 +155,7 @@ In the order they were added, set by set.
 - **Teenage Mutant Ninja Turtles (`docs/extensions/tmt.md`):**
   - `rule` Turtles Forever: the search only covers the library (nothing outside the game), and "exactly four" is not enforced (the opponent chooses among the cards found);
   - `rule` Renet, Temporal Apprentice: "entered this turn" also counts a permanent whose control changed this turn;
-  - `rule` North Wind Avatar: the engine has no "outside the game" zone (no sideboard during a game): the enters ability has no effect;
-  - `auto choice` Ninja Teen: a creature spell cast from the graveyard through the granted sneak returns the weakest unblocked attacker.
+  - `rule` North Wind Avatar: the engine has no "outside the game" zone (no sideboard during a game): the enters ability has no effect.
 - **The Hobbit (`docs/extensions/hob.md`):**
   - `rule` Burglar's Plot: "two target nonland permanents that share a card type" is a modal spell, one mode per type;
   - `rule` Bilbo, Thief in the Night: the reduction applies to spells cast from a graveyard or exile, not from the top of the library; an artifact cast this way then countered would be exiled;
@@ -180,31 +171,28 @@ In the order they were added, set by set.
   - `rule` Green Sun's Zenith: it is shuffled into the library whenever it would go to the graveyard, not only when resolving;
   - `rule` Hindering Light: only spells that target a permanent you control are recognized, not those that target only you;
   - `rule` All Will Be One: only counters put on permanents trigger the ability;
-  - `auto choice` Force of Will, Force of Vigor, Daze: the card exiled from hand is the cheapest that fits; the returned Island, a tapped one first;
   - `rule` Henry Wu: the draw and the Treasure are part of the exploit ability it gives (they only happen if he is on the battlefield when it resolves);
   - `rule` Laboratory Maniac: the win that replaces the draw is noted with the state-based actions that follow (like the loss it replaces);
   - `rule` Mirri, Weatherlight Duelist: "this combat" lasts the turn (an extra combat stays limited);
   - `rule` Shared Animosity: a changeling attacker is counted as sharing a type with every other attacking creature, even without a creature type;
   - `rule` Outlaws' Merriment: the token "chosen at random" is drawn by a three-sided die (shown in the log);
-  - `auto choice` Cresting Mosasaurus (emerge): the sacrificed creature is the one of highest mana value;
   - `rule` Flesh Duplicate: fading is given even if the copied creature already has it (only when copying another Flesh Duplicate: no handled card has printed fading);
   - `rule` Hunting Velociraptor: the marauding requires combat damage from a Dinosaur (not from any type common to the spell);
   - `rule` Ad Nauseam: the process repeats at most thirty times;
   - `auto choice` Library of Leng: the card discarded by an effect always goes on top of the library (except a card with madness);
   - `rule` Notion Thief: the thief's draw is not replaced in turn (two opposing Notion Thieves); the replacements of the thief's draw do not apply;
-  - `rule` Gix, Yawgmoth Praetor: "pay 1 life" is a life loss (possible at 0 life or less); `auto choice` the cards discarded for X, without a player choice in the interface;
+  - `rule` Gix, Yawgmoth Praetor: "pay 1 life" is a life loss (possible at 0 life or less);
   - `rule` Painter's Servant: only permanents take the chosen color (not spells or cards in other zones);
   - `rule` Sylvan Library: the two cards put back are chosen among the cards put into hand this turn (not only those drawn);
   - `rule` Expropriate: for an opponent's "money" vote, the permanent is chosen among those they control and that one of your opponents owns (and not among those they own, whoever controls them);
   - `rule` Plague of Vermin: each player pays only once (the process does not repeat);
   - `rule` Codie, Vociferous Codex: the found card is cast right away (and not "until end of turn").
 - **Commander, EDH pseudo-set (`docs/extensions/edh.md`):**
-  - `auto choice` Relic of Legends: the tapped legendary creature is chosen by the engine (one without a mana ability first); the automatic payment only uses it once per ability;
+  - `auto choice` Relic of Legends: the automatic payment only uses it once per ability;
   - `rule` New Blood: the text change (612, "replace all instances of a creature type with Vampire") is not done; the stolen creature becomes a Vampire in addition to its other types;
   - `auto choice` Rewind, Unwind, Frantic Search: "untap up to N lands" only untaps your lands, chosen automatically;
   - `auto choice` Foreboding Ruins, Fortified Village, Port Town, Vineglimmer Snarl: a card of the right type in hand is revealed automatically if possible;
-  - `auto choice` Scholar of New Horizons: the Plains card goes onto the battlefield as soon as permitted (without offering to put it into hand); the kind of counter removed for the cost is chosen by the engine (−1/−1 first, +1/+1 last);
-  - `auto choice` O'aka, Traveling Merchant: the kind of counter removed for the cost is chosen by the engine (−1/−1 first, +1/+1 last);
+  - `auto choice` Scholar of New Horizons: the Plains card goes onto the battlefield as soon as permitted (without offering to put it into hand);
   - `rule` Pandemonium: the target of the damage is chosen by Pandemonium's controller, not by the controller of the creature that enters (exact when it is the same person);
   - `rule` Emrakul, the World Anew: "protection from spells" is read as from instants and sorceries (not from an Aura or permanent spell);
   - `auto choice` Cryptolith Fragment: its mana ability is activated by hand (the automatic payment does not use it);
@@ -237,7 +225,6 @@ In the order they were added, set by set.
   - `rule` Tandem Lookout (soulbond, 702.95e): a pair breaks when state-based actions are checked, not at the very moment one of the creatures leaves, changes controller or stops being a creature;
   - `timing` Final Fortune, Last Chance, Warrior's Oath: you lose at the end step of your next turn (the extra turn, unless another one is inserted before it).
   - `rule` Biotransference: only your creatures on the battlefield and your creature spells are artifacts (not your creature cards in the other zones);
-  - `auto choice` Flare of Malice: the creature sacrificed instead of paying is chosen by the engine (the lowest mana value);
   - `rule` Tombstone Stairwell: the world rule (704.5k) is not done (no other world enchantment in the catalog).
   - `rule` Reyhan, Last of the Abzan: "is put into the command zone" only from the battlefield (a commander that dies goes to the graveyard first, then may return to the command zone: the death triggers it).
   - `timing` Animate Dead: the creature card returns during the Aura's resolution, which then enters attached to it (and not by its "enters" triggered ability: nobody can respond while it enchants the card in the graveyard); `rule` put onto the battlefield without being cast, it enchants nothing and stays in its zone;
@@ -245,7 +232,6 @@ In the order they were added, set by set.
   - `rule` Kardur, Doomscourge: the attack requirements are a goad until your next turn (same requirements; the creatures count as goaded);
   - `auto choice` Stinging Study: with two commanders, X is the greatest mana value among them (and not the one you choose);
   - `rule` Tibalt's Trickery: "choose 1, 2, or 3 at random" is a three-sided die roll (shown as such in the log); the card found is offered with the cascade prompt (cast for free, otherwise to the bottom);
-  - `auto choice` Demon of Death's Gate: the three black creatures sacrificed instead of paying are chosen by the engine (the lowest mana values).
   - `rule` Elturel Survivors: X counts the lands of all opponents (the defending player's in a duel);
   - `rule` Echoing Assault: it triggers once per attack (not once for each player attacked), and the copy attacks the player its controller chooses;
   - `rule` Possibility Storm: a spell that already left the stack when the ability resolves (countered, exiled by another Possibility Storm) leads to no search (the ruling still has its caster search with its card types); a land card sharing a type with the spell (artifact land) doesn't stop the search, as for cascade; the cards exiled before the one found go to the bottom before it is cast;

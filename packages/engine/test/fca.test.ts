@@ -19,6 +19,7 @@ import {
   idsOf,
   lands,
   nameOf,
+  namesIn,
   scenario,
   settle,
   settleNoBlocks,
@@ -429,6 +430,48 @@ describe("Through the Ages", () => {
       const shock = exiled(s, "Shock")[0] as string;
       s = settle(act(s, "p1", { type: "cast", card: shock, targets: { t: ["p2"] } }));
       expect(s.players.p2?.life).toBe(16);
+    });
+
+    it("Gix, Yawgmoth Praetor: the player chooses the cards discarded for X (PLAN-M M6)", () => {
+      let s = scenario({
+        p1: { battlefield: ["Gix, Yawgmoth Praetor", ...lands("Swamp", 7)], hand: ["Forest", "Island", "Opt"] },
+        p2: { library: ["Shock", "Bear Cub", "Forest"] },
+      });
+      const gix = idOf(s, "p1", "battlefield", "Gix, Yawgmoth Praetor");
+      const offer = legalActions(s, "p1").find((a) => a.type === "activate" && a.source === gix && a.ability === 1);
+      const pick = offer?.type === "activate" ? offer.picks?.find((p) => p.slot === "discardX") : undefined;
+      expect(pick?.countIsX).toBe(true);
+      expect(pick?.options).toHaveLength(3);
+      const opt = idOf(s, "p1", "hand", "Opt");
+      const island = idOf(s, "p1", "hand", "Island");
+      s = settle(
+        act(s, "p1", {
+          type: "activate",
+          source: gix,
+          ability: 1,
+          x: 2,
+          targets: { t: ["p2"] },
+          picks: { discardX: [opt, island] },
+        }),
+      );
+      expect(namesIn(s, s.players.p1?.hand)).toEqual(["Forest"]);
+      expect(namesIn(s, s.players.p1?.graveyard).sort()).toEqual(["Island", "Opt"]);
+      // A number of cards other than X: refused.
+      const t = scenario({
+        p1: { battlefield: ["Gix, Yawgmoth Praetor", ...lands("Swamp", 7)], hand: ["Forest", "Island"] },
+        p2: { library: ["Shock", "Bear Cub"] },
+      });
+      const gix2 = idOf(t, "p1", "battlefield", "Gix, Yawgmoth Praetor");
+      expect(() =>
+        act(t, "p1", {
+          type: "activate",
+          source: gix2,
+          ability: 1,
+          x: 2,
+          targets: { t: ["p2"] },
+          picks: { discardX: [idOf(t, "p1", "hand", "Forest")] },
+        }),
+      ).toThrow();
     });
   });
 });

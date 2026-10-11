@@ -29,6 +29,7 @@ import { checkCondition } from "./triggers";
 import type {
   AbilityKind,
   Color,
+  CostPick,
   GameObject,
   GameState,
   LkiSnapshot,
@@ -263,14 +264,39 @@ function otherToTap(
   strict = false,
   exclude?: ReadonlySet<ObjectId>,
 ): ObjectId | undefined {
+  const mine = othersToTap(s, id, ab, exclude);
+  return mine.find((x) => manaAbilitiesOf(s, x).length === 0) ?? (strict ? undefined : mine[0]);
+}
+
+/** The permanents that can be tapped for the cost "tap an untapped [permanent] you control" of an ability of `id`. */
+function othersToTap(s: GameState, id: ObjectId, ab: ManaAbilityDef, exclude?: ReadonlySet<ObjectId>): ObjectId[] {
   const me = obj(s, id).controller;
   // "Tap an untapped creature (artifact, legendary creature) you control": Springleaf Drum, Urza, Lord High Artificer,
   // Relic of Legends.
-  const mine = s.battlefield.filter(
+  return s.battlefield.filter(
     (x) =>
       x !== id && !exclude?.has(x) && !obj(s, x).tapped && obj(s, x).controller === me && fitsTapAnother(s, id, x, ab.tapAnother),
   );
-  return mine.find((x) => manaAbilitiesOf(s, x).length === 0) ?? (strict ? undefined : mine[0]);
+}
+
+/**
+ * The other permanent tapped for a mana ability's cost (Gene Pollinator, Relic of Legends), when there is a choice
+ * (PLAN-M M6): a payment detail (`autoOk`), the automatic choice suggested.
+ */
+export function tapAnotherPick(s: GameState, id: ObjectId, ability: number): CostPick | undefined {
+  const ab = manaAbilitiesOf(s, id)[ability];
+  if (!ab?.tapAnother) return undefined;
+  const options = othersToTap(s, id, ab);
+  const best = otherToTap(s, id, ab);
+  if (!best || options.length < 2) return undefined;
+  return {
+    slot: "costTap",
+    label: msg("The other permanent to tap for this mana"),
+    count: 1,
+    options: [best, ...options.filter((x) => x !== best)],
+    suggested: [best],
+    autoOk: true,
+  };
 }
 
 /**
@@ -589,6 +615,8 @@ export function activateManaAbility(
   color?: ManaType | ManaType[],
   forPayment = false,
   keep: readonly ObjectId[] = [],
+  /** The other permanent tapped for the cost, chosen by the player (Gene Pollinator); otherwise the automatic choice. */
+  tapChoice?: ObjectId[],
 ): void {
   const o = s.objects[id];
   if (!o || o.controller !== player) throw new RulesError(msg("You don't control this source"));
@@ -623,7 +651,11 @@ export function activateManaAbility(
   const amountNow = () => before?.amount ?? manaAmount(s, id, ab);
   if (ab.cost.tap) tapObject(s, o, "mana");
   if (ab.oncePerTurn) s.turn.onceFired.push(`mana:${id}`);
-  if (ab.tapAnother) tapObject(s, obj(s, otherToTap(s, id, ab) as ObjectId));
+  if (ab.tapAnother) {
+    if (tapChoice && (tapChoice.length !== 1 || !othersToTap(s, id, ab).includes(tapChoice[0] as ObjectId)))
+      throw new RulesError(msg("Invalid choice: {label}", { label: msg("The other permanent to tap for this mana") }));
+    tapObject(s, obj(s, (tapChoice?.[0] ?? otherToTap(s, id, ab)) as ObjectId));
+  } else if (tapChoice?.length) throw new RulesError(msg("This cost doesn't ask for this choice"));
   if (ab.cost.self === "sacrifice") sacrifice(s, id);
   // Haunted Screen: "{T}, Pay 1 life"; Twitching Doll: "put a nest counter on this creature".
   if (ab.cost.payLife) payLife(s, player, lifeCost(s, player, id, ab.cost.payLife));

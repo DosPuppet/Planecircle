@@ -25,6 +25,7 @@ import {
   type ManaType,
   msg,
   type ObjectView,
+  pickHasChoice,
   RULES_VERSION,
   type StackItemView,
   type Step,
@@ -83,6 +84,35 @@ export function setUpdateObserver(o: ((view: GameView, events: GameEvent[]) => v
   observer = o;
 }
 
+/**
+ * A cost slot once the targets are known: Urgent Necropsy's evidence total is the mana value of the chosen targets
+ * (`minTotal.fromTargets`), with the engine's suggestion for that total.
+ */
+function pickForTargets(p: CostPick, targets: Record<string, string[]>): CostPick {
+  const m = p.minTotal;
+  if (!m?.fromTargets) return p;
+  const from = m.fromTargets;
+  const n = Object.values(targets)
+    .flat()
+    .reduce((t, id) => t + (from[id] ?? 0), 0);
+  return { ...p, minTotal: { n, values: m.values }, suggested: evidenceSuggestion(p.options, m.values, n) };
+}
+
+/** The engine's choice of evidence (`pickEvidence`): the cheapest card that reaches N, otherwise the most expensive. */
+function evidenceSuggestion(options: string[], values: Record<string, number>, n: number): string[] {
+  const mv = (id: string) => values[id] ?? 0;
+  const left = [...options].sort((a, b) => mv(a) - mv(b));
+  const out: string[] = [];
+  let total = 0;
+  while (total < n && left.length) {
+    const i = left.findIndex((id) => total + mv(id) >= n);
+    const id = (i >= 0 ? left.splice(i, 1) : left.splice(left.length - 1, 1))[0] as string;
+    out.push(id);
+    total += mv(id);
+  }
+  return total >= n ? out : [];
+}
+
 /** Intent refused by the tutorial: the player is told and the casting in progress is abandoned. */
 function refused(intent: PlayerIntent): boolean {
   const view = useGame.getState().view;
@@ -90,7 +120,7 @@ function refused(intent: PlayerIntent): boolean {
   if (!reason) return false;
   playSound("error");
   useGame.getState().notify(reason);
-  useGame.setState({ casting: null, abilityMenu: null, selectedBlocker: null, legendConfirm: null });
+  useGame.setState({ casting: null, manaPick: null, abilityMenu: null, selectedBlocker: null, legendConfirm: null });
   return true;
 }
 
@@ -223,6 +253,11 @@ interface Store {
   settings: AutopilotSettings;
   lang: Lang;
   casting: Casting | null;
+  /**
+   * Full control: a mana ability whose cost taps another permanent (Gene Pollinator), waiting for the player to choose
+   * it (`costTap`, PLAN-M M6).
+   */
+  manaPick: { decision: Extract<Decision, { type: "tapForMana" }>; pick: CostPick } | null;
   /** `unavailable`: activated abilities of the permanent that cannot be activated right now (shown greyed out). */
   abilityMenu: {
     sourceId: string;
@@ -365,6 +400,13 @@ interface Store {
   chooseAdditional(kind: "discard" | "sacrifice" | "tap" | "materials" | "bounce", ids: string[]): void;
   /** Objects chosen for a cost (`CostPick`). */
   choosePick(slot: CostSlot, ids: string[] | undefined): void;
+  /**
+   * Taps a source for its mana: in full control, a source whose cost taps another permanent asks which one first
+   * (`manaPick`); otherwise the automatic choice.
+   */
+  tapMana(option: Extract<ActionOption, { type: "tapForMana" }>, color?: ManaType, colors?: ManaType[]): void;
+  /** The other permanent tapped for the mana (`manaPick`); `undefined`: cancel. */
+  chooseManaPick(ids: string[] | undefined): void;
   cancel(): void;
   toggleAttacker(id: string): void;
   /** Target chosen for the aiming attacker. */
@@ -437,6 +479,8 @@ function paysMana(view: GameView | null, c: Casting): boolean {
     const o = view.battlefield.find((x) => x.id === c.sourceId);
     return symbol.test(o?.activated?.find((a) => a.index === ability)?.cost ?? "");
   }
+  // Alternative cost: its own mana, read from its label (Force of Will, Daze: none; emerge: its cost).
+  if (c.payMode === "alt") return symbol.test(c.option.altLabel ?? "");
   const card = c.option.card;
   const o = [...view.hand, ...view.playableElsewhere, ...view.battlefield].find((x) => x.id === card);
   return !!o && symbol.test(o.castCost?.text ?? o.manaCost);
@@ -992,13 +1036,19 @@ export const useGame = create<Store>((set, get) => {
     if (extra && "materials" in extra && extra.materials && c.materials === null)
       return set({ casting: { ...c, stage: "materials", spec: null } });
     // Objects paid as a cost (blight, evidence, exile from the graveyard…), when the cost applies and the choice matters.
-    for (const p of c.option.picks ?? []) {
-      if (c.picks[p.slot] !== undefined || c.skippedPicks?.[p.slot]) continue;
-      if ((p.when === "kicked" && !c.kicked) || (p.when === "alternative" && c.payMode !== "alt")) continue;
-      // Convoke, improvise, waterbending, delve: the automatic payment chooses, except in full control.
-      if (p.atMost && !get().settings.fullControl) continue;
+    for (const p0 of c.option.picks ?? []) {
+      if (c.picks[p0.slot] !== undefined || c.skippedPicks?.[p0.slot]) continue;
+      if ((p0.when === "kicked" && !c.kicked) || (p0.when === "alternative" && c.payMode !== "alt")) continue;
+      // Convoke, improvise, waterbending, delve and the payment details (Kíli's {0}): the automatic payment chooses,
+      // except in full control.
+      if ((p0.atMost || p0.autoOk) && !get().settings.fullControl) continue;
+      // Urgent Necropsy: the evidence total is that of the chosen targets (none: nothing to collect).
+      const p = pickForTargets(p0, c.targets);
+      if (p0.minTotal?.fromTargets && !p.minTotal?.n) continue;
       const count = p.countIsX ? (c.x ?? 0) : p.count;
       if (p.countIsX && count === 0) continue;
+      // A single possible answer: no question (PLAN-M M6).
+      if (!p.atMost && !p.optional && !pickHasChoice({ ...p, count })) continue;
       return set({ casting: { ...c, stage: "pick", spec: null, pick: { ...p, count } } });
     }
     // Full control: the player taps the sources to pay with, the automatic payment completes the rest.
@@ -1067,6 +1117,7 @@ export const useGame = create<Store>((set, get) => {
     settings: loadSettings(),
     lang: loadLang(),
     casting: null,
+    manaPick: null,
     abilityMenu: null,
     attackers: [],
     attackTargets: {},
@@ -1525,6 +1576,7 @@ export const useGame = create<Store>((set, get) => {
         ...(changed
           ? {
               casting: null,
+              manaPick: null,
               abilityMenu: null,
               attackers: forced,
               attackTargets: Object.fromEntries(forcedAttacks.map((a) => [a.id, a.defender])),
@@ -1546,7 +1598,26 @@ export const useGame = create<Store>((set, get) => {
       get().session?.send({ type: "decision", decision: d });
       // Mana tapped by hand during the "mana" stage of a cast: the cast goes on.
       const keep = (d.type === "tapForMana" || d.type === "undoMana") && get().casting?.stage === "mana";
-      set({ casting: keep ? get().casting : null, abilityMenu: null, selectedBlocker: null, selection: [] });
+      set({ casting: keep ? get().casting : null, manaPick: null, abilityMenu: null, selectedBlocker: null, selection: [] });
+    },
+
+    tapMana(option, color, colors) {
+      const decision: Extract<Decision, { type: "tapForMana" }> = {
+        type: "tapForMana",
+        source: option.source,
+        ability: option.ability,
+        ...(colors ? { colors } : { color: color ?? option.colors[0] }),
+      };
+      // A payment detail (`autoOk`): asked only in full control.
+      const pick = option.picks?.[0];
+      if (pick && get().settings.fullControl) return set({ manaPick: { decision, pick }, abilityMenu: null });
+      get().decide(decision);
+    },
+
+    chooseManaPick(ids) {
+      const m = get().manaPick;
+      if (!m || ids === undefined) return set({ manaPick: null });
+      get().decide({ ...m.decision, picks: { [m.pick.slot]: ids } });
     },
 
     passPriority() {
@@ -1674,8 +1745,7 @@ export const useGame = create<Store>((set, get) => {
         const m = mana[0];
         if (mana.length > 1 || (m?.type === "tapForMana" && (m.colors.length > 1 || m.combination)))
           return set({ abilityMenu: { sourceId: id, options: mana } });
-        if (m?.type === "tapForMana")
-          return get().decide({ type: "tapForMana", source: id, ability: m.ability, color: m.colors[0] });
+        if (m?.type === "tapForMana") return get().tapMana(m);
         return get().notify(msg("This permanent can't produce mana now."));
       }
       if (pickOnBoard(id)) return;
@@ -1732,8 +1802,7 @@ export const useGame = create<Store>((set, get) => {
         // Several types (City of Brass, "in any combination"): the menu asks which (PLAN-L L3).
         if (m?.type === "tapForMana" && (m.colors.length > 1 || m.combination))
           return set({ abilityMenu: { sourceId: id, options: mana, unavailable } });
-        if (m?.type === "tapForMana")
-          return get().decide({ type: "tapForMana", source: id, ability: m.ability, color: m.colors[0] });
+        if (m?.type === "tapForMana") return get().tapMana(m);
       }
     },
 
@@ -1899,7 +1968,14 @@ export const useGame = create<Store>((set, get) => {
     },
 
     cancel() {
-      set({ casting: null, abilityMenu: null, selectedBlocker: null, aimingAttacker: null, legendConfirm: null });
+      set({
+        casting: null,
+        manaPick: null,
+        abilityMenu: null,
+        selectedBlocker: null,
+        aimingAttacker: null,
+        legendConfirm: null,
+      });
     },
 
     toggleAttacker(id) {

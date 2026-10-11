@@ -292,6 +292,35 @@ describe("Lot F: playing from other zones", () => {
     );
   });
 
+  it("Muldrotha: the player chooses the permanent type a card with several uses (PLAN-M M6)", () => {
+    const start = () =>
+      scenario({
+        p1: {
+          battlefield: ["Muldrotha, the Gravetide", ...lands("Forest", 6)],
+          graveyard: ["Gingerbrute", "Wayfarer's Bauble", "Llanowar Elves"],
+        },
+      });
+    let s = start();
+    const ginger = idOf(s, "p1", "graveyard", "Gingerbrute");
+    const opt = castOption(s, "p1", ginger);
+    const pick = opt?.type === "cast" ? opt.picks?.find((p) => p.slot === "permanentType") : undefined;
+    expect(pick?.options).toEqual(["Artifact", "Creature"]);
+    expect(pick?.suggested).toEqual(["Artifact"]);
+    // As a creature: the artifact (Wayfarer's Bauble) stays castable, the creature (Llanowar Elves) no longer is.
+    s = passBoth(act(s, "p1", { type: "cast", card: ginger, picks: { permanentType: ["Creature"] } }));
+    expect(castOption(s, "p1", idOf(s, "p1", "graveyard", "Wayfarer's Bauble"))).toBeDefined();
+    expect(castOption(s, "p1", idOf(s, "p1", "graveyard", "Llanowar Elves"))).toBeUndefined();
+    // By default, the first type (Artifact).
+    let t = start();
+    t = passBoth(act(t, "p1", { type: "cast", card: idOf(t, "p1", "graveyard", "Gingerbrute") }));
+    expect(castOption(t, "p1", idOf(t, "p1", "graveyard", "Wayfarer's Bauble"))).toBeUndefined();
+    // A type the card doesn't have: refused.
+    const u = start();
+    expect(() =>
+      act(u, "p1", { type: "cast", card: idOf(u, "p1", "graveyard", "Gingerbrute"), picks: { permanentType: ["Enchantment"] } }),
+    ).toThrow(RulesError);
+  });
+
   it("Quilled Greatwurm: cast from the graveyard by removing six counters", () => {
     let s = scenario({ p1: { battlefield: [...lands("Forest", 6), "Llanowar Elves"], graveyard: ["Quilled Greatwurm"] } });
     const wurm = idOf(s, "p1", "graveyard", "Quilled Greatwurm");
@@ -336,6 +365,47 @@ describe("Lot F: playing from other zones", () => {
     expect(() => act(s, "p1", { type: "cast", card: wurm, picks: { counterFrom: [elf, elf, elf, elf, cub] } })).toThrow(
       RulesError,
     );
+  });
+
+  it("Quilled Greatwurm: the player also chooses the kind of the counters removed from a creature (PLAN-M M6)", () => {
+    const start = () =>
+      scenario({
+        p1: {
+          battlefield: [
+            ...lands("Forest", 6),
+            { name: "Llanowar Elves", counters: { "+1/+1": 4, charge: 2 } },
+            { name: "Bear Cub", counters: { "+1/+1": 3 } },
+          ],
+          graveyard: ["Quilled Greatwurm"],
+        },
+      });
+    const s = start();
+    const wurm = idOf(s, "p1", "graveyard", "Quilled Greatwurm");
+    const elf = idOf(s, "p1", "battlefield", "Llanowar Elves");
+    const cub = idOf(s, "p1", "battlefield", "Bear Cub");
+    const opt = castOption(s, "p1", wurm);
+    const pick = opt?.type === "cast" ? opt.picks?.find((p) => p.slot === "counterFrom") : undefined;
+    expect(pick?.options).toContain(`${elf}:charge`);
+    expect(pick?.options).not.toContain(`${cub}:+1/+1`);
+    // By default, the Elf's six counters (charge first, +1/+1 last).
+    const d = act(start(), "p1", { type: "cast", card: wurm });
+    expect(counters(d, elf)).toEqual({});
+    // Four +1/+1 counters from the Elf (its charge counters stay), two from the Bear Cub.
+    const plus = `${elf}:+1/+1`;
+    const t = act(s, "p1", { type: "cast", card: wurm, picks: { counterFrom: [plus, plus, plus, plus, cub, cub] } });
+    expect(counters(t, elf)).toEqual({ charge: 2 });
+    expect(counters(t, cub)["+1/+1"]).toBe(1);
+    // A kind chosen, then the default kind for the rest: two charge counters, then +1/+1 ones.
+    const u = act(s, "p1", { type: "cast", card: wurm, picks: { counterFrom: [`${elf}:+1/+1`, elf, elf, cub, cub, cub] } });
+    expect(counters(u, elf)).toEqual({ "+1/+1": 3 });
+    // More counters of a kind than the creature has: refused.
+    expect(() =>
+      act(s, "p1", {
+        type: "cast",
+        card: wurm,
+        picks: { counterFrom: [`${elf}:charge`, `${elf}:charge`, `${elf}:charge`, cub, cub, cub] },
+      }),
+    ).toThrow(RulesError);
   });
 
   it("Flamewake Phoenix: returns from the graveyard at the beginning of combat (ferocious, {R})", () => {

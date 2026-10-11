@@ -160,35 +160,58 @@ export function canForage(s: GameState, p: PlayerId, exclude?: ObjectId): boolea
   return gy.length >= 3 || foodToSacrifice(s, p) !== undefined;
 }
 
-function foodToSacrifice(s: GameState, p: PlayerId): ObjectId | undefined {
+/** The Foods the player can sacrifice, the default choice first: a token preferably, then what is not a creature. */
+function foodsToSacrifice(s: GameState, p: PlayerId): ObjectId[] {
   const foods = s.battlefield.filter((id) => s.objects[id]?.controller === p && chars(s, id).subtypes.includes("Food"));
-  // A token preferably, then what is not a creature (Ygra makes creatures Foods).
-  return foods.sort((a, b) => rank(a) - rank(b))[0];
+  // Ygra makes creatures Foods.
+  return foods.sort((a, b) => rank(a) - rank(b));
   function rank(id: ObjectId): number {
     return (s.objects[id]?.isToken ? 0 : 2) + (isCreature(s, id) ? 4 : 0);
   }
 }
 
+function foodToSacrifice(s: GameState, p: PlayerId): ObjectId | undefined {
+  return foodsToSacrifice(s, p)[0];
+}
+
 /**
- * Forage (701.61), automatic choice: three cards from the graveyard (lands first) if there are at least three,
- * otherwise a Food sacrificed. Returns false if impossible.
+ * Forage (701.61) as a choice (PLAN-M M6): the graveyard cards (three of them) and the Foods (one of them); the default
+ * choice is three cards from the graveyard (lands first) if there are at least three, otherwise a Food. `suggested`
+ * null: impossible.
  */
-export function forage(s: GameState, p: PlayerId): boolean {
+export function forageOptions(
+  s: GameState,
+  p: PlayerId,
+  exclude?: ObjectId,
+): { graveyard: ObjectId[]; foods: ObjectId[]; suggested: ObjectId[] | null } {
+  const graveyard = (s.players[p]?.graveyard ?? []).filter((id) => id !== exclude);
+  const foods = foodsToSacrifice(s, p);
+  const isLand = (id: ObjectId) => !!s.defs[s.objects[id]?.defId ?? ""]?.types.includes("Land");
+  const suggested =
+    graveyard.length >= 3
+      ? [...graveyard].sort((a, b) => Number(isLand(b)) - Number(isLand(a))).slice(0, 3)
+      : foods.length
+        ? [foods[0] as ObjectId]
+        : null;
+  return { graveyard, foods, suggested };
+}
+
+/**
+ * Forage (701.61): the chosen objects (three graveyard cards or a Food, checked by the caller), otherwise the automatic
+ * choice (`forageOptions`). Returns false if impossible.
+ */
+export function forage(s: GameState, p: PlayerId, chosen?: ObjectId[]): boolean {
   const player = s.players[p];
   if (!player) return false;
-  if (player.graveyard.length >= 3) {
-    const isLand = (id: ObjectId) => !!s.defs[s.objects[id]?.defId ?? ""]?.types.includes("Land");
-    const chosen = [...player.graveyard].sort((a, b) => Number(isLand(b)) - Number(isLand(a))).slice(0, 3);
-    for (const id of chosen) {
+  const paid = chosen ?? forageOptions(s, p).suggested;
+  if (!paid) return false;
+  if (paid.every((id) => s.objects[id]?.zone === "graveyard")) {
+    for (const id of paid) {
       const o = obj(s, id);
       emit({ type: "moved", owner: o.owner, objectId: id, defId: o.defId, from: "graveyard", to: "exile" });
       moveObject(s, id, "exile");
     }
-  } else {
-    const food = foodToSacrifice(s, p);
-    if (!food) return false;
-    sacrifice(s, food);
-  }
+  } else for (const id of paid) sacrifice(s, id);
   rulesEvent(s, { e: "forage", player: p });
   return true;
 }

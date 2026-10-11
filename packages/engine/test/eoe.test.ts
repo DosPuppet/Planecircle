@@ -309,6 +309,26 @@ describe("Edge of Eternities, lot C", () => {
     expect(s.objects[idOf(s, "p1", "battlefield", "Forest")]?.tapped).toBe(false);
   });
 
+  it("Gene Pollinator: the player may choose the other permanent tapped (PLAN-M M6, a payment detail)", () => {
+    let s = scenario({ p1: { battlefield: ["Gene Pollinator", "Bear Cub", "Forest"] } });
+    const gp = idOf(s, "p1", "battlefield", "Gene Pollinator");
+    const cub = idOf(s, "p1", "battlefield", "Bear Cub");
+    const forest = idOf(s, "p1", "battlefield", "Forest");
+    const offer = legalActions(s, "p1").find((a) => a.type === "tapForMana" && a.source === gp);
+    const pick = offer?.type === "tapForMana" ? offer.picks?.[0] : undefined;
+    expect(pick).toMatchObject({ slot: "costTap", suggested: [cub], autoOk: true });
+    expect(pick?.options).toEqual([cub, forest]);
+    expect(() => act(s, "p1", { type: "tapForMana", source: gp, ability: 0, color: "U", picks: { costTap: [gp] } })).toThrow();
+    s = act(s, "p1", { type: "tapForMana", source: gp, ability: 0, color: "U", picks: { costTap: [forest] } });
+    expect(s.players.p1?.manaPool.U).toBe(1);
+    expect(s.objects[forest]?.tapped).toBe(true);
+    expect(s.objects[cub]?.tapped).toBe(false);
+    // A single candidate: no question.
+    const t = scenario({ p1: { battlefield: ["Gene Pollinator", "Bear Cub"] } });
+    const one = legalActions(t, "p1").find((a) => a.type === "tapForMana");
+    expect(one?.type === "tapForMana" && one.picks).toBeUndefined();
+  });
+
   it("Terrapact Intimidator: the opponent declines Landers, the creature gets two counters", () => {
     let s = scenario({ p1: { battlefield: lands("Mountain", 2), hand: ["Terrapact Intimidator"] } });
     s = cast(s, "p1", "Terrapact Intimidator");

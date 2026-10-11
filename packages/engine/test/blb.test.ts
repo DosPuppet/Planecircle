@@ -242,6 +242,63 @@ describe("Bloomburrow", () => {
     expect(t.players.p1?.graveyard.map((id) => t.defs[t.objects[id]?.defId ?? ""]?.name)).toEqual(["Feed the Cycle"]);
   });
 
+  it("Feed the Cycle: the player chooses how to forage, three cards or a Food (PLAN-M M6)", () => {
+    const food = customCard({ name: "Test Food", types: ["Artifact"], typeLine: "Artifact — Food", subtypes: ["Food"] });
+    const start = () =>
+      scenario({
+        p1: {
+          battlefield: [...lands("Swamp", 2), food],
+          hand: ["Feed the Cycle"],
+          graveyard: ["Opt", "Forest", "Stab", "Island"],
+        },
+        p2: { battlefield: ["Shivan Dragon"] },
+      });
+    let s = start();
+    const { card, opt } = castOption(s, "Feed the Cycle");
+    const pick = opt?.picks?.find((p) => p.slot === "forage");
+    const foodId = idOf(s, "p1", "battlefield", "Test Food");
+    expect(pick?.when).toBe("alternative");
+    expect(pick?.oneOf?.map((g) => g.count)).toEqual([3, 1]);
+    // The suggestion: three cards, lands first.
+    expect((pick?.suggested ?? []).map((id) => s.defs[s.objects[id]?.defId ?? ""]?.name)).toEqual(["Forest", "Island", "Opt"]);
+    const target = { t: [idOf(s, "p2", "battlefield", "Shivan Dragon")] };
+    s = settle(act(s, "p1", { type: "cast", card, alternative: true, targets: target, picks: { forage: [foodId] } }));
+    expect(idsOf(s, "p1", "battlefield", "Test Food")).toHaveLength(0);
+    // The four cards, Feed the Cycle and the sacrificed Food.
+    expect(s.players.p1?.graveyard).toHaveLength(6);
+    // Two cards, or two cards and the Food: refused.
+    const t = start();
+    const gy = t.players.p1?.graveyard ?? [];
+    const card2 = idOf(t, "p1", "hand", "Feed the Cycle");
+    const target2 = { t: [idOf(t, "p2", "battlefield", "Shivan Dragon")] };
+    expect(() =>
+      act(t, "p1", { type: "cast", card: card2, alternative: true, targets: target2, picks: { forage: gy.slice(0, 2) } }),
+    ).toThrow();
+    expect(() =>
+      act(t, "p1", {
+        type: "cast",
+        card: card2,
+        alternative: true,
+        targets: target2,
+        picks: { forage: [...gy.slice(0, 2), idOf(t, "p1", "battlefield", "Test Food")] },
+      }),
+    ).toThrow();
+    // Three chosen cards (the Stab, not the lands).
+    const u = settle(
+      act(t, "p1", {
+        type: "cast",
+        card: card2,
+        alternative: true,
+        targets: target2,
+        picks: { forage: gy.filter((id) => t.defs[t.objects[id]?.defId ?? ""]?.name !== "Forest") },
+      }),
+    );
+    expect((u.players.p1?.graveyard ?? []).map((id) => u.defs[u.objects[id]?.defId ?? ""]?.name).sort()).toEqual([
+      "Feed the Cycle",
+      "Forest",
+    ]);
+  });
+
   it("Expend 4: only once, when the fourth mana is spent on spells", () => {
     let s = scenario({
       p1: { battlefield: [...lands("Mountain", 6), "Teapot Slinger"], hand: ["Playful Shove", "Playful Shove", "Playful Shove"] },
@@ -2263,6 +2320,20 @@ describe("Bloomburrow, lot K8 : rares (2)", () => {
     });
     t = resolve(activateK8(t, "p1", idOf(t, "p1", "battlefield", "Thornvault Forager"), "Squirrel"));
     expect(handOf(t)).toEqual(["Bushy Bodyguard"]);
+  });
+
+  it("Thornvault Forager: the player chooses the three cards foraged for the cost (PLAN-M M6)", () => {
+    let s = scenario({ p1: { battlefield: ["Thornvault Forager"], graveyard: ["Opt", "Stab", "Island", "Forest"] } });
+    const forager = idOf(s, "p1", "battlefield", "Thornvault Forager");
+    const offer = legalActions(s, "p1").find(
+      (x) => x.type === "activate" && x.source === forager && plainText(x.label ?? "").includes("Forage"),
+    );
+    const pick = offer?.type === "activate" ? offer.picks?.find((p) => p.slot === "forage") : undefined;
+    // The suggestion: the lands first.
+    expect(namesIn(s, pick?.suggested)).toEqual(["Island", "Forest", "Opt"]);
+    const [opt, stab, island] = s.players.p1?.graveyard ?? [];
+    s = resolve(activateK8(s, "p1", forager, "Forage", { picks: { forage: [opt, stab, island] } }));
+    expect(namesIn(s, s.players.p1?.graveyard)).toEqual(["Forest"]);
   });
 
   it("Thundertrap Trainer: looks at four cards, a noncreature nonland card into hand, the rest on the bottom; offspring {4}", () => {

@@ -4230,6 +4230,31 @@ describe("lot C1, unique cards", () => {
       // One of your creatures left (the Bear Cub returned): the opponent lost 1 life.
       expect(s.players.p2?.life).toBe(19);
     });
+
+    it("level 3: the player chooses the unblocked attacker returned by the granted sneak (PLAN-M M6)", () => {
+      let s = scenario({
+        p1: { battlefield: ["Ninja Teen", "Bear Cub", "Savannah Lions", ...Array(4).fill("Swamp")], graveyard: ["Serra Angel"] },
+      });
+      const teen = idOf(s, "p1", "battlefield", "Ninja Teen");
+      (s.objects[teen] as { classLevel?: number }).classLevel = 3;
+      s.version += 1;
+      const angel = idOf(s, "p1", "graveyard", "Serra Angel");
+      const cub = idOf(s, "p1", "battlefield", "Bear Cub");
+      const lions = idOf(s, "p1", "battlefield", "Savannah Lions");
+      s = toBlockers(s, [cub, lions]);
+      const offer = legalActions(s, "p1").find((a) => a.type === "cast" && a.card === angel);
+      const pick = offer?.type === "cast" ? offer.picks?.find((p) => p.slot === "returnAttacker") : undefined;
+      expect(pick?.options.sort()).toEqual([cub, lions].sort());
+      // The suggestion: the weakest attacker (both have power 2 here).
+      expect(pick?.suggested).toHaveLength(1);
+      const other = pick?.suggested[0] === cub ? lions : cub;
+      const otherName = nameOf(s, other);
+      s = act(s, "p1", { type: "cast", card: angel, picks: { returnAttacker: [other] } });
+      s = passAccepting(s, (x) => x.stack.length === 0 && x.triggers.length === 0);
+      expect(s.objects[other]).toBeUndefined();
+      expect(s.combat?.attackers.some((x) => x.id === (pick?.suggested[0] as string))).toBe(true);
+      expect((s.players.p1?.hand ?? []).map((id) => nameOf(s, id))).toEqual([otherName]);
+    });
   });
 
   it("Rat King, Verminister: sacrifice three Rats (him included); the targeted card and its namesakes return tapped", () => {

@@ -219,6 +219,34 @@ describe("Jurassic World Collection", () => {
       expect(idsOf(s, "p2", "hand", "Bear Cub")).toHaveLength(1);
     });
 
+    it("Cresting Mosasaurus: the player chooses the emerge victim; the cost is reduced by that creature's mana value", () => {
+      const start = (islands: number) =>
+        scenario({
+          p1: { battlefield: ["Shivan Dragon", "Bear Cub", ...lands("Island", islands)], hand: ["Cresting Mosasaurus"] },
+        });
+      const pickOf = (s: S) => {
+        const o = legalActions(s, "p1").find((a) => a.type === "cast" && nameOf(s, a.card) === "Cresting Mosasaurus");
+        return o?.type === "cast" ? o.picks?.find((p) => p.slot === "altSacrifice") : undefined;
+      };
+      // One Island: only the Dragon (mana value 6) leaves {U} to pay; the Bear Cub isn't offered.
+      expect(pickOf(start(1))).toBeUndefined();
+      let s = start(5);
+      const dragon = idOf(s, "p1", "battlefield", "Shivan Dragon");
+      const cub = idOf(s, "p1", "battlefield", "Bear Cub");
+      expect(pickOf(s)?.options).toEqual([dragon, cub]);
+      expect(pickOf(s)?.suggested).toEqual([dragon]);
+      // The Bear Cub (mana value 2): {6}{U} − 2 = {4}{U}, the five Islands.
+      s = settle(castIt(s, "Cresting Mosasaurus", { alternative: true, picks: { altSacrifice: [cub] } }));
+      expect(idsOf(s, "p1", "graveyard", "Bear Cub")).toHaveLength(1);
+      expect(idsOf(s, "p1", "battlefield", "Island").every((id) => s.objects[id]?.tapped)).toBe(true);
+      expect(idsOf(s, "p1", "battlefield", "Cresting Mosasaurus")).toHaveLength(1);
+      expect(idsOf(s, "p1", "hand", "Shivan Dragon")).toHaveLength(1);
+      // Four Islands: not enough for the Bear Cub.
+      const t = start(4);
+      const cub4 = idOf(t, "p1", "battlefield", "Bear Cub");
+      expect(() => castIt(t, "Cresting Mosasaurus", { alternative: true, picks: { altSacrifice: [cub4] } })).toThrow();
+    });
+
     it("Hunting Velociraptor: rampage {2}{R} for your Dinosaurs after combat damage from a Dinosaur", () => {
       let s = scenario({
         p1: { battlefield: ["Hunting Velociraptor", ...lands("Mountain", 3)], hand: ["Polyraptor"] },

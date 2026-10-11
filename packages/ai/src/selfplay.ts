@@ -285,7 +285,13 @@ export function checkOffers(state: GameState, player: string, where: string): vo
               .filter((p) => !p.when && !p.countIsX && !p.repeat && !p.atMost)
               .map((p) => [
                 p.slot,
-                keepSuggestion.has(p.slot) ? p.suggested : p.minTotal ? p.options : p.options.slice(-p.count),
+                keepSuggestion.has(p.slot)
+                  ? p.suggested
+                  : p.minTotal
+                    ? p.options
+                    : p.oneOf
+                      ? lastGroup(p.oneOf)
+                      : p.options.slice(-p.count),
               ]),
           )
         : {};
@@ -304,6 +310,12 @@ export function checkOffers(state: GameState, player: string, where: string): vo
       );
     }
   }
+}
+
+/** "One of these groups" (forage): the last objects of the last group. */
+function lastGroup(groups: { count: number; options: string[] }[]): string[] {
+  const g = groups[groups.length - 1];
+  return g ? g.options.slice(-g.count) : [];
 }
 
 /** State without the definitions (shared, immutable): used to check that a submission changed nothing. */

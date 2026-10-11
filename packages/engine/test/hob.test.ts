@@ -285,6 +285,30 @@ describe("The Hobbit", () => {
       expect(s.objects[idOf(s, "p1", "battlefield", "Mountain")]?.tapped).toBe(true);
     });
 
+    it("storied: the player may pay the printed equip cost instead of {0} (PLAN-M M6), which uses up the first equip", () => {
+      let s = scenario({
+        p1: { battlefield: ["Kíli the Resourceful", "Fishing Pole", "Skateboard", ...lands("Mountain", 3)] },
+      });
+      const kili = idOf(s, "p1", "battlefield", "Kíli the Resourceful");
+      const pole = idOf(s, "p1", "battlefield", "Fishing Pole");
+      const board = idOf(s, "p1", "battlefield", "Skateboard");
+      s = act(s, "p1", { type: "pass" });
+      s = act(s, "p2", { type: "pass" });
+      s = advanceUntil(s, (x) => x.turn.active === "p1" && x.turn.step === "main1" && x.turn.number > 3);
+      const offer = legalActions(s, "p1").find((a) => a.type === "activate" && a.source === pole && a.label?.includes("Equip"));
+      const pick = offer?.type === "activate" ? offer.picks?.find((p) => p.slot === "freeCost") : undefined;
+      expect(pick).toMatchObject({ options: ["free", "printed"], suggested: ["free"], autoOk: true });
+      const untapped = () => idsOf(s, "p1", "battlefield", "Mountain").filter((id) => !s.objects[id]?.tapped).length;
+      s = settle(activate(s, "p1", pole, "Equip", { targets: { t: [kili] }, picks: { freeCost: ["printed"] } }));
+      expect(s.objects[pole]?.attachedTo).toBe(kili);
+      expect(untapped()).toBe(1);
+      // The first equip of the turn is used: the Skateboard's costs {1}.
+      const next = legalActions(s, "p1").find((a) => a.type === "activate" && a.source === board && a.label?.includes("Equip"));
+      expect(next?.type === "activate" && (next.picks ?? []).some((p) => p.slot === "freeCost")).toBe(false);
+      s = settle(activate(s, "p1", board, "Equip", { targets: { t: [kili] } }));
+      expect(untapped()).toBe(0);
+    });
+
     it("storied: the Axe (token) and Bloodthorn Flail have equip abilities (first of the turn free)", () => {
       // Kíli (legendary), Bloodthorn Flail and the Axe of Iron Hills Blacksmith: storied on the next turn.
       const setup = () => {

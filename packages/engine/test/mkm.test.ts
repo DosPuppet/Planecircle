@@ -5256,6 +5256,39 @@ describe("Murders at Karlov Manor, lot C2: amounts and costs", () => {
     ).toThrow(RulesError);
   });
 
+  it("Urgent Necropsy: the player chooses the evidence, total mana value at least the targets' (PLAN-M M6)", () => {
+    const start = () =>
+      scenario({
+        p1: {
+          battlefield: [...lands("Swamp", 2), ...lands("Forest", 2)],
+          hand: ["Urgent Necropsy"],
+          graveyard: ["Shivan Dragon", "Serra Angel", "Opt"],
+        },
+        p2: { battlefield: ["Serra Angel"] },
+      });
+    let s = start();
+    const offer = legalActions(s, "p1").find((a) => a.type === "cast" && nameOf(s, a.card) === "Urgent Necropsy");
+    const pick = offer?.type === "cast" ? offer.picks?.find((p) => p.slot === "evidence") : undefined;
+    const angel = idOf(s, "p2", "battlefield", "Serra Angel");
+    expect(pick?.minTotal?.fromTargets?.[angel]).toBe(5);
+    // The engine would exile the Serra Angel (5, enough on its own); the player exiles the Shivan Dragon.
+    const dragon = idOf(s, "p1", "graveyard", "Shivan Dragon");
+    s = settle(cast(s, "p1", "Urgent Necropsy", { a: [], c: [angel], e: [], w: [] }, { picks: { evidence: [dragon] } }));
+    expect(s.exile.map((id) => nameOf(s, id))).toEqual(["Shivan Dragon"]);
+    expect(idsOf(s, "p1", "graveyard", "Serra Angel")).toHaveLength(1);
+    // Not enough (Opt, 1): refused.
+    const t = start();
+    expect(() =>
+      cast(
+        t,
+        "p1",
+        "Urgent Necropsy",
+        { a: [], c: [idOf(t, "p2", "battlefield", "Serra Angel")], e: [], w: [] },
+        { picks: { evidence: [idOf(t, "p1", "graveyard", "Opt")] } },
+      ),
+    ).toThrow(RulesError);
+  });
+
   it("Niv-Mizzet, Guildpact: X = different color pairs among your exactly two-colored permanents", () => {
     const t = scenario({ p1: { battlefield: ["Tin Street Gossip", "Agrus Kos, Spirit of Justice", "Bear Cub"] } });
     const ctx = {

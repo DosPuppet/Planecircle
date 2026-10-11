@@ -8,6 +8,7 @@ import {
   canForage,
   createTokenCopy,
   forage,
+  forageOptions,
   payLife as payLife_,
   removeFromCombat,
   sacrifice as sacrificePermanent,
@@ -18,6 +19,7 @@ import { counterLabel } from "./counterLabels";
 import {
   announceDiscard,
   announceDiscardBatch,
+  cardRefOf,
   concreteSpec,
   evalAmount,
   GRANTOR_KEY,
@@ -327,13 +329,18 @@ function exilePermission(s: GameState, player: PlayerId, card: ObjectId) {
   );
 }
 
-/** Muldrotha: permanent type still available to play this card from the graveyard this turn. */
+/** Muldrotha: permanent type still available to play this card from the graveyard this turn (the first one). */
 function graveyardTypeAvailable(s: GameState, player: PlayerId, card: ObjectId): string | null {
-  if (s.turn.active !== player) return null;
-  if (!controlledAbilities(s, player).some((ab) => ab.kind === "castPermission" && ab.graveyardPermanentTypes)) return null;
+  return graveyardTypesFree(s, player, card)[0] ?? null;
+}
+
+/** Muldrotha: the card's permanent types still available from the graveyard this turn, in the order of its type line. */
+function graveyardTypesFree(s: GameState, player: PlayerId, card: ObjectId): string[] {
+  if (s.turn.active !== player) return [];
+  if (!controlledAbilities(s, player).some((ab) => ab.kind === "castPermission" && ab.graveyardPermanentTypes)) return [];
   const d = s.defs[obj(s, card).defId];
   const used = s.turn.graveyardTypesUsed ?? [];
-  return d?.types.find((t) => PERMANENT_TYPES.includes(t) && !used.includes(t)) ?? null;
+  return d?.types.filter((t) => PERMANENT_TYPES.includes(t) && !used.includes(t)) ?? [];
 }
 
 export function canPlayLand(s: GameState, player: PlayerId, card: ObjectId): boolean {
@@ -845,67 +852,127 @@ export function harmonizeOptions(
 
 /** Total cost of a spell: base, flashback or alternative cost (or nothing), X, kicker, reductions. */
 /**
- * What an alternative cost pays on top (Force of Will, Daze): the cards exiled from the hand (cheapest first) and the
- * returned permanent (a tapped one first), chosen automatically; `null` if it is impossible.
+ * What an alternative cost pays on top (Force of Will, Daze, the Flares, emerge), as cost slots (PLAN-M M6): the cards
+ * exiled from the hand (suggestion: the cheapest first), the returned permanent (a tapped one first), the sacrificed
+ * permanents (emerge: the greatest mana value, hence the biggest reduction; otherwise the lowest); `null` if it is
+ * impossible. Every slot is `when: "alternative"`.
  */
-export function altCostPayment(
-  s: GameState,
-  player: PlayerId,
-  card: ObjectId,
-  pay: AltCostPay,
-): { exile: ObjectId[]; bounce?: ObjectId; sacrifice?: ObjectId[] } | null {
+export function altCostPicks(s: GameState, player: PlayerId, card: ObjectId, pay: AltCostPay): CostPick[] | null {
   const pl = s.players[player];
   if (!pl || (pay.life !== undefined && payableLife(s, player) < pay.life)) return null;
-  let exile: ObjectId[] = [];
+  const out: CostPick[] = [];
   if (pay.exileFromHand) {
     const f = pay.exileFromHand;
     const cards = pl.hand
       .filter((id) => id !== card && matchesCard(s, player, id, f.filter))
       .sort((a, b) => manaValue(s.defs[obj(s, a).defId]?.manaCost) - manaValue(s.defs[obj(s, b).defId]?.manaCost));
     if (cards.length < f.count) return null;
-    exile = cards.slice(0, f.count);
+    out.push({
+      slot: "handExile",
+      label: msg("Alternative cost: exile {n} card(s) from your hand", { n: f.count }),
+      count: f.count,
+      options: cards,
+      suggested: cards.slice(0, f.count),
+      when: "alternative",
+    });
   }
-  let bounce: ObjectId | undefined;
   if (pay.bounce) {
     const options = s.battlefield
       .filter((id) => obj(s, id).controller === player && matchesObjectFilter(s, player, id, pay.bounce as ObjectFilter))
       .sort((a, b) => Number(obj(s, b).tapped) - Number(obj(s, a).tapped));
     if (options.length === 0) return null;
-    bounce = options[0];
+    out.push({
+      slot: "altReturn",
+      label: msg("Alternative cost: the permanent to return to its owner's hand"),
+      count: 1,
+      options,
+      suggested: options.slice(0, 1),
+      when: "alternative",
+    });
   }
-  const sacrifice = pay.sacrificeReduce
-    ? emergeVictims(s, player, pay.sacrificeReduce)
+  const sac = pay.sacrificeReduce
+    ? { filter: pay.sacrificeReduce, count: 1, order: "greatest" as const }
     : pay.sacrifice
-      ? emergeVictims(s, player, pay.sacrifice.filter, "lowest", pay.sacrifice.count)
+      ? { ...pay.sacrifice, order: "lowest" as const }
       : undefined;
-  if ((pay.sacrificeReduce || pay.sacrifice) && !sacrifice) return null;
+  if (sac) {
+    const options = emergeCandidates(s, player, sac.filter, sac.order);
+    if (options.length < sac.count) return null;
+    out.push({
+      slot: "altSacrifice",
+      label: pay.sacrificeReduce
+        ? msg("Emerge: the creature to sacrifice (the cost is reduced by its mana value)")
+        : msg("Alternative cost: sacrifice {n} permanent(s)", { n: sac.count }),
+      count: sac.count,
+      options,
+      suggested: options.slice(0, sac.count),
+      when: "alternative",
+    });
+  }
+  return out;
+}
+
+/**
+ * What an alternative cost pays on top (Force of Will, Daze): the objects chosen by the player (`picks`, checked),
+ * otherwise the suggestions of `altCostPicks`; `null` if it is impossible.
+ */
+export function altCostPayment(
+  s: GameState,
+  player: PlayerId,
+  card: ObjectId,
+  pay: AltCostPay,
+  picks?: CastChoices["picks"],
+): { exile: ObjectId[]; bounce?: ObjectId; sacrifice?: ObjectId[] } | null {
+  const slots = altCostPicks(s, player, card, pay);
+  if (!slots) return null;
+  const chosen = (slot: CostSlot) => {
+    const p = slots.find((x) => x.slot === slot);
+    return p ? resolvePick(s, p, picks?.[slot]) : undefined;
+  };
+  const exile = chosen("handExile") ?? [];
+  const bounce = chosen("altReturn")?.[0];
+  const sacrifice = chosen("altSacrifice");
   return { exile, ...(bounce ? { bounce } : {}), ...(sacrifice ? { sacrifice } : {}) };
 }
 
 /** Emerge (702.119): the sacrificed permanent, chosen automatically (the greatest mana value, hence the biggest reduction). */
-/** `lowest`: the lowest mana value instead (a sacrifice that reduces nothing: the Flares). */
-function emergeVictim(
-  s: GameState,
-  player: PlayerId,
-  f: ObjectFilter,
-  order: "greatest" | "lowest" = "greatest",
-): ObjectId | undefined {
-  return emergeVictims(s, player, f, order)?.[0];
+function emergeVictim(s: GameState, player: PlayerId, f: ObjectFilter): ObjectId | undefined {
+  return emergeCandidates(s, player, f, "greatest")[0];
 }
 
-/** The `count` permanents sacrificed in that order (Demon of Death's Gate: three black creatures), if there are enough. */
-function emergeVictims(
-  s: GameState,
-  player: PlayerId,
-  f: ObjectFilter,
-  order: "greatest" | "lowest" = "greatest",
-  count = 1,
-): ObjectId[] | undefined {
+/** Total mana value of the targeted permanents (Urgent Necropsy's evidence). */
+function targetsManaValue(s: GameState, targets: ObjectId[]): number {
+  return targets.reduce((n, id) => n + (s.objects[id]?.zone === "battlefield" ? (snapshot(s, id).manaValue ?? 0) : 0), 0);
+}
+
+/**
+ * Forage (701.61) as a cost: three cards from the graveyard or a Food (`oneOf`); suggestion: the automatic choice
+ * (`forageOptions`). Null if it is impossible. `except`: the spell cast from the graveyard.
+ */
+function foragePick(s: GameState, player: PlayerId, except?: ObjectId, when?: CostPick["when"]): CostPick | null {
+  const f = forageOptions(s, player, except);
+  if (!f.suggested) return null;
+  const graveyard = f.graveyard.length >= 3 ? f.graveyard : [];
+  return {
+    slot: "forage",
+    label: msg("Forage: exile three cards from your graveyard or sacrifice a Food"),
+    count: f.suggested.length,
+    options: [...graveyard, ...f.foods],
+    suggested: f.suggested,
+    oneOf: [
+      ...(graveyard.length ? [{ count: 3, options: graveyard }] : []),
+      ...(f.foods.length ? [{ count: 1, options: f.foods }] : []),
+    ],
+    ...(when ? { when } : {}),
+  };
+}
+
+/** The permanents that can be sacrificed for an alternative cost, in the order of the default choice. */
+function emergeCandidates(s: GameState, player: PlayerId, f: ObjectFilter, order: "greatest" | "lowest"): ObjectId[] {
   const mv = (id: ObjectId) => snapshot(s, id).manaValue ?? 0;
-  const all = s.battlefield
+  return s.battlefield
     .filter((id) => obj(s, id).controller === player && matchesObjectFilter(s, player, id, f))
     .sort((a, b) => (order === "greatest" ? mv(b) - mv(a) : mv(a) - mv(b)));
-  return all.length >= count ? all.slice(0, count) : undefined;
 }
 
 /** A mana cost paid N times (replicate, cumulative upkeep). */
@@ -953,12 +1020,14 @@ export function spellCost(
     card?: ObjectId;
     /** Behold done (additional cost `behold`); absent: done if possible. */
     beheld?: boolean;
+    /** Emerge: the sacrificed permanent (`altSacrifice`); absent: the default choice. */
+    victim?: ObjectId;
   },
 ): ManaCost {
   const empty: ManaCost = { generic: 0, colored: {}, x: 0 };
   const alt = opts.alternative ? altCostFor(s, player, d) : undefined;
   // Emerge: the alternative cost is reduced by the mana value of the sacrificed permanent.
-  const victim = alt?.pay?.sacrificeReduce ? emergeVictim(s, player, alt.pay.sacrificeReduce) : undefined;
+  const victim = alt?.pay?.sacrificeReduce ? (opts.victim ?? emergeVictim(s, player, alt.pay.sacrificeReduce)) : undefined;
   const altMana =
     alt && victim ? { ...alt.mana, generic: Math.max(0, alt.mana.generic - (snapshot(s, victim).manaValue ?? 0)) } : alt?.mana;
   const base = opts.free
@@ -1163,12 +1232,51 @@ function reductionContext(s: GameState, controller: PlayerId, sourceId: string, 
  * offered and the activation agree.
  */
 export function abilityAsPaid(s: GameState, player: PlayerId, source: ObjectId, ab: ActivatedAbilityDef): ActivatedAbilityDef {
-  const free = playerStatics(s, player, "abilityCost").some(({ id, ab: x }) => {
+  return freeCostGiver(s, player, source, ab) ? { ...ab, cost: { mana: { generic: 0, colored: {}, x: 0 } } } : ab;
+}
+
+/** The modifier that lets this ability be paid with {0} (Kíli the Resourceful), with its source, if one applies. */
+function freeCostGiver(s: GameState, player: PlayerId, source: ObjectId, ab: ActivatedAbilityDef): { id?: ObjectId } | undefined {
+  return playerStatics(s, player, "abilityCost").find(({ id, ab: x }) => {
     const m = x.abilityCost;
     if (!m?.free || (m.ability && !isAbilityKind(ab, m.ability)) || (m.notSelf && id === source)) return false;
     return !m.source || matchesObjectFilter(s, player, source, m.source);
   });
-  return free ? { ...ab, cost: { mana: { generic: 0, colored: {}, x: 0 } } } : ab;
+}
+
+/**
+ * Kíli the Resourceful (PLAN-M M6): "you may pay {0} rather than pay the equip cost" — the choice between {0} (`free`,
+ * the suggestion) and the printed cost (`printed`), a payment detail (`autoOk`). Offered only when the printed cost is
+ * mana alone and payable for each offered target (`targets`: the legal targets "t", when the cost depends on it).
+ */
+export function freeCostPick(
+  s: GameState,
+  player: PlayerId,
+  source: ObjectId,
+  printed: ActivatedAbilityDef,
+  index: number,
+  targets?: ObjectId[],
+): CostPick | undefined {
+  const giver = freeCostGiver(s, player, source, printed);
+  const mana = printed.cost.mana;
+  if (!giver || !mana || mana.x) return undefined;
+  if (Object.entries(printed.cost).some(([k, v]) => k !== "mana" && v !== undefined)) return undefined;
+  if (!canPayNonManaCost(s, source, printed, index)) return undefined;
+  const payable = (t: ObjectId | "best") =>
+    canPay(s, player, abilityManaCost(s, player, source, printed, t), undefined, abilityPurpose(source, printed));
+  if (costDependsOnTarget(printed) ? !targets?.length || !targets.every(payable) : !payable("best")) return undefined;
+  const cost = costToText(mana);
+  return {
+    slot: "freeCost",
+    label: giver.id
+      ? msg("{card}: pay {free} rather than pay the cost ({cost})?", { card: cardRefOf(s, giver.id), free: "{0}", cost })
+      : msg("Pay {free} rather than pay the cost ({cost})?", { free: "{0}", cost }),
+    count: 1,
+    options: ["free", "printed"],
+    labels: { free: msg("Pay {cost}", { cost: "{0}" }), printed: msg("Pay {cost}", { cost }) },
+    suggested: ["free"],
+    autoOk: true,
+  };
 }
 
 /**
@@ -1373,10 +1481,7 @@ function onceAvailable(s: GameState, o: GameObject, ab: ActivatedAbilityDef, ind
  * or null if it is impossible.
  */
 export function symbolCards(s: GameState, player: PlayerId, req: { color: ManaType; n: number }): ObjectId[] | null {
-  const symbols = (id: ObjectId) => {
-    const c = s.defs[s.objects[id]?.defId ?? ""]?.manaCost;
-    return c ? (c.colored[req.color] ?? 0) + (c.hybrid ?? []).filter((h) => h.includes(req.color)).length : 0;
-  };
+  const symbols = (id: ObjectId) => colorSymbols(s, id, req.color);
   const pool = (s.players[player]?.graveyard ?? [])
     .filter((id) => s.defs[s.objects[id]?.defId ?? ""]?.colors.includes(req.color as Color))
     .sort((a, b) => symbols(b) - symbols(a));
@@ -1388,6 +1493,12 @@ export function symbolCards(s: GameState, player: PlayerId, req: { color: ManaTy
     total += symbols(id);
   }
   return total >= req.n ? out : null;
+}
+
+/** Mana symbols of a color in a card's mana cost (hybrid symbols included). */
+function colorSymbols(s: GameState, id: ObjectId, color: ManaType): number {
+  const c = s.defs[s.objects[id]?.defId ?? ""]?.manaCost;
+  return c ? (c.colored[color] ?? 0) + (c.hybrid ?? []).filter((h) => h.includes(color)).length : 0;
 }
 
 /** Elvish Refueler: during your turn, as long as no exhaust ability has been activated this turn. */
@@ -1750,23 +1861,36 @@ function countersAmongPick(s: GameState, player: PlayerId, n: number): CostPick 
   const options = s.battlefield
     .filter((id) => obj(s, id).controller === player && isCreature(s, id) && countersOf(s, id) > 0)
     .sort((a, b) => countersOf(s, b) - countersOf(s, a));
+  const kinds = counterKindOptions(s, options);
   return {
     slot: "counterFrom",
     label: msg("Remove {n} counter(s) from among creatures you control", { n }),
     count: n,
-    options,
+    options: [...options, ...kinds.options],
     suggested: options.flatMap((id) => Array<ObjectId>(countersOf(s, id)).fill(id)).slice(0, n),
-    repeat: Object.fromEntries(options.map((id) => [id, countersOf(s, id)])),
+    repeat: { ...Object.fromEntries(options.map((id) => [id, countersOf(s, id)])), ...kinds.repeat },
+    ...(kinds.options.length ? { labels: kinds.labels } : {}),
   };
 }
 
-/** Removes one counter per occurrence of each chosen creature; its kind: −1/−1 first, +1/+1 last. */
+/**
+ * Removes one counter per occurrence of each chosen creature: of the chosen kind (`id:kind`), otherwise of the default
+ * kind among the remaining counters (−1/−1 first, +1/+1 last).
+ */
 function removeCountersFromEach(s: GameState, from: ObjectId[]): void {
-  const times = new Map<ObjectId, number>();
-  for (const id of from) times.set(id, (times.get(id) ?? 0) + 1);
-  for (const [id, n] of times) {
+  const byObject = new Map<ObjectId, { kinds: string[]; n: number }>();
+  for (const entry of from) {
+    const { id, kind } = counterEntry(entry);
+    const e = byObject.get(id) ?? { kinds: [], n: 0 };
+    if (kind) e.kinds.push(kind);
+    else e.n++;
+    byObject.set(id, e);
+  }
+  for (const [id, e] of byObject) {
     const o = obj(s, id);
-    const kinds = anyCountersDefault(o, n);
+    const rest = { ...o.counters };
+    for (const k of e.kinds) rest[k] = (rest[k] ?? 0) - 1;
+    const kinds = [...e.kinds, ...anyCountersDefault(rest, e.n)];
     for (const kind of new Set(kinds)) changeCounters(s, o, kind, -kinds.filter((k) => k === kind).length);
   }
 }
@@ -2203,15 +2327,15 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
   const evidence =
     kicked && d.kicker?.pay?.collectEvidence ? spellPickNow(s, player, card, d, x, "evidence", "kicked", choices) : undefined;
   if (evidence === null) throw new RulesError(msg("Not enough evidence to collect in your graveyard"));
-  // Urgent Necropsy: "collect evidence X, where X is the total mana value of the target permanents".
-  const targetEvidenceX = d.additionalCost?.collectEvidenceTargetsManaValue
-    ? flatTargets(targets).reduce(
-        (n, id) => n + (s.objects[id]?.zone === "battlefield" ? (snapshot(s, id).manaValue ?? 0) : 0),
-        0,
-      )
-    : 0;
-  const targetEvidence = targetEvidenceX > 0 ? evidenceCards(s, player, card, targetEvidenceX) : undefined;
-  if (targetEvidence === null) throw new RulesError(msg("Not enough evidence to collect in your graveyard"));
+  // Urgent Necropsy: "collect evidence X, where X is the total mana value of the target permanents" (the chosen cards,
+  // otherwise the engine's choice).
+  const targetEvidenceX = d.additionalCost?.collectEvidenceTargetsManaValue ? targetsManaValue(s, flatTargets(targets)) : 0;
+  const targetEvidencePick =
+    targetEvidenceX > 0
+      ? spellPicks(s, player, card, d, x, {}, flatTargets(targets)).find((p) => p.slot === "evidence" && !p.when)
+      : undefined;
+  if (targetEvidenceX > 0 && !targetEvidencePick) throw new RulesError(msg("Not enough evidence to collect in your graveyard"));
+  const targetEvidence = targetEvidencePick ? resolvePick(s, targetEvidencePick, choices.picks?.evidence) : undefined;
   const gyExile =
     kicked && d.kicker?.pay?.exileGraveyard
       ? spellPickNow(s, player, card, d, x, "graveyardExile", "kicked", choices)
@@ -2266,6 +2390,8 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
     targets,
     fromZone: terms.source,
     card,
+    // Emerge: the chosen victim reduces the cost (checked when the alternative cost is paid).
+    victim: alternative ? choices.picks?.altSacrifice?.[0] : undefined,
   });
   // Terror of the Peaks: "spells your opponents cast that target this creature cost an additional 3 life".
   const lifeTax = flatTargets(targets).reduce((n, id) => {
@@ -2303,8 +2429,13 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
   const countersFrom = terms.removeCounters
     ? resolvePick(s, countersAmongPick(s, player, terms.removeCounters), choices.picks?.counterFrom)
     : undefined;
+  // Muldrotha: the permanent type used (chosen among those still free, otherwise the first one).
+  const typePick = terms.graveyardType
+    ? spellPicks(s, player, card, d, x, { graveyardType: terms.graveyardType }).find((p) => p.slot === "permanentType")
+    : undefined;
+  const graveyardType = typePick ? resolvePick(s, typePick, choices.picks?.permanentType)[0] : terms.graveyardType;
   // 601.2a: the spell moves to the stack (new object), then the costs are paid (601.2g–h).
-  if (terms.graveyardType) s.turn.graveyardTypesUsed = [...(s.turn.graveyardTypesUsed ?? []), terms.graveyardType];
+  if (graveyardType) s.turn.graveyardTypesUsed = [...(s.turn.graveyardTypesUsed ?? []), graveyardType];
   // The Tomb of Aclazotz: the one-shot permission is consumed.
   const once = terms.playFrom && s.playerEffects.find((e) => e.once && e.ability.playFrom === terms.playFrom);
   if (once) s.playerEffects = s.playerEffects.filter((e) => e !== once);
@@ -2319,9 +2450,12 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
   const group = exilePermission(s, player, card)?.group;
   if (group) s.playPermissions = (s.playPermissions ?? []).filter((p) => p.group !== group);
   const stackId = moveObject(s, card, "stack", { controller: player }) as string;
-  // Forage as a cost (Osteomancer Adept, or Feed the Cycle's alternative cost): the card has left the graveyard.
-  if ((terms.forage || (alternative && altCostFor(s, player, d)?.forage)) && !forage(s, player))
-    throw new RulesError(msg("Can't forage"));
+  // Forage as a cost (Osteomancer Adept, or Feed the Cycle's alternative cost): the card has left the graveyard. The
+  // objects chosen by the player (`forage`), otherwise the automatic choice.
+  if (terms.forage || (alternative && altCostFor(s, player, d)?.forage)) {
+    const f = foragePick(s, player);
+    if (!f || !forage(s, player, resolvePick(s, f, choices.picks?.forage))) throw new RulesError(msg("Can't forage"));
+  }
   // Granted escape (Underworld Breach): N other cards from the graveyard exiled in addition.
   const escapeN = terms.playFrom?.exileOthers;
   if (escapeN) {
@@ -2332,7 +2466,7 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
   // Force of Will, Daze: life, cards exiled from the hand, returned permanent, paid with the alternative cost.
   const altPay = alternative ? altCostFor(s, player, d)?.pay : undefined;
   if (altPay) {
-    const paid = altCostPayment(s, player, stackId, altPay);
+    const paid = altCostPayment(s, player, stackId, altPay, choices.picks);
     if (!paid) throw new RulesError(msg("Can't pay this alternative cost"));
     if (altPay.life) payLife_(s, player, altPay.life);
     for (const id of paid.exile) moveObject(s, id, "exile");
@@ -2369,9 +2503,15 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
   const sneaked = (alternative && castOption(d, "alternative")?.via === "sneak") || !!terms.sneakGranted;
   let sneakDefender: string | undefined;
   if (sneaked) {
-    // The returned unblocked attacker: by choice (`bounce`), the weakest by default.
+    // The returned unblocked attacker: by choice (`bounce`; `returnAttacker` for a granted sneak), the weakest by
+    // default.
     const options = sneakOptions(s, player);
-    const back = choices.bounce?.length ? choices.bounce[0] : options[0];
+    const picked = terms.sneakGranted ? choices.picks?.returnAttacker : undefined;
+    if (picked && (picked.length !== 1 || !options.includes(picked[0] as ObjectId)))
+      throw new RulesError(
+        msg("Invalid choice: {label}", { label: msg("Sneak: the unblocked attacker to return to its owner's hand") }),
+      );
+    const back = picked?.[0] ?? (choices.bounce?.length ? choices.bounce[0] : options[0]);
     if (!back || !options.includes(back) || (choices.bounce?.length ?? 1) !== 1)
       throw new RulesError(msg("No unblocked attacker"));
     sneakDefender = s.combat?.attackers.find((a) => a.id === back)?.defender;
@@ -3010,12 +3150,12 @@ function countersFor(o: GameObject, kind: string): number {
 }
 
 /** N counters of any kind, default choice: −1/−1 first, +1/+1 last (one kind per counter). */
-function anyCountersDefault(o: GameObject, n: number): string[] {
-  const kinds = Object.keys(o.counters).sort(
+function anyCountersDefault(counters: GameObject["counters"], n: number): string[] {
+  const kinds = Object.keys(counters).sort(
     (a, b) => Number(b === "-1/-1") - Number(a === "-1/-1") || Number(a === "+1/+1") - Number(b === "+1/+1"),
   );
   const out: string[] = [];
-  for (const k of kinds) for (let i = 0; i < (o.counters[k] ?? 0) && out.length < n; i++) out.push(k);
+  for (const k of kinds) for (let i = 0; i < (counters[k] ?? 0) && out.length < n; i++) out.push(k);
   return out;
 }
 
@@ -3217,7 +3357,7 @@ export function activationPicks(
         labels: Object.fromEntries(
           kinds.map((k) => [k, msg("{counter} counter ({n})", { counter: counterLabel(k), n: self.counters[k] ?? 0 })]),
         ),
-        suggested: anyCountersDefault(self, fc.removeCounters.n),
+        suggested: anyCountersDefault(self.counters, fc.removeCounters.n),
         repeat: Object.fromEntries(kinds.map((k) => [k, self.counters[k] ?? 0])),
       });
   }
@@ -3227,6 +3367,8 @@ export function activationPicks(
       (id) => mine(id) && countersFor(obj(s, id), r.kind) > 0 && matchesObjectFilter(s, player, id, r.filter, source),
     );
     const suggested = counterSources(s, player, source, ab);
+    // "Remove a counter" of any kind (Scholar of New Horizons, O'aka): the kind can be chosen too (`id:kind`).
+    const kinds = r.kind === "any" ? counterKindOptions(s, options) : undefined;
     if (suggested)
       out.push({
         slot: "counterFrom",
@@ -3235,9 +3377,13 @@ export function activationPicks(
             ? msg("Remove {n} counter(s)", { n: r.n ?? 1 })
             : msg("Remove {n} {kind} counter(s)", { n: r.n ?? 1, kind: r.kind }),
         count: r.n ?? 1,
-        options,
+        options: [...options, ...(kinds?.options ?? [])],
         suggested,
-        repeat: Object.fromEntries(options.map((id) => [id, countersFor(obj(s, id), r.kind)])),
+        repeat: {
+          ...Object.fromEntries(options.map((id) => [id, countersFor(obj(s, id), r.kind)])),
+          ...kinds?.repeat,
+        },
+        ...(kinds?.options.length ? { labels: kinds.labels } : {}),
       });
   }
   if (fc.exileFromGraveyard) {
@@ -3296,6 +3442,43 @@ export function activationPicks(
       });
   }
   if (c.tapToPay) out.push(...manaHelperPicks(s, player, source, { [c.tapToPay]: true }));
+  // Gix, Yawgmoth Praetor: "discard X cards" (by default, the first ones in the hand).
+  if (xc.discard) {
+    const options = discardCostOptions(s, player, source, undefined);
+    out.push({
+      slot: "discardX",
+      label: msg("Discard X cards"),
+      count: x ?? 0,
+      countIsX: x === undefined,
+      options,
+      suggested: options.slice(0, x ?? 0),
+    });
+  }
+  // Baron Helmut Zemo: black cards from the graveyard with N or more black mana symbols among their mana costs.
+  if (c.exileGraveyardSymbols) {
+    const req = c.exileGraveyardSymbols;
+    const suggested = symbolCards(s, player, req);
+    const options = (s.players[player]?.graveyard ?? []).filter((id) =>
+      s.defs[s.objects[id]?.defId ?? ""]?.colors.includes(req.color as Color),
+    );
+    if (suggested)
+      out.push({
+        slot: "symbolExile",
+        label: msg("Exile cards from your graveyard with {n} or more {mana} symbols among their mana costs", {
+          n: req.n,
+          mana: `{${req.color}}`,
+        }),
+        count: suggested.length,
+        options,
+        suggested,
+        minTotal: { n: req.n, values: Object.fromEntries(options.map((id) => [id, colorSymbols(s, id, req.color)])) },
+      });
+  }
+  // Forage as a cost (701.61): three cards from the graveyard or a Food.
+  if (c.forage) {
+    const f = foragePick(s, player);
+    if (f) out.push(f);
+  }
   if (c.collectEvidence) {
     const options = (s.players[player]?.graveyard ?? []).filter((id) => id !== source);
     const suggested = evidenceCards(s, player, source, c.collectEvidence);
@@ -3312,9 +3495,14 @@ export function activationPicks(
   return out;
 }
 
+/** What the casting terms add to a spell's cost slots (`spellPicks`). */
+export type PickTerms = Partial<Pick<CastTerms, "source" | "removeCounters" | "sneakGranted" | "forage" | "graveyardType">>;
+
 /**
- * Costs of a spell paid with objects to choose: evidence (kicker, alternative cost), exiling cards from the graveyard
- * (kicker), blight X. `x` absent (`legalActions`): the blight X suggestion assumes X = 1.
+ * Costs of a spell paid with objects to choose: evidence (kicker, alternative cost, the targets' mana value), exiling
+ * cards from the graveyard (kicker), blight X, what the alternative cost pays on top, forage, the attacker returned by
+ * a granted sneak, Muldrotha's type. `x` absent (`legalActions`): the blight X suggestion assumes X = 1. `targets`
+ * absent (`legalActions`): Urgent Necropsy's evidence reads the targets' mana values (`minTotal.fromTargets`).
  */
 export function spellPicks(
   s: GameState,
@@ -3322,12 +3510,78 @@ export function spellPicks(
   card: ObjectId,
   d: CardDef,
   x?: number,
-  flashback = false,
-  /** Counters to remove from among your creatures to cast it from here (`CastTerms.removeCounters`). */
-  removeCounters?: number,
+  terms: PickTerms = {},
+  targets?: ObjectId[],
 ): CostPick[] {
+  const flashback = terms.source === "flashback";
   const out: CostPick[] = additionalPicks(s, player, card, d, flashback);
-  if (removeCounters) out.push(countersAmongPick(s, player, removeCounters));
+  // Counters to remove from among your creatures to cast it from here (`CastTerms.removeCounters`).
+  if (terms.removeCounters) out.push(countersAmongPick(s, player, terms.removeCounters));
+  // Granted sneak (Ninja Teen): the unblocked attacker returned to hand (the weakest by default).
+  if (terms.sneakGranted) {
+    const options = sneakOptions(s, player);
+    if (options.length)
+      out.push({
+        slot: "returnAttacker",
+        label: msg("Sneak: the unblocked attacker to return to its owner's hand"),
+        count: 1,
+        options,
+        suggested: options.slice(0, 1),
+      });
+  }
+  // Muldrotha: the permanent type a card with several uses (the first one still free by default).
+  if (terms.graveyardType) {
+    const types = graveyardTypesFree(s, player, card).filter((t) => t !== "Land");
+    if (types.length)
+      out.push({
+        slot: "permanentType",
+        label: msg("The permanent type used to cast it from your graveyard"),
+        count: 1,
+        options: types,
+        labels: Object.fromEntries(types.map((t) => [t, t])),
+        suggested: [terms.graveyardType],
+      });
+  }
+  // Forage as a cost: from the graveyard (Osteomancer Adept), or as the alternative cost (Feed the Cycle).
+  if (terms.forage) {
+    const f = foragePick(s, player, card);
+    if (f) out.push(f);
+  }
+  const alt = altCostFor(s, player, d);
+  if (alt?.forage) {
+    const f = foragePick(s, player, card, "alternative");
+    if (f) out.push(f);
+  }
+  // Force of Will, Daze, the Flares, emerge: what the alternative cost pays on top.
+  if (alt?.pay) out.push(...(altCostPicks(s, player, card, alt.pay) ?? []));
+  // Urgent Necropsy: "collect evidence X, where X is the total mana value of the permanents this spell targets".
+  if (d.additionalCost?.collectEvidenceTargetsManaValue) {
+    const graveyard = (s.players[player]?.graveyard ?? []).filter((id) => id !== card);
+    const values = Object.fromEntries(graveyard.map((id) => [id, manaValueOf(s, id)]));
+    const n = targets ? targetsManaValue(s, targets) : 0;
+    const suggested = targets ? evidenceCards(s, player, card, n) : [];
+    if (suggested && graveyard.length)
+      out.push({
+        slot: "evidence",
+        label: targets
+          ? msg("Collect evidence {n} (total mana value {n} or greater)", { n })
+          : msg("Collect evidence X (X: the total mana value of the targets)"),
+        count: suggested.length,
+        options: graveyard,
+        suggested,
+        minTotal: {
+          n,
+          values,
+          ...(targets
+            ? {}
+            : {
+                fromTargets: Object.fromEntries(
+                  s.battlefield.map((id) => [id, snapshot(s, id).manaValue ?? 0] as const).filter(([, v]) => v > 0),
+                ),
+              }),
+        },
+      });
+  }
   // Behold: a permanent or a card from the hand (or `count` of them), or nothing ("you may", or pay the extra cost).
   const behold = additionalCostOf(d, flashback)?.behold;
   if (behold) {
@@ -3507,11 +3761,33 @@ function spellPickNow(
   return resolvePick(s, pick, choices.picks?.[slot]);
 }
 
+/**
+ * Does the slot leave the player a choice (PLAN-M M6: a question is never asked with a single possible answer)? With
+ * a minimum total, the answer is forced when every option is needed to reach it.
+ */
+export function pickHasChoice(p: CostPick): boolean {
+  if (p.minTotal) {
+    const m = p.minTotal;
+    if (m.fromTargets) return p.options.length > 0;
+    const total = p.options.reduce((n, id) => n + (m.values[id] ?? 0), 0);
+    return p.options.some((id) => total - (m.values[id] ?? 0) >= m.n);
+  }
+  return p.options.length > p.count || (!!p.repeat && p.options.length > 1);
+}
+
 /** Objects chosen for a cost: the player's if they are valid (otherwise `RulesError`), failing that the suggestion. */
 export function resolvePick(s: GameState, pick: CostPick, chosen: ObjectId[] | undefined): ObjectId[] {
   if (chosen === undefined) return pick.suggested;
   if (chosen.some((id) => !pick.options.includes(id)))
     throw new RulesError(msg("Invalid choice: {label}", { label: pick.label }));
+  // Forage: exactly one of the groups (three cards from the graveyard, or a Food).
+  if (pick.oneOf) {
+    const ok =
+      new Set(chosen).size === chosen.length &&
+      pick.oneOf.some((g) => chosen.length === g.count && chosen.every((id) => g.options.includes(id)));
+    if (!ok) throw new RulesError(msg("Invalid choice: {label}", { label: pick.label }));
+    return chosen;
+  }
   if (pick.atMost) {
     if (new Set(chosen).size !== chosen.length || chosen.length > pick.count)
       throw new RulesError(msg("Invalid choice: {label}", { label: pick.label }));
@@ -3529,8 +3805,51 @@ export function resolvePick(s: GameState, pick: CostPick, chosen: ObjectId[] | u
   for (const id of chosen) times.set(id, (times.get(id) ?? 0) + 1);
   for (const [id, n] of times)
     if (n > (pick.repeat?.[id] ?? 1)) throw new RulesError(msg("Invalid choice: {label}", { label: pick.label }));
+  // Counters of a chosen kind (`id:kind`): with the counters of the default kind (`id`), no more than the object has.
+  if (pick.repeat && chosen.some((id) => id.includes(":"))) {
+    const perObject = new Map<ObjectId, number>();
+    for (const id of chosen) perObject.set(counterEntry(id).id, (perObject.get(counterEntry(id).id) ?? 0) + 1);
+    for (const [id, n] of perObject)
+      if (n > (pick.repeat[id] ?? 0)) throw new RulesError(msg("Invalid choice: {label}", { label: pick.label }));
+  }
   void s;
   return chosen;
+}
+
+/** A counter removed from an object, as chosen: `id` (the default kind) or `id:kind`. */
+function counterEntry(entry: string): { id: ObjectId; kind?: string } {
+  const i = entry.indexOf(":");
+  return i < 0 ? { id: entry } : { id: entry.slice(0, i), kind: entry.slice(i + 1) };
+}
+
+/**
+ * "Remove a counter from among…" with the kind of each counter offered (PLAN-M M6): an `id:kind` option for each kind
+ * of counter on each object that carries two kinds or more (a bare `id` removes the default kind). Their labels cite
+ * the card.
+ */
+function counterKindOptions(
+  s: GameState,
+  ids: ObjectId[],
+): { options: ObjectId[]; labels: Record<string, string>; repeat: Record<string, number> } {
+  const options: ObjectId[] = [];
+  const labels: Record<string, string> = {};
+  const repeat: Record<string, number> = {};
+  for (const id of ids) {
+    const counters = obj(s, id).counters;
+    const kinds = Object.keys(counters).filter((k) => (counters[k] ?? 0) > 0);
+    if (kinds.length < 2) continue;
+    for (const k of kinds) {
+      const key = `${id}:${k}`;
+      options.push(key);
+      repeat[key] = counters[k] ?? 0;
+      labels[key] = msg("{card}: {counter} counter ({n})", {
+        card: cardRefOf(s, id),
+        counter: counterLabel(k),
+        n: counters[k] ?? 0,
+      });
+    }
+  }
+  return { options, labels, repeat };
 }
 
 /** The objects of an ability's cost slot, chosen when that cost is paid. */
@@ -3554,7 +3873,12 @@ function pickNow(
 export function activateAbility(s: GameState, player: PlayerId, source: ObjectId, index: number, choices: CastChoices): void {
   const o = s.objects[source];
   const printed = activatedAbility(s, source, index);
-  const ab = printed && abilityAsPaid(s, player, source, printed);
+  // Kíli the Resourceful: {0} by default, the printed cost if the player chooses it (`freeCost`).
+  const costChoice = choices.picks?.freeCost;
+  if (costChoice && (costChoice.length !== 1 || !["free", "printed"].includes(costChoice[0] as string)))
+    throw new RulesError(msg("This cost doesn't ask for this choice"));
+  const ab = printed && (costChoice?.[0] === "printed" ? printed : abilityAsPaid(s, player, source, printed));
+  if (costChoice?.[0] === "free" && ab === printed) throw new RulesError(msg("This cost doesn't ask for this choice"));
   if (!ab || !o) throw new RulesError(msg("Unknown ability"));
   const fc = fixedCost(ab.cost);
   const xc = xCosts(ab.cost);
@@ -3758,7 +4082,7 @@ export function activateAbility(s: GameState, player: PlayerId, source: ObjectId
     const n = fc.removeCounters.n;
     const kinds = pickNow(s, player, source, ab, x, "counterKind", choices);
     const byKind = new Map<string, number>();
-    for (const k of kinds.length ? kinds : anyCountersDefault(o, n)) byKind.set(k, (byKind.get(k) ?? 0) + 1);
+    for (const k of kinds.length ? kinds : anyCountersDefault(o.counters, n)) byKind.set(k, (byKind.get(k) ?? 0) + 1);
     for (const [k, m] of byKind) changeCounters(s, o, k, -m);
   } else if (fc.removeCounters) changeCounters(s, o, fc.removeCounters.kind, -fc.removeCounters.n);
   if (fc.payLife) payLife_(s, player, lifeCost(s, player, source, fc.payLife));
@@ -3785,13 +4109,16 @@ export function activateAbility(s: GameState, player: PlayerId, source: ObjectId
   const blighted = ab.cost.blight ? pick("blight")[0] : undefined;
   if (blighted && ab.cost.blight) changeCounters(s, obj(s, blighted), "-1/-1", ab.cost.blight, { asCost: true, by: player });
   // "Remove a counter from a creature you control": by default, the one that carries the most.
-  if (ab.cost.removeCounterFrom)
-    for (const id of pick("counterFrom")) {
-      // "Remove a counter" of any kind (Scholar of New Horizons): chosen by the engine, −1/−1 first, +1/+1 last.
+  if (ab.cost.removeCounterFrom) {
+    // "Remove a counter" of any kind (Scholar of New Horizons): the chosen kind (`id:kind`), otherwise the default one,
+    // −1/−1 first, +1/+1 last. The chosen kinds are removed first.
+    const entries = pick("counterFrom").map(counterEntry);
+    for (const { id, kind: chosen } of [...entries.filter((e) => e.kind), ...entries.filter((e) => !e.kind)]) {
       const k = ab.cost.removeCounterFrom.kind;
-      const kind = k === "any" ? anyCountersDefault(obj(s, id), 1)[0] : k;
+      const kind = k === "any" ? (chosen ?? anyCountersDefault(obj(s, id).counters, 1)[0]) : k;
       if (kind) changeCounters(s, obj(s, id), kind, -1, true);
     }
+  }
   // Collect evidence N as a cost (Forensic Researcher, Polygraph Orb).
   if (ab.cost.collectEvidence) {
     const exiled = collectEvidence(s, player, pick("evidence"));
@@ -3812,8 +4139,11 @@ export function activateAbility(s: GameState, player: PlayerId, source: ObjectId
     item.paid = { ...item.paid, sacrificed: chosen };
     for (const id of chosen) sacrificePermanent(s, id);
   }
-  // Forage (701.61): three cards from the graveyard or a Food (automatic choice).
-  if (ab.cost.forage && !forage(s, player)) throw new RulesError(msg("Can't forage"));
+  // Forage (701.61): three cards from the graveyard or a Food (chosen, otherwise the automatic choice).
+  if (ab.cost.forage) {
+    const chosen = pick("forage");
+    if (!chosen.length || !forage(s, player, chosen)) throw new RulesError(msg("Can't forage"));
+  }
   // Ninjutsu: an unblocked attacker returns to its owner's hand (by default, the weakest).
   if (ab.cost.returnUnblockedAttacker) {
     const weakest = pick("returnAttacker")[0];
@@ -3849,10 +4179,10 @@ export function activateAbility(s: GameState, player: PlayerId, source: ObjectId
     for (const id of chosen) announceDiscard(s, player, moveDiscarded(s, player, id));
     announceDiscardBatch(s, player, chosen.length);
   }
-  // Gix, Yawgmoth Praetor: "discard X cards" (the chosen cards, otherwise the first ones offered).
+  // Gix, Yawgmoth Praetor: "discard X cards" (the chosen cards, `discard` or `discardX`, otherwise the first ones).
   if (xc.discard && x > 0) {
     const options = discardCostOptions(s, player, source, undefined);
-    const chosen = choices.discard?.length ? choices.discard : options.slice(0, x);
+    const chosen = choices.discard?.length ? choices.discard : pick("discardX");
     if (chosen.length !== x || chosen.some((id) => !options.includes(id))) throw new RulesError(msg("Invalid discard"));
     emit({ type: "discard", player, defIds: chosen.map((id) => obj(s, id).defId) });
     for (const id of chosen) announceDiscard(s, player, moveDiscarded(s, player, id));
@@ -3876,8 +4206,8 @@ export function activateAbility(s: GameState, player: PlayerId, source: ObjectId
   }
   // Baron Helmut Zemo: the cards exiled from the graveyard, recorded for the effect ("copy those cards").
   if (ab.cost.exileGraveyardSymbols) {
-    const cards = symbolCards(s, player, ab.cost.exileGraveyardSymbols);
-    if (!cards) throw new RulesError(msg("Not enough mana symbols in your graveyard"));
+    const cards = pick("symbolExile");
+    if (!cards.length) throw new RulesError(msg("Not enough mana symbols in your graveyard"));
     item.paid = { ...item.paid, exiled: cards.map((id) => moveObject(s, id, "exile")).filter((id): id is string => !!id) };
   }
   if (ab.cost.self === "exile") moveObject(s, source, "exile");

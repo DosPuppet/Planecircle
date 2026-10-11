@@ -305,6 +305,24 @@ describe("Commander (EDH): mana base", () => {
       expect([tapped(u, "Relic of Legends"), tapped(u, "Edgar Markov")]).toEqual([true, true]);
     });
 
+    it("Relic of Legends: the player may choose the legendary creature tapped (PLAN-M M6, a payment detail)", () => {
+      let s = scenario({
+        p1: { battlefield: ["Relic of Legends", "Edgar Markov", "Gix, Yawgmoth Praetor", "Savannah Lions"] },
+      });
+      const relic = idOf(s, "p1", "battlefield", "Relic of Legends");
+      const gix = idOf(s, "p1", "battlefield", "Gix, Yawgmoth Praetor");
+      const offer = legalActions(s, "p1").find((a) => a.type === "tapForMana" && a.source === relic && a.ability === 1);
+      const pick = offer?.type === "tapForMana" ? offer.picks?.[0] : undefined;
+      expect(pick?.options).toHaveLength(2);
+      expect(pick?.suggested).toEqual([idOf(s, "p1", "battlefield", "Edgar Markov")]);
+      const lions = idOf(s, "p1", "battlefield", "Savannah Lions");
+      expect(() =>
+        act(s, "p1", { type: "tapForMana", source: relic, ability: 1, color: "R", picks: { costTap: [lions] } }),
+      ).toThrow();
+      s = act(s, "p1", { type: "tapForMana", source: relic, ability: 1, color: "R", picks: { costTap: [gix] } });
+      expect([tapped(s, "Gix, Yawgmoth Praetor"), tapped(s, "Edgar Markov")]).toEqual([true, false]);
+    });
+
     it("Reliquary Tower, Thought Vessel, Decanter of Endless Water: no maximum hand size", () => {
       for (const source of ["Reliquary Tower", "Thought Vessel", "Decanter of Endless Water"]) {
         let s = scenario({ p1: { battlefield: [source], hand: lands("Plains", 9) } });

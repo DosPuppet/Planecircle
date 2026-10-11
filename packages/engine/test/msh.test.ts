@@ -29,6 +29,7 @@ import {
   idsOf,
   lands,
   nameOf,
+  namesIn,
   passAccepting,
   passUntil,
   picking,
@@ -4686,6 +4687,38 @@ describe("lot C3: costs, hand and library", () => {
     }
     expect(s.players.p1?.graveyard).toHaveLength(0);
     expect(s.players.p2?.life).toBe(20 - 3 - 3);
+  });
+
+  it("Baron Helmut Zemo: the player chooses the black cards exiled for boast, 15 {B} symbols or more (PLAN-M M6)", () => {
+    const heavy = (name: string) =>
+      customCard({
+        name,
+        types: ["Sorcery"],
+        typeLine: "Sorcery",
+        colors: ["B"],
+        manaCost: { generic: 0, colored: { B: 5 }, x: 0 },
+        manaCostText: "{B}{B}{B}{B}{B}",
+        spell: spell([], [fx.loseLife(1, ref.eachOpponent)]),
+      });
+    let s = scenario({
+      p1: {
+        battlefield: ["Baron Helmut Zemo"],
+        graveyard: [heavy("Test Heavy A"), heavy("Test Heavy B"), heavy("Test Heavy C"), heavy("Test Heavy D")],
+      },
+    });
+    const zemo = idOf(s, "p1", "battlefield", "Baron Helmut Zemo");
+    s.objects[zemo]!.controlledSince = 0;
+    s = advanceUntil(s, (x) => x.pending?.kind === "declareAttackers");
+    s = act(s, "p1", { type: "declareAttackers", attackers: [{ id: zemo, defender: "p2" }] });
+    s = advanceUntil(s, (x) => x.turn.step === "main2" && x.pending?.kind === "priority");
+    const pick = ability(s, "p1", zemo)?.picks?.find((p) => p.slot === "symbolExile");
+    const gy = s.players.p1?.graveyard ?? [];
+    expect(pick?.suggested).toEqual(gy.slice(0, 3));
+    expect(pick?.minTotal?.n).toBe(15);
+    // Two cards (10 symbols): refused; the last three: accepted, the first stays in the graveyard.
+    expect(() => activate(s, "p1", zemo, { picks: { symbolExile: gy.slice(2) } })).toThrow();
+    s = activate(s, "p1", zemo, { picks: { symbolExile: gy.slice(1) } });
+    expect(namesIn(s, s.players.p1?.graveyard)).toEqual(["Test Heavy A"]);
   });
 
   it("Black Widow, Super Spy: the damaged player exiles up to one nonland card; without a counter, you may cast it", () => {

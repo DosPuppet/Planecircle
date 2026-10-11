@@ -232,32 +232,77 @@ function AdditionalCostPicker({
   );
 }
 
-/**
- * Objects paid as a cost (`CostPick`): blight, remove counters, exile cards from the graveyard, collect evidence,
- * sacrifice X permanents… The suggestion is the engine's choice; an object can come back for counters (`repeat`).
- */
-function CostPickPicker({ pick }: { pick: CostPick }) {
-  const view = useGame((s) => s.view);
+/** Casting: the cost slot of the "pick" stage. */
+function CastingPick({ pick }: { pick: CostPick }) {
   const choose = useGame((s) => s.choosePick);
   const cancel = useGame((s) => s.cancel);
+  return <CostPickPicker pick={pick} onChoose={(ids) => choose(pick.slot, ids)} onCancel={cancel} />;
+}
+
+/** Full control: the other permanent tapped for a mana ability's cost (Gene Pollinator, PLAN-M M6). */
+function ManaPick() {
+  const manaPick = useGame((s) => s.manaPick);
+  const choose = useGame((s) => s.chooseManaPick);
+  if (!manaPick) return null;
+  return (
+    <CostPickPicker
+      key={`${manaPick.decision.source}-${manaPick.decision.ability}`}
+      pick={manaPick.pick}
+      onChoose={(ids) => choose(ids ?? manaPick.pick.suggested)}
+      onCancel={() => choose(undefined)}
+    />
+  );
+}
+
+/** A chosen counter (`id:kind`) or object: the object it is taken from. */
+const objectOf = (option: string) => option.split(":")[0] as string;
+
+/**
+ * Objects paid as a cost (`CostPick`): blight, remove counters, exile cards from the graveyard, collect evidence,
+ * sacrifice X permanents… The suggestion is the engine's choice; an object can come back for counters (`repeat`), with
+ * a chosen kind (`id:kind`, a label citing the card); forage takes one of its groups (`oneOf`).
+ */
+function CostPickPicker({
+  pick,
+  onChoose,
+  onCancel,
+}: {
+  pick: CostPick;
+  onChoose: (ids: string[] | undefined) => void;
+  onCancel: () => void;
+}) {
+  const view = useGame((s) => s.view);
   const [picked, setPicked] = useState<string[]>([]);
   const t = useT();
   const loc = useLocalize();
   if (!view) return null;
   const all = [...view.hand, ...view.battlefield, ...Object.values(view.players).flatMap((p) => p.graveyard), ...view.exile];
   const total = pick.minTotal ? picked.reduce((n, id) => n + (pick.minTotal?.values[id] ?? 0), 0) : 0;
+  const group = pick.oneOf?.find((g) => picked.length > 0 && picked.every((id) => g.options.includes(id)));
+  // Counters: no more counters taken from an object (kinds included) than it carries.
+  const fromObject = (id: string, list: string[]) => list.filter((x) => objectOf(x) === objectOf(id)).length;
   const ready =
     pick.atMost || (pick.optional && picked.length === 0)
       ? true
-      : pick.minTotal
-        ? total >= pick.minTotal.n
-        : picked.length === pick.count;
+      : pick.oneOf
+        ? !!group && picked.length === group.count
+        : pick.minTotal
+          ? total >= pick.minTotal.n
+          : picked.length === pick.count;
   const times = (id: string) => picked.filter((x) => x === id).length;
   const toggle = (id: string) =>
     setPicked((cur) => {
+      // Forage: the objects of one group (three cards, or a Food); another group starts over.
+      if (pick.oneOf) {
+        if (cur.includes(id)) return cur.filter((x) => x !== id);
+        const g = pick.oneOf.find((x) => x.options.includes(id));
+        const same = cur.filter((x) => g?.options.includes(x));
+        return g && same.length < g.count ? [...same, id] : same;
+      }
       const max = pick.repeat?.[id] ?? 1;
+      const room = !pick.repeat || fromObject(id, cur) < (pick.repeat[objectOf(id)] ?? max);
       // Counters: each click removes one more, until there are none left, then it starts over.
-      if (pick.repeat && times(id) < max && cur.length < pick.count) return [...cur, id];
+      if (pick.repeat && times(id) < max && cur.length < pick.count && room) return [...cur, id];
       if (cur.includes(id)) return cur.filter((x) => x !== id);
       return pick.minTotal || cur.length < pick.count ? [...cur, id] : cur;
     });
@@ -265,7 +310,7 @@ function CostPickPicker({ pick }: { pick: CostPick }) {
     <Modal title={t("Cost: {label}", { label: loc(pick.label) })} wide>
       <div className="hand-picker">
         {pick.options.map((id) => {
-          // Options that are not objects (kinds of counters): one button per option.
+          // Options that are not objects (kinds of counters, types, a way to pay): one button per option.
           const label = pick.labels?.[id];
           if (label)
             return (
@@ -292,7 +337,7 @@ function CostPickPicker({ pick }: { pick: CostPick }) {
         })}
       </div>
       <div className="modal-actions">
-        <button type="button" className="btn ghost" onClick={cancel}>
+        <button type="button" className="btn ghost" onClick={onCancel}>
           {t("Cancel")}
         </button>
         <button type="button" className="btn" onClick={() => setPicked(pick.suggested)}>
@@ -303,7 +348,7 @@ function CostPickPicker({ pick }: { pick: CostPick }) {
           className="btn primary"
           disabled={!ready}
           // No object chosen for convoke (and others): the automatic payment decides.
-          onClick={() => (pick.atMost && picked.length === 0 ? choose(pick.slot, undefined) : choose(pick.slot, picked))}
+          onClick={() => (pick.atMost && picked.length === 0 ? onChoose(undefined) : onChoose(picked))}
         >
           {pick.atMost
             ? picked.length
@@ -313,7 +358,7 @@ function CostPickPicker({ pick }: { pick: CostPick }) {
               ? t("Confirm (value {n}/{min})", { n: total, min: pick.minTotal.n })
               : pick.optional && picked.length === 0
                 ? t("Choose nothing")
-                : t("Confirm ({n}/{count})", { n: picked.length, count: pick.count })}
+                : t("Confirm ({n}/{count})", { n: picked.length, count: group?.count ?? pick.count })}
         </button>
       </div>
     </Modal>
@@ -422,7 +467,7 @@ function CastingPrompt() {
       </Modal>
     );
   }
-  if (casting.stage === "pick" && casting.pick) return <CostPickPicker key={casting.pick.slot} pick={casting.pick} />;
+  if (casting.stage === "pick" && casting.pick) return <CastingPick key={casting.pick.slot} pick={casting.pick} />;
   if (casting.stage === "x" && opt.xMax !== null)
     return <XPicker max={opt.xMax} min={opt.type === "activate" ? (opt.xMin ?? 0) : 0} />;
   if (casting.stage === "target" && casting.spec && view) {
@@ -716,7 +761,7 @@ function AbilityMenu() {
   const view = useGame((s) => s.view);
   const beginCasting = useGame((s) => s.beginCasting);
   const playLand = useGame((s) => s.playLand);
-  const decide = useGame((s) => s.decide);
+  const tapMana = useGame((s) => s.tapMana);
   const cancel = useGame((s) => s.cancel);
   const lang = useGame((s) => s.lang);
   const t = useT();
@@ -761,23 +806,11 @@ function AbilityMenu() {
             );
           }
           if (o.type === "tapForMana" && o.combination && o.amount) {
-            return (
-              <ManaDivision
-                key={i}
-                colors={o.colors}
-                amount={o.amount}
-                onAdd={(colors) => decide({ type: "tapForMana", source: o.source, ability: o.ability, colors })}
-              />
-            );
+            return <ManaDivision key={i} colors={o.colors} amount={o.amount} onAdd={(colors) => tapMana(o, undefined, colors)} />;
           }
           if (o.type === "tapForMana") {
             return o.colors.map((c) => (
-              <button
-                key={`${i}-${c}`}
-                type="button"
-                className="btn choice"
-                onClick={() => decide({ type: "tapForMana", source: o.source, ability: o.ability, color: c })}
-              >
+              <button key={`${i}-${c}`} type="button" className="btn choice" onClick={() => tapMana(o, c)}>
                 <RulesText text={t("Add {mana}", { mana: `{${c}}` })} />
               </button>
             ));
@@ -1201,6 +1234,7 @@ export function Prompts() {
       <PendingPrompt view={view} />
       <CastingPrompt />
       <AbilityMenu />
+      <ManaPick />
       <LegendConfirm />
       <LandChoice />
       <GraveyardViewer />
