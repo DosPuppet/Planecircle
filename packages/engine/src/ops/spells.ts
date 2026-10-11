@@ -367,7 +367,7 @@ export const HANDLERS: OpHandlers = {
       if (e.fate === "plot") item.plotOnResolve = true;
       else if (e.fate === "rebound") item.rebound = true;
       else if (e.fate === "battlefieldTransformed") item.toBattlefieldTransformed = true;
-      else if (e.fate === "bottom") item.bottomInstead = true;
+      else if (e.fate === "bottom" || e.fate === "shuffle") item.libraryInstead = e.fate;
       else if (e.what) item.exileWithCounter = e.counter ?? "";
       else item.flashback = true;
     }
@@ -496,7 +496,14 @@ function castNowLoop(
   player: PlayerId,
   source: ObjectId,
   cards: ObjectId[],
-  opts: { free?: boolean; many?: boolean; after?: "exile" | "bottom"; anyMana?: boolean; cost?: ManaCost },
+  opts: {
+    free?: boolean;
+    many?: boolean;
+    after?: "exile" | "bottom";
+    anyMana?: boolean;
+    cost?: ManaCost;
+    haste?: boolean;
+  },
 ): { ask?: OpResult; cast: ObjectId[]; rest: ObjectId[] } {
   const cast: ObjectId[] = [];
   let declined = false;
@@ -522,6 +529,7 @@ function castNowLoop(
       source,
       now: true,
       ...(opts.cost ? { cost: opts.cost } : {}),
+      ...(opts.haste ? { haste: true } : {}),
     });
     // Only the cards that can really be cast (targets, additional costs) are offered.
     const castable = open.filter((id) => castTerms(s, player, id));

@@ -357,6 +357,20 @@ describe("Enchanting Tales", () => {
       expect(chars(s, cub).power).toBe(2);
     });
 
+    it("Shared Animosity: a changeling shares a type only with creatures that have one (PLAN-M M7)", () => {
+      const typeless = customCard({ name: "Test Typeless", types: ["Creature"], power: 1, toughness: 1 });
+      let s = scenario({
+        p1: { battlefield: ["Shared Animosity", "Changeling Wayfinder", goblin("Gobelin A"), typeless] },
+      });
+      const changeling = idOf(s, "p1", "battlefield", "Changeling Wayfinder");
+      const none = idOf(s, "p1", "battlefield", "Test Typeless");
+      s = attack(s, [changeling, idOf(s, "p1", "battlefield", "Gobelin A"), none]);
+      s = settle(s);
+      // The Goblin only: the creature without a creature type shares none.
+      expect(chars(s, changeling).power).toBe(2);
+      expect(chars(s, none).power).toBe(1);
+    });
+
     it("Karmic Justice: an opposing spell destroys one of your noncreature permanents; destroy one of its permanents", () => {
       const shatter = customCard({
         name: "Test Smash",

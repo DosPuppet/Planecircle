@@ -8,7 +8,7 @@
 import { describe, expect, it } from "vitest";
 import { INCREMENT, INFUSION, OPUS, opusInstead, REPARTEE } from "../../cards/src/sos/common";
 import { destroy } from "../src/actions";
-import { fx, ref, spell, triggered } from "../src/dsl";
+import { fx, ref, SACRIFICE_TOKEN_AT_END_STEP, spell, triggered } from "../src/dsl";
 import { legalActions } from "../src/legal";
 import { chars } from "../src/state";
 import { checkCondition } from "../src/triggers";
@@ -3496,6 +3496,23 @@ describe("Secrets of Strixhaven, lot A — multicolores", () => {
       expect(s.players.p2?.life).toBe(14);
     });
 
+    it("Prismari: the storm count is read when the spell is cast; a spell cast in response is not counted (PLAN-M M7)", () => {
+      let s = scenario({
+        p1: { battlefield: ["Prismari, the Inspiration", "Island", "Mountain"], hand: ["Opt", "Shock"] },
+        p2: { battlefield: ["Mountain"], hand: ["Shock"] },
+      });
+      s = settle(act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Opt") }));
+      s = act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Shock"), targets: { t: ["p2"] } });
+      s = act(s, "p1", { type: "pass" });
+      // The storm trigger is on the stack above Shock; p2 answers with a spell of their own.
+      expect(s.stack).toHaveLength(2);
+      s = act(s, "p2", { type: "cast", card: idOf(s, "p2", "hand", "Shock"), targets: { t: ["p1"] } });
+      s = settle(s);
+      expect(s.players.p1?.life).toBe(18);
+      // One copy (Opt was cast before it), not two.
+      expect(s.players.p2?.life).toBe(16);
+    });
+
     it("Rapturous Moment: draw three cards, discard two, add {U}{U}{R}{R}{R}", () => {
       let s = scenario({
         p1: {
@@ -4739,6 +4756,8 @@ describe("Secrets of Strixhaven, lot C2: free spell once each turn, copies", () 
     expect(bears).toHaveLength(2);
     const token = bears.find((id) => s.objects[id]?.isToken) as string;
     expect(chars(s, token).keywords).toContain("haste");
+    // An ability the token gains (PLAN-M M7), not a delayed ability.
+    expect(chars(s, token).abilities).toContainEqual(SACRIFICE_TOKEN_AT_END_STEP);
     s = advanceUntil(s, (x) => x.turn.step === "end" && x.stack.length === 0 && x.triggers.length === 0);
     expect(idsOf(s, "p1", "battlefield", "Bear Cub")).toHaveLength(1);
   });

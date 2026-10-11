@@ -61,7 +61,15 @@ import type {
 
 export { ref, target } from "./dsl/refs";
 export type { Effects } from "./dsl/shared";
-export { TO_CREATURE, TO_OPPONENT, TO_PLAYER, TO_PLAYER_OR_PLANESWALKER, triggered, when } from "./dsl/when";
+export {
+  SACRIFICE_TOKEN_AT_END_STEP,
+  TO_CREATURE,
+  TO_OPPONENT,
+  TO_PLAYER,
+  TO_PLAYER_OR_PLANESWALKER,
+  triggered,
+  when,
+} from "./dsl/when";
 
 /** Behavior of a card, merged with its characteristics (from Scryfall). */
 export interface CardScript {

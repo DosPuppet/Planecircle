@@ -362,9 +362,12 @@ export function checkCondition(
       ).length;
       return n >= (c.atLeast ?? 1);
     }
-    case "kicked":
-      // Permanent that entered from a kicked spell (otherwise: evaluated as it enters or at resolution).
-      return !!(sourceId && s.objects[sourceId]?.kicked);
+    case "kicked": {
+      // Permanent that entered from a kicked spell (otherwise: evaluated as it enters or at resolution); once it has
+      // left, its last known information ("if the gift was promised", 603.4).
+      const o = sourceId ? s.objects[sourceId] : undefined;
+      return !!(o ? o.kicked : sourceId && s.lki[sourceId]?.kicked);
+    }
     case "yourTurn":
       return s.turn.active === controller;
     case "opponentsTurn":
@@ -760,8 +763,9 @@ function matchTrigger(s: GameState, ev: RulesEvent, t: TriggerSpec, src: Source)
           );
         if (!first) return null;
       }
-      // `amount`: instants and sorceries already cast this turn (Thousand-Year Storm).
-      return { objectId: ev.stackId, player: ev.player, amount: ev.instantSorceryBefore };
+      // `amount`: instants and sorceries already cast this turn (Thousand-Year Storm); with `storm`, all the spells cast
+      // before it this turn (702.40a), counted when it was cast.
+      return { objectId: ev.stackId, player: ev.player, amount: t.storm ? ev.spellsBefore : ev.instantSorceryBefore };
     }
     case "discard":
       if (t.self) return ev.e === "discard" && ev.cards.includes(src.id) ? { objectId: src.id, player: ev.player } : null;
@@ -1507,6 +1511,9 @@ export function processTriggers(s: GameState): boolean {
       if (!t.inline && !triggeredAbility(s, t)) continue;
       // 603.3d: an ability without a legal target for a required target is removed.
       if (specs.some((spec) => !spec.optional && (t.targets[spec.id]?.length ?? 0) === 0)) continue;
+      // 702.174: the opponent of a permanent's promised gift travels with its abilities ("gift promised"), even if the
+      // permanent leaves the battlefield before they resolve.
+      const cast = s.objects[t.sourceId]?.cast;
       const item: StackItem = {
         id: newId(s, "a"),
         kind: "ability",
@@ -1521,6 +1528,7 @@ export function processTriggers(s: GameState): boolean {
         sourceSnapshot: t.sourceSnapshot,
         event: t.event,
         inline: t.inline,
+        ...(cast?.giftTo ? { cast: { from: cast.from, giftTo: cast.giftTo } } : {}),
       };
       s.stack.push(item);
       s.priority.passes = 0;

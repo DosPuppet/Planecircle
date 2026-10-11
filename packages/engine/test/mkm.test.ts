@@ -10,7 +10,7 @@ import { CLUE, SPIRIT_WB, SUSPECTED } from "../../cards/src/mkm/common";
 import { createTokens, destroy } from "../src/actions";
 import { castOption } from "../src/cardDef";
 import * as dsl from "../src/dsl";
-import { evalAmount, putFaceDown } from "../src/effects";
+import { addEffect, evalAmount, putFaceDown } from "../src/effects";
 import { RulesError } from "../src/errors";
 import { bump } from "../src/layers";
 import { legalActions } from "../src/legal";
@@ -279,7 +279,7 @@ describe("Murders at Karlov Manor, core: suspect (701.60)", () => {
     s = settle(cast(s, "p1", SUSPECTER.name), (req) =>
       req.type === "pick" && req.options.includes(theirs) ? [theirs] : undefined,
     );
-    expect(s.objects[theirs]?.suspected).toBe(true);
+    expect(s.objects[theirs]?.suspected).toBeTruthy();
     expect(chars(s, theirs).keywords).toEqual(expect.arrayContaining(["menace", "cantBlock"]));
     expect(projectView(s, "p1").battlefield.find((o) => o.id === theirs)?.suspected).toBe(true);
     // It can't block our attacking Bear.
@@ -300,12 +300,33 @@ describe("Murders at Karlov Manor, core: suspect (701.60)", () => {
     expect(canBlock(c, theirs, mine)).toBe(true);
   });
 
+  it('701.60c: menace and "can\'t block" are a layer 6 effect timestamped at the suspicion (PLAN-M M7)', () => {
+    const suspectBear = (before?: (s: GameState, bear: string) => void) => {
+      let s = scenario({ p1: { battlefield: ["Island"], hand: [SUSPECTER] }, p2: { battlefield: ["Bear Cub"] } });
+      const bear = idOf(s, "p2", "battlefield", "Bear Cub");
+      before?.(s, bear);
+      s = settle(cast(s, "p1", SUSPECTER.name), (req) =>
+        req.type === "pick" && req.options.includes(bear) ? [bear] : undefined,
+      );
+      return { s, bear };
+    };
+    // Suspected, then "loses all abilities": menace and "can't block" are lost; it stays suspected.
+    const { s, bear } = suspectBear();
+    addEffect(s, [bear], { loseAllAbilities: true }, "permanent");
+    expect(s.objects[bear]?.suspected).toBeTruthy();
+    expect(chars(s, bear).keywords).not.toContain("menace");
+    expect(chars(s, bear).keywords).not.toContain("cantBlock");
+    // "Loses all abilities", then suspected: the more recent suspicion gives them back.
+    const later = suspectBear((t, id) => addEffect(t, [id], { loseAllAbilities: true }, "permanent"));
+    expect(chars(later.s, later.bear).keywords).toEqual(expect.arrayContaining(["menace", "cantBlock"]));
+  });
+
   it('the "suspected creature" filter; the designation is lost on leaving the battlefield', () => {
     const s = scenario({ p1: { battlefield: ["Bear Cub", "Llanowar Elves"] } });
     const bear = idOf(s, "p1", "battlefield", "Bear Cub");
     const elves = idOf(s, "p1", "battlefield", "Llanowar Elves");
     const o = s.objects[bear];
-    if (o) o.suspected = true;
+    if (o) o.suspected = 1;
     expect(matchesObjectFilter(s, "p1", bear, SUSPECTED)).toBe(true);
     expect(matchesObjectFilter(s, "p1", elves, SUSPECTED)).toBe(false);
     const back = moveObject(s, bear, "hand") as string;
@@ -386,7 +407,7 @@ describe("Murders at Karlov Manor, lot A — white", () => {
       const mine = idOf(s, "p1", "battlefield", "Bear Cub");
       const theirs = idOf(s, "p2", "battlefield", "Bear Cub");
       const elves = idOf(s, "p2", "battlefield", "Llanowar Elves");
-      for (const id of [mine, theirs]) (s.objects[id] as { suspected?: boolean }).suspected = true;
+      for (const id of [mine, theirs]) (s.objects[id] as { suspected?: number }).suspected = 1;
       s = settle(cast(s, "p1", "Absolving Lammasu"));
       expect(s.objects[mine]?.suspected).toBeFalsy();
       expect(s.objects[theirs]?.suspected).toBeFalsy();
@@ -394,7 +415,7 @@ describe("Murders at Karlov Manor, lot A — white", () => {
       s = settle(cast(s, "p1", "Lightning Strike", { t: [lammasu] }), picking(elves));
       expect(idsOf(s, "p1", "graveyard", "Absolving Lammasu")).toHaveLength(1);
       expect(s.players.p1?.life).toBe(23);
-      expect(s.objects[elves]?.suspected).toBe(true);
+      expect(s.objects[elves]?.suspected).toBeTruthy();
       expect(s.objects[theirs]?.suspected).toBeFalsy();
     });
   });
@@ -1264,7 +1285,7 @@ describe("Murders at Karlov Manor, lot A — blue", () => {
       const theirs = idOf(s, "p2", "battlefield", "Bear Cub");
       const mine = idOf(s, "p1", "battlefield", "Bear Cub");
       const o = s.objects[theirs];
-      if (o) o.suspected = true;
+      if (o) o.suspected = 1;
       s = settle(cast(s, "p1", "Eliminate the Impossible"));
       expect(clues(s, "p1")).toBe(1);
       expect(chars(s, theirs).power).toBe(0);
@@ -1506,7 +1527,7 @@ describe("Murders at Karlov Manor, lot A — blue", () => {
       s = settle(cast(s, "p2", "Reasonable Doubt", { s: [strike], c: [bear] }));
       expect(s.players.p2?.life).toBe(20);
       expect(idsOf(s, "p1", "graveyard", "Lightning Strike")).toHaveLength(1);
-      expect(s.objects[bear]?.suspected).toBe(true);
+      expect(s.objects[bear]?.suspected).toBeTruthy();
     });
   });
 
@@ -1620,7 +1641,7 @@ describe("Murders at Karlov Manor, lot A — black", () => {
       });
       const bear = idOf(s0, "p1", "battlefield", "Bear Cub");
       const o = s0.objects[bear];
-      if (o && suspected) o.suspected = true;
+      if (o && suspected) o.suspected = 1;
       const coroner = idOf(s0, "p1", "battlefield", "Agency Coroner");
       const s = settle(activate(s0, "p1", coroner, "Draw a card", { sacrifice: [bear] }));
       expect(idsOf(s, "p1", "graveyard", "Bear Cub")).toHaveLength(1);
@@ -1656,7 +1677,7 @@ describe("Murders at Karlov Manor, lot A — black", () => {
       });
       s = settle(cast(s, "p1", "Barbed Servitor"));
       const servitor = idOf(s, "p1", "battlefield", "Barbed Servitor");
-      expect(s.objects[servitor]?.suspected).toBe(true);
+      expect(s.objects[servitor]?.suspected).toBeTruthy();
       expect(chars(s, servitor).keywords).toEqual(expect.arrayContaining(["indestructible", "menace", "cantBlock"]));
       s = act(s, "p1", { type: "pass" });
       s = settle(cast(s, "p2", "Lightning Strike", { t: [servitor] }));
@@ -1739,7 +1760,7 @@ describe("Murders at Karlov Manor, lot A — black", () => {
       let s = scenario({ p1: { battlefield: lands("Swamp", 2), hand: ["Case of the Stashed Skeleton"] } });
       s = settle(cast(s, "p1", "Case of the Stashed Skeleton"));
       const skeleton = s.battlefield.find((id) => nameOf(s, id) === "Skeleton") as string;
-      expect(s.objects[skeleton]?.suspected).toBe(true);
+      expect(s.objects[skeleton]?.suspected).toBeTruthy();
       expect([chars(s, skeleton).power, chars(s, skeleton).toughness]).toEqual([2, 1]);
       const id = idOf(s, "p1", "battlefield", "Case of the Stashed Skeleton");
       s = advanceUntil(s, (x) => x.turn.step === "cleanup" || x.turn.active !== "p1");
@@ -1802,7 +1823,7 @@ describe("Murders at Karlov Manor, lot A — black", () => {
     });
     const bear = idOf(s, "p1", "battlefield", "Bear Cub");
     s = settle(cast(s, "p1", "Clandestine Meddler"), pickIt(bear));
-    expect(s.objects[bear]?.suspected).toBe(true);
+    expect(s.objects[bear]?.suspected).toBeTruthy();
     expect(s.objects[idOf(s, "p1", "battlefield", "Clandestine Meddler")]?.suspected).toBeUndefined();
     let surveilled = false;
     s = fight(s, [bear], [], (req) => {
@@ -1904,7 +1925,7 @@ describe("Murders at Karlov Manor, lot A — black", () => {
     let s = scenario({ p1: { battlefield: lands("Swamp", 5), hand: ["It Doesn't Add Up"], graveyard: ["Serra Angel"] } });
     s = settle(cast(s, "p1", "It Doesn't Add Up", { t: [idOf(s, "p1", "graveyard", "Serra Angel")] }));
     const angel = idOf(s, "p1", "battlefield", "Serra Angel");
-    expect(s.objects[angel]?.suspected).toBe(true);
+    expect(s.objects[angel]?.suspected).toBeTruthy();
     expect(chars(s, angel).keywords).toEqual(expect.arrayContaining(["menace", "cantBlock"]));
   });
 
@@ -2027,7 +2048,7 @@ describe("Murders at Karlov Manor, lot A — black", () => {
     s = settle(cast(s, "p1", "Murder", { t: [bear] }));
     const back = idOf(s, "p1", "battlefield", "Bear Cub");
     expect(back).not.toBe(bear);
-    expect(s.objects[back]?.suspected).toBe(true);
+    expect(s.objects[back]?.suspected).toBeTruthy();
     expect(chars(s, back).power).toBe(2);
   });
 
@@ -2035,10 +2056,10 @@ describe("Murders at Karlov Manor, lot A — black", () => {
     let s = scenario({ p1: { battlefield: ["Repeat Offender", ...lands("Swamp", 6)] } });
     const id = idOf(s, "p1", "battlefield", "Repeat Offender");
     s = settle(activate(s, "p1", id, "counter"));
-    expect(s.objects[id]?.suspected).toBe(true);
+    expect(s.objects[id]?.suspected).toBeTruthy();
     expect(s.objects[id]?.counters["+1/+1"]).toBeUndefined();
     s = settle(activate(s, "p1", id, "counter"));
-    expect(s.objects[id]?.suspected).toBe(true);
+    expect(s.objects[id]?.suspected).toBeTruthy();
     expect(s.objects[id]?.counters["+1/+1"]).toBe(1);
   });
 
@@ -2286,7 +2307,7 @@ describe("Murders at Karlov Manor, lot A — red", () => {
       s = settle(cast(s, "p1", "Caught Red-Handed", { t: [bear] }));
       expect(s.objects[bear]?.controller).toBe("p1");
       expect(s.objects[bear]?.tapped).toBe(false);
-      expect(s.objects[bear]?.suspected).toBe(true);
+      expect(s.objects[bear]?.suspected).toBeTruthy();
       expect(chars(s, bear).keywords).toEqual(expect.arrayContaining(["haste", "menace", "cantBlock"]));
       // Until end of turn only.
       s = advanceUntil(s, (x) => x.turn.active === "p2");
@@ -2351,7 +2372,7 @@ describe("Murders at Karlov Manor, lot A — red", () => {
       });
       const bear = idOf(s, "p2", "battlefield", "Bear Cub");
       s = settle(cast(s, "p1", "Convenient Target", { enchant: [bear] }));
-      expect(s.objects[bear]?.suspected).toBe(true);
+      expect(s.objects[bear]?.suspected).toBeTruthy();
       expect([chars(s, bear).power, chars(s, bear).toughness]).toEqual([3, 3]);
       expect(chars(s, bear).keywords).toEqual(expect.arrayContaining(["menace", "cantBlock"]));
       // In the graveyard: the ability returns it to hand.
@@ -2483,11 +2504,11 @@ describe("Murders at Karlov Manor, lot A — red", () => {
       let s = scenario({ p1: { battlefield: ["Mountain", ...lands("Forest", 2)], hand: ["Frantic Scapegoat", "Bear Cub"] } });
       s = settle(cast(s, "p1", "Frantic Scapegoat"));
       const goat = idOf(s, "p1", "battlefield", "Frantic Scapegoat");
-      expect(s.objects[goat]?.suspected).toBe(true);
+      expect(s.objects[goat]?.suspected).toBeTruthy();
       expect(chars(s, goat).keywords).toEqual(expect.arrayContaining(["haste", "menace", "cantBlock"]));
       s = settle(cast(s, "p1", "Bear Cub"), yes);
       const bear = idOf(s, "p1", "battlefield", "Bear Cub");
-      expect(s.objects[bear]?.suspected).toBe(true);
+      expect(s.objects[bear]?.suspected).toBeTruthy();
       expect(s.objects[goat]?.suspected).toBeFalsy();
     });
 
@@ -2503,9 +2524,9 @@ describe("Murders at Karlov Manor, lot A — red", () => {
       });
       expect(asked).toBe(false);
       const o = s.objects[goat];
-      if (o) o.suspected = true;
+      if (o) o.suspected = 1;
       s = settle(cast(s, "p1", "Llanowar Elves"), no);
-      expect(s.objects[goat]?.suspected).toBe(true);
+      expect(s.objects[goat]?.suspected).toBeTruthy();
       expect(s.objects[idOf(s, "p1", "battlefield", "Llanowar Elves")]?.suspected).toBeFalsy();
     });
   });
@@ -2688,7 +2709,7 @@ describe("Murders at Karlov Manor, lot A — red", () => {
     it("when it enters, it suspects itself and creates a 2/2 Detective", () => {
       let s = scenario({ p1: { battlefield: lands("Mountain", 4), hand: ["Person of Interest"] } });
       s = settle(cast(s, "p1", "Person of Interest"));
-      expect(s.objects[idOf(s, "p1", "battlefield", "Person of Interest")]?.suspected).toBe(true);
+      expect(s.objects[idOf(s, "p1", "battlefield", "Person of Interest")]?.suspected).toBeTruthy();
       expect(idsOf(s, "p1", "battlefield", "Detective")).toHaveLength(1);
     });
   });
@@ -2762,7 +2783,7 @@ describe("Murders at Karlov Manor, lot A — red", () => {
       const t = attack(s, [id], no);
       expect(t.objects[id]?.suspected).toBeFalsy();
       s = attack(s, [id], yes);
-      expect(s.objects[id]?.suspected).toBe(true);
+      expect(s.objects[id]?.suspected).toBeTruthy();
       expect(chars(s, id).keywords).toContain("menace");
     });
   });
@@ -3427,13 +3448,13 @@ describe("Murders at Karlov Manor, lot A — multicolor", () => {
       });
       const bear = idOf(s, "p2", "battlefield", "Bear Cub");
       s = settle(cast(s, "p1", "Agrus Kos, Spirit of Justice"), pick(bear));
-      expect(s.objects[bear]?.suspected).toBe(true);
+      expect(s.objects[bear]?.suspected).toBeTruthy();
       expect(s.battlefield).toContain(bear);
 
       let t = scenario({ p1: { battlefield: ["Agrus Kos, Spirit of Justice"] }, p2: { battlefield: ["Bear Cub"] } });
       const theirs = idOf(t, "p2", "battlefield", "Bear Cub");
       const o = t.objects[theirs];
-      if (o) o.suspected = true;
+      if (o) o.suspected = 1;
       t = attack(t, [idOf(t, "p1", "battlefield", "Agrus Kos, Spirit of Justice")], pick(theirs));
       expect(exiled(t, "Bear Cub")).toBe(true);
     });
@@ -3631,7 +3652,7 @@ describe("Murders at Karlov Manor, lot A — multicolor", () => {
       });
       const bear = idOf(s, "p1", "battlefield", "Bear Cub");
       const o = s.objects[bear];
-      if (o) o.suspected = true;
+      if (o) o.suspected = 1;
       const elemental = idOf(s, "p2", "battlefield", "Fire Elemental");
       s = settle(cast(s, "p1", "Deadly Complication", { mode: 2, targets: { d: [elemental], s: [bear] } }), (req) =>
         req.type === "yesNo" ? [1] : undefined,
@@ -4081,7 +4102,7 @@ describe("Murders at Karlov Manor, lot A — multicolor", () => {
       });
       const bear = idOf(s, "p1", "battlefield", "Bear Cub");
       s = settle(cast(s, "p1", "Rune-Brand Juggler"), pick(bear));
-      expect(s.objects[bear]?.suspected).toBe(true);
+      expect(s.objects[bear]?.suspected).toBeTruthy();
       const juggler = idOf(s, "p1", "battlefield", "Rune-Brand Juggler");
       const elemental = idOf(s, "p2", "battlefield", "Fire Elemental");
       s = settle(activate(s, "p1", juggler, "-5/-5", { targets: { t: [elemental] }, sacrifice: [bear] }));
@@ -4096,7 +4117,7 @@ describe("Murders at Karlov Manor, lot A — multicolor", () => {
       });
       s = settle(cast(s, "p1", "Rune-Brand Juggler"));
       const juggler = idOf(s, "p1", "battlefield", "Rune-Brand Juggler");
-      expect(s.objects[juggler]?.suspected).toBe(true);
+      expect(s.objects[juggler]?.suspected).toBeTruthy();
       const elemental = idOf(s, "p2", "battlefield", "Fire Elemental");
       s = settle(activate(s, "p1", juggler, "-5/-5", { targets: { t: [elemental] }, sacrifice: [juggler] }));
       expect(idsOf(s, "p1", "graveyard", "Rune-Brand Juggler")).toHaveLength(1);
@@ -4980,7 +5001,7 @@ describe("Murders at Karlov Manor, lot B4: suspect and Cases", () => {
     });
     const bear = idOf(s, "p1", "battlefield", "Bear Cub");
     const b = s.objects[bear];
-    if (b) b.suspected = true;
+    if (b) b.suspected = 1;
     s = settle(act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Airtight Alibi"), targets: { enchant: [bear] } }));
     expect(s.objects[bear]?.tapped).toBe(false);
     expect(s.objects[bear]?.suspected).toBeUndefined();

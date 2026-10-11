@@ -305,8 +305,8 @@ function damageReplacementApplies(
       id && s.objects[id]?.zone === "battlefield"
         ? matchesObjectFilter(s, a.controller, id, r.source, a.sourceId)
         : (() => {
-            // "Entered this turn" can only be read on the battlefield.
-            if (r.source?.enteredThisTurn) return false;
+            // "Entered this turn" (Neriv): a source gone from the battlefield, from its last known information.
+            if (r.source?.enteredThisTurn && (!id || s.lki[id]?.controlledSince !== s.turn.number)) return false;
             const v = sourceView(s, id, source.defId, source.controller);
             const chooser = a.sourceId ? (s.objects[a.sourceId] ?? s.lki[a.sourceId]) : undefined;
             return !!v && matchesView(v, withChosen(r.source as ObjectFilter, chooser), a.controller, a.sourceId);
@@ -813,8 +813,10 @@ export function createTokens(
     const model = copyDeclined ? undefined : s.objects[copies.host];
     if (model) {
       const out: ObjectId[] = [];
-      const n = tokenRoom(s, chooseReplacementOrder(count, tokenModifiers(s, tokenReps(snapshot(s, model.id))), "max"));
+      const view = snapshot(s, model.id);
+      const n = tokenRoom(s, chooseReplacementOrder(count, tokenModifiers(s, tokenReps(view)), "max"));
       for (let i = 0; i < n; i++) out.push(createTokenCopy(s, controller, model.defId));
+      if (extras && n > 0) out.push(...createPlusTokens(s, controller, [view]));
       return out;
     }
   }
@@ -861,11 +863,23 @@ export function createTokens(
     logTokenArrival(s, o);
     created.push(o.id);
   }
-  // Quina ("those tokens plus a Frog"), Worldwalker Helm ("plus a Map"): the added tokens do not trigger a new
-  // replacement.
-  if (extras && count > 0)
-    for (const a of tokenReps(tokenView(t, controller)))
-      if (a.r.plus) created.push(...createTokens(s, controller, a.r.plus, 1, false));
+  if (extras && count > 0) created.push(...createPlusTokens(s, controller, [tokenView(t, controller)]));
+  return created;
+}
+
+/**
+ * Quina ("those tokens plus a Frog"), Worldwalker Helm ("plus a Map"): the tokens added to one creation of tokens
+ * (`views`: the tokens created, token copies included), once per replacement that applies to one of them. The added
+ * tokens do not trigger a new replacement.
+ */
+export function createPlusTokens(s: GameState, controller: PlayerId, views: LkiSnapshot[]): ObjectId[] {
+  const created: ObjectId[] = [];
+  for (const a of eventReplacements(s, "tokens")) {
+    if (!a.r.plus || !playerSide(s, a, controller)) continue;
+    const toFilter = a.r.toFilter;
+    if (toFilter && !views.some((v) => matchesView(v, toFilter, a.controller, a.sourceId))) continue;
+    created.push(...createTokens(s, controller, a.r.plus, 1, false));
+  }
   return created;
 }
 

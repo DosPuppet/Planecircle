@@ -321,18 +321,14 @@ export const MULTI: Record<string, CardScript> = {
       loyalty(-10, {
         effects: [
           fx.draw(3),
-          fx.emblem("Ral", msg("Instant and sorcery spells you cast have replicate."), [
-            triggered(
-              when.castSpell("you", INSTANT_SORCERY),
-              // Replicate: the spells cast this turn by all players, minus this one (counted on resolution).
-              [fx.copySpell(ref.eventObject, amount.plus(amount.turnEvents({ event: "cast" }), -1))],
-              {
-                label: "Replicate",
-              },
-            ),
+          fx.emblem("Ral", msg("Instant and sorcery spells you cast have storm."), [
+            // Storm (702.40a): the spells cast before it this turn by all players, counted when it was cast.
+            triggered(when.castSpellStorm(INSTANT_SORCERY), [fx.copySpell(ref.eventObject, amount.eventAmount)], {
+              label: "Storm",
+            }),
           ]),
         ],
-        label: "Draw three cards, emblem (replicate)",
+        label: "Draw three cards, emblem (storm)",
       }),
     ],
   },

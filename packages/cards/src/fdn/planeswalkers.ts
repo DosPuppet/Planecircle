@@ -10,6 +10,7 @@ import {
   loyalty,
   NINJA,
   ref,
+  SACRIFICE_TOKEN_AT_END_STEP,
   target,
   targetObj,
   triggered,
@@ -59,7 +60,7 @@ export const PLANESWALKERS: Record<string, CardScript> = {
       loyalty(2, { effects: [fx.addMana("R", "R", "R"), fx.impulse(3)], label: "{R}{R}{R}, exile 3 cards, play one of them" }),
       loyalty(1, {
         targets: [target.creature("t", { controller: "you" })],
-        effects: [fx.copyToken(ref.target(), { addKeywords: ["haste"], sacrificeAtEndStep: true })],
+        effects: [fx.copyToken(ref.target(), { addKeywords: ["haste"], addAbilities: [SACRIFICE_TOKEN_AT_END_STEP] })],
         label: "copy with haste",
       }),
       loyalty(-4, {

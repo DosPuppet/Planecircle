@@ -1,6 +1,14 @@
 /** Engine effects: permanent modifications, control, copies and tokens. Each key is an `op` of `Effect` (see `runEffect`, effects.ts). */
 
-import { createTokenCopy, createTokens, phaseOut, tokenCopyCount, tokenCopyReplacement, tokenCount } from "../actions";
+import {
+  createPlusTokens,
+  createTokenCopy,
+  createTokens,
+  phaseOut,
+  tokenCopyCount,
+  tokenCopyReplacement,
+  tokenCount,
+} from "../actions";
 import { cardRef } from "../choices";
 import { addControlEffect } from "../control";
 import type { EffectContext, OpHandlers, OpResult } from "../effects";
@@ -47,6 +55,7 @@ import type {
   Effect,
   GameObject,
   GameState,
+  LkiSnapshot,
   NameKind,
   ObjectId,
   PlayerId,
@@ -367,7 +376,7 @@ export function enterChoiceRequest(
  * no longer be attacked (player gone, planeswalker gone) is discarded, and without a defender it does not attack
  * (508.4a). No question for a single option; the suggestion is what the source attacks, otherwise what a creature of
  * that player attacks. `optional`: "you may" (myriad): choosing nothing is allowed, and the question is asked even for
- * a single option. `ask`: false after a random draw (which would not be replayed): the suggestion, without a question.
+ * a single option. `ask`: false: only the suggestion, without a question (to suggest an answer elsewhere).
  * Returns the question, otherwise the chosen defender (`undefined`: it does not attack, or nothing was chosen).
  */
 export function chooseAttacked(
@@ -440,7 +449,7 @@ export const HANDLERS: OpHandlers = {
       if (o?.zone !== "battlefield" || !!o.suspected === e.value) continue;
       // Airtight Alibi: "can't become suspected".
       if (e.value && hasKeyword(s, id, "cantBeSuspected")) continue;
-      o.suspected = e.value || undefined;
+      o.suspected = e.value ? nextTimestamp(s) : undefined;
       bump(s);
     }
     return;
@@ -713,7 +722,15 @@ export const HANDLERS: OpHandlers = {
     // Doubling Season also applies to token copies.
     const base = attackEach ? attackEach.length : e.count === undefined ? 1 : evalAmount(s, ctx, e.count);
     // The copies to make: for each creator and each model, its definition and its number.
-    const plan: { who: string; id: string; model: GameObject | undefined; defId: string; n: number }[] = [];
+    const plan: {
+      who: string;
+      id: string;
+      model: GameObject | undefined;
+      defId: string;
+      n: number;
+      /** The copy as created (types added), for the replacements of token creation. */
+      view?: LkiSnapshot;
+    }[] = [];
     for (const who of creators)
       for (const id of resolveRef(s, ctx, e.of)) {
         const model = s.objects[id] ?? undefined;
@@ -722,7 +739,8 @@ export const HANDLERS: OpHandlers = {
         if (!defId) continue;
         const view = model?.zone === "battlefield" ? snapshot(s, id) : s.lki[id];
         const types = [...new Set([...(view?.types ?? s.defs[defId]?.types ?? []), ...(e.addTypes ?? [])])];
-        plan.push({ who, id, model, defId, n: view ? tokenCopyCount(s, who, { ...view, types, isToken: true }, base) : base });
+        const copy = view ? { ...view, types, isToken: true } : undefined;
+        plan.push({ who, id, model, defId, n: copy ? tokenCopyCount(s, who, copy, base) : base, view: copy });
       }
     // 614.12: the "as it enters" choices of each copy (a creature type, a color, riot…), asked of its controller before
     // any copy is created (PLAN-L L5).
@@ -812,6 +830,11 @@ export const HANDLERS: OpHandlers = {
           );
         }
       }
+    }
+    // Quina ("those tokens plus a Frog"), Worldwalker Helm: once per player who created copies.
+    for (const who of creators) {
+      const views = plan.flatMap((x) => (x.who === who && x.n > 0 && x.view ? [x.view] : []));
+      if (views.length) made.push(...createPlusTokens(s, who, views));
     }
     if (e.store) r.vars[`$ids:${e.store}`] = made;
     return;

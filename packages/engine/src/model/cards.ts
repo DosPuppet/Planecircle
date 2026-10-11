@@ -1105,7 +1105,10 @@ export interface CastLimit {
   sorceryTiming?: boolean;
   /** Only turning permanents face up (Karlov Watchdog): neither spells nor abilities are blocked. */
   faceUp?: boolean;
-  /** Also blocks activated abilities (other than mana): all (Yuriko), or of artifacts, creatures and enchantments (Grand Abolisher). */
+  /**
+   * Also blocks activated abilities: all but mana abilities (Yuriko), or those of artifacts, creatures and enchantments,
+   * mana abilities included (Grand Abolisher).
+   */
   abilities?: "all" | "artifactsCreaturesEnchantments";
 }
 

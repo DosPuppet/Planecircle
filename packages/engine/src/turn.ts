@@ -208,13 +208,13 @@ function stepEvent(s: GameState): void {
 
 /**
  * Suspend (702.62a): at the beginning of its owner's upkeep, each suspended card in exile loses a time counter;
- * when the last is removed, they may cast it without paying its mana cost (a creature has haste).
+ * when the last is removed, they may cast it without paying its mana cost; a creature spell cast this way gains haste
+ * (702.62a: the suspended card itself, not the next creature spell).
  */
 const SUSPEND_TICK: Effect[] = [
   { op: "removeCounters", what: { kind: "self" }, n: 1, kind: "time" },
-  { op: "if", cond: { kind: "not", cond: { kind: "counterAtLeast", counter: "time", n: 1 } }, skip: 2 },
-  { op: "playerEffect", ability: { nextSpell: { filter: { types: ["Creature"] }, haste: true } }, once: true },
-  { op: "castNow", what: { kind: "self" }, free: true },
+  { op: "if", cond: { kind: "not", cond: { kind: "counterAtLeast", counter: "time", n: 1 } }, skip: 1 },
+  { op: "castNow", what: { kind: "self" }, free: true, haste: true },
 ];
 
 function suspendUpkeep(s: GameState): void {

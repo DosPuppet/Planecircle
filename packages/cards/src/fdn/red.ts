@@ -21,6 +21,7 @@ import {
   mode,
   RAT_NO_BLOCK,
   ref,
+  SACRIFICE_TOKEN_AT_END_STEP,
   spell,
   staticAbility,
   TREASURE,
@@ -165,7 +166,7 @@ export const RED: Record<string, CardScript> = {
     flashback: "{2}{R}{R}",
     spell: spell(
       [target.creature("t", { controller: "you" })],
-      [fx.copyToken(ref.target(), { addKeywords: ["haste"], sacrificeAtEndStep: true })],
+      [fx.copyToken(ref.target(), { addKeywords: ["haste"], addAbilities: [SACRIFICE_TOKEN_AT_END_STEP] })],
     ),
   },
   "Fiery Annihilation": {

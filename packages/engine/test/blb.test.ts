@@ -155,6 +155,25 @@ describe("Bloomburrow", () => {
     expect(s.players.p2?.hand.length).toBe(hand2);
   });
 
+  it("Gift of a permanent: gone before its gift trigger resolves, the gift still goes to the chosen opponent (PLAN-M M7)", () => {
+    let s = scenario({
+      players: 3,
+      p1: { battlefield: lands("Forest", 3), hand: ["Scrapshooter"] },
+      p2: { battlefield: ["Anthem of Champions"], library: ["Forest", "Island"] },
+      p3: { library: ["Forest", "Island"] },
+    });
+    const hand2 = s.players.p2?.hand.length ?? 0;
+    const hand3 = s.players.p3?.hand.length ?? 0;
+    s = act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Scrapshooter"), kicked: true });
+    s = act(s, "p1", { type: "choose", values: ["p3"] });
+    s = passAccepting(s, (x) => x.stack.some((i) => i.kind === "ability") && x.pending?.kind === "priority");
+    // In response, Scrapshooter leaves the battlefield.
+    destroy(s, idOf(s, "p1", "battlefield", "Scrapshooter"));
+    s = settle(s);
+    expect(s.players.p3?.hand.length).toBe(hand3 + 1);
+    expect(s.players.p2?.hand.length).toBe(hand2);
+  });
+
   it("Gift in a duel, or with several players and no gift promised: no question", () => {
     let s = scenario({ p1: { battlefield: lands("Forest", 3), hand: ["Scrapshooter"] } });
     s = act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Scrapshooter"), kicked: true });
@@ -1538,6 +1557,27 @@ describe("Bloomburrow, lot K8 : mythiques", () => {
     // A spell (the opponent's) cast before: one copy.
     s = resolve(cast(s, "p1", "Shock", { targets: { t: ["p2"] } }));
     expect(s.players.p2?.life).toBe(16);
+  });
+
+  it("Ral: the emblem's storm is counted when the spell is cast, not at resolution (PLAN-M M7)", () => {
+    let s = scenario({
+      p1: {
+        battlefield: [{ name: "Ral, Crackling Wit", counters: { loyalty: 10 } }, ...lands("Mountain", 2)],
+        hand: ["Shock", "Shock"],
+        library: lands("Plains", 4),
+      },
+      p2: { battlefield: ["Mountain"], hand: ["Shock"] },
+    });
+    s = resolve(activateK8(s, "p1", idOf(s, "p1", "battlefield", "Ral, Crackling Wit"), "emblem"));
+    s = resolve(cast(s, "p1", "Shock", { targets: { t: ["p2"] } }));
+    expect(s.players.p2?.life).toBe(18);
+    s = cast(s, "p1", "Shock", { targets: { t: ["p2"] } });
+    s = act(s, "p1", { type: "pass" });
+    // The storm trigger waits on the stack; p2 casts a spell in response.
+    expect(s.stack).toHaveLength(2);
+    s = resolve(act(s, "p2", { type: "cast", card: idOf(s, "p2", "hand", "Shock"), targets: { t: ["p1"] } }));
+    expect(s.players.p1?.life).toBe(18);
+    expect(s.players.p2?.life).toBe(14);
   });
 
   it("Season of Loss: {P} each player sacrifices a creature, then {P}{P} draw for each creature that died under your control this turn", () => {

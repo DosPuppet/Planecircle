@@ -4,12 +4,13 @@
  */
 import { describe, expect, it } from "vitest";
 import { dealDamage, destroy, sourceFromObject } from "../src/actions";
-import { fx, triggered, when } from "../src/dsl";
-import { grantPlay } from "../src/effects";
+import { fx, SACRIFICE_TOKEN_AT_END_STEP, triggered, when } from "../src/dsl";
+import { addEffect, grantPlay } from "../src/effects";
 import { RulesError } from "../src/errors";
 import { legalActions } from "../src/legal";
 import { canPay, manaAbilitiesOf } from "../src/mana";
 import { chars, onBattlefield } from "../src/state";
+import { matchesObjectFilter } from "../src/targets";
 import type { ActionOption, GameState } from "../src/types";
 import {
   act,
@@ -556,6 +557,8 @@ describe("Lot F: choices on entering and restricted mana", () => {
     expect(c.types).toEqual(expect.arrayContaining(["Land", "Creature"]));
     // "Other Elves you control get +1/+1": all creature types, hence Elf.
     expect([c.power, c.toughness]).toEqual([4, 4]);
+    // Only the creature types of 205.3m (PLAN-M M7): not an artifact subtype such as Book or Equipment.
+    for (const subtype of ["Book", "Equipment", "Food"]) expect(matchesObjectFilter(s, "p1", land, { subtype })).toBe(false);
   });
 });
 
@@ -677,6 +680,18 @@ describe("delayed abilities: frozen references", () => {
     expect(idsOf(s, "p1", "battlefield", "Shivan Dragon")).toHaveLength(2);
     s = advance(s, (x) => x.turn.active === "p2");
     expect(idsOf(s, "p1", "battlefield", "Shivan Dragon")).toHaveLength(1);
+  });
+
+  it("Electroduplicate: the sacrifice is an ability of the token; once it loses all abilities, it stays (PLAN-M M7)", () => {
+    let s = scenario({ p1: { battlefield: ["Shivan Dragon", ...lands("Mountain", 3)], hand: ["Electroduplicate"] } });
+    s = cast(s, "p1", "Electroduplicate", { targets: { t: [idOf(s, "p1", "battlefield", "Shivan Dragon")] } });
+    s = passBoth(s);
+    const token = idsOf(s, "p1", "battlefield", "Shivan Dragon").find((id) => s.objects[id]?.isToken) as string;
+    expect(chars(s, token).keywords).toContain("haste");
+    expect(chars(s, token).abilities).toContainEqual(SACRIFICE_TOKEN_AT_END_STEP);
+    addEffect(s, [token], { loseAllAbilities: true }, "permanent");
+    s = advance(s, (x) => x.turn.active === "p2");
+    expect(idsOf(s, "p1", "battlefield", "Shivan Dragon")).toHaveLength(2);
   });
 
   it("Kykar: the exiled creature returns at the end step", () => {

@@ -317,6 +317,14 @@ describe("Stellar Sights", () => {
       expect(manaAbilitiesOf(alone, idOf(alone, "p1", "battlefield", "Reflecting Pool"))[0]?.produce).toEqual([]);
     });
 
+    it("Reflecting Pool: Command Tower's colors count; another Reflecting Pool doesn't (106.7; PLAN-M M7)", () => {
+      const s = scenario({
+        p1: { command: ["Edgar Markov"], battlefield: ["Reflecting Pool", "Reflecting Pool", "Command Tower"] },
+      });
+      for (const pool of idsOf(s, "p1", "battlefield", "Reflecting Pool"))
+        expect(manaAbilitiesOf(s, pool)[0]?.produce).toEqual(["W", "B", "R"]);
+    });
+
     it("Blast Zone: destroys nonland permanents with mana value equal to its charge counters", () => {
       let s = scenario({
         p1: { battlefield: [{ name: "Blast Zone", counters: { charge: 2 } }, ...lands("Plains", 3)] },

@@ -5,7 +5,7 @@ import { castOption } from "./cardDef";
 import { resolveCompare } from "./effects";
 import { RulesError } from "./errors";
 import { chars, hasKeyword, snapshot } from "./layers";
-import { firstOfEachName, shareName } from "./names";
+import { firstOfEachName, isCreatureType, shareName } from "./names";
 import { commanderIdentity, obj } from "./state";
 import { playerProtectedFrom, playerStatic, playerStatics } from "./statics";
 import { msg } from "./text";
@@ -22,7 +22,7 @@ import type {
   PlayerId,
   TargetSpec,
 } from "./types";
-import { COLORS, isAnyManaAbility, LAND_TYPES, PERMANENT_TYPES } from "./types";
+import { COLORS, isAnyManaAbility, PERMANENT_TYPES } from "./types";
 
 /**
  * View of a source (spell, source of an ability or of damage): the object, its last known information, otherwise the
@@ -186,17 +186,28 @@ function compareMatches(v: LkiSnapshot, cs: FilterCompare[]): boolean {
   return true;
 }
 
-/** Subtype marker: "has all creature types" (Soulstone Sanctuary). */
+/**
+ * Subtype marker: "has all creature types" (Soulstone Sanctuary); in `ObjectFilter.anySubtype`, "any creature type"
+ * (sharing a creature type with a changeling).
+ */
 export const ALL_CREATURE_TYPES = "*";
 
-/** Subtypes that are not creature types (lands, artifacts, enchantments). */
-export const NON_CREATURE_SUBTYPES = new Set([...LAND_TYPES, "Equipment", "Aura", "Treasure", "Food", "Clue", "Saga", "Vehicle"]);
+/** Changeling (702.73a, in all zones) or "all creature types" (layer 4): each creature type of 205.3m. */
+export function hasAllCreatureTypes(v: Pick<LkiSnapshot, "keywords" | "subtypes">): boolean {
+  return v.keywords.includes("changeling") || v.subtypes.includes(ALL_CREATURE_TYPES);
+}
+
+/** Its creature types (205.3m, `CREATURE_TYPES`), or `["*"]` when it has them all. */
+export function creatureTypesOf(v: Pick<LkiSnapshot, "keywords" | "subtypes">): string[] {
+  return hasAllCreatureTypes(v) ? [ALL_CREATURE_TYPES] : v.subtypes.filter(isCreatureType);
+}
 
 function hasSubtype(v: LkiSnapshot, t: string): boolean {
+  // "Any creature type" (shares a creature type with a changeling).
+  if (t === ALL_CREATURE_TYPES) return hasAllCreatureTypes(v) || v.subtypes.some(isCreatureType);
   if (v.subtypes.includes(t)) return true;
-  // Changeling: all creature types, in all zones (702.73a).
-  if (v.keywords.includes("changeling") && !NON_CREATURE_SUBTYPES.has(t)) return true;
-  return v.subtypes.includes(ALL_CREATURE_TYPES) && v.types.includes("Creature") && !NON_CREATURE_SUBTYPES.has(t);
+  // Only the creature types of the official list (not Food, Book, Equipment…).
+  return hasAllCreatureTypes(v) && isCreatureType(t);
 }
 
 /** Does the filter read a choice made by its source ("of the chosen type / color / name")? */
@@ -559,9 +570,8 @@ export function validateTargets(
 /** Do the objects share a creature type? A changeling (or "all types") has them all. */
 export function shareCreatureType(s: GameState, ids: ObjectId[]): boolean {
   const views = ids.map((id) => snapshot(s, id));
-  const all = (v: LkiSnapshot) => v.keywords.includes("changeling") || v.subtypes.includes(ALL_CREATURE_TYPES);
-  const [first, ...rest] = views.filter((v) => !all(v));
+  const [first, ...rest] = views.filter((v) => !hasAllCreatureTypes(v));
   // Only changelings: they share all types. Otherwise, a type of the first one that the others have too.
   if (!first) return true;
-  return first.subtypes.some((t) => !NON_CREATURE_SUBTYPES.has(t) && rest.every((v) => v.subtypes.includes(t)));
+  return first.subtypes.some((t) => isCreatureType(t) && rest.every((v) => v.subtypes.includes(t)));
 }

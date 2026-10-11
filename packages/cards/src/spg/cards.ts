@@ -883,11 +883,13 @@ export const CARDS: Record<string, CardScript> = {
     ],
   },
   "Green Sun's Zenith": {
-    // "Shuffle it into its owner's library": like a card that returns to the library instead of the graveyard.
-    shuffleIntoLibrary: true,
+    // "Shuffle Green Sun's Zenith into its owner's library": as it resolves only (countered, it goes to the graveyard).
     spell: spell(
       [],
-      [fx.search({ types: ["Creature"], colors: ["G"], compare: [cmp.manaValue("<=", amount.x)] }, { to: "battlefield" })],
+      [
+        fx.search({ types: ["Creature"], colors: ["G"], compare: [cmp.manaValue("<=", amount.x)] }, { to: "battlefield" }),
+        fx.shuffleOnResolve,
+      ],
     ),
   },
   "Sliver Overlord": {

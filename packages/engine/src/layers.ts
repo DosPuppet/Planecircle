@@ -20,7 +20,7 @@ import { hasName, isCreatureType, printedName, shareName } from "./names";
 import { grantedSpellKeywords } from "./stack";
 import { commandZoneAbilities, counterPT, obj } from "./state";
 import { playerStatics } from "./statics";
-import { ALL_CREATURE_TYPES, hasChosen, matchesObjectFilter, matchesView, withChosen } from "./targets";
+import { ALL_CREATURE_TYPES, hasAllCreatureTypes, hasChosen, matchesObjectFilter, matchesView, withChosen } from "./targets";
 import { msg } from "./text";
 import { checkCondition } from "./triggers";
 import { countersPutThisTurn, countTurnEvents, objectDidThisTurn, onTurnLogged } from "./turnlog";
@@ -806,7 +806,9 @@ function view(s: GameState, id: ObjectId, c: Characteristics, o: GameObject, def
     attackedPlayer: defender !== undefined && s.players[defender] ? defender : undefined,
     name: c.name,
     manaValue: scan ? scanManaValue(s, scan.copied, o) : viewManaValue(s, id, o),
-    suspected: o.suspected || undefined,
+    suspected: !!o.suspected || undefined,
+    kicked: o.kicked || undefined,
+    controlledSince: o.zone === "battlefield" ? o.controlledSince : undefined,
     // "a spell with {X} in its mana cost" (Matterbending Mage).
     hasX: (!o.faceDown && (s.defs[o.faceDefId ?? o.defId]?.manaCost?.x ?? 0) > 0) || undefined,
     tapped: o.tapped,
@@ -943,9 +945,11 @@ function collectStatics(s: GameState, defOfId: (id: ObjectId) => string, previou
       return { ...previous, applied, signature: sig.join(","), dependent: true };
     }
     const fixed: Applied[] = s.effects.map((e) => ({ timestamp: e.timestamp, mods: e, affected: e.affected }));
-    // 122.1b, 613.7: an ability counter is a layer 6 effect timestamped when it was put on (PLAN-L L5).
+    // 122.1b, 613.7: an ability counter is a layer 6 effect timestamped when it was put on (PLAN-L L5); 701.60c: so is
+    // what a suspected permanent has, timestamped when it became suspected.
     for (const id of s.battlefield) {
       const o = obj(s, id);
+      if (o.suspected) fixed.push({ timestamp: o.suspected, mods: { addKeywords: ["menace", "cantBlock"] }, affected: [id] });
       for (const [kind, n] of Object.entries(o.counters)) {
         const k = KEYWORD_COUNTERS[kind];
         if (k && n > 0)
@@ -1320,9 +1324,7 @@ function applyLayersScanned(s: GameState, applied: Applied[], defOfId: (id: Obje
       }
     },
   );
-  for (const [id, c] of out) {
-    // 701.60c: a suspected permanent has menace and "can't block" for as long as it's suspected.
-    if (obj(s, id).suspected) for (const k of ["menace", "cantBlock"] as const) if (!c.keywords.includes(k)) c.keywords.push(k);
+  for (const c of out.values()) {
     // 702.108: a granted prowess (Bria) or one carried by a token (Otter) has its triggered ability.
     if (c.keywords.includes("prowess") && !c.abilities.some((ab) => ab.kind === "triggered" && ab.label === PROWESS_LABEL)) {
       c.abilities = [...c.abilities, PROWESS];
@@ -1368,7 +1370,7 @@ function applyLayersScanned(s: GameState, applied: Applied[], defOfId: (id: Obje
               (x) => x !== c && x.controller === c.controller && x.types.includes("Creature") && shareName(x.name, c.name),
             ).length
           : per?.what === "ownCreatureTypes"
-            ? Math.min(per.max, c.keywords.includes("changeling") ? per.max : c.subtypes.length)
+            ? Math.min(per.max, hasAllCreatureTypes(c) ? per.max : c.subtypes.filter(isCreatureType).length)
             : 1;
       c.power += (m.power ?? 0) * k;
       c.toughness += (m.toughness ?? 0) * k;

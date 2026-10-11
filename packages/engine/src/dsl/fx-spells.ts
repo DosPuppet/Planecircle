@@ -127,6 +127,8 @@ export const spellsFx = {
   exileOnResolve: { op: "spellFate", fate: "exile" } as Effect,
   /** "Put [this spell] on the bottom of its owner's library" (Ultimate Nullification). */
   bottomOnResolve: { op: "spellFate", fate: "bottom" } as Effect,
+  /** "Shuffle [this spell] into its owner's library" as it resolves (Green Sun's Zenith). */
+  shuffleOnResolve: { op: "spellFate", fate: "shuffle" } as Effect,
   changeTarget: (what: Ref): Effect => ({ op: "changeTarget", what }),
   tripleTriad: { op: "tripleTriad" } as Effect,
   resolveToBattlefieldTransformed: { op: "spellFate", fate: "battlefieldTransformed" } as Effect,

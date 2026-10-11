@@ -86,7 +86,7 @@ type Arrival = Partial<EntersContext>;
  * before any move (the operation is replayed with the answer): shock lands ("as this enters, you may pay 2 life; if you
  * don't, it enters tapped"); "as this enters" effects (614.1c, 614.12: `asEntersChoices`, as for a resolving permanent
  * spell; none for a permanent put face down, 708.2); what a permanent put onto the battlefield attacking attacks (508.4).
- * `random`: after a random draw, which would not be replayed, no question (no life paid, the suggested answers).
+ * A random draw before it is kept with the answers (`randomPick`), so the questions are asked after it too.
  * Returns the question to ask, otherwise the choices of each object.
  */
 function arrivalChoices(
@@ -97,7 +97,6 @@ function arrivalChoices(
   spec: MoveSpec,
   controllerOf: (id: ObjectId) => PlayerId,
   key: (k: string) => string,
-  random = false,
 ): Extract<OpResult, { ask: unknown }> | Map<ObjectId, Arrival> {
   const out = new Map<ObjectId, Arrival>();
   if (spec.to !== "battlefield") return out;
@@ -106,7 +105,7 @@ function arrivalChoices(
     const d = s.defs[s.objects[id]?.defId ?? ""];
     const who = controllerOf(id);
     const n = d?.shockLand;
-    if (d && n && !random && !spec.tapped && !spec.as && payableLife(s, who) >= n) {
+    if (d && n && !spec.tapped && !spec.as && payableLife(s, who) >= n) {
       const k = key(`shock-${id}`);
       const answer = r.vars[k];
       if (!answer) {
@@ -129,18 +128,32 @@ function arrivalChoices(
       // The entering face: the back face of a transforming card put onto the battlefield transformed (712.14).
       const face = spec.transformed && d.layout === "transform" ? (d.faceDefs?.[1] ?? d) : d;
       const entering = { id, defId: face.id, controller: who };
-      const res = asEntersChoices(s, r.vars, entering, key(`enter-${id}:`), random ? "auto" : "ask");
+      const res = asEntersChoices(s, r.vars, entering, key(`enter-${id}:`), "ask");
       if ("ask" in res) return res;
       out.set(id, { ...out.get(id), ...res });
     }
     if (d && spec.attacking && !spec.as) {
       const prompt = msg("{card}: what should it attack?", { card: cardRef(d.id) });
-      const c = chooseAttacked(s, r, ctx, key(`attack-${id}`), who, designated, prompt, { ask: !random });
+      const c = chooseAttacked(s, r, ctx, key(`attack-${id}`), who, designated, prompt);
       if ("ask" in c) return c;
       out.set(id, { ...out.get(id), attacking: c.defender });
     }
   }
   return out;
+}
+
+/**
+ * "… at random": `count` cards drawn from `pool`, kept with the answers under `k` (a resumed resolution does not draw
+ * again), like Indoraptor's pick.
+ */
+function randomPick(s: GameState, r: Resolution, k: string, pool: readonly ObjectId[], count: number): ObjectId[] {
+  const kept = r.vars[k];
+  if (kept) return kept.map(String);
+  const shuffled = [...pool];
+  shuffle(s, shuffled);
+  const picked = shuffled.slice(0, count);
+  r.vars[k] = picked;
+  return picked;
 }
 
 /** Can each card be given a card type it has, all different (matching, at most ten cards)? */
@@ -702,11 +715,7 @@ export const HANDLERS: OpHandlers = {
     if (count <= 0) return;
     const min = Math.min(e.min ?? count, count);
     let picked = onePerName.length === count && min === count ? onePerName : null;
-    if (!picked && e.random) {
-      const shuffled = [...pool];
-      shuffle(s, shuffled);
-      picked = shuffled.slice(0, count);
-    }
+    if (!picked && e.random) picked = randomPick(s, r, key("randomPick"), pool, count);
     if (!picked) {
       const answer = r.vars[key("pickZone")];
       if (!answer) {
@@ -731,8 +740,7 @@ export const HANDLERS: OpHandlers = {
     if (allowed && !distinctColors(picked.map(colorsOf))) throw new RulesError(msg("At most one card per color"));
     if (e.distinct === "name" && firstOfEachName(picked, nameOf).length !== picked.length)
       throw new RulesError(msg("Cards with different names"));
-    // A random draw is not replayed: no question after it.
-    const arrival = arrivalChoices(s, r, ctx, picked, e.to, ownerOr(s, e.to, ctx.controller), key, !!e.random);
+    const arrival = arrivalChoices(s, r, ctx, picked, e.to, ownerOr(s, e.to, ctx.controller), key);
     if (!(arrival instanceof Map)) return arrival;
     const moved = picked
       .map((id) => moveWithSpec(s, ctx.controller, id, evalMoveSpec(s, ctx, e.to), arrival.get(id)))
@@ -1305,11 +1313,8 @@ export const HANDLERS: OpHandlers = {
       });
     };
     let picked: string[] = [];
-    if (e.random && options.length > 0 && count > 0) {
-      const pool = [...options];
-      shuffle(s, pool);
-      picked = pool.slice(0, count);
-    } else if (e.exact && !e.onePerType && e.maxTotalManaValue === undefined && count > 0 && options.length <= count) {
+    if (e.random && options.length > 0 && count > 0) picked = randomPick(s, r, key("randomPick"), options, count);
+    else if (e.exact && !e.onePerType && e.maxTotalManaValue === undefined && count > 0 && options.length <= count) {
       // All the matching cards must be taken (Scroll Rack: "that many cards from the top"): no question.
       picked = options;
     } else if (options.length > 0 && count > 0) {
@@ -1394,7 +1399,7 @@ export const HANDLERS: OpHandlers = {
       // Each card moved on top covers the previous one: the last moved is drawn first.
       picked = [...chosen].reverse();
     }
-    const arrival = arrivalChoices(s, r, ctx, picked, e.to, ownerOr(s, e.to, ctx.controller), key, !!e.random);
+    const arrival = arrivalChoices(s, r, ctx, picked, e.to, ownerOr(s, e.to, ctx.controller), key);
     if (!(arrival instanceof Map)) return arrival;
     // "You may reveal it and put it into your hand": the chosen cards are shown to all players.
     if (e.reveal && picked.length)

@@ -578,8 +578,16 @@ export type Effect =
    * `counter` counter, Goliath Daydreamer), plotted (Lilah), with rebound (702.88), or put onto the battlefield
    * transformed with a finality counter (Esper Origins).
    */
-  /** `bottom`: the resolving spell goes to the bottom of its owner's library (Ultimate Nullification). */
-  | { op: "spellFate"; fate: "exile" | "plot" | "rebound" | "battlefieldTransformed" | "bottom"; what?: Ref; counter?: string }
+  /**
+   * `bottom`: the resolving spell goes to the bottom of its owner's library (Ultimate Nullification); `shuffle`: it is
+   * shuffled into it (Green Sun's Zenith).
+   */
+  | {
+      op: "spellFate";
+      fate: "exile" | "plot" | "rebound" | "battlefieldTransformed" | "bottom" | "shuffle";
+      what?: Ref;
+      counter?: string;
+    }
   /** Copies of a spell on the stack (same targets). */
   /**
    * `haste`, `atEnd: "sacrifice"`: the copy of a creature spell has haste and is sacrificed at the beginning of the
@@ -735,6 +743,8 @@ export type Effect =
       maxManaValue?: Amount;
       /** Cast for this cost rather than its mana cost (miracle: Lorehold, the Historian). */
       cost?: ManaCost;
+      /** A creature spell cast this way gains haste (suspend, 702.62a). */
+      haste?: boolean;
     }
   /** Craft: "return this card transformed under its owner's control"; the materials are linked to it. */
   | { op: "craftReturn" }

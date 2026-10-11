@@ -1,5 +1,6 @@
 /** Triggers of the card DSL (dsl.ts): `when.*`, the dealt-damage filters and `triggered`. */
 
+import { msg } from "../text";
 import type { Condition, ObjectFilter, Step, TargetFilter, TargetSpec, TriggeredAbilityDef, TriggerSpec, Zone } from "../types";
 import type { Effects } from "./shared";
 
@@ -55,6 +56,11 @@ export const when = {
     filter?: ObjectFilter,
     targeting?: Pick<TargetFilter, "objects" | "players"> & { orFilter?: boolean },
   ): TriggerSpec => ({ on: "castSpell", by, filter, targeting }),
+  /**
+   * "[Spells] you cast have storm" (702.40a): whenever you cast a matching spell; `amount.eventAmount` is the number
+   * of spells cast before it this turn (Ral's emblem, Prismari).
+   */
+  castSpellStorm: (filter: ObjectFilter): TriggerSpec => ({ on: "castSpell", by: "you", filter, storm: true }),
   /** "Whenever you cast your Nth spell each turn" */
   castNthSpell: (nth: number): TriggerSpec => ({ on: "castSpell", by: "you", nth }),
   /** "Whenever a player casts a spell, if it's not their turn" */
@@ -307,3 +313,15 @@ export function triggered(
     batched: opts.batched,
   };
 }
+
+/**
+ * "At the beginning of the end step, sacrifice this token": an ability of the token itself, not a delayed ability
+ * (Kindle the Inner Flame, Electroduplicate, Chandra, Flameshaper: `copyToken` with `addAbilities`; Choreographed
+ * Sparks: the copy of a creature spell, `copySpell.atEnd`). A copy of the token has it too; "loses all abilities"
+ * removes it.
+ */
+export const SACRIFICE_TOKEN_AT_END_STEP: TriggeredAbilityDef = triggered(
+  { on: "step", step: "end", whose: "any" },
+  [{ op: "sacrificeIt", what: { kind: "self" } }],
+  { label: msg("At the beginning of the end step, sacrifice this token") },
+);

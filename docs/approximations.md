@@ -24,11 +24,8 @@ Each entry carries its nature:
 - `auto choice` **Amass (701.47a):** the counters go on your first Army (no choice when you control several).
 - `auto choice` **Payment details (as on Arena):** outside full control, the automatic payment chooses the objects that help pay (waterbend, convoke, improvise, delve, Cave, after the lands), uses the {0} of Kíli the Resourceful for the first equip of the turn, and chooses the other permanent tapped by Gene Pollinator or Relic of Legends (one without a mana ability first); in full control, the player chooses them (PLAN-M M6).
 - `timing` **Commander to a hand or a library (903.9b):** it is a replacement, but the question ("Put ... into the command zone?") is asked right after its arrival in hand or in the library, at the next check, as from a graveyard or exile (903.9a); a trigger "when a card is put into your hand" would therefore see it go by. Never answered by the autopilot.
-- `rule` **"At the beginning of the end step, sacrifice this token":** modeled by a delayed ability rather than an ability of the token.
-- `rule` **Shock lands put onto the battlefield at random by an effect** (a card taken at random): they enter tapped, without offering to pay 2 life; put onto the battlefield by the other effects (search, return from the graveyard, cards looked at or revealed), the question is asked of the player who will control them.
 - `rule` **"One or more ..." triggers (Ketramose, Dredger's Insight):** one trigger per batch of simultaneous events (an effect of a resolution, a combat damage step, a state-based actions pass); events outside a batch (costs paid while casting a spell or activating an ability) count as a single batch.
 - `timing` **Costs paid before the mana:** a permanent exiled, returned or sacrificed for an additional or alternative cost leaves the battlefield before the mana is paid: its mana abilities and its mana replacements (Lavaleaper) no longer help pay for that spell (601.2g-h would allow committing mana earlier). For an activated ability, the mana abilities of the permanents sacrificed for the cost are used first.
-- `rule` **Suspend (702.62):** haste is given to the next creature spell cast this turn, even if it is not the suspended card (also Taigam, Master Opportunist).
 - `auto choice` **Controlling another player's turn** (Mindslaver, The Dominion Bracelet): an AI that controls another player's turn contents itself with the default decisions (pass, do not attack).
 - `rule` **Token copies created attacking (508.4):** a single choice of defender for all the token copies that one effect creates for one player (Calamity), whereas each could attack a different defender; the copies beyond a doubler keep the defender chosen for their player (myriad). The other tokens created attacking (mobilize…) are divided among the defenders since PLAN-L L5.
 - `rule` **Safety caps:** a single event creates at most 100 tokens, and none when the battlefield already holds 400 objects; a replaced amount (damage, counters, life, cards) is capped at one million, and so is an announced X (a larger X is refused: squad paid a billion times built a cost of a billion symbols before failing). Token doublers that multiply (copies of Exalted Sunborn) otherwise gave an infinite number and a blocked game (`engine/src/limits.ts`). Each cut is noted in the game log ("Safety cap reached").
@@ -44,11 +41,9 @@ Each entry carries its nature:
 In the order they were added, set by set.
 
 - **Several sets:**
-  - `rule` Soulstone Sanctuary ("all creature types"): any subtype except the known land, artifact and enchantment ones;
   - `rule` Moonlit Meditation, Mirrormind Crown: the token copies created by an effect ("create a token that's a copy of …": Kindle the Inner Flame, myriad) are not replaced (the "you may" is asked for the other tokens, amass, endure and gifts included since PLAN-L L5).
 - **Final Fantasy (`docs/extensions/fin.md`):**
-  - `rule` Quina, Qu Gourmet: no Frog for the copy tokens;
-  - `rule` Sin, Spira's Punishment: six copies at most per trigger;
+  - `rule` Sin, Spira's Punishment: six copies at most per trigger.
 - **Aetherdrift (`docs/extensions/dft.md`):**
   - `rule` Skyseer's Chariot: "a nonland card name"; a land card name is also accepted (and can be offered);
   - `rule` Lifecraft Engine: all your Vehicles, even noncreature ones, have the chosen type (the set affected in layer 4 does not follow the 613.8a dependency on crew, which is more recent);
@@ -57,13 +52,11 @@ In the order they were added, set by set.
   - `rule` Fblthp, Lost on the Range: plotting the top card goes through an ability (on the stack) that pays its mana cost;
   - `rule` Riku of Many Paths: a single mode, whatever the number of modes of the spell;
 - **The Big Score (`docs/extensions/otj-big.md`):**
-  - `rule` Memory Vessel: you can still play the cards in your hand;
-  - `rule` Grand Abolisher: mana abilities are not blocked.
+  - `rule` Memory Vessel: you can still play the cards in your hand.
 - **Tarkir: Dragonstorm (`docs/extensions/tdm.md`):**
   - `timing` Sidisi, Regent of the Mire: the card with mana value X + 1 is targeted by a reflexive ability, once the cost is paid;
   - `rule` Teval (Cavern): an exiled card pays generic {1}, but also a {C}; outside full control, the automatic payment uses mana first, then exiles the cards in graveyard order (in full control, the player chooses them);
-  - `rule` New Way Forward: a spell chosen as a source is recognized by its card alone (another copy of the same card, whoever controls it, would also be affected); the damage is all prevented, after the modifications (doublings) that apply to it;
-  - `rule` Neriv, Heart of the Storm: a creature that is no longer on the battlefield did not "enter this turn".
+  - `rule` New Way Forward: a spell chosen as a source is recognized by its card alone (another copy of the same card, whoever controls it, would also be affected); the damage is all prevented, after the modifications (doublings) that apply to it.
 - **Duskmourn (`docs/extensions/dsk.md`):**
   - `rule` Acrobatic Cheerleader ("triggers only once"): as long as it has no flying counter;
   - `rule` condition not checked: different powers (Rip, Spawn Hunter);
@@ -73,12 +66,10 @@ In the order they were added, set by set.
   - `rule` Marvin, Murderous Mimic: only the printed activated abilities of other creatures (not granted ones);
   - `auto choice` Haunted Screen: the automatic payment can pay the life of the {G}/{U}/{R} ability.
 - **Bloomburrow (`docs/extensions/blb.md`):**
-  - `rule` Gift of a permanent: if it left the battlefield before its "gift promised" trigger resolves, the gift goes to the next opponent in turn order, and not to the chosen opponent (exact in a duel);
   - `auto choice` Forage during a resolution ("you may forage. If you do…"): three cards from the graveyard (lands first) if there are at least three, otherwise a Food (a token preferably); as a cost (Feed the Cycle, Osteomancer Adept, Thornvault Forager), the player chooses (PLAN-M M6);
   - `timing` The Infamous Cruelclaw: the card is discarded before casting the spell (and not as a replacement cost during casting);
   - `auto choice` Portent of Calamity: the exiled cards are chosen automatically (one per type);
-  - `rule` Rottenmouth Viper: at most as many permanents are sacrificed as the generic cost to pay (one more sacrifice would reduce nothing, but would count for "whenever you sacrifice");
-  - `rule` Ral (emblem): the copy is counted at resolution (a spell cast in response to the trigger counts).
+  - `rule` Rottenmouth Viper: at most as many permanents are sacrificed as the generic cost to pay (one more sacrifice would reduce nothing, but would count for "whenever you sacrifice").
 - **The Lost Caverns of Ixalan (`docs/extensions/lci.md`):**
   - `rule` Cavern mana (Bat Colony) and "using mana produced by [source]" (Tecutlan, The Myriad Pools): only the mana committed by the automatic payment;
   - `rule` The Myriad Pools: the permanent becomes a copy of the spell on the stack;
@@ -113,12 +104,10 @@ In the order they were added, set by set.
 - **Secrets of Strixhaven (`docs/extensions/sos.md`):**
   - `rule` Zimone's Experiment: the revealed cards go back on top of the library before going onto the battlefield or into hand (like Break Out);
   - `rule` Silverquill, the Disputant: the granted victim is a triggered ability at casting (sacrifice a creature, then copy), and not a cost: it can be responded to;
-  - `timing` Prismari, the Inspiration: the granted storm counts the spells cast before this one at the ability's resolution (a spell cast in response is counted);
   - `rule` Dina's Guidance: the searched card goes to hand, then you may put it into the graveyard;
   - `rule` Transcendent Archaic: "if you draw one or more cards this way" is "if X is 1 or more";
   - `rule` Lorehold, the Historian: the granted miracle is a triggered ability on the first draw of the turn (the card is not revealed), which offers to cast it for {2}.
 - **Murders at Karlov Manor (`docs/extensions/mkm.md`):**
-  - `rule` suspect (701.60): menace and "can't block" are added after layer 6 effects; a "loses all abilities" effect does not remove them;
   - `rule` Living Conundrum: "if your library is empty" is judged once for a multi-card draw;
   - `auto choice` Agency Outfitter: each name is searched for in the graveyard, then the hand, then the library (fixed order);
   - `timing` Archdruid's Charm, Flourishing Bloom-Kin: the searched cards go through the hand before the land enters tapped; the shuffle takes place before;
@@ -166,15 +155,12 @@ In the order they were added, set by set.
 - **Reprints, "Unlimited" (`docs/extensions/reprints.md`):**
   - `rule` Ragavan, Nimble Pilferer: "you may cast this card": a modal double-faced card whose back face is a land could be played by that back face;
   - `auto choice` Gemstone Caverns: the card exiled from hand is the nonland card of lowest mana value (a land if there is none);
-  - `rule` Reflecting Pool: the types that Command Tower would produce do not count (ignoring lands of the same kind, Reflecting Pool and Exotic Orchard, is the rule: 106.7);
   - `rule` Drown in the Loch: "mana value less than or equal to the number of cards in its controller's graveyard" is checked at resolution, not at targeting;
-  - `rule` Green Sun's Zenith: it is shuffled into the library whenever it would go to the graveyard, not only when resolving;
   - `rule` Hindering Light: only spells that target a permanent you control are recognized, not those that target only you;
   - `rule` All Will Be One: only counters put on permanents trigger the ability;
   - `rule` Henry Wu: the draw and the Treasure are part of the exploit ability it gives (they only happen if he is on the battlefield when it resolves);
   - `rule` Laboratory Maniac: the win that replaces the draw is noted with the state-based actions that follow (like the loss it replaces);
   - `rule` Mirri, Weatherlight Duelist: "this combat" lasts the turn (an extra combat stays limited);
-  - `rule` Shared Animosity: a changeling attacker is counted as sharing a type with every other attacking creature, even without a creature type;
   - `rule` Outlaws' Merriment: the token "chosen at random" is drawn by a three-sided die (shown in the log);
   - `rule` Flesh Duplicate: fading is given even if the copied creature already has it (only when copying another Flesh Duplicate: no handled card has printed fading);
   - `rule` Hunting Velociraptor: the marauding requires combat damage from a Dinosaur (not from any type common to the spell);

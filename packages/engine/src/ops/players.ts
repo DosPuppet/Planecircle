@@ -97,10 +97,10 @@ export const HANDLERS: OpHandlers = {
     return;
   },
   gift(s, r, e, ctx, key) {
-    // 702.174: the opponent chosen while casting the spell gets the gift (`CastInfo.giftTo`, on the spell or on the
-    // permanent it became); with a single opponent, nothing was asked: it is that one. Left the game: nothing.
-    // Approximation: a permanent that has already left the battlefield no longer has its choice (the next opponent).
-    const cast = r.item.kind === "spell" ? r.item.cast : s.objects[ctx.sourceId]?.cast;
+    // 702.174: the opponent chosen while casting the spell gets the gift (`CastInfo.giftTo`, on the spell, or on the
+    // "gift promised" ability, copied from the permanent when it was put on the stack); with a single opponent, nothing
+    // was asked: it is that one. Left the game: nothing.
+    const cast = r.item.cast ?? s.objects[ctx.sourceId]?.cast;
     const to = cast?.giftTo ?? opponentsOf(s, ctx.controller)[0];
     if (!to || !isAlive(s, to)) return;
     if (e.kind === "card") drawCards(s, to, 1);

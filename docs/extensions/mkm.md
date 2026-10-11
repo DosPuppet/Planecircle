@@ -161,3 +161,8 @@ The weekly comparison with Scryfall (`tools/check-legality.ts`) found three Stan
 - **Voja, Jaws of the Conclave:** counters per Elf on each of your creatures, one card per Wolf.
 
 Three rules tests in `engine/test/mkm.test.ts`.
+
+## PLAN-M M7 (rules 198)
+
+- **Suspect** (701.60c): `GameObject.suspected` holds the timestamp at which the permanent became suspected; menace and "can't block" are a layer 6 entry with that timestamp (like ability counters), so a later "loses all abilities" removes them (it stays suspected) and an earlier one does not.
+- **Tests:** `mkm.test.ts` (+1).

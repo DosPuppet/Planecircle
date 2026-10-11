@@ -555,8 +555,19 @@ export const RECORD_VERSION = 1;
  *   card for as long as the Equipment stays attached to it (`becomeCopy` whileAttached), with the timestamp of the
  *   effect, instead of a static; "for as long as it is attached" effects (Eriette, the Aegis) end as soon as the
  *   attachment moves or is removed, not at the next state-based check
+ * - 198: PLAN-M M7: suspend gives haste to the suspended creature cast (not the next creature spell); a random pick put
+ *   onto the battlefield is kept with the answers, so shock lands and "as enters" choices are asked; Grand Abolisher
+ *   also locks mana abilities (Yuriko no longer locks activated mana abilities); granted storm (Ral's emblem,
+ *   Prismari) counted when the spell is cast; suspect as a timestamped layer 6 effect; "at the beginning of the end
+ *   step, sacrifice this token" as an ability of the token; a permanent's gift recipient carried by its triggers and
+ *   "if kicked / gift promised" read from last known information; only the official creature types for changeling and
+ *   "all creature types" (Soulstone Sanctuary, Shared Animosity, Diligent Zookeeper); Reflecting Pool counts Command
+ *   Tower; Neriv reads "entered this turn" from last known information; Green Sun's Zenith shuffled only as it
+ *   resolves; Quina's Frog (and Worldwalker Helm's Map) also for token copies; a permanent chosen for another cost of a
+ *   spell (sacrifice, "discard or sacrifice", the kicker's permanent) no longer sacrifices itself for its mana (crash
+ *   found by the fuzz: Demand Answers with a Treasure, Bogslither's Embrace blighting Traxos)
  */
-export const RULES_VERSION = 197;
+export const RULES_VERSION = 198;
 
 /** One checkpoint every N decisions (plus the last one of the game). */
 export const CHECKPOINT_EVERY = 25;

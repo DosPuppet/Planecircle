@@ -36,10 +36,10 @@ import {
 import { playerStatic, playerStatics } from "./statics";
 import {
   ALL_CREATURE_TYPES,
+  creatureTypesOf,
   matchesCard,
   matchesObjectFilter,
   matchesView,
-  NON_CREATURE_SUBTYPES,
   protectedFrom,
   resolveFilter,
   sourceView,
@@ -106,10 +106,9 @@ export function withX(s: GameState, f: ObjectFilter, ctx: EffectContext): Object
     const vs = resolveRef(s, ctx, shares.with)
       .filter((x) => s.objects[x])
       .map((x) => snapshot(s, x));
-    const all = vs.some((v) => v.keywords.includes("changeling") || v.subtypes.includes(ALL_CREATURE_TYPES));
-    const types = [...new Set(vs.flatMap((v) => v.subtypes.filter((st) => !NON_CREATURE_SUBTYPES.has(st))))];
-    // A changeling shares each of its types with any creature (approximated: any creature).
-    f = all ? { ...f, types: [...(f.types ?? []), "Creature"] } : { ...f, anySubtype: types };
+    // A changeling shares a creature type with anything that has one (`"*"`: any creature type).
+    const types = [...new Set(vs.flatMap(creatureTypesOf))];
+    f = { ...f, anySubtype: types.includes(ALL_CREATURE_TYPES) ? [ALL_CREATURE_TYPES] : types };
   }
   if (shares?.what === "cardType") {
     // A sacrificed permanent: its last known information.
@@ -1203,6 +1202,7 @@ export function grantPlay(
     cost?: ManaCost;
     payLifeManaValue?: boolean;
     adventureOnly?: boolean;
+    haste?: boolean;
   },
 ): void {
   const last =

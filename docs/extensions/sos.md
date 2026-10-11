@@ -126,3 +126,9 @@ The scripts are in `packages/cards/src/sos/`: `cards` (meta cards), `white`, `bl
 - **[rules]** `RULES_VERSION` = 32.
 - **Deviations:** cascade and miracle are approximated (see `docs/approximations.md`).
 - **Tests:** 4 rules tests ("lot C3").
+
+## PLAN-M M7 (rules 198)
+
+- **Prismari, the Inspiration:** the granted storm is `when.castSpellStorm` (count read from the cast event, `spellsBefore`): a spell cast in response to the trigger is no longer counted.
+- **Choreographed Sparks:** the token copy of the creature spell gains "At the beginning of the end step, sacrifice this token" as an ability (`SACRIFICE_TOKEN_AT_END_STEP`), not a delayed ability.
+- **Tests:** `sos.test.ts` (+1 Prismari; the Choreographed Sparks test checks the ability).

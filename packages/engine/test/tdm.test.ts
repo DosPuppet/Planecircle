@@ -1360,6 +1360,21 @@ describe("Tarkir: Dragonstorm, lot D (remplacements de blessures, R1)", () => {
       dealDamage(s, sourceFromObject(s, idOf(s, "p1", "battlefield", "Bear Cub")), "p2", 2, false);
       expect(s.players.p2?.life).toBe(10);
     });
+
+    it("a creature gone from the battlefield is judged by its last known information (PLAN-M M7)", () => {
+      const s = scenario({
+        p1: { battlefield: ["Neriv, Heart of the Storm", "Bear Cub", { name: "Serra Angel", sick: true }] },
+      });
+      // Both creatures die, then deal their damage (a "when it dies" or "sacrifice it: it deals" source).
+      const angel = sourceFromObject(s, idOf(s, "p1", "battlefield", "Serra Angel"));
+      const bear = sourceFromObject(s, idOf(s, "p1", "battlefield", "Bear Cub"));
+      destroy(s, idOf(s, "p1", "battlefield", "Serra Angel"));
+      destroy(s, idOf(s, "p1", "battlefield", "Bear Cub"));
+      dealDamage(s, angel, "p2", 2, false);
+      expect(s.players.p2?.life).toBe(16);
+      dealDamage(s, bear, "p2", 2, false);
+      expect(s.players.p2?.life).toBe(14);
+    });
   });
 
   describe("New Way Forward (bouclier, 615.7)", () => {

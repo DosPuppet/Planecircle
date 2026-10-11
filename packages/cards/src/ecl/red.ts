@@ -16,6 +16,7 @@ import {
   mode,
   playerStatic,
   ref,
+  SACRIFICE_TOKEN_AT_END_STEP,
   spell,
   staticAbility,
   TREASURE,
@@ -298,7 +299,7 @@ export const RED: Record<string, CardScript> = {
     flashbackCost: { behold: { filter: ELEMENTAL, required: true, count: 3 } },
     spell: spell(
       [target.creature("t", { controller: "you" })],
-      [fx.copyToken(ref.target(), { addKeywords: ["haste"], sacrificeAtEndStep: true })],
+      [fx.copyToken(ref.target(), { addKeywords: ["haste"], addAbilities: [SACRIFICE_TOKEN_AT_END_STEP] })],
     ),
   },
   "Kulrath Zealot": {

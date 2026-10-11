@@ -371,7 +371,7 @@ export const MULTI: Record<string, CardScript> = {
    */
   "Prismari, the Inspiration": {
     abilities: [
-      triggered(OPUS, [fx.copySpell(ref.eventObject, amount.plus(amount.turnEvents({ event: "cast" }), -1))], {
+      triggered(when.castSpellStorm(INSTANT_SORCERY), [fx.copySpell(ref.eventObject, amount.eventAmount)], {
         label: "Storm: a copy for each spell cast before it this turn",
       }),
     ],

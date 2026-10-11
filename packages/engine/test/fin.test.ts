@@ -250,6 +250,16 @@ describe("Final Fantasy", () => {
     expect(idsOf(t, "p1", "battlefield", "Frog")).toHaveLength(1);
   });
 
+  it("Quina: a token copy also comes with a Frog (PLAN-M M7)", () => {
+    let s = scenario({
+      p1: { battlefield: ["Quina, Qu Gourmet", "Bear Cub", ...lands("Mountain", 3)], hand: ["Electroduplicate"] },
+    });
+    const bear = idOf(s, "p1", "battlefield", "Bear Cub");
+    s = settle(act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Electroduplicate"), targets: { t: [bear] } }));
+    expect(idsOf(s, "p1", "battlefield", "Bear Cub")).toHaveLength(2);
+    expect(idsOf(s, "p1", "battlefield", "Frog")).toHaveLength(1);
+  });
+
   it("Torgal: the first Human creature spell enters with a counter per Dog or Wolf", () => {
     let t = scenario({ p1: { battlefield: ["Torgal, A Fine Hound", ...lands("Plains", 4)], hand: ["Adelbert Steiner"] } });
     const card = idOf(t, "p1", "hand", "Adelbert Steiner");

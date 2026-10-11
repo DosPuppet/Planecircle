@@ -82,7 +82,7 @@ import {
   xCosts,
 } from "./stack";
 import { payableLife } from "./statics";
-import { ALL_CREATURE_TYPES, holderOf, matchesCard, matchesObjectFilter, NON_CREATURE_SUBTYPES } from "./targets";
+import { creatureTypesOf, holderOf, matchesCard, matchesObjectFilter } from "./targets";
 import { msg } from "./text";
 
 /** Winter, Cursed Rider: number of cards that can be exiled for "exile X … cards from your graveyard". */
@@ -213,12 +213,10 @@ function kickerPrompt(d: CardDef): { title: string; without: string; with: strin
 }
 
 /** Creature types of each object, for "that share a creature type" (`"*"`: all types). */
-function creatureTypesOf(s: GameState, ids: ObjectId[]): Record<string, string[]> {
+function creatureTypesByObject(s: GameState, ids: ObjectId[]): Record<string, string[]> {
   return Object.fromEntries(
     ids.map((id) => {
-      const v = snapshot(s, id);
-      const all = v.keywords.includes("changeling") || v.subtypes.includes(ALL_CREATURE_TYPES);
-      return [id, all ? ["*"] : v.subtypes.filter((t) => !NON_CREATURE_SUBTYPES.has(t))];
+      return [id, creatureTypesOf(snapshot(s, id))];
     }),
   );
 }
@@ -266,7 +264,7 @@ function targetOptions(s: GameState, player: PlayerId, specs: TargetSpec[], sour
       kickedLegal: t.kickedFilter ? legalTargets(s, player, { ...t, filter: t.kickedFilter }, sourceId) : undefined,
       otherThan: t.otherThan,
       attachedToTarget: t.attachedToTarget,
-      ...(t.shareCreatureType ? { shareCreatureType: creatureTypesOf(s, legal) } : {}),
+      ...(t.shareCreatureType ? { shareCreatureType: creatureTypesByObject(s, legal) } : {}),
       ...(cap !== undefined
         ? { maxTotalManaValue: { max: cap, values: Object.fromEntries(legal.map((id) => [id, snapshot(s, id).manaValue ?? 0])) } }
         : {}),

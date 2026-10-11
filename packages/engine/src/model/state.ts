@@ -167,8 +167,11 @@ export interface GameObject {
   dealtCombatDamage?: boolean;
   /** Suspended exiled card (702.62): a time counter is removed at each of its owner's upkeeps. */
   suspended?: boolean;
-  /** Suspected (701.60, Murders at Karlov Manor): menace and "can't block" as long as it is. */
-  suspected?: boolean;
+  /**
+   * Suspected (701.60, Murders at Karlov Manor): the timestamp at which it became suspected. Menace and "can't block"
+   * are a layer 6 effect with that timestamp (a later "loses all abilities" removes them; it stays suspected).
+   */
+  suspected?: number;
   /** Has already dealt damage, combat or not (Karakyk Guardian). */
   dealtDamage?: boolean;
   /** Linked cards (exiled by this card, Hoarding Dragon). */
@@ -269,7 +272,7 @@ export interface StackItem {
   /** Esper Origins: after the resolution, exiled then put onto the battlefield transformed with a finality counter. */
   toBattlefieldTransformed?: boolean;
   /** Modifications when the permanent enters (Torgal, Summon: Fenrir, Summon: Brynhildr, Noctis). */
-  /** `atEnd`: the token (copy of a creature spell) is sacrificed at the beginning of the next end step. */
+  /** `atEnd`: the token (copy of a creature spell) gains "At the beginning of the end step, sacrifice this token". */
   /** `nonlegendary`: the copy isn't legendary (copy exception, 707.9b; Jackal, The Clone Saga). */
   arrival?: {
     counters?: { kind: string; n: number }[];
@@ -298,8 +301,11 @@ export interface StackItem {
   event?: TriggerEventData;
   /** Cast with flashback: exiled instead of going to the graveyard. */
   flashback?: boolean;
-  /** To the bottom of its owner's library instead of the graveyard (Kylox's Voltstrider). */
-  bottomInstead?: boolean;
+  /**
+   * Into its owner's library instead of the graveyard: on the bottom (`bottom`, Kylox's Voltstrider, Ultimate
+   * Nullification) or shuffled into it (`shuffle`, Green Sun's Zenith).
+   */
+  libraryInstead?: "bottom" | "shuffle";
   /** Adventure cast: exiled "on an adventure" after its resolution. */
   adventure?: boolean;
   /** Objects paid for the cost. */
@@ -746,6 +752,10 @@ export interface LkiSnapshot {
   hasX?: boolean;
   /** Suspected (701.60). */
   suspected?: boolean;
+  /** Entered from a kicked spell or with its gift promised (`cond.kicked` once it has left: 603.4, 608.2h). */
+  kicked?: boolean;
+  /** Turn it came under its controller's control (`GameObject.controlledSince`): "entered this turn" once it has left. */
+  controlledSince?: number;
   /** Spell that has an Adventure (creature or Adventure of an Adventurer card; Beluna Grandsquall). */
   adventure?: boolean;
   tapped?: boolean;
@@ -997,6 +1007,8 @@ export interface GameState {
     cost?: ManaCost;
     /** Only the card's Adventure (Mosswood Dreadknight). */
     adventureOnly?: boolean;
+    /** A creature spell cast this way gains haste (suspend, 702.62a). */
+    haste?: boolean;
   }[];
   /**
    * 722: "you control [that player] during their next turn" (The Dominion Bracelet). `turn` is set at the beginning

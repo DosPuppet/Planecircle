@@ -33,3 +33,9 @@ The scripts are in `packages/cards/src/blb/`: `white`, `blue`, `black`, `red`, `
   - the keyword `cantBeBlockedByPowerGE2` (Azure Beastbinder).
 
 Tests: `engine/test/blb.test.ts` (29 tests) and the smoke test `ai/test/smoke/blb.test.ts`.
+
+## PLAN-M M7 (rules 198)
+
+- **Ral, Crackling Wit's emblem** has storm (the emblem text said "replicate"): `when.castSpellStorm` (castSpell trigger with `storm`: the event amount is the cast event's `spellsBefore`), so the copies are counted when the spell is cast, not at resolution.
+- **Gift of a permanent:** the "gift promised" trigger carries the chosen opponent (`StackItem.cast.giftTo`, copied when it is put on the stack) and its "if the gift was promised" reads the last known information (`LkiSnapshot.kicked`): a permanent gone before the trigger resolves still gives the gift to the chosen opponent.
+- **Tests:** `blb.test.ts` (+2: Ral's storm with a spell cast in response; Scrapshooter destroyed in response, three players).

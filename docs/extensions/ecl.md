@@ -90,3 +90,7 @@ The scripts are in `packages/cards/src/ecl/`: `cards` (meta cards, phase 1), `wh
 - **[rules]** "those tokens plus one token" applies once per event (Worldwalker Helm and Quina no longer give each other an extra Frog for the Map). `RULES_VERSION` = 25, golden games regenerated.
 - **Audit:** Lavaleaper and Shimmerwilds Growth (triggered mana abilities written as replacements) go into `audit-baseline.json`; Vnwxt's entry leaves it (the "2" is in the script).
 - **Tests:** 5 more rules tests in `engine/test/ecl.test.ts` ("lot D"), 2 in `engine/test/rulings.test.ts` (token replaced then doubled; prevention stronger than a doubler); the existing tests of the converted flags (`audit.test.ts`, `fra-lotf.test.ts`) go through the new frame.
+
+## PLAN-M M7 (rules 198)
+
+- **Kindle the Inner Flame:** the copy's "At the beginning of the end step, sacrifice this token" is an ability of the token (`SACRIFICE_TOKEN_AT_END_STEP`).

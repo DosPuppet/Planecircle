@@ -63,3 +63,8 @@ Requested by the user on 2026-09-27.
   - the single-use free permission from the hand (`ref.handOf`, `grantPlay` with `oneOf`, Buster Sword);
   - the exile "instead of dying" linked by physical identity (`linkedUids`, The Darkness Crystal);
   - the triggers "the linked object leaves the battlefield" and "an opponent loses the game" (Zenos, Shinryu); the extra {C} from lands (Ultima); `lastAttachedTo` (Zack Fair). (Legendary cards, rares, complex transforming cards: Clive, Terra, Sephiroth, Zenos, Kefka, Kuja, Serah, Ultimecia, Emet-Selch, Esper Origins, Crystal Fragments, Play Blitzball…).
+
+## PLAN-M M7 (rules 198)
+
+- **Quina, Qu Gourmet:** token copies (`copyToken`) also come with the Frog, once per player who creates them (`createPlusTokens`, `actions.ts`, shared with Worldwalker Helm's Map and the copies of Moonlit Meditation).
+- **Tests:** `fin.test.ts` (+1).

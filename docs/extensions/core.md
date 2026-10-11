@@ -322,3 +322,13 @@ Lot R7 (PLAN-R; `RULES_VERSION` = 19):
 
 Lot R8 (PLAN-R, no rules change):
 - engine: `holdPriority` and `passMode` (automation), `undoMana` decision (undoing a mana commitment, `GameState.manaUndo`); the rest is in the client and the AI (see docs/history.md and `docs/ai.md`).
+
+## PLAN-M M7: general approximations lifted (rules 198)
+
+- **Suspend** (702.62a): the cast at the last time counter is a `castNow` with `haste` (permission `haste`, `CastTerms.haste`, read by `arrivalFor`): only the suspended creature spell gains haste, no longer the next creature spell cast this turn (also Taigam, Master Opportunist).
+- **Random picks put onto the battlefield** (`pickFromZone`, `lookAtTop` with `random`): the pick is kept with the answers (`randomPick`, like Indoraptor), so the shock land question, the "as enters" choices and the attacked player are asked after it too.
+- **"At the beginning of the end step, sacrifice this token"** is an ability of the token (`SACRIFICE_TOKEN_AT_END_STEP`, `dsl/when.ts`): `copyToken` with `addAbilities` (copiable, 707.9b) for Kindle the Inner Flame, Electroduplicate and Chandra, Flameshaper; gained by the token copy of a creature spell (`arrival.atEnd`, Choreographed Sparks). "Loses all abilities" removes it.
+- **Creature types:** changeling and "all creature types" mean the official list of 205.3m (`isCreatureType`, `hasAllCreatureTypes`, `creatureTypesOf` in `targets.ts`), no longer "any subtype but a few known land, artifact and enchantment ones" (Soulstone Sanctuary, Book, Food…); "shares a creature type with" a changeling only matches objects that have a creature type (`anySubtype: ["*"]`: Shared Animosity); Diligent Zookeeper counts creature types only.
+- **Last known information:** `LkiSnapshot.kicked` ("if it was kicked / if the gift was promised" once the permanent has left) and `LkiSnapshot.controlledSince` ("entered this turn" for a source gone from the battlefield, Neriv).
+- **Cost permanents and mana** (bug found by the fuzz, older than the lot): a permanent chosen for another cost of a spell (sacrifice, "discard or sacrifice", the kicker's permanent) is passed to the payment as `sacrificedForCost`: its mana abilities that sacrifice it (Treasure) are not used.
+- **Tests:** `rulings.test.ts` (+4: suspend, cast or declined; random shock lands from the library and the graveyard; a Treasure sacrificed for Demand Answers' cost).

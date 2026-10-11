@@ -82,3 +82,9 @@ New Way Forward brings the first "the next time" shield (615.7) and Neriv a new 
 - 234 cards added in four lots (25 were already handled by the meta phase), 0 deviations in the Oracle ↔ script audit.
 - 63 rules tests in `engine/test/tdm.test.ts` (in addition to the 24 of the meta phase), 2 in `rulings.test.ts`, 1 in `lci.test.ts`.
 - Deviations found on the way and fixed: intervening condition on the event object (Aclazotz), decayed granted by a counter, blind spot of the debt guard, `tutorial-smoke` delay.
+
+## PLAN-M M7 (rules 198)
+
+- **Neriv, Heart of the Storm:** a creature that entered this turn and left the battlefield before dealing its damage is judged by its last known information (`LkiSnapshot.controlledSince`).
+- **Taigam, Master Opportunist:** the suspended copy fix is general (suspend: haste only for the suspended creature; `docs/extensions/core.md`).
+- **Tests:** `tdm.test.ts` (+1 Neriv).

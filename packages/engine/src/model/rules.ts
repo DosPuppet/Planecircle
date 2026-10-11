@@ -404,6 +404,11 @@ export type TriggerSpec =
       fromExile?: boolean;
       /** Cast from the hand (Ojer Pakpatiq). */
       fromHand?: boolean;
+      /**
+       * Granted storm (702.40a; Ral's emblem, Prismari): the event amount is the number of spells cast before it this
+       * turn by all players, read when it was cast, rather than the instants and sorceries you cast before it.
+       */
+      storm?: boolean;
     }
   /**
    * "At the beginning of [the step]"; `main`: each main phase (Carpet of Flowers); `nth`: only the Nth main phase of

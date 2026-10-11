@@ -16,7 +16,9 @@ import {
 import { cardRule, castOption } from "./cardDef";
 import { absentAnswer, ask } from "./choices";
 import { counterLabel } from "./counterLabels";
+import { SACRIFICE_TOKEN_AT_END_STEP } from "./dsl/when";
 import {
+  addEffect,
   announceDiscard,
   announceDiscardBatch,
   cardRefOf,
@@ -631,13 +633,16 @@ export function spellReduction(
   return { generic: r, colored };
 }
 
-/** Modifications as a spell enters (Noctis; next creature spell: Summon: Fenrir, Summon: Brynhildr). */
-function arrivalFor(terms: CastTerms, next: NextSpell[]): StackItem["arrival"] {
+/**
+ * Modifications as a spell enters (Noctis; next creature spell: Summon: Fenrir, Summon: Brynhildr; suspend: a creature
+ * spell cast this way gains haste, 702.62a).
+ */
+function arrivalFor(terms: CastTerms, next: NextSpell[], d: CardDef): StackItem["arrival"] {
   const counters: { kind: string; n: number }[] = terms.finality ? [{ kind: "finality", n: 1 }] : [];
   // Mikey & Don: "if you cast a creature spell this way, it enters with an additional +1/+1 counter".
   if (terms.playFrom?.counters) counters.push({ kind: "+1/+1", n: terms.playFrom.counters });
   for (const n of next) if (n.counters) counters.push({ kind: "+1/+1", n: n.counters });
-  const haste = next.some((n) => n.haste) || undefined;
+  const haste = next.some((n) => n.haste) || (terms.haste && d.types.includes("Creature")) || undefined;
   // The Tomb of Aclazotz: "it's a Vampire in addition to its other types".
   const subtypes = terms.playFrom?.addSubtypes;
   return counters.length || haste || subtypes ? { counters, haste, ...(subtypes ? { subtypes } : {}) } : undefined;
@@ -1143,6 +1148,8 @@ export interface CastTerms {
   playFrom?: PlayFromZone;
   /** Harmonize granted (Songcrafter Mage) to a card cast from the graveyard. */
   harmonize?: boolean;
+  /** A creature spell cast this way gains haste (suspend, 702.62a). */
+  haste?: boolean;
 }
 
 /** 702.170: the card (from the hand or the stack) is exiled face up and becomes plotted. */
@@ -1605,11 +1612,15 @@ export function faceUpLocked(s: GameState, player: PlayerId): boolean {
   return castLimits(s, player).some((l) => l.faceUp);
 }
 
-/** Grand Abolisher, Yuriko: are the activated abilities (other than mana abilities) of this source locked? */
-function abilitiesLocked(s: GameState, player: PlayerId, source: ObjectId): boolean {
+/**
+ * Grand Abolisher, Yuriko: are the activated abilities of this source locked for this player? `mana`: a mana ability,
+ * which Yuriko ("abilities that aren't mana abilities") leaves alone and Grand Abolisher ("abilities of artifacts,
+ * creatures, or enchantments") locks too.
+ */
+export function abilitiesLocked(s: GameState, player: PlayerId, source: ObjectId, mana = false): boolean {
   return castLimits(s, player).some(
     (l) =>
-      l.abilities === "all" ||
+      (l.abilities === "all" && !mana) ||
       (l.abilities === "artifactsCreaturesEnchantments" &&
         chars(s, source).types.some((t) => t === "Artifact" || t === "Creature" || t === "Enchantment")),
   );
@@ -1834,6 +1845,7 @@ function baseCastTerms(s: GameState, player: PlayerId, card: ObjectId): CastTerm
         costOverride: perm.cost,
         // "… then exile it" (Nita, Forum Conciliator), as from the graveyard.
         after: perm.after,
+        ...(perm.haste ? { haste: true } : {}),
       };
     // Tinybones: opponents' cards exiled with a stash counter, during your turn.
     if (stashPlayable(s, player, o)) return { source: "exile", anyMana: true };
@@ -2561,8 +2573,8 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
     sourceSnapshot: { keywords: d.keywords, power: d.power ?? 0, controller: player },
     // Quistis Trepe: exiled as it leaves the stack, like flashback.
     flashback: flashback || terms.after === "exile",
-    ...(terms.after === "bottom" ? { bottomInstead: true } : {}),
-    arrival: arrivalFor(terms, next),
+    ...(terms.after === "bottom" ? { libraryInstead: "bottom" as const } : {}),
+    arrival: arrivalFor(terms, next, d),
     adventure: adventure || undefined,
     cast: {
       from: terms.source === "flashback" ? "graveyard" : terms.source,
@@ -2585,6 +2597,13 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
   // Beholding cards from the hand: they are revealed.
   const revealed = beheldIds.filter((id) => s.objects[id]?.zone === "hand");
   if (revealed.length) emit({ type: "reveal", player, defIds: revealed.map((id) => s.objects[id]?.defId ?? "") });
+  // Permanents another cost still needs (sacrificed, sacrificed instead of a discard, or the kicker's sacrificed, blighted
+  // or returned permanent): the payment doesn't use their mana abilities that sacrifice them (Treasure).
+  const neededForCosts = [
+    ...sacrifice,
+    ...discard.filter((id) => s.objects[id]?.zone === "battlefield"),
+    ...(kicked && kickerPermanent ? [kickerPermanent] : []),
+  ];
   try {
     const taps: { id: ObjectId; ab?: ManaAbilityDef; amount: number; chosen?: GameObject["chosen"] }[] = [];
     const spent: Partial<Record<ManaType, number>> = {};
@@ -2594,6 +2613,7 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
       cost,
       undefined,
       {
+        ...(neededForCosts.length ? { sacrificedForCost: new Set(neededForCosts) } : {}),
         spell: view,
         convoke: hasConvoke(s, player, d),
         improvise: hasImprovise(s, player, d) || undefined,
@@ -3239,7 +3259,7 @@ export function canPayNonManaCost(s: GameState, source: ObjectId, ab: ActivatedA
   if (!o || o.zone !== activationZone(o, ab)) return false;
   if (o.zone === "battlefield" && !ab.specialAction && chars(s, source).keywords.includes("noActivatedAbilities")) return false;
   if (ab.once && !onceAvailable(s, o, ab, index) && !exhaustReusable(s, o.controller, ab)) return false;
-  if (o.zone === "battlefield" && abilitiesLocked(s, o.controller, source)) return false;
+  if (o.zone === "battlefield" && abilitiesLocked(s, o.controller, source, isManaAbility(ab))) return false;
   if (ab.oncePerTurn && activatedThisTurn(s, source, { index })) return false;
   const who = o.zone !== "battlefield" ? o.owner : o.controller;
   if (ab.activationCondition && !checkCondition(s, ab.activationCondition, who, source)) return false;
@@ -4478,14 +4498,9 @@ function finishResolution(
           choices,
         ),
       );
-      // "… and 'At the beginning of the end step, sacrifice this token'".
+      // "… and 'At the beginning of the end step, sacrifice this token'": an ability the token gains.
       if (item.arrival?.atEnd === "sacrifice" && s.objects[token]?.zone === "battlefield")
-        createDelayed(s, item.controller, token, s.objects[token]?.defId ?? d.id, {
-          targets: [],
-          effects: [{ op: "sacrificeIt", what: { kind: "target", id: "c" } }],
-          bound: { c: [token] },
-          label: msg("sacrifice the copy"),
-        });
+        addEffect(s, [token], { addAbilities: [SACRIFICE_TOKEN_AT_END_STEP] }, "permanent");
     }
     return;
   }
@@ -4675,11 +4690,18 @@ function resolvedSpellAway(s: GameState, item: StackItem, d: CardDef | undefined
   spellToRest(s, item);
 }
 
-/** A spell leaving the stack: into exile (flashback, "exile it"), on the bottom of the library, otherwise into the graveyard. */
+/**
+ * A spell leaving the stack: into exile (flashback, "exile it"), on the bottom of the library or shuffled into it,
+ * otherwise into the graveyard.
+ */
 function spellToRest(s: GameState, item: StackItem, exile = false): void {
   if (item.flashback || exile) moveObject(s, item.sourceId, "exile");
-  else if (item.bottomInstead) moveObject(s, item.sourceId, "library", { position: "bottom" });
-  else moveObject(s, item.sourceId, "graveyard");
+  else if (item.libraryInstead === "bottom") moveObject(s, item.sourceId, "library", { position: "bottom" });
+  else if (item.libraryInstead === "shuffle") {
+    const id = moveObject(s, item.sourceId, "library");
+    const owner = id ? s.objects[id]?.owner : undefined;
+    if (owner) shuffle(s, s.players[owner]?.library ?? []);
+  } else moveObject(s, item.sourceId, "graveyard");
 }
 
 // ---------------------------------------------------------------------------

@@ -2,7 +2,7 @@
  * Tests drawn from official rulings (Scryfall rulings and comprehensive rules) for frequent meta interactions:
  * lifelink, copies, replacements, cleanup (PLAN-R in docs/history.md, lot R7).
  */
-import { card, nameCatalog } from "@mtgx/cards";
+import { card, nameCatalog, TOKEN_SPECS } from "@mtgx/cards";
 import { describe, expect, it } from "vitest";
 import { createTokens, dealDamage, destroy, gainLife, sacrifice, sourceFromObject } from "../src/actions";
 import { eventReplacement, fx, graveyardReplacement, ref, spell, target, triggered, when } from "../src/dsl";
@@ -12,7 +12,7 @@ import { fallbackDecision } from "../src/host";
 import { bump } from "../src/layers";
 import { legalActions } from "../src/legal";
 import { nameValidator } from "../src/names";
-import { counterItem } from "../src/stack";
+import { counterItem, suspendCard } from "../src/stack";
 import { changeCounters, chars, createObject, moveObject, registerDef } from "../src/state";
 import { addPlayerEffect } from "../src/statics";
 import { matchesObjectFilter } from "../src/targets";
@@ -27,7 +27,7 @@ import {
   stateBasedActions,
 } from "../src/turn";
 import { countTurnEvents } from "../src/turnlog";
-import type { CardDef, ChoiceRequest, ChoiceValue, GameState } from "../src/types";
+import type { CardDef, ChoiceRequest, ChoiceValue, Effect, GameState, TokenSpec } from "../src/types";
 import { act, advanceUntil, customCard, idOf, idsOf, lands, passAccepting, passUntil, scenario } from "./helpers";
 
 const ench = (name: string, ab: CardDef["abilities"][number]) =>
@@ -1554,5 +1554,83 @@ describe("ability counters in layer 6 (122.1b, 613.7; PLAN-L L5)", () => {
     addEffect(s, [bear], { loseAllAbilities: true }, "permanent");
     changeCounters(s, s.objects[bear] as never, "lifelink", 1);
     expect(chars(s, bear).keywords).toContain("lifelink");
+  });
+});
+
+describe("PLAN-M M7: general approximations lifted", () => {
+  const suspended = (cast: boolean) => {
+    let s = scenario({ p1: { battlefield: ["Forest"], hand: ["Bear Cub", "Llanowar Elves"] } });
+    suspendCard(s, idOf(s, "p1", "hand", "Bear Cub"), 1);
+    s = advanceUntil(s, (x) => x.turn.active === "p2");
+    s = passAccepting(
+      advanceUntil(s, (x) => x.turn.active === "p1" && x.turn.step === "upkeep"),
+      (x) => x.pending?.kind === "priority" && !!x.pending.castNow,
+    );
+    const now = s.pending?.kind === "priority" ? s.pending.castNow : undefined;
+    expect(now?.cards).toHaveLength(1);
+    s = cast ? act(s, "p1", { type: "cast", card: now?.cards[0] as string, free: true }) : act(s, "p1", { type: "pass" });
+    s = passAccepting(s, (x) => x.turn.step === "main1" && x.stack.length === 0 && x.pending?.kind === "priority");
+    s = act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Llanowar Elves") });
+    return passAccepting(s, (x) => x.stack.length === 0 && x.pending?.kind === "priority");
+  };
+
+  it("702.62a suspend: the creature cast this way gains haste, not the next creature spell", () => {
+    const s = suspended(true);
+    expect(chars(s, idOf(s, "p1", "battlefield", "Bear Cub")).keywords).toContain("haste");
+    expect(chars(s, idOf(s, "p1", "battlefield", "Llanowar Elves")).keywords).not.toContain("haste");
+  });
+
+  it("702.62a suspend: declining to cast it gives no haste to the next creature spell", () => {
+    const s = suspended(false);
+    expect(chars(s, idOf(s, "p1", "battlefield", "Llanowar Elves")).keywords).not.toContain("haste");
+  });
+
+  it("601.2g-h: a Treasure chosen to be sacrificed for a cost doesn't also sacrifice itself for mana", () => {
+    const run = (lands: string[]) => {
+      const s = scenario({ p1: { battlefield: lands, hand: ["Demand Answers"] } });
+      createTokens(s, "p1", TOKEN_SPECS.Treasure as TokenSpec, 1);
+      const treasure = idOf(s, "p1", "battlefield", "Treasure");
+      const card = idOf(s, "p1", "hand", "Demand Answers");
+      return { s, treasure, cast: () => act(s, "p1", { type: "cast", card, mode: 0, targets: {}, discard: [treasure] }) };
+    };
+    // Mountain and Island pay {1}{R}; the Treasure is sacrificed for the additional cost.
+    const ok = run(["Mountain", "Island"]);
+    const after = ok.cast();
+    expect(after.objects[ok.treasure]).toBeUndefined();
+    expect(after.stack).toHaveLength(1);
+    // With the Mountain alone, the Treasure can't pay {1} and be sacrificed: the cast is refused.
+    const short = run(["Mountain"]);
+    expect(() => short.cast()).toThrow(RulesError);
+  });
+
+  it("a shock land put onto the battlefield at random asks for the 2 life; the random card is kept", () => {
+    const shocks = ["Hallowed Fountain", "Godless Shrine", "Steam Vents"];
+    const atRandom = (name: string, effect: Effect) =>
+      customCard({ name, types: ["Sorcery"], typeLine: "Sorcery", spell: spell([], [effect]) });
+    const fromLibrary = atRandom(
+      "Random Land From Library",
+      fx.lookAtTop(3, { filter: { types: ["Land"] }, count: 1, random: true, to: { to: "battlefield" } }),
+    );
+    const fromGraveyard = atRandom(
+      "Random Land From Graveyard",
+      fx.pickFromZone("graveyard", { types: ["Land"] }, { to: "battlefield" }, { random: true }),
+    );
+    for (const [sorcery, side] of [
+      [fromLibrary, { library: shocks }],
+      [fromGraveyard, { graveyard: shocks }],
+    ] as const) {
+      let s = scenario({ p1: { hand: [sorcery], ...side } });
+      s = act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", sorcery.name) });
+      s = passUntil(s, (x) => x.pending?.kind === "choice");
+      const p = s.pending;
+      if (p?.kind !== "choice") throw new Error("no shock land question");
+      expect(p.request.type).toBe("yesNo");
+      s = act(s, "p1", { type: "choose", values: [1] });
+      s = passAccepting(s, (x) => x.stack.length === 0 && x.pending?.kind === "priority");
+      const land = s.battlefield.find((id) => shocks.includes(chars(s, id).name)) as string;
+      expect(p.request.prompt).toContain(s.objects[land]?.defId);
+      expect(s.objects[land]?.tapped).toBe(false);
+      expect(s.players.p1?.life).toBe(18);
+    }
   });
 });

@@ -183,7 +183,7 @@
   "turnFields": {},
   "engineCardLiterals": {},
   "ceilings": {
-    "Single-card values": 135,
+    "Single-card values": 136,
     "CardDef": 52,
     "GameObject": 51,
     "StackItem": 29,
@@ -209,9 +209,9 @@
     "KickerDef": 5,
     "CardRules": 13,
     "Effect": 139,
-    "Effect (fields)": 614,
+    "Effect (fields)": 615,
     "TriggerSpec": 41,
-    "TriggerSpec (fields)": 146,
+    "TriggerSpec (fields)": 147,
     "Condition": 47,
     "Condition (fields)": 90,
     "Amount": 32,
@@ -324,6 +324,7 @@
     "PLAN-M M3a: small debt merges — Ref.hostOf into Ref.attached { of }; the plot and foretell ops into exileToCast { kind } (special actions and effects); AltCostPay.sacrifice { filter, count } replaces sacrificeCount; CostDef.tapToPay (\"waterbend\" | \"convoke\") replaces CostDef.waterbend and CostDef.convoke; LayerMods.perAffected ({ what: \"sameName\" } | { what: \"ownCreatureTypes\", max }) replaces perSameName and perOwnCreatureTypes; the reduceSpeed and increaseSpeed ops into speed { who?, by }. Single-card values go up by the three values that replace single-card keys (tapToPay=convoke: Heirloom Epic; what=sameName: Mirror Box; what=ownCreatureTypes: Diligent Zookeeper), the convoke, perSameName, perOwnCreatureTypes and sacrificeCount keys, the foretell op and the Ref.hostOf variant leaving the baseline: Single-card values 132 → 135, CostDef 28 → 27, LayerMods 31 → 30, Effect 149 → 147, Effect (fields) 653 → 652, Ref 38 → 37, Ref (fields) 69 → 68",
     "PLAN-M M3b [rules 197]: Assimilation Aegis as a becomesAttached trigger (who: \"self\") with becomeCopy whileAttached (becomeCopy.attachment, the same duration form as Eriette's gainControl); TriggerSpec.becomesAttached and the attachment key leave the baseline (two cards), duration=whileAttached is no longer a single-card value; copyLinkedExile enters it (Secret Invasion alone): Single-card values 135 → 134, Effect (fields) 652 → 653",
     "PLAN-M M4: the pay family — one pay op (cost: PayCost, a Pick of CostDef; or, who, unless, skip, prompt, x, times, manaOf, exclude, totalManaValue, store) replaces mayPay, unlessPay, payCostOf, forage, collectEvidence, behold, exileForManaValue, payX and may (the fx helpers keep their signatures; the handler dispatches by shape to the former bodies, replays identical); CostDef gains discardRandom, poison and behold (the ward costs and the resolution behold, read only by the pay effect for now: the surface moves from Effect to CostDef); collectEvidence=\"X\" is written by one card (Incinerator of the Guilty: collect evidence X during a resolution, the X form of the other CostDef counts); the exileForManaValue op entry becomes singleCardKeys.totalManaValue; CardDef.ward.orMana becomes ward.or (a PayCost, like the effect's or): Single-card values 134 → 135, CostDef 27 → 30, Effect 147 → 139, Effect (fields) 653 → 614",
-    "PLAN-M M5: CardDef rework (cda, kicker, additional costs, cast options, card rules); KickerDef, CardRules and the CastOption union measured: CardDef 91 → 52, AdditionalCost 12 → 16, KickerDef — → 5, CardRules — → 13, CastOption — → 10, CastOption (fields) — → 38"
+    "PLAN-M M5: CardDef rework (cda, kicker, additional costs, cast options, card rules); KickerDef, CardRules and the CastOption union measured: CardDef 91 → 52, AdditionalCost 12 → 16, KickerDef — → 5, CardRules — → 13, CastOption — → 10, CastOption (fields) — → 38",
+    "PLAN-M M7: castNow.haste (suspend, 702.62a: the suspended creature cast gains haste; every suspend card, Taigam), castSpell trigger storm (granted storm read from the cast event, Ral's emblem and Prismari), spellFate \"shuffle\" (Green Sun's Zenith, shuffled only as it resolves; beside \"bottom\"): Single-card values 135 → 136, Effect (fields) 614 → 615, TriggerSpec (fields) 146 → 147"
   ]
 }

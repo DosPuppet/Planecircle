@@ -6,7 +6,7 @@ import { evalAmount, resolveRef, staticContext } from "./effects";
 import { RulesError } from "./errors";
 import { bumpFor } from "./layers";
 import { type AmountMod, chooseReplacementOrder } from "./modifiers";
-import { collectEvidence, evidenceCards } from "./stack";
+import { abilitiesLocked, collectEvidence, evidenceCards } from "./stack";
 import {
   bump,
   changeCounters,
@@ -214,8 +214,7 @@ export function manaAbilitiesOf(s: GameState, id: ObjectId): ManaAbilityDef[] {
           if (pid === id || likeLandsComputing.has(pid) || !chars(s, pid).types.includes("Land")) continue;
           if (!anyController && obj(s, pid).controller !== o.controller) continue;
           if (!matchesObjectFilter(s, o.controller, pid, a.produceLikeLands, id)) continue;
-          for (const m of manaAbilitiesOf(s, pid))
-            if (!m.produceLikeLands && !m.produceIdentity) for (const t of m.produce) types.add(t);
+          for (const m of manaAbilitiesOf(s, pid)) if (!m.produceLikeLands) for (const t of m.produce) types.add(t);
         }
       } finally {
         likeLandsComputing.delete(id);
@@ -236,6 +235,8 @@ function canActivateMana(s: GameState, id: ObjectId, ab: ManaAbilityDef): boolea
   const o = obj(s, id);
   if (ab.cost.mana) return false;
   if (chars(s, id).keywords.includes("noActivatedAbilities")) return false;
+  // Grand Abolisher: "… or activate abilities of artifacts, creatures, or enchantments", mana abilities included.
+  if (o.zone === "battlefield" && abilitiesLocked(s, o.controller, id, true)) return false;
   if (ab.cost.tap && (o.tapped || sickForActivation(s, id))) return false;
   if (ab.tapAnother && !otherToTap(s, id, ab)) return false;
   if (ab.condition && !checkCondition(s, ab.condition, o.controller, id)) return false;

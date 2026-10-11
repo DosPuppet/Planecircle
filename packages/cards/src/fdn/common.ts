@@ -4,6 +4,7 @@
 import { type Amount, dsl, type Effect, type ObjectFilter, type TargetSpec, type TokenSpec } from "@mtgx/engine";
 
 export const {
+  SACRIFICE_TOKEN_AT_END_STEP,
   target,
   ref,
   fx,

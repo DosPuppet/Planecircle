@@ -17,3 +17,9 @@
   - spell copying, control change, ending the turn, variable P/T, triggers from the graveyard.
 
 Reprints: hexproof from a color, changeling, blocking restrictions ("must be blocked", "can't be blocked by…"), Crew, activation costs (exile, return to hand, counters, once per turn), poison counters, additional combat phases, mana kept until end of turn, spells copied by the mana spent, retargeting, winning and losing by effect, Auras "you control enchanted creature".
+
+## PLAN-M M7 (rules 198)
+
+- **Electroduplicate, Chandra, Flameshaper:** the copy's "At the beginning of the end step, sacrifice this token" is an ability of the token (`addAbilities: [SACRIFICE_TOKEN_AT_END_STEP]`).
+- **Soulstone Sanctuary:** "all creature types" are those of 205.3m (not Book, Equipment or Food).
+- **Tests:** `fdn-lotf.test.ts` (+1 Electroduplicate; the Soulstone Sanctuary test checks the subtypes).

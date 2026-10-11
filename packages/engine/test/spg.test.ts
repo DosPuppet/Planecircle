@@ -6,7 +6,7 @@ import { announceDiscard } from "../src/effects";
 import { RulesError } from "../src/errors";
 import { legalActions } from "../src/legal";
 import { manaAbilitiesOf } from "../src/mana";
-import { spellCost } from "../src/stack";
+import { counterItem, spellCost } from "../src/stack";
 import { chars, moveObject } from "../src/state";
 import { plainText } from "../src/text";
 import { attackTaxFor, canBlock } from "../src/turn";
@@ -704,6 +704,15 @@ describe("Special Guests", () => {
       s = settle(castIt(s, "Green Sun's Zenith", { x: 2 }));
       expect(idsOf(s, "p1", "battlefield", "Bear Cub")).toHaveLength(1);
       expect(s.players.p1?.library.some((id) => nameOf(s, id) === "Green Sun's Zenith")).toBe(true);
+    });
+
+    it("Green Sun's Zenith: countered or discarded, it goes to the graveyard (PLAN-M M7)", () => {
+      let s = scenario({ p1: { battlefield: lands("Forest", 3), hand: ["Green Sun's Zenith", "Green Sun's Zenith"] } });
+      const second = s.players.p1?.hand[1];
+      s = castIt(s, "Green Sun's Zenith", { x: 2 });
+      expect(counterItem(s, s.stack[0]?.id as string, "test")).toBe(true);
+      moveObject(s, second as string, "graveyard");
+      expect(s.players.p1?.graveyard.map((id) => nameOf(s, id))).toEqual(["Green Sun's Zenith", "Green Sun's Zenith"]);
     });
 
     it("Bitterblossom: at upkeep, 1 life and a Faerie Rogue", () => {

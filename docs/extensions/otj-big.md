@@ -28,3 +28,8 @@
   - references to the top card of a library, to a player's exiled cards, to all graveyards; the copy linked to an exiled card (Assimilation Aegis; since PLAN-M M3b, a "becomes attached" trigger with `becomeCopy` for as long as it stays attached, like Eriette); legendary tokens and tokens with variable P/T (Beau);
   - the test helper initializes the number of turns taken (`turnsTaken`, for Jace Reawakened).
 - Lot C ✅ (**BIG 30/30**, `big/index.ts`): hideaway (Collector's Cage, linked card), Grand Abolisher (`lockOpponentsOnYourTurn`), Rest in Peace (`graveyardToExile`), Torpor Orb, Worldwalker Helm (extra Map token), Territory Forge (activated abilities of the linked card, `gainLinkedActivated`), random pick among linked cards (Omenpath Journey), 3/3 copy tokens (Nexus of Becoming), amounts "different powers" and "card types among".
+
+## PLAN-M M7 (rules 198)
+
+- **Grand Abolisher:** the mana abilities of the opponents' artifacts, creatures and enchantments are locked too (`abilitiesLocked(…, mana)` in `canActivateMana`: neither by hand nor by the automatic payment); Yuriko ("abilities that aren't mana abilities") no longer locks activated mana abilities.
+- **Tests:** `big.test.ts` (+1).

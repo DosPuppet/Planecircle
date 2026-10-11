@@ -12,6 +12,7 @@ import { createTokens } from "../src/actions";
 import { RulesError } from "../src/errors";
 import { bump } from "../src/layers";
 import { legalActions } from "../src/legal";
+import { availableMana } from "../src/mana";
 import { chars } from "../src/state";
 import { msg } from "../src/text";
 import type { ChoiceRequest, GameState, PlayerId, TokenSpec } from "../src/types";
@@ -786,5 +787,21 @@ describe("The Big Score, lot K8: mythic rares", () => {
     expect(idsOf(s, "p1", "battlefield", "Clue")).toHaveLength(1);
     expect(s.objects[food]).toBeUndefined();
     expect(s.objects[treasure]).toBeUndefined();
+  });
+});
+
+describe("Grand Abolisher (PLAN-M M7)", () => {
+  it("during your turn, opponents can't activate the mana abilities of their creatures either; their lands still tap", () => {
+    const board = { p1: { battlefield: ["Grand Abolisher"] }, p2: { battlefield: ["Llanowar Elves", "Forest"] } };
+    let s = scenario(board);
+    s = act(s, "p1", { type: "pass" });
+    expect(s.pending?.kind === "priority" && s.pending.player).toBe("p2");
+    const elves = idOf(s, "p2", "battlefield", "Llanowar Elves");
+    expect(availableMana(s, "p2")).toBe(1);
+    expect(legalActions(s, "p2").some((a) => a.type === "tapForMana" && a.source === elves)).toBe(false);
+    expect(() => act(s, "p2", { type: "tapForMana", source: elves, ability: 0 })).toThrow(RulesError);
+    // During p2's own turn, the Elves tap for mana.
+    const t = scenario({ ...board, active: "p2" });
+    expect(availableMana(t, "p2")).toBe(2);
   });
 });

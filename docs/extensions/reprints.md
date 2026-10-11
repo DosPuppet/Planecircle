@@ -291,3 +291,10 @@ its artwork (51 cards). Details in the plan's follow-up.
   (`NextSpell.trigger`, `fx.whenNextSpellThisTurn`; Codie, mana ability); Welcome to . . . // Jurassic Park (Saga
   transformed into a land, escape granted to Dinosaurs). Tests: `spg`, `pza`, `rex` (+5). `RULES_VERSION` 121. **All the
   cards of plan G are handled.**
+
+## PLAN-M M7 (rules 198)
+
+- **Green Sun's Zenith:** shuffled into its owner's library only as it resolves (`fx.shuffleOnResolve`, the "shuffle" spell fate, `StackItem.libraryInstead`); countered or discarded, it goes to the graveyard.
+- **Shared Animosity:** a changeling attacker shares a creature type only with the attackers that have one (`anySubtype: ["*"]`).
+- **Reflecting Pool:** the colors of Command Tower count; other lands of the same kind still don't (106.7).
+- **Tests:** `spg.test.ts` (+1), `wot.test.ts` (+1), `eos.test.ts` (+1).
