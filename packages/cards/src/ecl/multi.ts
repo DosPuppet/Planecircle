@@ -127,16 +127,12 @@ export const MULTI: Record<string, CardScript> = {
     ],
   },
   "Raiding Schemes": {
-    // Granted conspire (702.78): the two creatures are tapped when the ability resolves, not while casting.
+    // Granted conspire (702.78): an optional cost paid while casting the spell, then "when you cast it, copy it".
     abilities: [
-      triggered(
-        when.castSpell("you", { notTypes: ["Creature"] }),
-        [
-          fx.tapChosen({ types: ["Creature"] }, "c", { exactly: 2, sharesColorWith: ref.eventObject }),
-          ...fx.when(cond.v("c", 2), fx.copySpell(ref.eventObject, 1)),
-        ],
-        { label: "Conspire: tap two creatures that share a color with the spell to copy it" },
-      ),
+      playerStatic({
+        copyCost: { filter: { notTypes: ["Creature"] }, conspire: true },
+        label: "Each noncreature spell you cast has conspire",
+      }),
     ],
   },
   "Lluwen, Imperfect Naturalist": {

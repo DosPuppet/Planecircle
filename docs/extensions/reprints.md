@@ -318,3 +318,8 @@ its artwork (51 cards). Details in the plan's follow-up.
 ## PLAN-M M10b (rules 204)
 
 - **Expropriate (SPG):** the shared vote (`fx.vote`): starting with you, each vote is announced as it is cast; then an extra turn per time vote (`fx.repeat`), then for each money vote a permanent owned by the voter (`amount.votes(store, 2, voter)`); Tivit's additional vote applies to it. Test added (`spg.test.ts`), and one in `edh-ursphinx.test.ts` (Tivit's additional votes for time).
+
+## PLAN-M M10d (rules 206)
+
+- **Henry Wu, InGen Geneticist (REX):** the exploit he gives (`exploitAbility()`) fires an `exploit` action event when its sacrifice happens (702.110b); "whenever a creature you control exploits a non-Human creature" is Henry's own trigger (`when.exploits`, the exploited creature read from its last known information): gone before the exploit resolves, no draw. Test added; approximation removed; audit baseline entry removed.
+- **Hunting Velociraptor (REX):** granted prowl (`altCostAll.prowl`) compares the spell's creature types with those of the creatures that dealt combat damage to a player this turn (the turn log's `sourceSubtypes`). Test added (a Dinosaur Knight after a Knight's damage); approximation removed.

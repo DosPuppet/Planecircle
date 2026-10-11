@@ -1183,18 +1183,32 @@ function evalStatic(s: GameState, slot: StaticSlot, sig: (string | number)[]): {
     sig.push(`ag${extra.length}`);
   }
   if (gain?.zone === "battlefield") {
-    // Marvin, Murderous Mimic: the printed activated abilities of the matching creatures that don't have its name.
+    // Marvin, Murderous Mimic: the activated abilities of the matching creatures that don't have its name, granted ones
+    // included (those of the previous pass, 613.8; printed in the first pass). Loop guard: not those it grants itself,
+    // each ability once (two such creatures converge), and not those that name the permanent granting them ("tap
+    // Fishing Pole": their grantor would become the source).
     const f = gain.filter ?? {};
     const own = s.defs[o.defId];
     const name = own && printedName(own);
-    const extra = s.battlefield
-      .filter((x) => x !== id && matchesView(snapshotBase(s, x), f, o.controller, id))
-      .filter((x) => {
-        const d = s.defs[s.objects[x]?.defId ?? ""];
-        return !d || !shareName(printedName(d), name);
-      })
-      .flatMap((x) => s.defs[s.objects[x]?.defId ?? ""]?.abilities ?? [])
-      .filter((a) => (a.kind === "activated" && !a.specialAction && !a.fromHand && !a.fromGraveyard) || a.kind === "mana");
+    const abilitiesOf = (x: ObjectId): AbilityDef[] => {
+      const prev = provisional?.get(x);
+      if (!prev) return s.defs[s.objects[x]?.defId ?? ""]?.abilities ?? [];
+      return prev.abilities.filter((_, i) => prev.grantors?.[i] !== id);
+    };
+    const extra = [
+      ...new Set(
+        s.battlefield
+          .filter((x) => x !== id && matchesView(snapshotBase(s, x), f, o.controller, id))
+          .filter((x) => {
+            const d = s.defs[s.objects[x]?.defId ?? ""];
+            return !d || !shareName(printedName(d), name);
+          })
+          .flatMap(abilitiesOf),
+      ),
+    ].filter(
+      (a) =>
+        (a.kind === "activated" && !a.specialAction && !a.fromHand && !a.fromGraveyard && !a.cost.grantor) || a.kind === "mana",
+    );
     mods = { ...mods, gainAbilitiesOf: undefined, addAbilities: [...(mods.addAbilities ?? []), ...extra] };
     dependent = true;
     sig.push(`a${extra.length}`);

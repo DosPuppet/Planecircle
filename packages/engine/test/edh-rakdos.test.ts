@@ -211,6 +211,19 @@ describe("Rakdos, Lord of Riots (EDH)", () => {
       expect(s.players.p1?.library.map((id) => nameOf(s, id))).toContain("Opt");
     });
 
+    it("Kozilek, Butcher of Truth already in the graveyard: another card put there doesn't trigger it (PLAN-M M10d)", () => {
+      let s = scenario({
+        p1: {
+          battlefield: lands("Mountain", 1),
+          hand: ["Shock"],
+          graveyard: ["Kozilek, Butcher of Truth"],
+          library: lands("Island", 3),
+        },
+      });
+      s = settle(castIt(s, "p1", "Shock", { targets: { t: ["p2"] } }));
+      expect((s.players.p1?.graveyard ?? []).map((id) => nameOf(s, id)).sort()).toEqual(["Kozilek, Butcher of Truth", "Shock"]);
+    });
+
     it("It That Betrays: an opponent sacrifices a nontoken permanent, it comes under your control", () => {
       let s = scenario({ p1: { battlefield: ["It That Betrays"] }, p2: { battlefield: ["Bear Cub", "Forest", "Forest"] } });
       s = throughCombat(attack(s, [idOf(s, "p1", "battlefield", "It That Betrays")]));

@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import { createTokens, destroy } from "../src/actions";
 import { legalActions } from "../src/legal";
 import { manaValue } from "../src/mana";
+import { abilitiesOf } from "../src/stack";
 import { bump, chars, moveObject } from "../src/state";
 import { playerStatic } from "../src/statics";
 import { plainText } from "../src/text";
@@ -1282,7 +1283,7 @@ describe("Aetherdrift, lot K8: rares (1)", () => {
     expect(chars(s, idOf(s, "p2", "battlefield", "Mort-vivant")).power).toBe(2);
   });
 
-  it("Cursecloth Wrappings: {T} — embalm a creature card from your graveyard: the card is exiled, the token copy is a Zombie", () => {
+  it("Cursecloth Wrappings: {T} — a creature card gains embalm until end of turn (its mana cost); the token is a white Zombie (PLAN-M M10d)", () => {
     let s = scenario({
       p1: { battlefield: ["Cursecloth Wrappings", ...lands("Forest", 2)], graveyard: ["Bear Cub", "Opt"] },
       p2: { graveyard: ["Serra Angel"] },
@@ -1291,12 +1292,46 @@ describe("Aetherdrift, lot K8: rares (1)", () => {
     const opt = legalActions(s, "p1").find((a) => a.type === "activate" && a.source === wraps);
     expect(opt?.type === "activate" && namesIn(s, opt.targets[0]?.legal)).toEqual(["Bear Cub"]);
     const cub = idOf(s, "p1", "graveyard", "Bear Cub");
-    s = settle(activate(s, "p1", wraps, "Embalm", { targets: { t: [cub] } }), choosing());
+    const embalmOf = (x: GameState) => legalActions(x, "p1").find((a) => a.type === "activate" && a.source === cub);
+    expect(embalmOf(s)).toBeUndefined();
+    s = settle(
+      act(s, "p1", {
+        type: "activate",
+        source: wraps,
+        ability: opt?.type === "activate" ? opt.ability : -1,
+        targets: { t: [cub] },
+      }),
+    );
+    // Nothing paid yet: the card stays in the graveyard with embalm ({1}{G}, its mana cost).
+    expect(idsOf(s, "p1", "graveyard", "Bear Cub")).toEqual([cub]);
+    expect(idsOf(s, "p1", "battlefield", "Forest").every((id) => !s.objects[id]?.tapped)).toBe(true);
+    const embalm = embalmOf(s);
+    expect(embalm).toBeDefined();
+    s = act(s, "p1", { type: "activate", source: cub, ability: embalm?.type === "activate" ? embalm.ability : -1 });
     expect(s.exile.map((id) => nameOf(s, id))).toContain("Bear Cub");
+    expect(idsOf(s, "p1", "battlefield", "Forest").every((id) => s.objects[id]?.tapped)).toBe(true);
+    s = settle(s);
     const token = idOf(s, "p1", "battlefield", "Bear Cub");
     expect(chars(s, token).subtypes).toEqual(expect.arrayContaining(["Bear", "Zombie"]));
+    expect(chars(s, token).colors).toEqual(["W"]);
     // 2/2, +1/+1 from the Wrappings (it's a Zombie you control).
     expect(chars(s, token).power).toBe(3);
+    // Until end of turn only.
+    let t = scenario({ p1: { battlefield: ["Cursecloth Wrappings"], graveyard: ["Bear Cub"] } });
+    const c2 = idOf(t, "p1", "graveyard", "Bear Cub");
+    const o2 = legalActions(t, "p1").find(
+      (a) => a.type === "activate" && a.source === idOf(t, "p1", "battlefield", "Cursecloth Wrappings"),
+    );
+    t = settle(
+      act(t, "p1", {
+        type: "activate",
+        source: idOf(t, "p1", "battlefield", "Cursecloth Wrappings"),
+        ability: o2?.type === "activate" ? o2.ability : -1,
+        targets: { t: [c2] },
+      }),
+    );
+    t = advanceUntil(t, (x) => x.turn.active === "p2" && x.turn.step === "main1");
+    expect(abilitiesOf(t, c2).some((a) => a.kind === "activated" && a.fromGraveyard)).toBe(false);
   });
 
   it("Daretti: power equal to the greatest mana value among your artifacts", () => {

@@ -66,3 +66,7 @@ Tests: `engine/test/dsk.test.ts` (18 tests) and the smoke test `ai/test/smoke/ds
 ## PLAN-M M10a (rules 203)
 
 - **Say Its Name:** the graveyard ability searches the graveyard, the hand and the library in one choice (`search.alsoFrom`); the library is shuffled (and the search event emitted) only if Altanak comes from it. Test added.
+
+## PLAN-M M10d (rules 206)
+
+- **Marvin, Murderous Mimic:** also the activated abilities granted to your other creatures, read from the previous pass of the layers (613.8); loop guard: not those it grants itself, each ability once (two such creatures converge), and not those whose cost names the permanent granting them ("tap Fishing Pole", left documented). Test added (a self-granted ability; with another mimic, once each).

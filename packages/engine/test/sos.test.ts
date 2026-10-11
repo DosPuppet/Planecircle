@@ -3204,14 +3204,41 @@ describe("Secrets of Strixhaven, lot A — multicolores", () => {
       expect([s.players.p1?.life, s.players.p2?.life]).toEqual([23, 17]);
     });
 
-    it("Silverquill, the Disputant: sacrificing a creature with power 1 or more copies the cast instant", () => {
+    it("Silverquill, the Disputant: casualty 1 is a cost paid while casting the instant, then it is copied (702.153; PLAN-M M10d)", () => {
       let s = scenario({
         p1: { battlefield: ["Silverquill, the Disputant", "Bear Cub", ...lands("Mountain", 2)], hand: ["Lightning Strike"] },
       });
       const bear = idOf(s, "p1", "battlefield", "Bear Cub");
-      s = settle(cast(s, "p1", "Lightning Strike", { t: ["p2"] }), pickIds(bear));
+      s = act(s, "p1", {
+        type: "cast",
+        card: idOf(s, "p1", "hand", "Lightning Strike"),
+        targets: { t: ["p2"] },
+        picks: { casualty: [bear] },
+      });
+      // Sacrificed as the spell is cast (it can't be responded to).
       expect(idsOf(s, "p1", "graveyard", "Bear Cub")).toHaveLength(1);
+      s = settle(s);
       expect(s.players.p2?.life).toBe(14);
+      // A creature with power 0 can't pay it.
+      const t = scenario({
+        p1: {
+          battlefield: [
+            "Silverquill, the Disputant",
+            customCard({ name: "Test Wall", power: 0, toughness: 3, subtypes: ["Wall"], typeLine: "Creature — Wall" }),
+            ...lands("Mountain", 2),
+          ],
+          hand: ["Lightning Strike"],
+        },
+      });
+      const cub = idOf(t, "p1", "battlefield", "Test Wall");
+      expect(() =>
+        act(t, "p1", {
+          type: "cast",
+          card: idOf(t, "p1", "hand", "Lightning Strike"),
+          targets: { t: ["p2"] },
+          picks: { casualty: [cub] },
+        }),
+      ).toThrow();
     });
 
     it("Snooping Page: Repartee makes it unblockable this turn; combat damage to a player: draw, lose 1 life", () => {

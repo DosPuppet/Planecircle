@@ -158,6 +158,29 @@ describe("Jurassic World Collection", () => {
       expect(idsOf(s, "p1", "battlefield", "Treasure")).toHaveLength(1);
       expect(s.players.p1?.hand.length).toBeGreaterThanOrEqual(1);
     });
+
+    it("Henry Wu: the draw is his own trigger when a creature exploits (702.110b): gone before the exploit, no draw (PLAN-M M10d)", () => {
+      const run = (henryLeaves: boolean) => {
+        let s = scenario({
+          p1: {
+            battlefield: ["Henry Wu, InGen Geneticist", "Shivan Dragon", ...lands("Plains", 2)],
+            hand: ["Soul Warden"],
+            library: lands("Plains", 5),
+          },
+        });
+        const dragon = idOf(s, "p1", "battlefield", "Shivan Dragon");
+        const henry = idOf(s, "p1", "battlefield", "Henry Wu, InGen Geneticist");
+        s = act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Soul Warden") });
+        // Soul Warden resolves; its exploit ability (granted by Henry) waits on the stack.
+        s = advanceUntil(s, (x) => x.stack.length === 1 && x.stack[0]?.kind === "ability");
+        if (henryLeaves) destroy(s, henry);
+        s = settle(s, (req) => (req.type === "pick" && req.options.includes(dragon) ? [dragon] : undefined));
+        expect(idsOf(s, "p1", "graveyard", "Shivan Dragon")).toHaveLength(1);
+        return { hand: s.players.p1?.hand.length ?? 0, treasures: idsOf(s, "p1", "battlefield", "Treasure").length };
+      };
+      expect(run(false)).toEqual({ hand: 1, treasures: 1 });
+      expect(run(true)).toEqual({ hand: 0, treasures: 0 });
+    });
   });
   describe("G4e: combat", () => {
     it("Swooping Pteranodon: takes an opposing creature until end of turn; at the end step, a land deals 3 to it", () => {
@@ -259,6 +282,37 @@ describe("Jurassic World Collection", () => {
       expect(o?.type === "cast" && o.altAvailable).toBe(true);
       s = settle(act(s, "p1", { type: "cast", card: poly, alternative: true }));
       expect(idsOf(s, "p1", "battlefield", "Polyraptor")).toHaveLength(1);
+    });
+
+    it("Hunting Velociraptor: prowl compares the spell's creature types with the creatures that dealt combat damage (ruling; PLAN-M M10d)", () => {
+      const knight = customCard({
+        name: "Test Knight",
+        power: 2,
+        toughness: 2,
+        subtypes: ["Knight"],
+        typeLine: "Creature — Knight",
+      });
+      const raptorKnight = customCard({
+        name: "Test Raptor Knight",
+        manaCost: { generic: 6, colored: {}, x: 0 },
+        manaCostText: "{6}",
+        power: 5,
+        toughness: 5,
+        subtypes: ["Dinosaur", "Knight"],
+        typeLine: "Creature — Dinosaur Knight",
+      });
+      let s = scenario({
+        p1: { battlefield: ["Hunting Velociraptor", knight, ...lands("Mountain", 3)], hand: ["Polyraptor", raptorKnight] },
+      });
+      const altFor = (name: string) => {
+        const o = legalActions(s, "p1").find((a) => a.type === "cast" && a.card === idOf(s, "p1", "hand", name));
+        return o?.type === "cast" && !!o.altAvailable;
+      };
+      expect(altFor("Test Raptor Knight")).toBe(false);
+      // Only the Knight deals combat damage: the Dinosaur Knight spell has prowl, not the Dinosaur alone.
+      s = throughCombat(attack(s, [idOf(s, "p1", "battlefield", "Test Knight")]));
+      expect(altFor("Test Raptor Knight")).toBe(true);
+      expect(altFor("Polyraptor")).toBe(false);
     });
   });
   describe("G4e: exile and copies", () => {

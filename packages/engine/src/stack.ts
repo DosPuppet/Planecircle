@@ -13,7 +13,7 @@ import {
   removeFromCombat,
   sacrifice as sacrificePermanent,
 } from "./actions";
-import { cardRule, castOption } from "./cardDef";
+import { cardRule, castOption, modesChosen } from "./cardDef";
 import { absentAnswer, ask } from "./choices";
 import { counterLabel } from "./counterLabels";
 import { SACRIFICE_TOKEN_AT_END_STEP } from "./dsl/when";
@@ -170,6 +170,19 @@ export function altCostFor(
   for (const { id, ab } of playerStatics(s, player, "altCostAll")) {
     const a = ab.altCostAll;
     if (!a || (a.filter && !matchesView(spellView(d, player), a.filter, player))) continue;
+    // Prowl (702.76a): combat damage to a player this turn by a creature of yours with one of the spell's creature types.
+    if (a.prowl) {
+      const types = spellView(d, player).subtypes;
+      const dealt = s.turnLog.some(
+        (e) =>
+          e.e === "damage" &&
+          e.combat &&
+          e.toPlayer &&
+          e.sourceController === player &&
+          !!e.sourceSubtypes?.some((t) => types.includes(t)),
+      );
+      if (!dealt) continue;
+    }
     // Granted web-slinging (Amazing Spider-Man): it needs a tapped creature to return.
     if (a.webSlinging && a.mana) {
       if (webSlingingOptions(s, player).length === 0) continue;
@@ -842,15 +855,18 @@ export function kickerCostPermanent(
 
 /**
  * Harmonize (702.180): untapped creatures the player can tap to reduce the harmonize cost by its power, and the default
- * choice for a generic cost `generic`: the smallest power that covers the whole generic part, otherwise the greatest
- * (none if the cost has no generic part).
+ * choice for the cost `cost`: the smallest power that covers the whole generic part, otherwise the greatest (none if the
+ * cost has no generic part). With `purpose`, the default is a creature whose tapping leaves the rest of the cost
+ * payable (a creature tapped for harmonize no longer taps for Springleaf Drum), otherwise none.
  */
 export function harmonizeOptions(
   s: GameState,
   player: PlayerId,
   card: ObjectId,
-  generic: number,
+  cost: ManaCost,
+  purpose?: ManaPurpose,
 ): { options: ObjectId[]; powers: Record<ObjectId, number>; suggested: ObjectId[] } {
+  const generic = cost.generic;
   const options = s.battlefield.filter((id) => {
     const o = obj(s, id);
     return id !== card && o.controller === player && !o.tapped && isCreature(s, id) && chars(s, id).power > 0;
@@ -862,7 +878,11 @@ export function harmonizeOptions(
   const pick = (ids: ObjectId[]) => ids.find((id) => (powers[id] ?? 0) >= generic) ?? ids[ids.length - 1];
   const plain = byPower.filter((id) => manaAbilitiesOf(s, id).length === 0);
   const best = plain.find((id) => (powers[id] ?? 0) >= generic) ?? pick(byPower);
-  return { options, powers, suggested: generic > 0 && best ? [best] : [] };
+  if (generic <= 0 || !best) return { options, powers, suggested: [] };
+  if (!purpose) return { options, powers, suggested: [best] };
+  const payable = (id: ObjectId) => canPay(s, player, totalCost(cost, 0, undefined, powers[id] ?? 0), new Set([id]), purpose);
+  const fit = [best, ...byPower.filter((id) => id !== best)].find(payable);
+  return { options, powers, suggested: fit ? [fit] : [] };
 }
 
 /** Total cost of a spell: base, flashback or alternative cost (or nothing), X, kicker, reductions. */
@@ -1952,6 +1972,9 @@ export function additionalOptions(
   if (gy?.sacrifice) add = { ...add, sacrifice: { filter: gy.sacrifice, count: 1 } };
   // Alien Symbiosis: "by discarding a card in addition to paying its other costs".
   if (gy?.discard) add = { ...add, discard: gy.discard, ...(gy.discardFilter ? { discardFilter: gy.discardFilter } : {}) };
+  // The Infamous Cruelclaw: "by discarding a card rather than paying its mana cost" (a permission during a resolution).
+  const perm = s.objects[card]?.zone === "exile" ? exilePermission(s, player, card) : undefined;
+  if (perm?.discard) add = { ...add, discard: (add?.discard ?? 0) + perm.discard };
   if (!add) return {};
   // Mandatory behold (Monstrous Emergence): there must be a permanent or a card to choose.
   if (
@@ -2399,6 +2422,8 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
   const dm = withModeCost(d, mode);
   const opts = additionalOptions(s, player, card, dm, flashback);
   if (!opts) throw new RulesError(msg("Can't pay the additional cost"));
+  // Granted conspire and casualty: the creatures tapped or sacrificed to copy the spell (none by default).
+  const copyCosts = copyCostChoices(s, player, card, d, choices.picks);
   // Kicker without mana (bargain): the permanent to sacrifice or return, chosen by the player (`sacrifice`, when the
   // spell has no other sacrifice as a cost); without a choice, the cheapest, tokens first.
   const kickerOptions =
@@ -2496,7 +2521,9 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
   // Harmonize: a tapped creature reduces the cost by its power (`tap` absent: the default choice; []: none).
   const harmonize = flashback && (!!castOption(d, "flashback")?.harmonize || !!terms.harmonize);
   if (choices.tap?.length && !harmonize && teamwork === undefined) throw new RulesError(msg("No creature to tap for this spell"));
-  const harmony = harmonize ? harmonizeOptions(s, player, card, cost.generic) : undefined;
+  const harmony = harmonize
+    ? harmonizeOptions(s, player, card, cost, { spell: spellView(d, player), from: terms.source })
+    : undefined;
   const harmonyTap = harmony ? (choices.tap ?? harmony.suggested) : [];
   if (harmonyTap.length > 1 || harmonyTap.some((id) => !harmony?.options.includes(id)))
     throw new RulesError(msg("Invalid creature for harmonize"));
@@ -2567,6 +2594,8 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
   }
   // Additional costs, chosen by the player or automatically (before the mana: these permanents no longer produce mana).
   for (const id of [...auto.tap, ...harmonyTap]) tapObject(s, obj(s, id));
+  for (const c of copyCosts) for (const id of c.ids) if (c.slot === "conspire") tapObject(s, obj(s, id));
+  for (const c of copyCosts) for (const id of c.ids) if (c.slot === "casualty") sacrificePermanent(s, id);
   // Agent Maria Hill: "tapped to pay a teamwork cost".
   for (const id of teamTap) tapObject(s, obj(s, id), "teamwork");
   for (const id of auto.bounce) moveObject(s, id, "hand");
@@ -2657,6 +2686,8 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
       manaSpent: free ? 0 : manaValue(cost),
       beheld: beheldId ? true : undefined,
       metWhenCast: metWhenCast || undefined,
+      // Modal spell (700.2): the number of times a mode was chosen (Riku of Many Paths).
+      modes: modesChosen(d, modeIndex) || undefined,
     },
     // Permanents sacrificed as an additional cost ("if the sacrificed permanent was a Vehicle").
     paid: {
@@ -2758,6 +2789,21 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
   if (warp?.life) payLife_(s, player, warp.life);
   if (terms.payLife) payLife_(s, player, terms.payLife);
   if (d.additionalCost?.xCost === "life" && x > 0) payLife_(s, player, x);
+  // Conspire, casualty (702.78a, 702.153a): "when you cast this spell, if its cost was paid, copy it" (the copy may
+  // have new targets).
+  for (const c of copyCosts)
+    pushInline(
+      s,
+      player,
+      item.id,
+      item.sourceDefId,
+      {
+        targets: [],
+        effects: [{ op: "copySpell", what: { kind: "eventObject" }, count: 1 }],
+        label: c.slot === "conspire" ? msg("Conspire: copy this spell") : msg("Casualty: copy this spell"),
+      },
+      { objectId: item.id, player },
+    );
   if (kickerLife) payLife_(s, player, kickerLife);
   if (d.additionalCost?.xCost === "blight" && x > 0) {
     const blighted = spellPickNow(s, player, item.id, d, x, "blight", undefined, choices)?.[0];
@@ -2953,7 +2999,61 @@ export function spellToZone(s: GameState, id: string, to: "hand" | "libraryTop" 
 export function abilitiesOf(s: GameState, id: ObjectId): CardDef["abilities"] {
   const o = s.objects[id];
   if (!o) return [];
-  return o.zone === "battlefield" ? chars(s, id).abilities : (s.defs[o.defId]?.abilities ?? []);
+  if (o.zone === "battlefield") return chars(s, id).abilities;
+  const printed = s.defs[o.defId]?.abilities ?? [];
+  if (o.zone === "graveyard") {
+    const granted = graveyardGrants(s, id);
+    return granted.length ? [...printed, ...granted] : printed;
+  }
+  if (o.zone !== "library") return printed;
+  const plot = libraryTopPlot(s, id);
+  return plot.length ? [...printed, ...plot] : printed;
+}
+
+/**
+ * Abilities granted to a card in a graveyard by a resolution effect ("target creature card in your graveyard gains
+ * embalm until end of turn", Cursecloth Wrappings): the `addAbilities` of the effects that affect it (the layers only
+ * apply to the battlefield). A cost "equal to its mana cost" (`manaOfSource`) becomes the card's mana cost.
+ */
+function graveyardGrants(s: GameState, id: ObjectId): AbilityDef[] {
+  if (!s.effects.some((e) => Array.isArray(e.affected) && e.affected.includes(id) && e.addAbilities?.length)) return [];
+  const own = s.defs[obj(s, id).defId]?.manaCost;
+  return s.effects
+    .filter((e) => Array.isArray(e.affected) && e.affected.includes(id))
+    .flatMap((e) => e.addAbilities ?? [])
+    .flatMap((a): AbilityDef[] => {
+      if (a.kind !== "activated" || !a.cost.manaOfSource) return [a];
+      return own ? [{ ...a, cost: { ...a.cost, manaOfSource: undefined, mana: own } }] : [];
+    });
+}
+
+/**
+ * Fblthp, Lost on the Range (player static `plotFromLibraryTop`): the top card of its owner's library, if it isn't a
+ * land, has plot with its mana cost as the plot cost (and its own plot, if it has one), a special action from the
+ * library (702.170a; ruling: the card is exiled and the cost paid before the next top card is seen).
+ */
+function libraryTopPlot(s: GameState, id: ObjectId): ActivatedAbilityDef[] {
+  const o = obj(s, id);
+  if (s.players[o.owner]?.library[0] !== id || !playerStatic(s, o.owner, "plotFromLibraryTop")) return [];
+  const d = s.defs[o.defId];
+  if (!d?.manaCost || d.types.includes("Land")) return [];
+  const own = d.abilities.filter(
+    (a): a is ActivatedAbilityDef =>
+      a.kind === "activated" && !!a.specialAction && a.effects.some((e) => e.op === "exileToCast" && e.kind === "plot"),
+  );
+  return [
+    {
+      kind: "activated",
+      cost: { mana: d.manaCost },
+      targets: [],
+      effects: [{ op: "exileToCast", kind: "plot", what: { kind: "self" } }],
+      fromLibraryTop: true,
+      sorcerySpeed: true,
+      specialAction: true,
+      label: msg("Plot"),
+    },
+    ...own.map((a) => ({ ...a, fromHand: undefined, fromLibraryTop: true })),
+  ];
 }
 
 /** The permanent that grants `source` its ability at rank `index` ("equipped creature has '…'"), if it is on the battlefield. */
@@ -3237,8 +3337,8 @@ function counterSources(s: GameState, player: PlayerId, source: ObjectId, ab: Ac
 }
 
 /** Zone an ability is activated from: battlefield, graveyard or hand. */
-export function abilityZone(ab: ActivatedAbilityDef): "battlefield" | "graveyard" | "hand" {
-  return ab.fromGraveyard ? "graveyard" : ab.fromHand ? "hand" : "battlefield";
+export function abilityZone(ab: ActivatedAbilityDef): "battlefield" | "graveyard" | "hand" | "library" {
+  return ab.fromGraveyard ? "graveyard" : ab.fromHand ? "hand" : ab.fromLibraryTop ? "library" : "battlefield";
 }
 
 /**
@@ -3256,7 +3356,10 @@ export function mayActivate(s: GameState, player: PlayerId, o: GameObject, ab: A
   return ab.activators === "any" || (player !== holder && opponentsOf(s, holder).includes(player));
 }
 
-export function activationZone(o: GameObject, ab: ActivatedAbilityDef): "battlefield" | "graveyard" | "hand" | "command" {
+export function activationZone(
+  o: GameObject,
+  ab: ActivatedAbilityDef,
+): "battlefield" | "graveyard" | "hand" | "library" | "command" {
   return o.zone === "command" && (o.isToken || ab.fromCommand) ? "command" : abilityZone(ab);
 }
 
@@ -3632,7 +3735,7 @@ export function spellPicks(
   targets?: ObjectId[],
 ): CostPick[] {
   const flashback = terms.source === "flashback";
-  const out: CostPick[] = additionalPicks(s, player, card, d, flashback);
+  const out: CostPick[] = [...additionalPicks(s, player, card, d, flashback), ...copyCostPicks(s, player, card, d)];
   // Counters to remove from among your creatures to cast it from here (`CastTerms.removeCounters`).
   if (terms.removeCounters) out.push(countersAmongPick(s, player, terms.removeCounters));
   // Granted sneak (Ninja Teen): the unblocked attacker returned to hand (the weakest by default).
@@ -3855,6 +3958,64 @@ function manaHelperPicks(
       (s.players[player]?.graveyard ?? []).filter((id) => id !== except),
     );
   return out;
+}
+
+/**
+ * Granted conspire and casualty (702.78, 702.153; `PlayerStaticAbilityDef.copyCost`): optional cost slots, none by
+ * default. Conspire: two untapped creatures you control that share a color with the spell; casualty N: a creature with
+ * power N or greater.
+ */
+function copyCostPicks(s: GameState, player: PlayerId, card: ObjectId, d: CardDef): CostPick[] {
+  const v = spellView(d, player);
+  const out: CostPick[] = [];
+  for (const { ab } of playerStatics(s, player, "copyCost")) {
+    const c = ab.copyCost;
+    if (!c || !matchesView(v, c.filter, player)) continue;
+    const mine = s.battlefield.filter((id) => id !== card && obj(s, id).controller === player && isCreature(s, id));
+    if (c.conspire && !out.some((p) => p.slot === "conspire")) {
+      const options = mine.filter((id) => !obj(s, id).tapped && chars(s, id).colors.some((x) => v.colors.includes(x)));
+      if (options.length >= 2)
+        out.push({
+          slot: "conspire",
+          label: msg("Conspire: tap two untapped creatures that share a color with it to copy it"),
+          count: 2,
+          options,
+          suggested: [],
+          optional: true,
+        });
+    }
+    if (c.casualty !== undefined && !out.some((p) => p.slot === "casualty")) {
+      const n = c.casualty;
+      const options = mine.filter((id) => chars(s, id).power >= n && !hasKeyword(s, id, "cantBeSacrificed"));
+      if (options.length)
+        out.push({
+          slot: "casualty",
+          label: msg("Casualty {n}: sacrifice a creature with power {n} or greater to copy it", { n }),
+          count: 1,
+          options,
+          suggested: [],
+          optional: true,
+        });
+    }
+  }
+  return out;
+}
+
+/** The conspire and casualty costs chosen for a spell (checked: none, or exactly the slot's count among its options). */
+function copyCostChoices(
+  s: GameState,
+  player: PlayerId,
+  card: ObjectId,
+  d: CardDef,
+  picks: CastChoices["picks"],
+): { slot: CostSlot; ids: ObjectId[] }[] {
+  return copyCostPicks(s, player, card, d).flatMap((p) => {
+    const chosen = picks?.[p.slot];
+    if (!chosen?.length) return [];
+    if (chosen.length !== p.count || new Set(chosen).size !== chosen.length || chosen.some((id) => !p.options.includes(id)))
+      throw new RulesError(msg("Invalid choice: {label}", { label: p.label }));
+    return [{ slot: p.slot, ids: [...chosen] }];
+  });
 }
 
 /** A spell's convoke, improvise, waterbend and delve choices, checked (otherwise `RulesError`). */

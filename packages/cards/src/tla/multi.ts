@@ -110,8 +110,6 @@ export const MULTI: Record<string, CardScript> = {
     ],
   },
   "Bumi, Unleashed": {
-    // Approximation: "only land creatures can attack during that combat phase" becomes "nonland creatures can't attack
-    // anymore this turn" (those present on resolution).
     abilities: [
       triggered(when.entersSelf, fx.earthbend(ref.target(), 4), { targets: [LAND_YOU_CONTROL], label: "Earthbend 4" }),
       triggered(
@@ -119,7 +117,8 @@ export const MULTI: Record<string, CardScript> = {
         [
           fx.untapAll({ types: ["Land"], controller: "you" }),
           fx.extraCombat,
-          fx.modifyAll({ types: ["Creature"], notTypes: ["Land"] }, { addKeywords: ["cantAttack"] }, "endOfTurn"),
+          // "Only land creatures can attack during that combat phase": the next combat of this turn (the one added).
+          fx.nextCombat({ attackersOnly: { types: ["Land"] } }),
         ],
         { label: "Untap your lands; an additional combat, for land creatures only" },
       ),

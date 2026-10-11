@@ -185,3 +185,7 @@ Three rules tests in `engine/test/mkm.test.ts`.
 ## PLAN-M M10b (rules 204)
 
 - **A Killer Among Us:** the secret type is known only to the player who chose it (`chosen.secret` holds that player): the view hides it from everyone else, whoever controls the enchantment, and so does the AI's state (`forgetSecrets`). "Reveal the creature type you chose" is a cost (`revealChosen`): only that player can activate the ability (ruling: another controller can't), and paying it shows the type to everyone (`chose` event). Test added.
+
+## PLAN-M M10d (rules 206)
+
+- **Innocent Bystander:** "is dealt 3 or more damage" (ruling: "all at once") adds up the damage of several sources at the same time (`batched: "sum"`). Test added (two blockers, 2 + 1).

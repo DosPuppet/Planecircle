@@ -569,7 +569,7 @@ export function legalActions(s: GameState, player: PlayerId): ActionOption[] {
     // Harmonize: also payable by tapping a creature (which then isn't used to pay the mana).
     const harmony =
       flashback && (castOption(d, "flashback")?.harmonize || terms.harmonize)
-        ? harmonizeOptions(s, player, card, withExtra(spellCost(s, player, d, base)).generic)
+        ? harmonizeOptions(s, player, card, withExtra(spellCost(s, player, d, base)), purpose)
         : undefined;
     const payableWith = (c: ManaCost) =>
       canPay(s, player, c, exclude, purpose) ||
@@ -833,16 +833,29 @@ export function legalActions(s: GameState, player: PlayerId): ActionOption[] {
     });
   }
 
+  // In the graveyard, also the abilities an effect grants to the card (Cursecloth Wrappings: embalm).
   const offField = (zone: "graveyard" | "hand", flag: "fromGraveyard" | "fromHand") =>
     (s.players[player]?.[zone] ?? []).filter((id) =>
-      s.defs[obj(s, id).defId]?.abilities.some((ab) => ab.kind === "activated" && ab[flag]),
+      (zone === "graveyard" ? abilitiesOf(s, id) : (s.defs[obj(s, id).defId]?.abilities ?? [])).some(
+        (ab) => ab.kind === "activated" && ab[flag],
+      ),
     );
   // Emblems: their activated abilities work in the command zone (114.4; Karn, Living Legacy); a card's, only those
   // that say so (commander ninjutsu).
   const emblems = (s.players[player]?.command ?? []).filter((id) =>
     s.defs[obj(s, id).defId]?.abilities.some((ab) => ab.kind === "activated" && (obj(s, id).isToken || ab.fromCommand)),
   );
-  for (const id of [...s.battlefield, ...offField("graveyard", "fromGraveyard"), ...offField("hand", "fromHand"), ...emblems]) {
+  // Fblthp, Lost on the Range: the top card of your library can be plotted.
+  const libraryTop = (s.players[player]?.library.slice(0, 1) ?? []).filter((id) =>
+    abilitiesOf(s, id).some((ab) => ab.kind === "activated" && ab.fromLibraryTop),
+  );
+  for (const id of [
+    ...s.battlefield,
+    ...offField("graveyard", "fromGraveyard"),
+    ...offField("hand", "fromHand"),
+    ...libraryTop,
+    ...emblems,
+  ]) {
     const o = obj(s, id);
     // 602.2: abilities that other players may activate (Xantcha, Oft-Nabbed Goat).
     const foreign = o.zone === "battlefield" && o.controller !== player;

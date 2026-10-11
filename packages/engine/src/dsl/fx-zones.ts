@@ -106,6 +106,7 @@ export const zonesFx = {
       greatestPower?: boolean;
       to?: "exile" | "hand";
       half?: boolean;
+      exploit?: boolean;
     } = {},
   ): Effect => ({
     op: "sacrifice",

@@ -11,7 +11,6 @@ import {
   cond,
   doesntUntap,
   equipAbility,
-  eventReplacement,
   fx,
   modal,
   mode,
@@ -214,26 +213,11 @@ export const BLUE: Record<string, CardScript> = {
         targets: [target.creature("t", { controller: "you" })],
         label: "Chapter I — One of your creatures has hexproof while the Saga remains",
       }),
-      // Approximation: the prevention is granted to the creature as an ability (it stops if the creature loses its abilities).
-      chapter(
-        [2],
-        [
-          fx.modifyWhileSource(ref.target(), {
-            addAbilities: [
-              eventReplacement({
-                event: "damage",
-                source: { self: true },
-                modify: { prevent: true },
-                label: "Prevent all damage it would deal",
-              }),
-            ],
-          }),
-        ],
-        {
-          targets: [target.upTo(1, target.creature())],
-          label: "Chapter II — Prevent the damage of up to one creature while the Saga remains",
-        },
-      ),
+      // A prevention effect whose source is "that creature" (frozen on resolution), not an ability of the creature.
+      chapter([2], [fx.whileSource({ replacement: { event: "damage", sourceRef: ref.target(), modify: { prevent: true } } })], {
+        targets: [target.upTo(1, target.creature())],
+        label: "Chapter II — Prevent the damage of up to one creature while the Saga remains",
+      }),
       chapter([3, 4], [fx.draw(1)], { label: "Chapters III, IV — Draw a card" }),
     ],
   },

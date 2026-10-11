@@ -384,6 +384,12 @@ export interface ModeDef {
    * changes with the cost paid. Neither free nor with another alternative cost (118.9a); the mana value stays the card's.
    */
   cost?: ManaCost;
+  /**
+   * Number of times a mode is chosen in this entry (700.2): a combination of "choose one or more", spree, escalate or
+   * paw modes (the same mode chosen twice counts twice). Absent: the number the text says ("choose two"), otherwise 1.
+   * Read by `modesChosen` (`cardDef.ts`; Riku of Many Paths).
+   */
+  chosen?: number;
 }
 
 export type AbilityDef =
@@ -609,6 +615,8 @@ export interface ActivatedAbilityDef {
   fromGraveyard?: boolean;
   /** Ability activated from hand (cycling, "discard this card: …"). */
   fromHand?: boolean;
+  /** Activated from the top of its owner's library (plot granted by Fblthp, Lost on the Range: `libraryTopPlot`). */
+  fromLibraryTop?: boolean;
   /**
    * Also activated from the command zone, as well as from its own zone (commander ninjutsu, 702.49d: "from your hand
    * or the command zone").
@@ -642,6 +650,11 @@ export interface ActivatedAbilityDef {
 
 export interface CostDef {
   mana?: ManaCost;
+  /**
+   * The mana is the source card's mana cost ("the embalm cost is equal to its mana cost", Cursecloth Wrappings): an
+   * ability granted to a card in a graveyard, resolved by `abilitiesOf` (stack.ts); none without a mana cost.
+   */
+  manaOfSource?: true;
   tap?: boolean;
   /**
    * What is done with the source to pay: sacrifice it, exile it (from the battlefield or the graveyard), discard it
@@ -1367,8 +1380,20 @@ export interface PlayerStaticAbilityDef {
   cantLose?: true | "life";
   /** "You gain life rather than lose life from radiation" (Strong, the Brutish Thespian). */
   radiationGains?: boolean;
+  /**
+   * "Only [filter] creatures can attack" (the player's creatures that don't match can't attack; Bumi, Unleashed: "only
+   * land creatures can attack during that combat phase", a player effect for the next combat, `duration: "nextCombat"`).
+   */
+  attackersOnly?: ObjectFilter;
   /** Keywords of matching spells the player controls (Lo and Li: "your Lesson spells have lifelink"). */
   spellKeywords?: { filter: ObjectFilter; keywords: Keyword[] };
+  /**
+   * "Each [filter] spell you cast has conspire / casualty N": an optional additional cost that copies the spell when it
+   * is cast (702.78 conspire: tap two untapped creatures you control that share a color with it, Raiding Schemes;
+   * 702.153 casualty N: sacrifice a creature with power N or greater, Silverquill, the Disputant). Chosen as a cost
+   * slot (`conspire`, `casualty`), then "when you cast this spell, if its cost was paid, copy it".
+   */
+  copyCost?: { filter: ObjectFilter; conspire?: true; casualty?: number };
   /**
    * Unspent mana (500.4): these types don't empty at the end of steps and phases (The Last Agni Kai, set by
    * `fx.thisTurn`); `becomes`: it becomes this type instead of emptying (Ozai, the Phoenix King).
@@ -1417,6 +1442,11 @@ export interface PlayerStaticAbilityDef {
    * `mayLookAt` (statics.ts).
    */
   lookAt?: "libraryTop" | "faceDown";
+  /**
+   * "The top card of your library has plot. The plot cost is equal to its mana cost. You may plot nonland cards from the
+   * top of your library" (Fblthp, Lost on the Range): a special action from the library (`libraryTopPlot`, stack.ts).
+   */
+  plotFromLibraryTop?: boolean;
   /**
    * Attack tax: creatures can't attack you unless their controller pays {N} for each (Propaganda: not
    * attacks on your planeswalkers); `defending: "youOrYourPlaneswalkers"`: you or your planeswalkers (Archangel of
@@ -1468,6 +1498,11 @@ export interface PlayerStaticAbilityDef {
     filter?: ObjectFilter;
     webSlinging?: boolean;
     blitz?: { reduce?: Amount };
+    /**
+     * Prowl (702.76): only if you dealt combat damage to a player this turn with a creature that had one of the spell's
+     * creature types (the turn log's `sourceSubtypes`; Hunting Velociraptor).
+     */
+    prowl?: boolean;
   };
   /**
    * Maximum hand size (402.2), evaluated for the source's controller: Necrodominance (5), Winter, Misanthropic
@@ -1570,8 +1605,12 @@ export interface TriggeredAbilityDef {
   fromCommand?: boolean;
   /** "Choose a mode that hasn't been chosen" (Demonic Pact); `turn`: this turn (Monument to Endurance). */
   uniqueModes?: boolean | "turn";
-  /** "one or more …": a single pending occurrence at a time (same batch of events). */
-  batched?: boolean;
+  /**
+   * "one or more …": a single pending occurrence at a time (same batch of events). `"sum"`: the amounts of the batch
+   * are added up and the conditions read on the total ("deals 4 or more damage", "is dealt 3 or more damage": the
+   * damage dealt at the same time, Spinneret and Spiderling, Innocent Bystander).
+   */
+  batched?: boolean | "sum";
   /** Ward (702.21): Nowhere to Run prevents it from triggering. */
   ward?: boolean;
   label?: string;

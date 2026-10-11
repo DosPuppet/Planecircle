@@ -472,8 +472,15 @@ export const HANDLERS: OpHandlers = {
     }
     const w = e.while;
     const counter = typeof w === "object" && "counter" in w ? w.counter : undefined;
+    // An ability granted to a card in a graveyard ("gains embalm until end of turn": Cursecloth Wrappings), read by
+    // `abilitiesOf` (the layers only apply to the battlefield).
+    const toGraveyard =
+      Object.keys(e.mods).every((k) => k === "addAbilities") &&
+      !!e.mods.addAbilities?.every((a) => a.kind === "activated" && a.fromGraveyard);
     const ids = resolveRef(s, ctx, e.what).filter(
-      (id) => onBattlefield(s, id) && (!counter || (s.objects[id]?.counters[counter] ?? 0) > 0),
+      (id) =>
+        (onBattlefield(s, id) || (toGraveyard && s.objects[id]?.zone === "graveyard")) &&
+        (!counter || (s.objects[id]?.counters[counter] ?? 0) > 0),
     );
     if (ids.length === 0) return;
     // 611.2b: a "for as long as [the source] remains…" effect does nothing if it is already gone.

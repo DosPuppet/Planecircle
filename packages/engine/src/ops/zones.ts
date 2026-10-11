@@ -1070,7 +1070,12 @@ export const HANDLERS: OpHandlers = {
         continue;
       }
       if (e.store) r.vars[`$ids:${e.store}`] = [...(r.vars[`$ids:${e.store}`] ?? []), ...chosen];
-      for (const id of chosen) if (onBattlefield(s, id)) sacrifice(s, id);
+      for (const id of chosen) {
+        if (!onBattlefield(s, id)) continue;
+        sacrifice(s, id);
+        // 702.110b: the source "exploits" the creature sacrificed as its exploit ability resolves.
+        if (e.exploit) rulesEvent(s, { e: "exploit", player: p, objectId: id, source: ctx.sourceId });
+      }
     }
     return;
   },

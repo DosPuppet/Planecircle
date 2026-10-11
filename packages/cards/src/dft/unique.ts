@@ -12,6 +12,7 @@ import {
   cmp,
   cond,
   ELEPHANT,
+  embalmAbility,
   entersWith,
   exhaust,
   fx,
@@ -93,20 +94,12 @@ export const UNIQUE: Record<string, CardScript> = {
   "Cursecloth Wrappings": {
     abilities: [
       staticAbility({ subtype: "Zombie", controller: "you" }, { power: 1, toughness: 1 }, { label: "Zombies get +1/+1" }),
-      // Approximation of the granted embalm: paid at once, as a sorcery; the token keeps its colors.
+      // "Gains embalm until end of turn": an ability of the card in the graveyard, activated later as a sorcery.
       activated({
         tap: true,
-        sorcerySpeed: true,
         targets: [target.cardInGraveyard("t", { types: ["Creature"] }, "you", "creature card")],
-        effects: [
-          fx.payCostOf(ref.target(), "p", "Pay its mana cost (embalm)?"),
-          fx.when(
-            cond.v("p"),
-            fx.exileCard(ref.target(), { name: "e" }),
-            fx.copyToken(ref.stored("e"), { addSubtypes: ["Zombie"] }),
-          ),
-        ],
-        label: "Embalm",
+        effects: [fx.modify(ref.target(), { addAbilities: [embalmAbility()] }, "endOfTurn")],
+        label: "A creature card in your graveyard gains embalm until end of turn",
       }),
     ],
   },

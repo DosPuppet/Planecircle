@@ -14,7 +14,7 @@ import { legalActions } from "../src/legal";
 import { manaAbilitiesOf } from "../src/mana";
 import { chars, decider, syncControl } from "../src/state";
 import { plainText } from "../src/text";
-import { canBlock } from "../src/turn";
+import { canAttack, canBlock } from "../src/turn";
 import type { CardDef, ChoiceRequest, ChoiceValue, GameState, ManaType, PlayerId } from "../src/types";
 import {
   type Answer,
@@ -3319,22 +3319,47 @@ describe("lot A, multicolores", () => {
       });
     });
 
-    it("Bumi, Unleashed: combat damage to a player, your lands untap and an additional combat follows, without nonland creatures", () => {
+    it("Bumi, Unleashed: combat damage to a player, your lands untap and an additional combat follows, only land creatures attack in it (PLAN-M M10d)", () => {
+      const dryad = customCard({
+        name: "Test Land Creature",
+        types: ["Land", "Creature"],
+        typeLine: "Land Creature — Forest Dryad",
+        subtypes: ["Forest", "Dryad"],
+        power: 1,
+        toughness: 1,
+      });
       let s = scenario({
         p1: {
-          battlefield: ["Bumi, Unleashed", "Bear Cub", { name: "Forest", tapped: true }, { name: "Mountain", tapped: true }],
+          battlefield: [
+            "Bumi, Unleashed",
+            "Bear Cub",
+            dryad,
+            { name: "Forest", tapped: true },
+            { name: "Mountain", tapped: true },
+          ],
         },
       });
       const bumi = idOf(s, "p1", "battlefield", "Bumi, Unleashed");
       const bear = idOf(s, "p1", "battlefield", "Bear Cub");
+      const land = idOf(s, "p1", "battlefield", "Test Land Creature");
       s = attack(s, [bumi]);
       s = advanceUntil(s, (x) => x.turn.step === "endCombat");
       expect(s.players.p2?.life).toBe(15);
       expect(s.battlefield.filter((id) => chars(s, id).types.includes("Land")).every((id) => !s.objects[id]?.tapped)).toBe(true);
-      // The additional combat: the Bear (nonland) can't attack in it.
-      s = advanceUntil(s, (x) => x.turn.step === "beginCombat" || x.turn.step === "main2");
-      expect(s.turn.step).toBe("beginCombat");
-      expect(chars(s, bear).keywords).toContain("cantAttack");
+      // The Bear can still attack until that combat: the restriction is not an ability of the creatures.
+      expect(chars(s, bear).keywords).not.toContain("cantAttack");
+      // The additional combat: the Bear (nonland) can't attack in it, the land creature can.
+      s = advanceUntil(s, (x) => x.pending?.kind === "declareAttackers" || x.turn.step === "main2");
+      expect(s.pending?.kind).toBe("declareAttackers");
+      expect(canAttack(s, bear)).toBe(false);
+      expect(canAttack(s, land)).toBe(true);
+      expect(() => act(s, "p1", { type: "declareAttackers", attackers: [{ id: bear, defender: "p2" }] })).toThrow();
+      s = act(s, "p1", { type: "declareAttackers", attackers: [{ id: land, defender: "p2" }] });
+      s = advanceUntil(s, (x) => x.turn.step === "main2");
+      expect(s.players.p2?.life).toBe(14);
+      // Next turn: no restriction anymore.
+      s = advanceUntil(s, (x) => x.turn.active === "p1" && x.pending?.kind === "declareAttackers");
+      expect(canAttack(s, bear)).toBe(true);
     });
 
     it("Cat-Owl: when attacking, untaps a targeted artifact or creature", () => {

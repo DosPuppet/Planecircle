@@ -318,6 +318,8 @@ export const amount = {
   totalManaValue: (filter: ObjectFilter, zone?: "exile"): Amount =>
     agg("sum", "manaValue", { filter, ...(zone ? { zone } : {}) }),
   eventManaSpent: spent("mana", EVENT_OBJECT),
+  /** "The number of times you chose a mode for that spell" (the event's spell; Riku of Many Paths). */
+  eventModesChosen: spent("modes", EVENT_OBJECT),
   cardTypesOf: (r: Ref): Amount => agg("distinct", "cardType", { of: r }),
   devotion: (color: Color): Amount => ({ kind: "manaSymbols", color }),
   noncreatureCastBy: (who: Ref): Amount => ({ kind: "turnEvents", query: { event: "cast", notTypes: ["Creature"] }, of: who }),
@@ -445,7 +447,13 @@ export function bothIfKicked(a: ModeDef, b: ModeDef, bothLabel: string): SpellDe
     modes: [
       { ...a, condition: unkicked },
       { ...b, condition: unkicked },
-      { label: bothLabel, targets: [...a.targets, ...b.targets], effects: [...a.effects, ...b.effects], condition: kicked },
+      {
+        label: bothLabel,
+        targets: [...a.targets, ...b.targets],
+        effects: [...a.effects, ...b.effects],
+        condition: kicked,
+        chosen: 2,
+      },
     ],
   };
 }
@@ -468,6 +476,7 @@ export function oneOrMore(...modes: { label: string; targets?: TargetSpec[]; eff
       label: joinLabels(chosen.map((m) => m.label)),
       targets: chosen.flatMap((m) => m.targets ?? []),
       effects: chosen.flatMap((m) => m.effects.flat()),
+      ...(chosen.length > 1 ? { chosen: chosen.length } : {}),
     });
   }
   return out;
@@ -493,6 +502,7 @@ export function spree(...modes: { cost: string; label: string; targets?: TargetS
       targets: chosen.flatMap((m) => m.targets ?? []),
       effects: chosen.flatMap((m) => m.effects.flat()),
       extraCost: extra,
+      ...(chosen.length > 1 ? { chosen: chosen.length } : {}),
     });
   }
   return { modes: out };
@@ -521,6 +531,7 @@ export function escalate(
       label: joinLabels(chosen.map((m) => m.label)),
       targets: chosen.flatMap((m) => m.targets ?? []),
       effects: chosen.flatMap((m) => m.effects.flat()),
+      ...(n > 0 ? { chosen: n + 1 } : {}),
       ...(n > 0 && each ? { extraCost: { generic: each.generic * n, colored, x: 0 } } : {}),
       ...(n > 0 && typeof cost !== "string" ? { additionalCost: { tap: { filter: cost.tap, count: n } } } : {}),
     });
@@ -603,7 +614,7 @@ export function pawprint(...modes: { pips: number; label: string; targets?: Targ
           effects.push(...renameTargets(m.effects.flat(), map));
         }
       });
-      out.push({ label: joinLabels(labels), targets, effects });
+      out.push({ label: joinLabels(labels), targets, effects, ...(labels.length > 1 ? { chosen: labels.length } : {}) });
       return;
     }
     const pips = modes[i]?.pips ?? 1;
@@ -1431,6 +1442,33 @@ export function myriadAbility(): AbilityDef {
     ],
     { label: msg("Myriad: a copy attacks each of your other opponents") },
   );
+}
+
+/**
+ * Embalm (702.128a): "[cost], exile this card from your graveyard: create a token that's a copy of it, except it's a
+ * white Zombie in addition to its other types and has no mana cost. Embalm only as a sorcery." Without `cost`: the
+ * card's mana cost (`manaOfSource`: granted by Cursecloth Wrappings).
+ */
+export function embalmAbility(cost?: string): ActivatedAbilityDef {
+  const ab = activated({
+    ...(cost ? { mana: cost } : {}),
+    fromGraveyard: true,
+    exileSelf: true,
+    sorcerySpeed: true,
+    effects: [fx.copyToken(ref.selfCard, { setColors: ["W"], addSubtypes: ["Zombie"] })],
+    label: msg("Embalm"),
+  });
+  return cost ? ab : { ...ab, cost: { ...ab.cost, manaOfSource: true } };
+}
+
+/**
+ * Exploit (702.110a): "when this creature enters, you may sacrifice a creature". The sacrifice is an `exploit` action
+ * event ("whenever a creature you control exploits a creature": `when.exploits`). Granted (Henry Wu, InGen Geneticist).
+ */
+export function exploitAbility(): AbilityDef {
+  return triggered(when.entersSelf, [fx.sacrifice(ref.you, { types: ["Creature"] }, 1, { optional: true, exploit: true })], {
+    label: msg("Exploit: you may sacrifice a creature"),
+  });
 }
 
 /**

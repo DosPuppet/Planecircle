@@ -342,6 +342,44 @@ describe("Duskmourn", () => {
     expect(labels).toContain("A creature with power 2 or less can't be blocked");
   });
 
+  it("Marvin: also the granted activated abilities of your other creatures (613.8), each once, even with another mimic (PLAN-M M10d)", () => {
+    const pinger = customCard({
+      name: "Test Pinger",
+      power: 1,
+      toughness: 1,
+      abilities: [
+        dsl.staticAbility(
+          "self",
+          { addAbilities: [dsl.activated({ mana: "{1}", effects: [dsl.fx.gainLife(1)], label: "Test: gain 1 life" })] },
+          { label: "Has '{1}: gain 1 life'" },
+        ),
+      ],
+    });
+    const mimic = customCard({
+      name: "Test Mimic",
+      power: 1,
+      toughness: 1,
+      abilities: [
+        dsl.staticAbility(
+          "self",
+          { gainAbilitiesOf: { zone: "battlefield", filter: { types: ["Creature"], controller: "you" } } },
+          { label: "Has the activated abilities of your other creatures" },
+        ),
+      ],
+    });
+    const count = (s: GameState, name: string) =>
+      chars(s, idOf(s, "p1", "battlefield", name)).abilities.filter((ab) => "label" in ab && ab.label === "Test: gain 1 life")
+        .length;
+    const s = scenario({ p1: { battlefield: ["Marvin, Murderous Mimic", pinger, "Forest"] } });
+    expect(count(s, "Marvin, Murderous Mimic")).toBe(1);
+    let t = scenario({ p1: { battlefield: ["Marvin, Murderous Mimic", pinger, mimic, "Forest"] } });
+    expect([count(t, "Marvin, Murderous Mimic"), count(t, "Test Mimic")]).toEqual([1, 1]);
+    const marvin = idOf(t, "p1", "battlefield", "Marvin, Murderous Mimic");
+    const index = chars(t, marvin).abilities.findIndex((ab) => "label" in ab && ab.label === "Test: gain 1 life");
+    t = settle(act(t, "p1", { type: "activate", source: marvin, ability: index }));
+    expect(t.players.p1?.life).toBe(21);
+  });
+
   it("Found Footage: you see your opponents' face-down creatures", () => {
     let s = scenario({
       p1: { battlefield: ["Found Footage", "Plains"], hand: ["Unwanted Remake"] },

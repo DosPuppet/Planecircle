@@ -100,6 +100,8 @@ export const spellsFx = {
       maxManaValue?: Amount;
       /** Cost replacing the mana cost, e.g. "{2}" (miracle). */
       cost?: string;
+      /** With `free`: "by discarding N cards rather than paying its mana cost" (paid while casting). */
+      discard?: number;
     } = {},
   ): Effect => {
     const { cost, ...rest } = opts;

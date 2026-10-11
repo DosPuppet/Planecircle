@@ -125,7 +125,11 @@ export type PlayerStaticKey = keyof Omit<PlayerStaticAbilityDef, "kind" | "label
 function liveEffects(s: GameState, player: PlayerId): PlayerEffect[] {
   return s.playerEffects.filter(
     (e) =>
-      e.player === player && (e.until === null || s.turn.number <= e.until) && (e.from === undefined || s.turn.number >= e.from),
+      e.player === player &&
+      (e.until === null || s.turn.number <= e.until) &&
+      (e.from === undefined || s.turn.number >= e.from) &&
+      (e.whileOn === undefined || s.objects[e.whileOn]?.zone === "battlefield") &&
+      (e.combat === undefined || (s.turn.combats ?? 0) === e.combat),
   );
 }
 
@@ -418,6 +422,10 @@ export function addPlayerEffect(
   from?: number,
   /** "This combat": the effect ends with the combat phase (`endOfCombat`). */
   thisCombat = false,
+  /** "For as long as [this permanent] remains on the battlefield" (`whileOn`). */
+  whileOn?: ObjectId,
+  /** Only during this combat phase of the turn (`combat`). */
+  combat?: number,
 ): void {
   s.playerEffects.push({
     id: newId(s, "pe"),
@@ -426,6 +434,8 @@ export function addPlayerEffect(
     until,
     ...(from !== undefined ? { from } : {}),
     ...(thisCombat ? { endOfCombat: true } : {}),
+    ...(whileOn ? { whileOn } : {}),
+    ...(combat !== undefined ? { combat } : {}),
     once: once || undefined,
     timestamp: nextTimestamp(s),
   });

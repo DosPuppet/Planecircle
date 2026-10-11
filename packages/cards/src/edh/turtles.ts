@@ -403,7 +403,6 @@ export const EDH_TURTLES: Record<string, CardScript> = {
   },
   // Trample: read from the text.
   Vigor: {
-    shuffleIntoLibrary: true,
     abilities: [
       eventReplacement({
         event: "damage",
@@ -412,6 +411,11 @@ export const EDH_TURTLES: Record<string, CardScript> = {
         modify: { prevent: true },
         onPrevent: { countersOnDamaged: "+1/+1" },
         label: "Damage to your other creatures prevented: that many +1/+1 counters",
+      }),
+      // A trigger from the graveyard, not a replacement (rulings): it goes to the graveyard first.
+      triggered(when.putIntoGraveyardFromAnywhereSelf, [fx.moveTo(ref.selfCard, { to: "libraryTop", shuffle: true })], {
+        fromGraveyard: true,
+        label: "Put into a graveyard from anywhere: shuffled into its owner's library",
       }),
     ],
   },

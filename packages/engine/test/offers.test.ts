@@ -391,4 +391,43 @@ describe("offered options, accepted decisions", () => {
     );
     expect(after.players.p1?.hand).toHaveLength(2);
   });
+
+  it("a source that costs life is activated before a drawback (Hall of the Bandit Lord at 3 life, then Ancient Tomb; Commander strict fuzz seed 250)", () => {
+    // {3}: Ancient Tomb's {C}{C} (2 damage, a drawback after the payment) and Hall's {C} (pay 3 life). At 3 life, the
+    // player pays the 3 life first, then takes the 2 damage (119.4, 605.3b).
+    const OGRE = customCard({
+      name: "Test Ogre",
+      manaCost: { generic: 3, colored: {}, x: 0 },
+      manaCostText: "{3}",
+      power: 3,
+      toughness: 3,
+      typeLine: "Creature — Ogre",
+      subtypes: ["Ogre"],
+    });
+    const s = scenario({ p1: { life: 3, battlefield: ["Ancient Tomb", "Hall of the Bandit Lord"], hand: [OGRE] } });
+    const ogre = idOf(s, "p1", "hand", "Test Ogre");
+    expect(castOption(s, "p1", ogre)).toBeDefined();
+    const after = act(s, "p1", { type: "cast", card: ogre });
+    expect(after.players.p1?.life).toBe(-2);
+  });
+
+  it("harmonize with Springleaf Drum: the default creature tapped leaves the rest of the cost payable (Commander strict fuzz seed 267)", () => {
+    // Wild Ride's harmonize {4}{R}: the only red source is the Drum, which taps a creature without a mana ability (the
+    // bear). Tapping the bear for harmonize would leave no red; the elf (power 1) is tapped instead.
+    const s = scenario({
+      p1: {
+        battlefield: ["Springleaf Drum", bear("Test Bear"), "Llanowar Elves", ...lands("Island", 3)],
+        graveyard: ["Wild Ride"],
+      },
+    });
+    const ride = idOf(s, "p1", "graveyard", "Wild Ride");
+    const elves = idOf(s, "p1", "battlefield", "Llanowar Elves");
+    const option = castOption(s, "p1", ride);
+    expect(option?.additional?.tap?.suggested).toEqual([elves]);
+    const after = settle(act(s, "p1", { type: "cast", card: ride, targets: { t: [elves] } } as never));
+    expect(after.stack).toHaveLength(0);
+    expect(idsOf(after, "p1", "graveyard", "Wild Ride")).toHaveLength(0);
+    expect(after.objects[elves]?.tapped).toBe(true);
+    expect(chars(after, elves).power).toBe(4);
+  });
 });

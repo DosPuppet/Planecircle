@@ -1045,8 +1045,14 @@ export function payMana(
   if (!plan) throw new RulesError(msg("Not enough mana"));
   // The objects chosen by the player for convoke (or improvise, waterbending, delve) are all used.
   const tapped = new Set(plan.taps.map((t) => t.id));
-  for (const ids of Object.values(purpose?.only ?? {}))
-    if (ids?.some((id) => !tapped.has(id))) throw new RulesError(msg("Too many objects chosen to pay this cost"));
+  for (const [k, ids] of Object.entries(purpose?.only ?? {}))
+    if (k !== "sacrificeToPay" && ids?.some((id) => !tapped.has(id)))
+      throw new RulesError(msg("Too many objects chosen to pay this cost"));
+  // "You may sacrifice any number of …; this spell costs {1} less for each" (Rottenmouth Viper): the permanents chosen
+  // beyond the generic cost are sacrificed too, without reducing anything more (601.2b, 118.7d).
+  const extraSacrifices = (purpose?.only?.sacrificeToPay ?? []).filter(
+    (id) => !tapped.has(id) && s.objects[id]?.zone === "battlefield",
+  );
   if (spent) for (const m of MANA_TYPES) if (plan.spend[m]) spent[m] = plan.spend[m];
   if (sources) {
     for (const t of plan.taps) {
@@ -1072,8 +1078,14 @@ export function payMana(
     .filter((a): a is ManaAbilityDef => !!a);
   const pool = s.players[player]?.manaPool;
   if (!pool) throw new Error("Unknown player");
+  for (const id of extraSacrifices) sacrifice(s, id);
   const usedRestricted = new Set<number>();
-  for (const t of plan.taps) {
+  // The sources that cost life are activated first: a drawback (Ancient Tomb's damage) comes after the payment, and
+  // the player orders the activations (Hall of the Bandit Lord at 3 life, then Ancient Tomb; 119.4, 605.3b).
+  const lifeFirst = (t: { id: ObjectId; ability: number }) =>
+    t.ability >= 0 && manaAbilitiesOf(s, t.id)[t.ability]?.cost.payLife ? 0 : 1;
+  const taps = plan.taps.some((t) => lifeFirst(t) === 0) ? [...plan.taps].sort((a, b) => lifeFirst(a) - lifeFirst(b)) : plan.taps;
+  for (const t of taps) {
     if (t.ability === RESTRICTED_POOL) {
       // Restricted mana from the pool: it joins the pool to be spent at once.
       usedRestricted.add(Number(t.id.slice("pool:".length)));

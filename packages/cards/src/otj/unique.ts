@@ -19,6 +19,7 @@ import {
   mode,
   OUTLAW,
   OUTLAW_CREATURE,
+  oneOrMore,
   playerStatic,
   protection,
   protectionAbility,
@@ -183,18 +184,8 @@ export const UNIQUE: Record<string, CardScript> = {
   "Fblthp, Lost on the Range": {
     abilities: [
       playerStatic({ lookAt: "libraryTop", label: "You may look at the top card" }),
-      // Approximation: an ability (which uses the stack) pays the mana cost of the top card to plot it.
-      activated({
-        sorcerySpeed: true,
-        effects: [
-          fx.when(
-            cond.refMatches(ref.libraryTop(ref.you), { notTypes: ["Land"] }),
-            fx.payCostOf(ref.libraryTop(ref.you), "p", "Pay the mana cost of the top card to plot it?"),
-            fx.when(cond.v("p"), fx.plot(ref.libraryTop(ref.you))),
-          ),
-        ],
-        label: "Plot the top card",
-      }),
+      // The top card has plot for its mana cost: a special action from the library (no stack).
+      playerStatic({ plotFromLibraryTop: true, label: "You may plot nonland cards from the top of your library" }),
     ],
   },
   "The Key to the Vault": {
@@ -720,16 +711,23 @@ export const UNIQUE: Record<string, CardScript> = {
   },
   "Riku of Many Paths": {
     abilities: [
-      // Approximation: a single mode, whatever the number of modes chosen for the spell.
-      triggeredModal({ on: "castSpell", by: "you", modal: true }, [
-        mode(
-          "Exile the top card, playable",
-          [],
-          [fx.exileTop(ref.you, 1, "k"), fx.grantPlay(ref.stored("k"), { untilYourNextTurn: true })],
-        ),
-        mode("+1/+1 counter and trample", [], [fx.addCounters(ref.self, 1), fx.pump(ref.self, 0, 0, ["trample"])]),
-        mode("1/1 flying Bird", [], [fx.createTokens(BIRD_1)]),
-      ]),
+      // "Choose up to X, where X is the number of times you chose a mode for that spell": each combination of modes,
+      // under the condition X ≥ its number of modes (each Riku mode at most once), or none.
+      triggeredModal(
+        { on: "castSpell", by: "you", modal: true },
+        [
+          ...oneOrMore(
+            {
+              label: "Exile the top card, playable",
+              effects: [fx.exileTop(ref.you, 1, "k"), fx.grantPlay(ref.stored("k"), { untilYourNextTurn: true })],
+            },
+            { label: "+1/+1 counter and trample", effects: [fx.addCounters(ref.self, 1), fx.pump(ref.self, 0, 0, ["trample"])] },
+            { label: "1/1 flying Bird", effects: [fx.createTokens(BIRD_1)] },
+          ).map((m) => ({ ...m, condition: cond.amountAtLeast(amount.eventModesChosen, m.chosen ?? 1) })),
+          mode("None", [], []),
+        ],
+        { label: "Up to X modes" },
+      ),
     ],
   },
   "Roxanne, Starfall Savant": {

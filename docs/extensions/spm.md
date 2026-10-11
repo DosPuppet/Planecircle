@@ -122,3 +122,7 @@ The scripts are in `packages/cards/src/spm/`: `cards` (meta cards), `white`, `bl
 
 - **Interdimensional Web Watch:** its mana only for spells cast from exile (`ManaRestriction.spellFrom: "exile"`; `spellFrom: "elsewhere"` replaces `spellNotFromHand`, Mm'menon; the payment knows the zone cast from, `ManaPurpose.from`). Test added (Think Twice's flashback refused).
 - **Spider-Slayer, Hatred Honed:** "whenever it deals damage to a Spider, destroy that creature": `dealsDamage` with `to: { objects: { subtype: "Spider" } }` and `eventObject: "damaged"` (the event object is what was dealt the damage; the key of Skewer Slinger's `blocks` trigger). Test added (an indestructible Spider shocked afterwards: no trigger).
+
+## PLAN-M M10d (rules 206)
+
+- **Spinneret and Spiderling:** "deals 4 or more damage" adds up the damage dealt at the same time (`batched: "sum"`): 2 + 2 to two blockers triggers once. Test added; approximation removed.

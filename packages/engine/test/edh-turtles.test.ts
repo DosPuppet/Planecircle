@@ -4,6 +4,7 @@
  * attack each opponent, doubled draw triggers, prevention changed into counters.
  */
 import { describe, expect, it } from "vitest";
+import { destroy } from "../src/actions";
 import { chars } from "../src/layers";
 import { legalActions } from "../src/legal";
 import type { GameState, PlayerId } from "../src/types";
@@ -117,6 +118,18 @@ describe("Turtle Power! (EDH)", () => {
       const bear = idOf(s, "p1", "battlefield", "Bear Cub");
       s = settle(castIt(s, "p1", "Shock", { targets: { t: [bear] } }));
       expect([s.objects[bear]?.damage, plusOne(s, bear)]).toEqual([0, 2]);
+    });
+
+    it("Vigor: put into a graveyard, it dies first (Blood Artist), then its ability from the graveyard shuffles it into the library (rulings; PLAN-M M10d)", () => {
+      let s = scenario({ p1: { battlefield: ["Vigor", "Blood Artist"], library: lands("Forest", 3) } });
+      destroy(s, idOf(s, "p1", "battlefield", "Vigor"));
+      // It is in the graveyard while its ability waits (not a replacement).
+      expect(idsOf(s, "p1", "graveyard", "Vigor")).toHaveLength(1);
+      expect(s.triggers.map((t) => nameOf(s, t.sourceId))).toEqual(expect.arrayContaining(["Vigor", "Blood Artist"]));
+      s = settle(s);
+      expect(s.players.p2?.life).toBe(19);
+      expect(idsOf(s, "p1", "graveyard", "Vigor")).toHaveLength(0);
+      expect(s.players.p1?.library.map((id) => nameOf(s, id))).toContain("Vigor");
     });
 
     it("Raphael: your creatures with counters deal double damage", () => {

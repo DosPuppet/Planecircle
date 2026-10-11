@@ -35,10 +35,8 @@
  "Detention Sphere | triggered | Detention Sphere: 2 in the text, 1 in the script": "exile \"until it leaves the battlefield\" (610.3): both triggered abilities (enters, leaves) modeled by exileUntilLeaves",
  "Crackle with Power | target | 0 \"target\" in the text, 1 in the script": "\"each of up to X targets\": a single target with a variable number (countX), which the count of \"target\" words does not see",
  "Kinnan, Bonder Prodigy | triggered | Kinnan, Bonder Prodigy: 1 in the text, 0 in the script": "triggered mana ability (605.1b, one more mana of the same type): mana replacement (R1, family I), like Shimmerwilds Growth",
- "Henry Wu, InGen Geneticist | triggered | Henry Wu, InGen Geneticist: 1 in the text, 0 in the script": "\"whenever a creature you control exploits…\": built into the exploit ability that Henry Wu gives his Humans",
  "Ian Malcolm, Chaotician | static | Ian Malcolm, Chaotician: 1 in the text, 0 in the script": "the permission \"during each player's turn, cast a card you don't own\" is set by the triggered ability (grantPlay for: \"nonOwners\")",
  "Omnath, Locus of the Void | number | Omnath, Locus of the Void: 1 missing": "\"+1/+1 for each unspent mana\": base power and toughness 6 plus the mana in the pool (cdaPower and cdaToughness, amount.manaInPool)",
- "Vigor | triggered | Vigor: 1 in the text, 0 in the script": "\"when Vigor is put into a graveyard from anywhere, shuffle it into its owner's library\": shuffleIntoLibrary replacement (like the Eldrazi); it does not go through the graveyard (documented approximation)",
  "Chain of Vapor | target | 2 \"target\" in the text, 1 in the script": "the second \"target\" is the copy's new target, chosen by the copying player (707.10c), not a target of the spell",
  "Delina, Wild Mage | static | Delina, Wild Mage: 2 in the text, 1 in the script": "the d20 results (\"1—14 | …\", \"15—20 | …\") are two lines of a single triggered ability, read as statics"
 }

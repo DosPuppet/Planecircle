@@ -16,8 +16,21 @@ export const when = {
   entersSelf: { on: "enters", who: "self" } as TriggerSpec,
   /** "When it transforms into [this face]" (to put on the face concerned). */
   transformsSelf: { on: "action", action: "transformed", self: true } as TriggerSpec,
+  /**
+   * "When [this card] is put into a graveyard from anywhere" (Vigor, the Eldrazi titans): triggers from the graveyard,
+   * with `fromGraveyard` (not a replacement: it goes to the graveyard first).
+   */
+  putIntoGraveyardFromAnywhereSelf: {
+    on: "zoneChange",
+    from: ["battlefield", "hand", "library", "stack", "exile", "command"],
+    to: ["graveyard"],
+    filter: { self: true },
+    whose: "any",
+  } as TriggerSpec,
   /** "When this creature becomes monstrous" (701.37b). */
   becomesMonstrous: { on: "action", action: "monstrous", self: true } as TriggerSpec,
+  /** "Whenever a creature you control exploits a creature" (702.110b): `ref.eventObject` is the exploited creature. */
+  exploits: { on: "action", action: "exploit" } as TriggerSpec,
   /** "Whenever a(n) [filter] enters the battlefield" */
   enters: (filter: ObjectFilter): TriggerSpec => ({ on: "enters", who: filter }),
   diesSelf: { on: "dies", who: "self" } as TriggerSpec,
@@ -311,8 +324,8 @@ export function triggered(
     fromGraveyard?: boolean;
     /** Also works from the command zone (eminence, Commander). */
     fromCommand?: boolean;
-    /** "one or more …": a single trigger per batch of events. */
-    batched?: boolean;
+    /** "one or more …": a single trigger per batch of events; `"sum"`: the amounts of the batch added up. */
+    batched?: boolean | "sum";
   } = {},
 ): TriggeredAbilityDef {
   return {

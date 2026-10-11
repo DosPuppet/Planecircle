@@ -2649,6 +2649,22 @@ describe("Murders at Karlov Manor, lot A — red", () => {
       expect(run("Lightning Strike")).toBe(1);
       expect(run(ZAP)).toBe(0);
     });
+
+    it("2 + 1 damage from two blockers at the same time: dealt 3 damage all at once, investigate (ruling; PLAN-M M10d)", () => {
+      let s = scenario({
+        p1: { battlefield: ["Innocent Bystander"] },
+        p2: { battlefield: ["Bear Cub", "Llanowar Elves"] },
+      });
+      const bystander = idOf(s, "p1", "battlefield", "Innocent Bystander");
+      s = advanceUntil(s, (x) => x.pending?.kind === "declareAttackers");
+      s = act(s, "p1", { type: "declareAttackers", attackers: [{ id: bystander, defender: "p2" }] });
+      s = advanceUntil(s, (x) => x.pending?.kind === "declareBlockers");
+      const blockers = [idOf(s, "p2", "battlefield", "Bear Cub"), idOf(s, "p2", "battlefield", "Llanowar Elves")];
+      s = act(s, "p2", { type: "declareBlockers", blocks: blockers.map((blocker) => ({ blocker, attacker: bystander })) });
+      s = advanceUntil(s, (x) => x.turn.step === "main2");
+      expect(idsOf(s, "p1", "graveyard", "Innocent Bystander")).toHaveLength(1);
+      expect(idsOf(s, "p1", "battlefield", "Clue")).toHaveLength(1);
+    });
   });
 
   describe("Knife", () => {

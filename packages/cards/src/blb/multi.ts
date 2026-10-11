@@ -202,18 +202,11 @@ export const MULTI: Record<string, CardScript> = {
     ],
   },
   "The Infamous Cruelclaw": {
-    // Approximation: the discard comes before the cast (free, this turn).
     abilities: [
       triggered(
         when.combatDamageToPlayer,
-        [
-          fx.exileUntil({ notTypes: ["Land"] }, "c"),
-          ...fx.may(
-            "Discard a card to cast the exiled card?",
-            fx.discard(1, ref.you, { store: "d" }),
-            ...fx.when(cond.v("d"), fx.castNow(ref.stored("c"), { free: true })),
-          ),
-        ],
+        // "By discarding a card rather than paying its mana cost": the discard is paid while casting (601.2h).
+        [fx.exileUntil({ notTypes: ["Land"] }, "c"), fx.castNow(ref.stored("c"), { free: true, discard: 1 })],
         { label: "Exiles up to one nonland card; cast it by discarding" },
       ),
     ],

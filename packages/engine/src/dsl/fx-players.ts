@@ -42,6 +42,23 @@ export const playersFx = {
     who,
     duration: "untilYourNextTurn",
   }),
+  /**
+   * Player effect for as long as the source remains on the battlefield (Old Fat Spider Can't See Me: "prevent all damage
+   * that would be dealt by up to one target creature for as long as this Saga remains on the battlefield").
+   */
+  whileSource: (ability: Omit<PlayerStaticAbilityDef, "kind">, who?: Ref): Effect => ({
+    op: "playerEffect",
+    ability,
+    who,
+    duration: "whileSource",
+  }),
+  /** Player effect during the next combat phase of this turn (Bumi, Unleashed: "during that combat phase"). */
+  nextCombat: (ability: Omit<PlayerStaticAbilityDef, "kind">, who?: Ref): Effect => ({
+    op: "playerEffect",
+    ability,
+    who,
+    duration: "nextCombat",
+  }),
   /** Player effect during the next turn only (Kang the Conqueror: "take an extra turn after this one. During that turn, …"). */
   duringNextTurn: (ability: Omit<PlayerStaticAbilityDef, "kind">, who?: Ref): Effect => ({
     op: "playerEffect",

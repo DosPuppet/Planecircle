@@ -47,6 +47,8 @@ export const {
   block,
   blockAbility,
   myriadAbility,
+  exploitAbility,
+  embalmAbility,
   protection,
   protectionAbility,
   powerFor,

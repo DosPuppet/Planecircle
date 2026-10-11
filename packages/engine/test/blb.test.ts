@@ -955,6 +955,37 @@ describe("Bloomburrow: cards from the meta decks (PLAN-C, lot C13)", () => {
       expect(idsOf(s, "p1", "battlefield", "Rottenmouth Viper")).toHaveLength(1);
     });
 
+    it("any number: more sacrifices than the generic cost are allowed, the extra ones reduce nothing (PLAN-M M10d)", () => {
+      // Six Swamps pay the whole cost; the two creatures are sacrificed anyway ("you may sacrifice any number").
+      let s = scenario({
+        p1: { battlefield: [...lands("Swamp", 6), "Bear Cub", "Savannah Lions"], hand: ["Rottenmouth Viper"] },
+        p2: { hand: [] },
+      });
+      const { card } = castOption(s, "Rottenmouth Viper");
+      const chosen = ["Bear Cub", "Savannah Lions"].map((n) => idOf(s, "p1", "battlefield", n));
+      s = act(s, "p1", { type: "cast", card, picks: { sacrificeToPay: chosen } });
+      expect(idsOf(s, "p1", "graveyard", "Bear Cub")).toHaveLength(1);
+      expect(idsOf(s, "p1", "graveyard", "Savannah Lions")).toHaveLength(1);
+      // Four Swamps tapped ({5}{B} − 2), two left.
+      expect(idsOf(s, "p1", "battlefield", "Swamp").filter((id) => !s.objects[id]?.tapped)).toHaveLength(2);
+      // With a single Swamp: five sacrifices reduce {5}, the sixth reduces nothing but is sacrificed.
+      let t = scenario({
+        p1: {
+          battlefield: ["Swamp", ...Array.from({ length: 6 }, () => "Bear Cub")],
+          hand: ["Rottenmouth Viper"],
+        },
+        p2: { hand: [] },
+      });
+      t = act(t, "p1", {
+        type: "cast",
+        card: idOf(t, "p1", "hand", "Rottenmouth Viper"),
+        picks: { sacrificeToPay: idsOf(t, "p1", "battlefield", "Bear Cub") },
+      });
+      expect(idsOf(t, "p1", "graveyard", "Bear Cub")).toHaveLength(6);
+      t = resolve(t);
+      expect(idsOf(t, "p1", "battlefield", "Rottenmouth Viper")).toHaveLength(1);
+    });
+
     it("with no choice, automatic payment sacrifices nothing if the mana suffices, and as little as possible otherwise", () => {
       let s = scenario({
         p1: { battlefield: [...lands("Swamp", 6), "Bear Cub"], hand: ["Rottenmouth Viper"] },
@@ -1632,12 +1663,24 @@ describe("Bloomburrow, lot K8 : mythiques", () => {
     const claw = idOf(s, "p1", "battlefield", "The Infamous Cruelclaw");
     expect(chars(s, claw).keywords).toContain("menace");
     s = toCastNow(attack(s, [claw]), answer({ yes: true }));
-    expect(graveOf(s)).toEqual(["Opt"]);
+    // The discard is the cost paid while casting the spell (rather than its mana cost), not before (PLAN-M M10d).
+    expect(graveOf(s)).toEqual([]);
     const angel = exiled(s, "Serra Angel")[0] as string;
     expect(exiled(s, "Forest")).toHaveLength(1);
-    s = resolve(act(s, "p1", { type: "cast", card: angel }));
+    const option = legalActions(s, "p1").find((a) => a.type === "cast" && a.card === angel);
+    expect(option?.type === "cast" && option.additional?.discard?.count).toBe(1);
+    s = resolve(act(s, "p1", { type: "cast", card: angel, discard: [idOf(s, "p1", "hand", "Opt")] }));
+    expect(graveOf(s)).toEqual(["Opt"]);
     expect(idsOf(s, "p1", "battlefield", "Serra Angel")).toHaveLength(1);
     expect(namesIn(s, s.players.p1?.library)).toEqual(["Island"]);
+  });
+
+  it("The Infamous Cruelclaw: with no card to discard, the exiled card can't be cast and stays in exile (PLAN-M M10d)", () => {
+    let s = scenario({ p1: { battlefield: ["The Infamous Cruelclaw"], library: ["Serra Angel", "Island"] } });
+    s = toCastNow(attack(s, [idOf(s, "p1", "battlefield", "The Infamous Cruelclaw")]));
+    s = advanceUntil(s, (x) => x.turn.step === "main2");
+    expect(exiled(s, "Serra Angel")).toHaveLength(1);
+    expect(idsOf(s, "p1", "battlefield", "Serra Angel")).toHaveLength(0);
   });
 
   it("Warren Warleader: whenever you attack, a tapped and attacking 1/1 Rabbit, or your attackers +1/+1", () => {

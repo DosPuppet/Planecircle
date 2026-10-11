@@ -43,3 +43,8 @@ Tests: `engine/test/blb.test.ts` (29 tests) and the smoke test `ai/test/smoke/bl
 ## PLAN-M M8a (rules 199)
 
 - **Portent of Calamity:** the player chooses the exiled cards, at most one per card type (`lookAtTop` with `onePerType`, all revealed, `store`), then the free cast with four or more; the `portent` operation is removed. 1 test added.
+
+## PLAN-M M10d (rules 206)
+
+- **The Infamous Cruelclaw:** "cast that card by discarding a card rather than paying its mana cost": the discard is a cost paid while casting (`castNow.discard`, an additional discard of the permission), not before; with no card to discard, it isn't offered and stays in exile. Tests: 1 rewritten, 1 added; approximation removed.
+- **Rottenmouth Viper:** "sacrifice any number of nonland permanents": the permanents chosen beyond the generic cost are sacrificed too, reducing nothing more. Test added; approximation removed.

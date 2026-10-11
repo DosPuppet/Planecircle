@@ -1542,22 +1542,27 @@ describe("Outlaws of Thunder Junction, lot K8 : rares (1)", () => {
     expect(t.objects[bear2]?.controller).toBe("p2");
   });
 
-  it("Fblthp, Lost on the Range: plot the top nonland card by paying its mana cost; ward {2}", () => {
+  it("Fblthp, Lost on the Range: plot the top nonland card by paying its mana cost, a special action from the library (PLAN-M M10d); ward {2}", () => {
     let s = scenario({
       p1: { battlefield: ["Fblthp, Lost on the Range", ...lands("Forest", 2)], library: ["Bear Cub", ...lands("Forest", 6)] },
     });
-    const fblthp = idOf(s, "p1", "battlefield", "Fblthp, Lost on the Range");
-    s = activate(s, fblthp, "Plot the top card");
-    s = settle(s, (req) => (req.type === "yesNo" ? [1] : undefined));
+    const top = s.players.p1?.library[0] as string;
+    const plot = legalActions(s, "p1").find((a) => a.type === "activate" && a.source === top);
+    expect(plot?.type === "activate" && plainText(plot.label ?? "")).toBe("Plot");
+    // A special action: no stack, the card is plotted at once.
+    s = act(s, "p1", { type: "activate", source: top, ability: plot?.type === "activate" ? plot.ability : -1 });
+    expect(s.stack).toHaveLength(0);
     const cub = s.exile.find((id) => nameOf(s, id) === "Bear Cub") as string;
     expect(s.objects[cub]?.exiledVia?.kind).toBe("plot");
     expect(idsOf(s, "p1", "battlefield", "Forest").every((id) => s.objects[id]?.tapped)).toBe(true);
-    // A land on top: nothing.
-    let l = scenario({ p1: { battlefield: ["Fblthp, Lost on the Range", ...lands("Forest", 2)] } });
-    const top = l.players.p1?.library[0];
-    l = activate(l, idOf(l, "p1", "battlefield", "Fblthp, Lost on the Range"), "Plot the top card");
-    l = settle(l, (req) => (req.type === "yesNo" ? [1] : undefined));
-    expect(l.players.p1?.library[0]).toBe(top);
+    // A land on top: nothing to plot.
+    const l = scenario({ p1: { battlefield: ["Fblthp, Lost on the Range", ...lands("Forest", 2)] } });
+    const landTop = l.players.p1?.library[0];
+    expect(legalActions(l, "p1").some((a) => a.type === "activate" && a.source === landTop)).toBe(false);
+    // Without Fblthp: no plot from the library.
+    const n = scenario({ p1: { battlefield: lands("Forest", 2), library: ["Bear Cub"] } });
+    const nTop = n.players.p1?.library[0];
+    expect(legalActions(n, "p1").some((a) => a.type === "activate" && a.source === nTop)).toBe(false);
     // Ward {2}: an opposing spell that targets it is countered for lack of payment.
     let w = scenario({
       active: "p2",
@@ -2206,7 +2211,8 @@ describe("Outlaws of Thunder Junction, lot K8 : rares (3)", () => {
       modes = req.options.map((o) => req.labels?.[o] ?? "");
       return req.options.filter((o) => req.labels?.[o] === "1/1 flying Bird");
     });
-    expect(modes).toEqual(["Exile the top card, playable", "+1/+1 counter and trample", "1/1 flying Bird"]);
+    // One mode chosen for the spell: up to one of Riku's.
+    expect(modes).toEqual(["Exile the top card, playable", "+1/+1 counter and trample", "1/1 flying Bird", "None"]);
     const birds = idsOf(s, "p1", "battlefield", "Bird");
     expect(birds).toHaveLength(1);
     expect(chars(s, birds[0] as string).keywords).toContain("flying");
@@ -2215,6 +2221,33 @@ describe("Outlaws of Thunder Junction, lot K8 : rares (3)", () => {
     s = cast(s, "p1", "Bear Cub");
     expect(s.triggers).toHaveLength(0);
     expect(s.stack.filter((i) => i.kind === "ability")).toHaveLength(0);
+  });
+
+  it("Riku of Many Paths: up to X modes, X the number of modes chosen for the spell (PLAN-M M10d)", () => {
+    let s = scenario({
+      p1: {
+        battlefield: ["Riku of Many Paths", ...lands("Swamp", 8)],
+        hand: ["Rush of Dread"],
+        library: lands("Forest", 3),
+      },
+      p2: { battlefield: ["Bear Cub"], life: 20 },
+    });
+    const riku = idOf(s, "p1", "battlefield", "Riku of Many Paths");
+    s = cast(s, "p1", "Rush of Dread", {
+      mode: modeOf(s, "Rush of Dread", "They sacrifice half their creatures + They lose half their life"),
+      targets: { a: ["p2"], c: ["p2"] },
+    });
+    let modes: string[] = [];
+    s = settle(s, (req) => {
+      if (req.type !== "pick" || req.intent !== "triggerMode") return undefined;
+      modes = req.options.map((o) => plainText(req.labels?.[o] ?? ""));
+      return req.options.filter((o) => plainText(req.labels?.[o] ?? "") === "+1/+1 counter and trample + 1/1 flying Bird");
+    });
+    // Two modes chosen: the pairs are offered, not the three together.
+    expect(modes).toContain("Exile the top card, playable + 1/1 flying Bird");
+    expect(modes).not.toContain("Exile the top card, playable + +1/+1 counter and trample + 1/1 flying Bird");
+    expect(idsOf(s, "p1", "battlefield", "Bird")).toHaveLength(1);
+    expect(s.objects[riku]?.counters["+1/+1"]).toBe(1);
   });
 
   it("Rush of Dread: the three modes, each rounded up, for the targeted opponent", () => {

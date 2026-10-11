@@ -885,7 +885,7 @@ function aggregate(s: GameState, ctx: EffectContext, a: Extract<Amount, { kind: 
 /**
  * What was spent to cast the object: the spell on the stack (or resolving), otherwise the permanent it became.
  */
-function spentOn(s: GameState, id: ObjectId, what: "x" | "mana" | "colors" | "cave" | "artifact"): number {
+function spentOn(s: GameState, id: ObjectId, what: "x" | "mana" | "colors" | "cave" | "artifact" | "modes"): number {
   switch (what) {
     case "x": {
       const item = s.resolving?.item.id === id ? s.resolving.item : s.stack.find((x) => x.id === id);
@@ -902,6 +902,8 @@ function spentOn(s: GameState, id: ObjectId, what: "x" | "mana" | "colors" | "ca
       return castInfoOf(s, id, true)?.spentFrom?.cave ?? 0;
     case "artifact":
       return castInfoOf(s, id, true)?.spentFrom?.artifact ?? 0;
+    case "modes":
+      return castInfoOf(s, id, true)?.modes ?? 0;
   }
 }
 
@@ -1216,6 +1218,7 @@ export function grantPlay(
     payLifeManaValue?: boolean;
     castOnly?: true | "adventure";
     haste?: boolean;
+    discard?: number;
   },
 ): void {
   const last =

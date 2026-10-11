@@ -1314,6 +1314,28 @@ describe("lot A, blue", () => {
         s = toMain2(attack(s, [bear]));
         expect(s.players.p2?.life).toBe(18);
       });
+
+      it("II: the prevention is an effect, not an ability of the creature: losing all abilities doesn't end it (PLAN-M M10d)", () => {
+        let s = scenario({
+          p1: {
+            battlefield: [{ name: "Old Fat Spider Can't See Me", counters: { lore: 1 } }, "Bear Cub", "Plains", "Swamp", "Swamp"],
+            hand: ["Abigale, Eloquent First-Year"],
+          },
+          active: "p2",
+          step: "end",
+        });
+        const bear = idOf(s, "p1", "battlefield", "Bear Cub");
+        s = advanceUntil(s, (x) => x.turn.active === "p1" && x.turn.step === "main1");
+        s = settle(s, (req) => (req.type === "pick" && req.options.includes(bear) ? [bear] : undefined));
+        expect(chars(s, bear).abilities).toHaveLength(0);
+        s = settle(act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Abigale, Eloquent First-Year") }), (req) =>
+          req.type === "pick" && req.options.includes(bear) ? [bear] : undefined,
+        );
+        expect(chars(s, bear).keywords).toContain("lifelink");
+        s = toMain2(attack(s, [bear]));
+        expect(s.players.p2?.life).toBe(20);
+        expect(s.players.p1?.life).toBe(20);
+      });
     });
 
     it("Plunder the Trollshaws: draw a card; cast from the graveyard (flashback {3}{U}), two cards instead", () => {

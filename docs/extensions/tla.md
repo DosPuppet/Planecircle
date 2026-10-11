@@ -142,3 +142,7 @@ The scripts are in `packages/cards/src/tla/`: `cards` (meta cards), `white`, `bl
 
 - **Elemental Teachings:** the lands found are held in the library (revealed); the opponent chooses two among them for the graveyard, the rest enter tapped, then shuffle. Test extended (the opponent's options are the cards found, never through the hand).
 - **Aang's Journey:** kicked, a single search for "a basic land card and a Shrine card" (`search.each`: each card taken for a different filter; two basic lands are refused), revealed, one shuffle. Test added.
+
+## PLAN-M M10d (rules 206)
+
+- **Bumi, Unleashed:** "only land creatures can attack during that combat phase" applies to the added combat only (player effect `fx.nextCombat({ attackersOnly })`, read by `canAttack`), whatever creatures are there then, and not to later combats. Test rewritten (a land creature attacks in it, the Bear can't, no restriction the next turn); approximation removed.

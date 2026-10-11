@@ -50,7 +50,10 @@
     "skips": "family J (500.11): skip one's next turn (turn, Ral Zarek), draw step (drawStep, Necropotence, Necrodominance) or extra turns (extraTurns, Trouble in Pairs), a single skips evaluator (PLAN-H H8b)",
     "searchControl": "Opposition Agent — family K, control of another player (R4.2): \"you control your opponents while they're searching their libraries\"; the found cards are exiled, linked to the source (searches of `ops/zones.ts`); to reuse for Praetor's Grasp-like effects",
     "tokenShield": "The Master, Multiplied — family J, rules exceptions (R4.5): \"triggered abilities you control can't cause you to sacrifice or exile creature tokens you control\" (`tokenShielded`, read by sacrifice and exile)",
-    "extraVotes": "Tivit, Seller of Secrets — \"while voting, you may vote an additional time\" (701.38): additional votes in any vote of `eachChooses` (PLAN-M M10b); to reuse for any card that grants votes"
+    "extraVotes": "Tivit, Seller of Secrets — \"while voting, you may vote an additional time\" (701.38): additional votes in any vote of `eachChooses` (PLAN-M M10b); to reuse for any card that grants votes",
+    "attackersOnly": "Bumi, Unleashed — \"only [filter] creatures can attack\" (read by canAttack), with the playerEffect duration nextCombat (\"during that combat phase\", PLAN-M M10d); family of attack restrictions, to reuse for any \"only creatures with … can attack\"",
+    "copyCost": "Raiding Schemes (conspire), Silverquill, the Disputant (casualty 1) — granted optional costs that copy the spell when it is cast (702.78, 702.153; cost slots conspire and casualty, PLAN-M M10d): one family for the two keywords, to reuse for printed casualty (Ob Nixilis, the Adversary) and any granted conspire or casualty",
+    "plotFromLibraryTop": "Fblthp, Lost on the Range — \"the top card of your library has plot\": a special action from the library (libraryTopPlot, ActivatedAbilityDef.fromLibraryTop; PLAN-M M10d); no other card plots from the library"
   },
   "keyword": {
     "attacksDespiteDefender": "keyword rule, several cards",
@@ -179,15 +182,19 @@
     "webSlinging": "Peter Parker // Amazing Spider-Man — granted web-slinging (altCostAll.webSlinging: \"your colored legendary spells have web-slinging\"); printed web-slinging is an alternative cast option via \"webSlinging\" since PLAN-M M5, which made this key visible",
     "whileCrafting": "Market Gnome — \"leaves the battlefield\" trigger limited to exile as craft material (702.167): a field of the `leaves` trigger, no other card",
     "withSpellsCast": "First Family — aggregate `distinct` colors also counting the colors of the spells you've cast this turn (turn log), PLAN-M M9a; to reuse for any \"among permanents you control and spells you've cast this turn\"",
-    "sourceRef": "Jeska, Thrice Reborn: \"if that creature would deal …\" in a damage replacement set by an effect (family E, R1), the designated object frozen as the effect resolves (sourceIs, like a shield's chosen source); the recipient is seen from the effect's player (PLAN-M M9b)",
     "fromCost": "Jeweled Amulet: \"note the type of mana spent to pay this activation cost\", a manaType choice among the types recorded on the cost paid (CostPaid.manaTypes); generic form for any \"type of mana spent\" note (PLAN-M M9b)",
     "playerEffect": "Yuna, Grand Summoner: a mana ability that also sets a player effect until end of turn (605.3b), here \"when you next cast a creature spell this turn\" (family N, nextSpell); the spell paid by it is that next spell (PLAN-M M9b)",
-    "revealChosen": "A Killer Among Us — CostDef.revealChosen, \"reveal the creature type you chose\": only the player who made the secret choice (`chosen.secret`) can pay it, then everyone sees it (PLAN-M M10b); to reuse for any cost that reveals a secret choice"
+    "revealChosen": "A Killer Among Us — CostDef.revealChosen, \"reveal the creature type you chose\": only the player who made the secret choice (`chosen.secret`) can pay it, then everyone sees it (PLAN-M M10b); to reuse for any cost that reveals a secret choice",
+    "manaOfSource": "Cursecloth Wrappings — CostDef: \"the embalm cost is equal to its mana cost\", an ability granted to a card in a graveyard, resolved by abilitiesOf (PLAN-M M10d); to reuse for any granted ability whose cost is the card's mana cost (unearth, encore, eternalize granted)",
+    "casualty": "Silverquill, the Disputant — copyCost.casualty N (702.153, granted casualty; PLAN-M M10d): family copyCost",
+    "conspire": "Raiding Schemes — copyCost.conspire (702.78, granted conspire; PLAN-M M10d): family copyCost",
+    "prowl": "Hunting Velociraptor — altCostAll.prowl (702.76: combat damage to a player this turn by a creature with one of the spell's creature types, from the turn log; PLAN-M M10d): to reuse for printed prowl",
+    "exploit": "Henry Wu, InGen Geneticist — sacrifice.exploit: the exploit sacrifice (702.110) fires the exploit action event (when.exploits); built by exploitAbility(), the keyword's only form, for any exploit card"
   },
   "turnFields": {},
   "engineCardLiterals": {},
   "ceilings": {
-    "Single-card values": 148,
+    "Single-card values": 151,
     "CardDef": 52,
     "GameObject": 51,
     "StackItem": 29,
@@ -195,14 +202,14 @@
     "GameState": 38,
     "ObjectFilter": 65,
     "FilterCompare": 3,
-    "CostDef": 31,
-    "ActivatedAbilityDef": 19,
+    "CostDef": 32,
+    "ActivatedAbilityDef": 20,
     "CastPermissionAbilityDef": 9,
     "PlayFromZone": 23,
     "LayerMods": 31,
     "TriggerMod": 6,
     "EventReplacement": 21,
-    "CastInfo": 10,
+    "CastInfo": 11,
     "TurnLogQuery": 28,
     "MoveSpec": 19,
     "BlockRule": 15,
@@ -213,7 +220,7 @@
     "KickerDef": 5,
     "CardRules": 13,
     "Effect": 140,
-    "Effect (fields)": 635,
+    "Effect (fields)": 637,
     "TriggerSpec": 41,
     "TriggerSpec (fields)": 150,
     "Condition": 46,
@@ -336,6 +343,7 @@
     "PLAN-M M9b: EventReplacement.sourceRef (Jeska: \"that creature\" in an effect's damage replacement), countersDivided.from (moving any number of counters: Forgotten Ancient, Resourceful Defense) and chooseOnEnter.fromCost (Jeweled Amulet's noted mana type), attackWith.eachPlayer (\"whenever you attack a player\": Echoing Assault, Bitter Work): EventReplacement 20 → 21, Effect (fields) 623 → 625, TriggerSpec (fields) 149 → 150",
     "PLAN-M M10a: search.each (one filter per card: Aang's Journey, Agency Outfitter) and search.alsoFrom replacing alsoGraveyard; Condition.beholdSharingType removed (Celestial Reunion's behold of a chosen type is now a cost): Effect (fields) 625 → 626, Condition 47 → 46, Condition (fields) 90 → 87",
     "PLAN-M M10b [rules 204]: choices by each player in turn (op eachChooses replaces chooseNumbers: among number/labels/players, secret answers revealed together, vote with extraVotes) and the repeat op (\"for each … vote\": Expropriate, Mob Verdict); Amount numberChosen generalized into chosen (highest, or the votes for an option or a player, by voters); CostDef.revealChosen (A Killer Among Us): CostDef 30 → 31, Effect 138 → 139, Effect (fields) 626 → 631, Amount (fields) 78 → 81; Ref.numberChoosers became choosers (Wheel of Misfortune, Prisoner's Dilemma) and the secret key has four cards",
-    "PLAN-M M10c: LayerMods.replaceWord (612.2, layer 3 word replacement, New Blood; generic for color words and land types) and the changeText op that asks the word (Effect +1, fields +4): LayerMods 30 → 31, Effect 139 → 140, Effect (fields) 631 → 635"
+    "PLAN-M M10c: LayerMods.replaceWord (612.2, layer 3 word replacement, New Blood; generic for color words and land types) and the changeText op that asks the word (Effect +1, fields +4): LayerMods 30 → 31, Effect 139 → 140, Effect (fields) 631 → 635",
+    "PLAN-M M10d [rules 206]: medium card lifts — CostDef.manaOfSource (embalm granted, Cursecloth Wrappings), ActivatedAbilityDef.fromLibraryTop (plot from the library, Fblthp), CastInfo.modes (modes chosen, Riku of Many Paths), Effect fields castNow.discard (The Infamous Cruelclaw) and sacrifice.exploit (Henry Wu); single-card values +3: spent.what modes (Riku of Many Paths), playerEffect duration nextCombat (Bumi, Unleashed), action exploit (Henry Wu; the exploit keyword's event): CostDef 31 → 32, ActivatedAbilityDef 19 → 20, CastInfo 10 → 11, Effect (fields) 635 → 637, Single-card values 148 → 151: Single-card values 148 → 151, CostDef 31 → 32, ActivatedAbilityDef 19 → 20, CastInfo 10 → 11, Effect (fields) 635 → 637"
   ]
 }

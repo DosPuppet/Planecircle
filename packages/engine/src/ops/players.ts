@@ -90,6 +90,9 @@ export const HANDLERS: OpHandlers = {
     const who = (e.who ? resolveRef(s, ctx, e.who).filter((p) => isPlayer(s, p)) : [ctx.controller]).filter(
       (p) => p !== ability.cantAttack?.of,
     );
+    // "For as long as [the source] remains on the battlefield": nothing if it has already left (611.2b).
+    const whileSource = e.duration === "whileSource";
+    if (whileSource && s.objects[ctx.sourceId]?.zone !== "battlefield") return;
     const until =
       e.duration === "untilYourNextTurn"
         ? nextTurnOf(s, ctx.controller) - 1
@@ -97,7 +100,7 @@ export const HANDLERS: OpHandlers = {
           ? nextTurnOf(s, ctx.controller)
           : e.duration === "nextTurn"
             ? s.turn.number + 1
-            : e.duration === "forever" || (e.times !== undefined && !e.once)
+            : e.duration === "forever" || whileSource || (e.times !== undefined && !e.once)
               ? null
               : s.turn.number;
     const times = e.times !== undefined ? evalAmount(s, ctx, e.times) : 1;
@@ -115,6 +118,8 @@ export const HANDLERS: OpHandlers = {
           e.times !== undefined || !!e.once,
           e.duration === "nextTurn" ? s.turn.number + 1 : undefined,
           e.duration === "thisCombat",
+          whileSource ? ctx.sourceId : undefined,
+          e.duration === "nextCombat" ? (s.turn.combats ?? 0) + 1 : undefined,
         );
     return;
   },

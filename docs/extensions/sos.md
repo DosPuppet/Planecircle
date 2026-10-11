@@ -144,3 +144,7 @@ The scripts are in `packages/cards/src/sos/`: `cards` (meta cards), `white`, `bl
 ## PLAN-M M10a (rules 203)
 
 - **Dina's Guidance:** the creature card found is held in the library (revealed), then the player chooses "your hand" or "your graveyard" (`fx.yourChoice`); it goes straight there, then shuffle. Test rewritten.
+
+## PLAN-M M10d (rules 206)
+
+- **Silverquill, the Disputant:** granted casualty 1 (702.153) is an optional cost paid while casting (`playerStatic.copyCost`, slot `casualty`: a creature with power 1 or greater), then the copy trigger; it can no longer be responded to before the sacrifice. Test rewritten (and a power 0 creature refused); approximation removed.

@@ -37,3 +37,8 @@
 ## PLAN-M M8b (rules 200)
 
 - **Memory Vessel:** "they can't play cards from their hand" (spells and lands), for each player until your next turn: a player effect `castLimit` with `from: "hand"` (`from: "elsewhere"` replaces Avatar's Wrath's `exceptFromHand`), read by `castTerms` and, for lands, by `landPermitted` (`handLocked`). Test extended (`big.test.ts`).
+
+## PLAN-M M10d (rules 206)
+
+- **Riku of Many Paths:** "choose up to X, where X is the number of times you chose a mode for that spell": the cast records it (`CastInfo.modes`: a combination's `ModeDef.chosen`, otherwise the number the text says, "choose two"), Riku's combinations of modes are each offered under the condition X ≥ their number of modes (or none; the trigger's mode conditions read the event's spell). Test added (two modes of Rush of Dread: pairs, not the three); approximation removed.
+- **Fblthp, Lost on the Range:** the top card of your library, if it isn't a land, has plot for its mana cost (and its own plot cost if it has one): a special action from the library (`plotFromLibraryTop`, `libraryTopPlot`, `ActivatedAbilityDef.fromLibraryTop`), no ability on the stack. Test rewritten; approximation removed.

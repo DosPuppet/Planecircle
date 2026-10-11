@@ -224,6 +224,7 @@ export function simultaneously<T>(s: GameState, fn: () => T): T {
     const enters = enterBatch;
     enterBatch = null;
     for (const { ev, seen } of enters) detectTriggers(s, ev, (src) => !seen.has(src.id));
+    sumBatch(s, currentBatch);
     // Lifelink gains happen with the damage of the batch: one per source, in the order of the damage.
     const gains = lifelinkBatch;
     lifelinkBatch = null;
@@ -235,6 +236,21 @@ export function simultaneously<T>(s: GameState, fn: () => T): T {
     enterBatch = null;
     currentBatch = null;
   }
+}
+
+/**
+ * End of a batch: the triggers whose amounts were added up (`batched: "sum"`) keep only if their conditions hold on
+ * the total ("deals 4 or more damage": 2 + 2 to two blockers at the same time).
+ */
+function sumBatch(s: GameState, batch: number | null): void {
+  if (batch === null || !s.triggers.some((t) => t.batch === batch)) return;
+  s.triggers = s.triggers.filter((t) => {
+    if (t.batch !== batch || t.inline) return true;
+    const ab = triggeredAbility(s, t);
+    if (ab?.batched !== "sum") return true;
+    const holds = (c: Condition | undefined) => !c || checkCondition(s, c, t.controller, t.sourceId, t.event.objectId, t.event);
+    return holds(ab.condition) && holds(ab.triggerCondition);
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -535,6 +551,9 @@ function matchAction(
       return t.self && ev.objectId === src.id ? { objectId: src.id, player: me } : null;
     case "cycled":
       return t.self && ev.card === src.id ? { objectId: src.id, player: ev.player, amount: ev.x } : null;
+    // "Whenever a creature you control exploits a creature": the exploited creature (its last known information).
+    case "exploit":
+      return by(ev.player) ? { objectId: ev.objectId, player: me } : null;
   }
   return null;
 }
@@ -979,6 +998,8 @@ function matchTrigger(s: GameState, ev: RulesEvent, t: TriggerSpec, src: Source)
         if (!old || !s.objects[src.id]?.linked?.includes(old)) return null;
         return { objectId: ev.newId ?? undefined, player: card?.controller ?? owner ?? me };
       }
+      // "When [this card] is put into a graveyard": the card itself, in its new zone.
+      if (t.filter?.self && ev.newId !== src.id) return null;
       if (t.whose === "you" && owner !== me) return null;
       // "… into an opponent's graveyard" (Bloodchief Ascension): an opponent still in the game.
       if (t.whose === "opponent" && (!owner || owner === me || !!s.players[owner]?.lost)) return null;
@@ -1084,6 +1105,15 @@ function frozenDefendingPlayer(s: GameState, source: ObjectId, eventObject: Obje
   return s.players[atk.defender] ? atk.defender : (s.objects[atk.defender]?.controller ?? s.lki[atk.defender]?.controller);
 }
 
+/** "When [this card] is put into a graveyard from anywhere": a `zoneChange` to a graveyard of the card itself. */
+const isSelfGraveyardTrigger = (ab: AbilityDef): boolean =>
+  ab.kind === "triggered" &&
+  !!ab.fromGraveyard &&
+  ab.trigger.on === "zoneChange" &&
+  !!ab.trigger.filter?.self &&
+  !!ab.trigger.to?.includes("graveyard");
+const selfGraveyardTrigger = (abs: AbilityDef[] | undefined): boolean => !!abs?.some(isSelfGraveyardTrigger);
+
 /** `only`: look only at some sources (review of the enterings at the end of a batch, 603.6a). */
 export function detectTriggers(s: GameState, ev: RulesEvent, only?: (src: Source) => boolean): void {
   if (s.over) return;
@@ -1095,6 +1125,16 @@ export function detectTriggers(s: GameState, ev: RulesEvent, only?: (src: Source
     if (ev.lki && hasTriggers(ev.lki.abilities) && !sources.some((x) => x.id === ev.lki?.id)) {
       sources = [...sources, { id: ev.lki.id, view: ev.lki }];
     }
+    // The card put into a graveyard triggers from there "when [this] is put into a graveyard from anywhere" (Vigor, the
+    // Eldrazi titans; only that ability: the others look back in time, 603.10a).
+    const card = ev.to === "graveyard" && ev.newId ? s.objects[ev.newId] : undefined;
+    if (
+      card?.zone === "graveyard" &&
+      ev.newId &&
+      selfGraveyardTrigger(s.defs[card.defId]?.abilities) &&
+      !sources.some((x) => x.id === ev.newId)
+    )
+      sources = [...sources, { id: ev.newId, view: snapshot(s, ev.newId) }];
   } else {
     sources = liveSources(s);
     if (!only && enterBatch && ev.e === "zone" && ev.to === "battlefield")
@@ -1112,6 +1152,8 @@ export function detectTriggers(s: GameState, ev: RulesEvent, only?: (src: Source
       // A spell on the stack: only "when you cast this spell" (113.6; Ugin, Eye of the Storms doesn't trigger itself
       // with "whenever you cast a colorless spell").
       if (zone === "stack" && ab.trigger.on !== "castSelf") return;
+      // The card just put into a graveyard from the battlefield: only its "put into a graveyard" ability.
+      if (leaving && src.id === ev.newId && !isSelfGraveyardTrigger(ab)) return;
       const matched = matchTrigger(s, ev, ab.trigger, src);
       if (!matched || entryMuted(s, ev, src)) return;
       const defending = s.combat ? frozenDefendingPlayer(s, src.id, matched.objectId) : undefined;
@@ -1131,13 +1173,27 @@ export function detectTriggers(s: GameState, ev: RulesEvent, only?: (src: Source
         playerStatic(s, ev.controller, "ignoreOpponentsHexproofWard")
       )
         return;
-      if (ab.condition && !checkCondition(s, ab.condition, src.view.controller, src.id, data.objectId, data)) return;
-      if (ab.triggerCondition && !checkCondition(s, ab.triggerCondition, src.view.controller, src.id, data.objectId, data))
+      // Amounts added up over a batch ("deals 4 or more damage"): the conditions are read on the total, at the end of
+      // the batch (`sumBatch`).
+      const summed = ab.batched === "sum" && currentBatch !== null;
+      if (!summed && ab.condition && !checkCondition(s, ab.condition, src.view.controller, src.id, data.objectId, data)) return;
+      if (
+        !summed &&
+        ab.triggerCondition &&
+        !checkCondition(s, ab.triggerCondition, src.view.controller, src.id, data.objectId, data)
+      )
         return;
       // "one or more …": a single trigger per batch of simultaneous events (an effect of a resolution, a combat damage
       // step, a pass of state-based actions); outside a batch (costs paid while casting), the events share the current
       // number.
       const batch = currentBatch ?? s.batch.eventBatch ?? 0;
+      if (ab.batched) {
+        const same = s.triggers.filter((t) => t.sourceId === src.id && t.abilityIndex === index && t.batch === batch);
+        if (summed && same.length > 0) {
+          for (const t of same) t.event = { ...t.event, amount: (t.event.amount ?? 0) + (data.amount ?? 0) };
+          return;
+        }
+      }
       if (ab.batched) {
         // The objects and players of the other events of the batch join the pending trigger (`ref.eventObjects`,
         // `ref.eventPlayers`).
@@ -1614,8 +1670,9 @@ function chooseTriggerMode(s: GameState, t: PendingTrigger): boolean {
   const possible = modes
     .map((m, i) => ({ m, i }))
     .filter(({ i }) => !used.includes(i))
-    // Bumi, King of Three Trials: a conditional mode ("up to X modes") is offered only if it is met.
-    .filter(({ m }) => !m.condition || checkCondition(s, m.condition, t.controller, t.sourceId))
+    // Bumi, King of Three Trials: a conditional mode ("up to X modes") is offered only if it is met (Riku of Many Paths:
+    // read from the event's spell).
+    .filter(({ m }) => !m.condition || checkCondition(s, m.condition, t.controller, t.sourceId, t.event.objectId, t.event))
     .filter(({ m }) => m.targets.every((spec) => spec.optional || legalTargets(s, t.controller, spec).length > 0));
   if (possible.length <= 1) {
     t.mode = possible[0]?.i ?? modes.findIndex((_, i) => !used.includes(i));

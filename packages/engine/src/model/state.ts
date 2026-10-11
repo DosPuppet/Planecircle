@@ -271,6 +271,10 @@ export interface PlayerEffect {
   once?: boolean;
   /** Ends with the current combat phase ("this combat": Mirri, Weatherlight Duelist). */
   endOfCombat?: boolean;
+  /** Lasts as long as this permanent remains on the battlefield (`duration: "whileSource"`). */
+  whileOn?: ObjectId;
+  /** Applies only during this combat phase of the turn (`TurnState.combats`; `duration: "nextCombat"`). */
+  combat?: number;
   /** Timestamp of the effect (613.11: effects on the rules of the game, such as maximum hand size). */
   timestamp: number;
 }
@@ -481,6 +485,8 @@ export interface CastInfo {
    * absent with a single opponent (it's them), except on a copy, which keeps the original's opponent (707.10).
    */
   giftTo?: PlayerId;
+  /** Modal spell (700.2): the number of times a mode was chosen as it was cast (`modesChosen`). */
+  modes?: number;
 }
 
 /** Turn event (`turnlog.ts`): move, spell cast, sacrifice, damage. */
@@ -1028,6 +1034,8 @@ export interface GameState {
     castOnly?: true | "adventure";
     /** A creature spell cast this way gains haste (suspend, 702.62a). */
     haste?: boolean;
+    /** With `free`: "by discarding N cards rather than paying its mana cost" (The Infamous Cruelclaw). */
+    discard?: number;
   }[];
   /**
    * 722: "you control [that player] during their next turn" (The Dominion Bracelet). `turn` is set at the beginning

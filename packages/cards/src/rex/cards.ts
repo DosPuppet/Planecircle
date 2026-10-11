@@ -9,6 +9,7 @@ import {
   cond,
   cost,
   entersWith,
+  exploitAbility,
   fx,
   manaAbility,
   playerStatic,
@@ -214,21 +215,17 @@ export const CARDS: Record<string, CardScript> = {
     abilities: [
       staticAbility(
         { types: ["Creature"], subtype: "Human", controller: "you" },
-        {
-          addAbilities: [
-            // Exploit (702.110): "you may sacrifice a creature"; Henry Wu draws a card from it (and a Treasure).
-            triggered(
-              when.entersSelf,
-              [
-                fx.sacrifice(ref.you, { types: ["Creature"] }, 1, { optional: true, store: "x" }),
-                ...fx.when(cond.refMatches(ref.stored("x"), { notSubtype: "Human" }), fx.draw(1)),
-                ...fx.when(cond.refMatches(ref.stored("x"), { notSubtype: "Human", minPower: 3 }), fx.createTokens(TREASURE)),
-              ],
-              { label: "Exploit" },
-            ),
-          ],
-        },
+        { addAbilities: [exploitAbility()] },
         { label: "Henry Wu and other Humans you control have exploit" },
+      ),
+      // 702.110b: the exploited creature is the event's object (its last known information).
+      triggered(
+        when.exploits,
+        [fx.draw(1), ...fx.when(cond.refMatches(ref.eventObject, { minPower: 3 }), fx.createTokens(TREASURE))],
+        {
+          condition: cond.refMatches(ref.eventObject, { types: ["Creature"], notSubtype: "Human" }),
+          label: "A creature you control exploits a non-Human creature: draw a card (power 3 or more: a Treasure)",
+        },
       ),
     ],
   },
@@ -298,17 +295,9 @@ export const CARDS: Record<string, CardScript> = {
   },
   "Hunting Velociraptor": {
     abilities: [
+      // Prowl (702.76): combat damage to a player this turn by a creature with any of the spell's creature types.
       playerStatic({
-        altCostAll: { mana: cost("{2}{R}"), filter: { subtype: "Dinosaur" } },
-        condition: cond.amountAtLeast(
-          amount.turnEvents({
-            event: "damage",
-            combat: true,
-            toPlayer: true,
-            source: { controller: "you", subtype: "Dinosaur" },
-          }),
-          1,
-        ),
+        altCostAll: { mana: cost("{2}{R}"), filter: { subtype: "Dinosaur" }, prowl: true },
         label: "Dinosaur spells you cast have prowl {2}{R}",
       }),
     ],

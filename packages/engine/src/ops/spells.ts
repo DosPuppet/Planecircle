@@ -5,6 +5,7 @@ import { cardRefOf, evalAmount, grantPlay, moveWithSpec, nextTurnOf, resolveRef,
 import { bump } from "../layers";
 import { manaValue } from "../mana";
 import {
+  additionalOptions,
   castTerms,
   copyStackItem,
   counterItem,
@@ -34,7 +35,17 @@ import {
 } from "../state";
 import { legalTargets, matchesCard, matchesObjectFilter, matchesView } from "../targets";
 import { msg } from "../text";
-import type { ChoiceValue, GameState, ManaCost, ObjectFilter, ObjectId, PlayerId, Resolution, StackItem } from "../types";
+import type {
+  CardDef,
+  ChoiceValue,
+  GameState,
+  ManaCost,
+  ObjectFilter,
+  ObjectId,
+  PlayerId,
+  Resolution,
+  StackItem,
+} from "../types";
 
 export const HANDLERS: OpHandlers = {
   discover(s, r, e, ctx, key) {
@@ -504,6 +515,7 @@ function castNowLoop(
     anyMana?: boolean;
     cost?: ManaCost;
     haste?: boolean;
+    discard?: number;
   },
 ): { ask?: OpResult; cast: ObjectId[]; rest: ObjectId[] } {
   const cast: ObjectId[] = [];
@@ -532,6 +544,7 @@ function castNowLoop(
         now: true,
         ...(opts.cost ? { cost: opts.cost } : {}),
         ...(opts.haste ? { haste: true } : {}),
+        ...(opts.discard ? { discard: opts.discard } : {}),
       });
     // `afterFilter`: only the matching spells are exiled (Bilbo, Thief in the Night: "if an instant or sorcery spell").
     const f = opts.afterFilter;
@@ -544,7 +557,12 @@ function castNowLoop(
       );
     } else grant(open, opts.after);
     // Only the cards that can really be cast (targets, additional costs) are offered.
-    const castable = open.filter((id) => castTerms(s, player, id));
+    const castable = open.filter(
+      (id) =>
+        !!castTerms(s, player, id) &&
+        // A cost paid while casting it (The Infamous Cruelclaw: a card to discard).
+        (!opts.discard || additionalOptions(s, player, id, s.defs[s.objects[id]?.defId ?? ""] as CardDef) !== null),
+    );
     if (castable.length) {
       const names = castable.map((id) => cardRefOf(s, id)).join(", ");
       return {

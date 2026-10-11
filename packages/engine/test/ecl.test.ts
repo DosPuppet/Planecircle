@@ -4621,16 +4621,35 @@ describe("Lorwyn Eclipsed, batch C", () => {
     ).toThrow(RulesError);
   });
 
-  it("Raiding Schemes: tapping two creatures of the noncreature spell's color copies it", () => {
+  it("Raiding Schemes: conspire is a cost paid while casting (two creatures of its color tapped), then the spell is copied (702.78; PLAN-M M10d)", () => {
     let s = scenario({
+      p1: {
+        battlefield: ["Raiding Schemes", "Mountain", "Mountain", "Shivan Dragon", "Shivan Dragon", "Llanowar Elves"],
+        hand: ["Lightning Strike"],
+      },
+    });
+    const strike = idOf(s, "p1", "hand", "Lightning Strike");
+    const dragons = idsOf(s, "p1", "battlefield", "Shivan Dragon");
+    const option = legalActions(s, "p1").find((a) => a.type === "cast" && a.card === strike);
+    const pick = option?.type === "cast" ? option.picks?.find((p) => p.slot === "conspire") : undefined;
+    // Only the red creatures (the Elves don't share a color); none by default.
+    expect(pick?.options.slice().sort()).toEqual([...dragons].sort());
+    expect(pick?.suggested).toEqual([]);
+    s = act(s, "p1", { type: "cast", card: strike, targets: { t: ["p2"] }, picks: { conspire: dragons } });
+    // Tapped while casting, before anything resolves.
+    expect(dragons.every((id) => s.objects[id]?.tapped)).toBe(true);
+    s = chooseWanted(s, []);
+    expect(s.players.p2?.life).toBe(14);
+    // Without the cost: no copy.
+    let t = scenario({
       p1: {
         battlefield: ["Raiding Schemes", "Mountain", "Mountain", "Shivan Dragon", "Shivan Dragon"],
         hand: ["Lightning Strike"],
       },
     });
-    s = act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Lightning Strike"), targets: { t: ["p2"] } });
-    s = chooseWanted(s, []);
-    expect(s.players.p2?.life).toBe(14);
+    t = act(t, "p1", { type: "cast", card: idOf(t, "p1", "hand", "Lightning Strike"), targets: { t: ["p2"] } });
+    t = chooseWanted(t, []);
+    expect(t.players.p2?.life).toBe(17);
   });
 
   it("Sanar: reveals up to X nonland cards, exiles one per color, playable this turn", () => {

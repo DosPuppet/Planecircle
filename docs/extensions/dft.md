@@ -31,3 +31,7 @@
   - grouped triggers "one or more …" (`batched`), "a card changes zones" (`when.zoneChange`), "a spell it doesn't own", "combat damage to one of your opponents";
   - Skyseer's Chariot (tax on the chosen name, `chosenNameTax`), The Aetherspark (planeswalker Equipment, can't be attacked while attached), Pit Automaton (copy of the next exhaust ability), unique "this turn" modes;
   - "cast from your graveyard" with extra life and sacrifice (Wickerfolk), X of the spell remembered on the permanent (`castX`), "Nth from the top of the library", "reveal until N lands".
+
+## PLAN-M M10d (rules 206)
+
+- **Cursecloth Wrappings:** {T}: the creature card gains embalm until end of turn (`fx.modify` on a card in a graveyard with an ability `fromGraveyard`, read by `abilitiesOf`; `embalmAbility()`, cost `manaOfSource`: its mana cost); embalm is activated later as a sorcery, the token is a white Zombie (`copyToken.setColors`). Test rewritten; approximation narrowed (the token keeps the card's mana cost).

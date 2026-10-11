@@ -24,6 +24,7 @@ import {
   picking,
   scenario,
   settle,
+  throughCombat,
   untilCastNow,
 } from "./helpers";
 
@@ -2015,6 +2016,28 @@ describe("lot A, rouge", () => {
         s = attack(s, [spin]);
         expect(s.objects[spin]?.counters["+1/+1"] ?? 0).toBe(0);
         expect(s.exile).toHaveLength(0);
+      });
+
+      it("4 damage divided 2 + 2 between two blockers at the same time: the damage is added up, it triggers once (PLAN-M M10d)", () => {
+        let s = scenario({
+          p1: { battlefield: [{ name: "Spinneret and Spiderling", counters: { "+1/+1": 3 } }], library: lands("Forest", 5) },
+          p2: { battlefield: ["Bear Cub", "Bear Cub"] },
+        });
+        const spin = idOf(s, "p1", "battlefield", "Spinneret and Spiderling");
+        const [a, b] = idsOf(s, "p2", "battlefield", "Bear Cub") as [string, string];
+        s = passAccepting(s, (x) => x.pending?.kind === "declareAttackers");
+        s = act(s, "p1", { type: "declareAttackers", attackers: [{ id: spin, defender: "p2" }] });
+        s = passAccepting(s, (x) => x.pending?.kind === "declareBlockers");
+        s = act(s, "p2", {
+          type: "declareBlockers",
+          blocks: [
+            { blocker: a, attacker: spin },
+            { blocker: b, attacker: spin },
+          ],
+        });
+        s = throughCombat(s, (req) => (req.type === "divide" && req.among.length === 2 ? [2, 2] : undefined));
+        expect(idsOf(s, "p2", "graveyard", "Bear Cub")).toHaveLength(2);
+        expect(s.exile).toHaveLength(1);
       });
     });
 

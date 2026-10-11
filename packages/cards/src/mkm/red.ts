@@ -219,7 +219,9 @@ export const RED: Record<string, CardScript> = {
   "Innocent Bystander": {
     abilities: [
       triggered(when.isDealtDamage, [investigate()], {
+        // "Dealt 3 or more damage all at once" (ruling): the damage of several sources at the same time is added up.
         condition: cond.amountAtLeast(amount.eventAmount, 3),
+        batched: "sum",
         label: "3 or more damage: investigate",
       }),
     ],

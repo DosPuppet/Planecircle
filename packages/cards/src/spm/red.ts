@@ -218,7 +218,9 @@ export const RED: Record<string, CardScript> = {
         when.dealsDamage("self"),
         [fx.exileTop(ref.you, 1, "e"), fx.grantPlay(ref.stored("e"), { untilYourNextTurn: true })],
         {
+          // The damage dealt at the same time is added up (2 + 2 to two blockers).
           condition: cond.amountAtLeast(amount.eventAmount, 4),
+          batched: "sum",
           label: "4 or more damage: exiles the top card, playable until the end of your next turn",
         },
       ),

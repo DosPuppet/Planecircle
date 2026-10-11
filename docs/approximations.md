@@ -48,21 +48,16 @@ In the order they were added, set by set.
 - **Aetherdrift (`docs/extensions/dft.md`):**
   - `rule` Skyseer's Chariot: "a nonland card name"; a land card name is also accepted (and can be offered);
   - `rule` Lifecraft Engine: all your Vehicles, even noncreature ones, have the chosen type (the set affected in layer 4 does not follow the 613.8a dependency on crew, which is more recent);
-  - `rule` Cursecloth Wrappings: the granted embalm is paid right away (as a sorcery) and the token keeps the colors of the card.
-- **Outlaws of Thunder Junction (`docs/extensions/otj-big.md`):**
-  - `rule` Fblthp, Lost on the Range: plotting the top card goes through an ability (on the stack) that pays its mana cost;
-  - `rule` Riku of Many Paths: a single mode, whatever the number of modes of the spell.
+  - `rule` Cursecloth Wrappings: the token created by the granted embalm keeps the card's mana cost (its mana value isn't 0).
 - **Tarkir: Dragonstorm (`docs/extensions/tdm.md`):**
   - `timing` Sidisi, Regent of the Mire: the card with mana value X + 1 is targeted by a reflexive ability, once the cost is paid;
   - `rule` New Way Forward: a spell chosen as a source is recognized by its card alone (another copy of the same card, whoever controls it, would also be affected); the damage is all prevented, after the modifications (doublings) that apply to it.
 - **Duskmourn (`docs/extensions/dsk.md`):**
   - `rule` Leyline of Transformation: only creatures on the battlefield (not spells or cards);
-  - `rule` Marvin, Murderous Mimic: only the printed activated abilities of other creatures (not granted ones);
+  - `rule` Marvin, Murderous Mimic: not the granted abilities whose cost names the permanent that grants them ("tap Fishing Pole");
   - `auto choice` Haunted Screen: the automatic payment can pay the life of the {G}/{U}/{R} ability.
 - **Bloomburrow (`docs/extensions/blb.md`):**
-  - `auto choice` Forage during a resolution ("you may forage. If you do…"): three cards from the graveyard (lands first) if there are at least three, otherwise a Food (a token preferably); as a cost (Feed the Cycle, Osteomancer Adept, Thornvault Forager), the player chooses (PLAN-M M6);
-  - `timing` The Infamous Cruelclaw: the card is discarded before casting the spell (and not as a replacement cost during casting);
-  - `rule` Rottenmouth Viper: at most as many permanents are sacrificed as the generic cost to pay (one more sacrifice would reduce nothing, but would count for "whenever you sacrifice").
+  - `auto choice` Forage during a resolution ("you may forage. If you do…"): three cards from the graveyard (lands first) if there are at least three, otherwise a Food (a token preferably); as a cost (Feed the Cycle, Osteomancer Adept, Thornvault Forager), the player chooses (PLAN-M M6).
 - **The Lost Caverns of Ixalan (`docs/extensions/lci.md`):**
   - `rule` Cavern mana (Bat Colony) and "using mana produced by [source]" (Tecutlan, The Myriad Pools): only the mana committed by the automatic payment;
   - `rule` The Myriad Pools: the permanent becomes a copy of the spell on the stack.
@@ -74,21 +69,19 @@ In the order they were added, set by set.
   - `rule` Isilu, Carrier of Twilight, Rhys, the Evermore: the granted persist is a triggered ability named "Persist" (without a keyword badge);
   - `rule` Nameless Inversion: "loses all creature types" removes all subtypes and changeling until end of turn;
   - `rule` Foraging Wickermaw: five abilities (one per color), activatable only while it is colorless;
-  - `timing` Raiding Schemes: conspire goes through a triggered ability; the two creatures are tapped at its resolution, and not when casting the spell;
+  - `rule` Raiding Schemes, Silverquill, the Disputant: with several sources of the same granted keyword (two Raiding Schemes), a single conspire (or casualty) can be paid for a spell, not one per instance;
   - `rule` Celestial Reunion: the creature types offered with the additional cost are those named by your creatures and creature cards in hand (two changelings alone offer only their own printed types);
   - `timing` Lavaleaper, Shimmerwilds Growth: the extra mana (triggered mana ability, 605.1b) is added with the land's mana, as a replacement; the payment solver counts that of the same type, not that of another color (Shimmerwilds Growth).
 - **Wilds of Eldraine (`docs/extensions/woe.md`):**
   - `timing` Feral Encounter: "at the beginning of the next combat phase this turn" goes through a turn emblem;
   - `auto choice` Yenna, Redtooth Regent: the copy of an Aura attaches to a host chosen by the engine.
 - **Secrets of Strixhaven (`docs/extensions/sos.md`):**
-  - `rule` Silverquill, the Disputant: the granted victim is a triggered ability at casting (sacrifice a creature, then copy), and not a cost: it can be responded to;
   - `rule` Lorehold, the Historian: the granted miracle is a triggered ability on the first draw of the turn (the card is not revealed), which offers to cast it for {2}.
 - **Murders at Karlov Manor (`docs/extensions/mkm.md`):**
   - `rule` Living Conundrum: "if your library is empty" is judged once for a multi-card draw;
   - `rule` Expose the Culprit: the exiled cards are not shuffled into a face-down pile before being cloaked (you know each of your face-down cards).
 - **Avatar: The Last Airbender (`docs/extensions/tla.md`):**
   - `rule` Raucous Audience: two mana abilities, each under its condition;
-  - `rule` Bumi, Unleashed: "only land creatures can attack this combat" forbids the nonland creatures present at resolution from attacking, until end of turn;
   - `rule` Secret of Bloodbending: without waterbend, the control applies to one combat phase of the opponent's next turn; if that turn has none, it is not carried over to a later turn;
   - `rule` Firebender Ascension: "that ability" is the creature's most recent ability on the stack; if it has already resolved, nothing is copied;
   - `rule` Koh, the Face Stealer: the choice retains a name: if the chosen card leaves exile, Koh keeps its abilities as long as another card of the same name is exiled with it.
@@ -98,24 +91,20 @@ In the order they were added, set by set.
   - `timing` Worlds Within Worlds: each player chooses and puts their creatures in turn (APNAP order), and not simultaneously;
   - `rule` The Ruinous Wrecking Crew: "up to X modes" is written as combinations of modes, each under the condition X ≥ its number of modes.
 - **Marvel's Spider-Man (`docs/extensions/spm.md`):**
-  - `rule` The Death of Gwen Stacy: at chapter II, each player chooses then acts in turn (no APNAP choices followed by simultaneous actions);
-  - `rule` Spinneret and Spiderling: the threshold of 4 damage is read per damage dealt; combat damage divided among several blockers (2 + 2) does not trigger it.
+  - `rule` The Death of Gwen Stacy: at chapter II, each player chooses then acts in turn (no APNAP choices followed by simultaneous actions).
 - **Teenage Mutant Ninja Turtles (`docs/extensions/tmt.md`):**
   - `rule` Turtles Forever: the search only covers the library (nothing outside the game), and "exactly four" is not enforced (the opponent chooses among the cards found);
   - `rule` North Wind Avatar: the engine has no "outside the game" zone (no sideboard during a game): the enters ability has no effect.
 - **The Hobbit (`docs/extensions/hob.md`):**
   - `rule` Burglar's Plot: "two target nonland permanents that share a card type" is a modal spell, one mode per type;
-  - `rule` Old Fat Spider Can't See Me: at chapter II, the prevention is an ability given to the creature, as long as the Saga stays;
   - `auto choice` Goblin Plate Mail: the Equipment attaches to the Army that receives the amass counters (see the general entry).
 - **Reprints, "Unlimited" (`docs/extensions/reprints.md`):**
   - `auto choice` Gemstone Caverns: the card exiled from hand is the nonland card of lowest mana value (a land if there is none);
   - `rule` Drown in the Loch: "mana value less than or equal to the number of cards in its controller's graveyard" is checked at resolution, not at targeting;
   - `rule` All Will Be One: only counters put on permanents trigger the ability;
-  - `rule` Henry Wu: the draw and the Treasure are part of the exploit ability it gives (they only happen if he is on the battlefield when it resolves);
   - `rule` Laboratory Maniac: the win that replaces the draw is noted with the state-based actions that follow (like the loss it replaces);
   - `rule` Outlaws' Merriment: the token "chosen at random" is drawn by a three-sided die (shown in the log);
   - `rule` Flesh Duplicate: fading is given even if the copied creature already has it (only when copying another Flesh Duplicate: no handled card has printed fading);
-  - `rule` Hunting Velociraptor: the marauding requires combat damage from a Dinosaur (not from any type common to the spell);
   - `rule` Ad Nauseam: the process repeats at most thirty times;
   - `auto choice` Library of Leng: the card discarded by an effect always goes on top of the library (except a card with madness);
   - `rule` Painter's Servant: only permanents take the chosen color (not spells or cards in other zones);
@@ -126,7 +115,6 @@ In the order they were added, set by set.
   - `rule` Pandemonium: the target of the damage is chosen by Pandemonium's controller, not by the controller of the creature that enters (exact when it is the same person);
   - `rule` Wheel of Misfortune: the secret numbers go from 0 to 20 (not any number 0 or greater);
   - `rule` Incubate (701.53): the transformation is a permanent modification (Phyrexian artifact creature 0/0), not a switch to the back face; the token keeps its name;
-  - `rule` Vigor: "when it is put into a graveyard from anywhere, shuffle it into the library" is a replacement: it is shuffled without going through the graveyard (like the Eldrazi);
   - `rule` Coin of Mastery: the excess mana produced by sources (Sol Ring for a single {1}) is first removed from the artifacts' mana.
   - `rule` Harold and Bob: the chosen Forest gains its ability forever, and the card stays in the graveyard (it does not become an Aura);
   - `rule` Winding Constrictor: the clause "if you would get counters" is not handled;

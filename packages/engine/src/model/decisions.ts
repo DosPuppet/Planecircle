@@ -216,7 +216,10 @@ export type CostSlot =
   /** Kíli the Resourceful: pay {0} (`free`) or the printed cost (`printed`) (options: labels, not objects). */
   | "freeCost"
   /** "Choose a creature type and behold two creatures of that type" (Celestial Reunion): the type (options: types). */
-  | "creatureType";
+  | "creatureType"
+  /** Granted conspire (702.78) and casualty (702.153): the creatures tapped or sacrificed to copy the spell (or none). */
+  | "conspire"
+  | "casualty";
 
 /** Slots whose options are labels, not objects (kinds of counters, permanent types, a way to pay, creature types). */
 export const LABEL_SLOTS: readonly CostSlot[] = ["counterKind", "permanentType", "freeCost", "creatureType"];

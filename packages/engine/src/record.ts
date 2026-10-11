@@ -633,8 +633,18 @@ export const RECORD_VERSION = 1;
  *   the type asked among those of its text) instead of adding Vampire; control with no duration in the text lasts
  *   indefinitely (`fx.gainControl(…, { indefinitely })`) instead of ending at cleanup: Agent of Treachery, Captivating
  *   Vampire, New Blood, Tevesh Szat's −10, Sliver Overlord, Emrakul, the World Anew, Coveted Falcon, Archmage's Charm.
+ * - 206: PLAN-M M10d: the automatic payment activates the sources that cost life before those with a drawback (Hall of
+ *   the Bandit Lord then Ancient Tomb at 3 life); the default harmonize creature leaves the rest payable (Springleaf
+ *   Drum); "deals / is dealt N or more damage" adds up the damage dealt at the same time (Spinneret and Spiderling,
+ *   Innocent Bystander); exploit is an action event, Henry Wu's draw his own trigger; prowl compares the spell's
+ *   creature types (Hunting Velociraptor); "put into a graveyard from anywhere" triggers from the graveyard (Vigor, the
+ *   Eldrazi titans: only for that card); Marvin also gains granted activated abilities; Riku chooses up to X modes (the
+ *   modes chosen for the spell); The Infamous Cruelclaw discards while casting; conspire and casualty granted as
+ *   optional costs (Raiding Schemes, Silverquill); Rottenmouth Viper sacrifices any number; Old Fat Spider's prevention
+ *   is an effect while the Saga stays; Bumi's restriction applies to the added combat only; Fblthp plots from the
+ *   library as a special action; Cursecloth Wrappings grants embalm to the card (white Zombie token).
  */
-export const RULES_VERSION = 205;
+export const RULES_VERSION = 206;
 
 /** One checkpoint every N decisions (plus the last one of the game). */
 export const CHECKPOINT_EVERY = 25;

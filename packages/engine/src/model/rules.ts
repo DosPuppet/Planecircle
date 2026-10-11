@@ -314,7 +314,8 @@ export type ActionEvent =
   | "plotted"
   | "cycled"
   | "transformed"
-  | "monstrous";
+  | "monstrous"
+  | "exploit";
 
 /**
  * Trigger event (603). "self": the source itself; otherwise an object matching the filter, seen from the source's
@@ -831,7 +832,8 @@ export type Amount =
    * What was spent to cast the source (the spell resolving, or the permanent it became), or the designated objects
    * (`of`: the event's spell…): X, mana, number of colors of mana, mana from Caves.
    */
-  | { kind: "spent"; what: "x" | "mana" | "colors" | "cave" | "artifact"; of?: Ref }
+  /** `modes`: the number of times a mode was chosen for a modal spell (`CastInfo.modes`, Riku of Many Paths). */
+  | { kind: "spent"; what: "x" | "mana" | "colors" | "cave" | "artifact" | "modes"; of?: Ref }
   /**
    * Mana symbols of this color, hybrids included, in the mana costs of the designated objects (Namor: the event's
    * spell); without `of`, of your permanents (devotion, 700.5).

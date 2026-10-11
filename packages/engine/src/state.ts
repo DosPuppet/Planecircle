@@ -141,6 +141,8 @@ export type RulesEvent =
   | { e: "caseSolved"; player: PlayerId; objectId: ObjectId }
   /** A permanent becomes monstrous (701.37b). */
   | { e: "monstrous"; objectId: ObjectId }
+  /** Exploit (702.110b): `source` exploits `objectId` (sacrificed as its exploit ability resolved), for `player`. */
+  | { e: "exploit"; player: PlayerId; objectId: ObjectId; source: ObjectId }
   /** A player gives a gift (702.174). */
   | { e: "gift"; player: PlayerId }
   /** A Room door is unlocked. */

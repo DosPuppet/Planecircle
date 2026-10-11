@@ -38,13 +38,7 @@ const CAST_SELF = when.castSelf;
  * (Kozilek, Butcher of Truth; Ulamog, the Infinite Gyre). */
 const shuffleGraveyardBack = () =>
   triggered(
-    {
-      on: "zoneChange",
-      from: ["battlefield", "hand", "library", "stack", "exile"],
-      to: ["graveyard"],
-      filter: { self: true },
-      whose: "any",
-    },
+    when.putIntoGraveyardFromAnywhereSelf,
     [fx.moveAll("graveyard", ref.ownerOf(ref.selfCard), {}, { to: "libraryTop" }), fx.shuffle(ref.ownerOf(ref.selfCard))],
     { fromGraveyard: true, label: "Put into a graveyard: its owner shuffles their graveyard into their library" },
   );

@@ -779,7 +779,10 @@ export function startTurnOf(s: GameState, p: PlayerId): void {
   }
   s.turnLog = [];
   // Player effects "this turn" (or until a past turn): expired.
-  s.playerEffects = s.playerEffects.filter((e) => e.until === null || e.until >= s.turn.number);
+  s.playerEffects = s.playerEffects.filter(
+    (e) =>
+      (e.until === null || e.until >= s.turn.number) && (e.whileOn === undefined || s.objects[e.whileOn]?.zone === "battlefield"),
+  );
   s.turn.onceFired = [];
   // "the first time this ability resolves this turn" (Nissa, Leyline Tamer; Belladonna Took): counters reset
   // each turn.
@@ -838,7 +841,11 @@ export function canAttack(s: GameState, id: ObjectId): boolean {
   if (o?.zone !== "battlefield" || !isCreature(s, id)) return false;
   if (o.controller !== s.turn.active || o.tapped || isSummoningSick(s, id)) return false;
   const defender = hasKeyword(s, id, "defender") && !hasKeyword(s, id, "attacksDespiteDefender");
-  return !defender && !hasKeyword(s, id, "cantAttack");
+  if (defender || hasKeyword(s, id, "cantAttack")) return false;
+  // "Only land creatures can attack during that combat phase" (Bumi, Unleashed).
+  return playerStatics(s, o.controller, "attackersOnly").every(
+    ({ ab }) => !ab.attackersOnly || matchesObjectFilter(s, o.controller, id, ab.attackersOnly),
+  );
 }
 
 /**

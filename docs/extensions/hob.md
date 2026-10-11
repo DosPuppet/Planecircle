@@ -85,3 +85,7 @@ The scripts are in `packages/cards/src/hob/`: `cards` (meta cards), `white`, `bl
 - **Bard, King of Dale:** "except the first one you draw in each of your draw steps" (`EventReplacement.exceptTurnDraw`, the key of Orcish Bowmasters' draw trigger), read by `drawCards`; a card drawn in the upkeep no longer makes the draw step's card doubled. Test added.
 - **Galion, Elvenking's Butler:** base power and base toughness each Galion's (`modify.basePT` as a pair), without a toughness correction left over. Test added.
 - **Bilbo, Thief in the Night:** the reduction applies to spells cast from the library and the command zone too (`costReduction.fromZones`); only an instant or sorcery cast with its attack trigger is exiled (`castNow.afterFilter`), an artifact countered goes to the graveyard. Tests added.
+
+## PLAN-M M10d (rules 206)
+
+- **Old Fat Spider Can't See Me:** chapter II is a prevention effect "for as long as this Saga remains on the battlefield" (player effect `fx.whileSource`, source "that creature" frozen with `sourceRef`), no longer an ability of the creature: losing all abilities doesn't end it. Test added; approximation removed. (`sourceRef` now has two users and leaves the single-card keys.)

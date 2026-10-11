@@ -56,7 +56,14 @@ export type Effect =
       /** `nextTurn`: only during the next turn of the game (Kang the Conqueror: "take an extra turn after this one.
        * During that turn, …"). */
       /** `thisCombat`: until the end of the current combat phase (Mirri, Weatherlight Duelist: "this combat"). */
+      /**
+       * `whileSource`: for as long as the source remains on the battlefield (Old Fat Spider Can't See Me: "for as long as
+       * this Saga remains on the battlefield"); nothing if it has already left (611.2b).
+       */
+      /** `nextCombat`: during the next combat phase of this turn only (Bumi, Unleashed: "during that combat phase"). */
       duration?:
+        | "whileSource"
+        | "nextCombat"
         | "thisCombat"
         | "untilYourNextTurn"
         | "untilTheirNextTurn"
@@ -240,6 +247,8 @@ export type Effect =
       half?: boolean;
       /** "… with the greatest power among …" (Consumed by Greed). */
       greatestPower?: boolean;
+      /** Exploit (702.110): the source exploits the sacrificed creature (`exploit` action event). */
+      exploit?: boolean;
     }
   /**
    * Paying a cost during a resolution (PLAN-S, PLAN-M M4: the "pay" family, `ops/pay.ts`), by shape:
@@ -847,6 +856,11 @@ export type Effect =
       cost?: ManaCost;
       /** A creature spell cast this way gains haste (suspend, 702.62a). */
       haste?: boolean;
+      /**
+       * "By discarding a card rather than paying its mana cost" (The Infamous Cruelclaw): with `free`, N cards discarded
+       * as a cost while the spell is cast (601.2h), chosen like an additional discard.
+       */
+      discard?: number;
     }
   /** Craft: "return this card transformed under its owner's control"; the materials are linked to it. */
   | { op: "craftReturn" }

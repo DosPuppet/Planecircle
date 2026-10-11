@@ -23,6 +23,7 @@ import {
   OPUS_BIG,
   opusInstead,
   PEST,
+  playerStatic,
   REPARTEE,
   ref,
   spell,
@@ -177,14 +178,11 @@ export const MULTI: Record<string, CardScript> = {
    */
   "Silverquill, the Disputant": {
     abilities: [
-      triggered(
-        OPUS,
-        [
-          fx.sacrifice(ref.you, { types: ["Creature"], minPower: 1 }, 1, { optional: true, store: "c" }),
-          ...fx.when(cond.v("c"), fx.copySpell(ref.eventObject, 1)),
-        ],
-        { label: "Casualty 1: sacrifice a creature with power 1 or greater to copy the spell" },
-      ),
+      // Granted casualty 1 (702.153): an optional cost paid while casting the spell, then "when you cast it, copy it".
+      playerStatic({
+        copyCost: { filter: { types: ["Instant", "Sorcery"] }, casualty: 1 },
+        label: "Each instant and sorcery spell you cast has casualty 1",
+      }),
     ],
   },
   "Snooping Page": {

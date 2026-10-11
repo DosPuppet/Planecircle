@@ -15,6 +15,24 @@ export function castOption<K extends CastOption["kind"]>(d: CardDef | undefined,
   return undefined;
 }
 
+/** "Choose two / three / four" (700.2): the number of modes the text has you choose. */
+const CHOOSE_N = /\bchoose (two|three|four)\b/i;
+const NUMBERS: Record<string, number> = { two: 2, three: 3, four: 4 };
+
+/**
+ * Number of times a mode is chosen for a modal spell cast with the mode entry `index` (700.2, Riku of Many Paths): the
+ * entry's `chosen` (combinations), otherwise the number the text says ("choose two"), otherwise 1; 0 for a spell that
+ * isn't modal (a single entry).
+ */
+export function modesChosen(d: CardDef | undefined, index: number): number {
+  const modes = d?.spell?.modes ?? [];
+  if (modes.length < 2) return 0;
+  const n = modes[index]?.chosen;
+  if (n !== undefined) return n;
+  const word = CHOOSE_N.exec(d?.text ?? "")?.[1]?.toLowerCase();
+  return (word && NUMBERS[word]) || 1;
+}
+
 /** A rule printed on the card ("can't be countered", "has flash as long as…"), if it has it. */
 export function cardRule<K extends keyof CardRules>(d: CardDef | undefined, key: K): CardRules[K] | undefined {
   return d?.rules?.[key];
