@@ -70,7 +70,10 @@ export const EDH_EDGAR: Record<string, CardScript> = {
       activated({
         tapOthers: { filter: YOUR_VAMPIRES, count: 5, includeSelf: true },
         targets: [target.creature()],
-        effects: [fx.gainControl(ref.target()), fx.modify(ref.target(), { addSubtypes: ["Vampire"] }, "permanent")],
+        effects: [
+          fx.gainControl(ref.target(), { indefinitely: true }),
+          fx.modify(ref.target(), { addSubtypes: ["Vampire"] }, "permanent"),
+        ],
         label: "Tap five Vampires: gain control of target creature, which becomes a Vampire",
       }),
     ],
@@ -338,13 +341,12 @@ export const EDH_EDGAR: Record<string, CardScript> = {
       }),
     ],
   },
-  // Approximation: "replace all instances of one creature type with Vampire" (text change, 612) is not done; the
-  // creature becomes a Vampire in addition to its other types (docs/approximations.md).
+  // "Replace all instances of one creature type with Vampire" (612.2, layer 3): its type line and its abilities.
   "New Blood": {
     additionalCost: { tap: { filter: { types: ["Creature"], subtype: "Vampire", controller: "you" }, count: 1 } },
     spell: spell(
       [target.creature()],
-      [fx.gainControl(ref.target()), fx.modify(ref.target(), { addSubtypes: ["Vampire"] }, "permanent")],
+      [fx.gainControl(ref.target(), { indefinitely: true }), fx.replaceCreatureType(ref.target(), "Vampire")],
     ),
   },
   "Olivia's Wrath": {

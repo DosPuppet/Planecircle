@@ -710,6 +710,8 @@ describe("Breaking News (PLAN-L, L11)", () => {
     const elves = on(u, "p2", "Llanowar Elves");
     u = settle(castIt(u, "Archmage's Charm", { mode: 2, targets: { n: [elves] } }));
     expect(u.objects[elves]?.controller).toBe("p1");
+    // No duration: the control lasts after the turn.
+    expect(advanceUntil(u, (x) => x.turn.number > u.turn.number).objects[elves]?.controller).toBe("p1");
   });
 
   it("Bedevil: destroys an artifact, a creature or a planeswalker (not a land)", () => {

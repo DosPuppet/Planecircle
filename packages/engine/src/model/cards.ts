@@ -849,12 +849,27 @@ export interface PowerRule {
   label: string;
 }
 
+/**
+ * A word replaced in an object's text (612.2): every instance of `from` used as a word of this kind becomes `to`.
+ * `creatureType`: in its type line and in its abilities (New Blood); other kinds (color words, land types) to come.
+ */
+export interface WordChange {
+  kind: "creatureType";
+  from: string;
+  to: string;
+}
+
 export interface LayerMods {
   /**
    * Layer 3 (612, text-changing effects): the object has the text box of this definition (abilities, keywords,
    * characteristic-defining abilities) instead of its own (Deadpool, Trading Card: two exchanged text boxes). Not copiable.
    */
   textOf?: string;
+  /**
+   * Layer 3 (612.2): a word replaced in its text (`textChange.ts`), applied with `textOf` in timestamp order; a text box
+   * exchanged later replaces the changed text. Not copiable (707.2).
+   */
+  replaceWord?: WordChange;
   /**
    * Layer 7c: `power`/`toughness` multiplied by a number relative to each affected object:
    * - `sameName`: the other creatures its controller controls with the same name (Mirror Box);

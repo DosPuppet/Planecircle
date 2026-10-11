@@ -145,6 +145,14 @@ const TEXT_BOX_ICON = (
   </g>
 );
 
+/** Icon of a word replaced in the text (New Blood): a pen. */
+const WORD_CHANGE_ICON = (
+  <g {...stroke}>
+    <path d="M5 19 L6 15 L16 5 L19 8 L9 18 Z" />
+    <path d="M14 7 L17 10" />
+  </g>
+);
+
 interface Tip {
   x: number;
   y: number;
@@ -165,13 +173,15 @@ export function KeywordBadges({ obj }: { obj: ObjectView }) {
   const t = useT();
   const loc = useLocalize();
   const textBox = obj.textBox;
+  const wordChanges = obj.wordChanges ?? [];
   if (
     shown.length === 0 &&
     rules.length === 0 &&
     protections.length === 0 &&
     powerRules.length === 0 &&
     goaded.length === 0 &&
-    !textBox
+    !textBox &&
+    wordChanges.length === 0
   )
     return null;
   // Goad: by whom, and what it imposes (a player other than them).
@@ -207,6 +217,32 @@ export function KeywordBadges({ obj }: { obj: ObjectView }) {
             </svg>
           </span>
         )}
+        {wordChanges.map((w) => {
+          const title = t("Text changed: {to} instead of {from}", { to: w.to, from: w.from });
+          return (
+            <span
+              key={`${w.from}>${w.to}`}
+              className="kw-badge"
+              data-word-change={`${w.from}>${w.to}`}
+              role="img"
+              aria-label={title}
+              onMouseEnter={(ev) => {
+                const r = ev.currentTarget.getBoundingClientRect();
+                setTip({
+                  x: r.right + 6,
+                  y: r.top + r.height / 2,
+                  title,
+                  help: t("Every instance of the creature type {from} in its text reads {to}.", { to: w.to, from: w.from }),
+                });
+              }}
+              onMouseLeave={() => setTip(null)}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                {WORD_CHANGE_ICON}
+              </svg>
+            </span>
+          );
+        })}
         {protections.map((title) => (
           <span
             key={title}

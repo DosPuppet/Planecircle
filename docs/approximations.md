@@ -34,6 +34,7 @@ Each entry carries its nature:
 
 - **Standard legality:** snapshot of the Scryfall legalities at the time of import (`legalities.standard` in `data/<set>.json`). After a rotation or a ban announcement, reimport the sets (`npm run import-cards -- <set>`).
 - **Phasing (Robe of Stars):** phased-out permanents are not displayed.
+- **Changed words (612.2, New Blood):** the card image, its Oracle text and its ability labels keep the printed wording; a badge and a line of the preview give the change ("Vampire instead of Elf"), and the rules read the changed text.
 - **Token images:** that of the closest Scryfall token (same name, then same P/T and colors; `data/tokens.json`, `npm run import-tokens`); a token of unknown name keeps the text frame.
 
 ## Card by card
@@ -121,7 +122,6 @@ In the order they were added, set by set.
   - `rule` Plague of Vermin: the rounds of payments ("repeat this process until no one pays life") stop after twenty rounds at most (a safety cap);
 - **Commander, EDH pseudo-set (`docs/extensions/edh.md`):**
   - `auto choice` Relic of Legends: the automatic payment only uses it once per ability;
-  - `rule` New Blood: the text change (612, "replace all instances of a creature type with Vampire") is not done; the stolen creature becomes a Vampire in addition to its other types;
   - `auto choice` Foreboding Ruins, Fortified Village, Port Town, Vineglimmer Snarl: a card of the right type in hand is revealed automatically if possible;
   - `rule` Pandemonium: the target of the damage is chosen by Pandemonium's controller, not by the controller of the creature that enters (exact when it is the same person);
   - `rule` Wheel of Misfortune: the secret numbers go from 0 to 20 (not any number 0 or greater);

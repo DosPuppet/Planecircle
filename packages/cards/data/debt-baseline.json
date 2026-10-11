@@ -76,7 +76,8 @@
     "tripleTriad": "Triple Triad — operation specific to one card (R4.6)",
     "removeFromCombat": "Reconnaissance — \"remove [the creature] from combat\" (506.4), a rules action shared by many cards (Maze of Ith family); generic op, a single card for now",
     "pair": "soulbond (702.95, Tandem Lookout): pairing of two creatures, the keyword's own action; shared by every soulbond card",
-    "exchangeTextBox": "Deadpool, Trading Card — \"as it enters, you may exchange its text box and another creature's\" (612, layer 3, `LayerMods.textOf`): family of text-changing effects (Exchange of Words, Volrath's Shapeshifter), to reuse for them"
+    "exchangeTextBox": "Deadpool, Trading Card — \"as it enters, you may exchange its text box and another creature's\" (612, layer 3, `LayerMods.textOf`): family of text-changing effects (Exchange of Words, Volrath's Shapeshifter), to reuse for them",
+    "changeText": "New Blood — \"change the text of [it] by replacing all instances of one creature type with another\" (612.2, layer 3, `LayerMods.replaceWord`, PLAN-M M10c): family of text-changing effects that replace a word (Artificial Evolution, Magical Hack, Crystal Spray), `kind` ready for color words and land types"
   },
   "variant": {
     "Amount.pow": "Mathemagics — union variant of a single card, tracked since the audit of 2026-10-07: to attach to a generic form when one exists",
@@ -198,7 +199,7 @@
     "ActivatedAbilityDef": 19,
     "CastPermissionAbilityDef": 9,
     "PlayFromZone": 23,
-    "LayerMods": 30,
+    "LayerMods": 31,
     "TriggerMod": 6,
     "EventReplacement": 21,
     "CastInfo": 10,
@@ -211,8 +212,8 @@
     "NextSpell": 9,
     "KickerDef": 5,
     "CardRules": 13,
-    "Effect": 139,
-    "Effect (fields)": 631,
+    "Effect": 140,
+    "Effect (fields)": 635,
     "TriggerSpec": 41,
     "TriggerSpec (fields)": 150,
     "Condition": 46,
@@ -334,6 +335,7 @@
     "PLAN-M M9a: small card lifts — ModifyWhile sourceControlledBy (Vislor), search.library (Sphinx Ambassador), chooseAmong.suggest (Stinging Study), countersPut.each (Fathom Mage), aggregate.withSpellsCast (First Family), Ref zone owned (Expropriate), ObjectFilter.drawnThisTurn (Sylvan Library), PlayFromZone.during (Share the Spoils), durations thisCombat (Mirri) and untilYourNextUpkeep (Xenic Poltergeist): Single-card values 146 → 148, ObjectFilter 64 → 65, PlayFromZone 22 → 23, Effect (fields) 621 → 623, TriggerSpec (fields) 148 → 149, Amount (fields) 77 → 78, Ref (fields) 68 → 69",
     "PLAN-M M9b: EventReplacement.sourceRef (Jeska: \"that creature\" in an effect's damage replacement), countersDivided.from (moving any number of counters: Forgotten Ancient, Resourceful Defense) and chooseOnEnter.fromCost (Jeweled Amulet's noted mana type), attackWith.eachPlayer (\"whenever you attack a player\": Echoing Assault, Bitter Work): EventReplacement 20 → 21, Effect (fields) 623 → 625, TriggerSpec (fields) 149 → 150",
     "PLAN-M M10a: search.each (one filter per card: Aang's Journey, Agency Outfitter) and search.alsoFrom replacing alsoGraveyard; Condition.beholdSharingType removed (Celestial Reunion's behold of a chosen type is now a cost): Effect (fields) 625 → 626, Condition 47 → 46, Condition (fields) 90 → 87",
-    "PLAN-M M10b [rules 204]: choices by each player in turn (op eachChooses replaces chooseNumbers: among number/labels/players, secret answers revealed together, vote with extraVotes) and the repeat op (\"for each … vote\": Expropriate, Mob Verdict); Amount numberChosen generalized into chosen (highest, or the votes for an option or a player, by voters); CostDef.revealChosen (A Killer Among Us): CostDef 30 → 31, Effect 138 → 139, Effect (fields) 626 → 631, Amount (fields) 78 → 81; Ref.numberChoosers became choosers (Wheel of Misfortune, Prisoner's Dilemma) and the secret key has four cards"
+    "PLAN-M M10b [rules 204]: choices by each player in turn (op eachChooses replaces chooseNumbers: among number/labels/players, secret answers revealed together, vote with extraVotes) and the repeat op (\"for each … vote\": Expropriate, Mob Verdict); Amount numberChosen generalized into chosen (highest, or the votes for an option or a player, by voters); CostDef.revealChosen (A Killer Among Us): CostDef 30 → 31, Effect 138 → 139, Effect (fields) 626 → 631, Amount (fields) 78 → 81; Ref.numberChoosers became choosers (Wheel of Misfortune, Prisoner's Dilemma) and the secret key has four cards",
+    "PLAN-M M10c: LayerMods.replaceWord (612.2, layer 3 word replacement, New Blood; generic for color words and land types) and the changeText op that asks the word (Effect +1, fields +4): LayerMods 30 → 31, Effect 139 → 140, Effect (fields) 631 → 635"
   ]
 }

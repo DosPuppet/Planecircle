@@ -33,7 +33,7 @@ export const EDH_NISSA: Record<string, CardScript> = {
   // --- Big creatures --------------------------------------------------------------------------------------------------
   "Agent of Treachery": {
     abilities: [
-      triggered(when.entersSelf, [fx.gainControl(ref.target())], {
+      triggered(when.entersSelf, [fx.gainControl(ref.target(), { indefinitely: true })], {
         targets: [target.permanent("t", [], {}, "permanent")],
         label: "Gain control of target permanent",
       }),

@@ -625,7 +625,7 @@ export const EDH_RAKDOS: Record<string, CardScript> = {
   "Emrakul, the World Anew": {
     // Madness—Pay six {C}: read from the text.
     abilities: [
-      triggered(CAST_SELF, [fx.gainControl(ref.permanentsOf(ref.target(), { types: ["Creature"] }))], {
+      triggered(CAST_SELF, [fx.gainControl(ref.permanentsOf(ref.target(), { types: ["Creature"] }), { indefinitely: true })], {
         targets: [target.player("t")],
         label: "Gain control of all creatures target player controls",
       }),

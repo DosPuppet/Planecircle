@@ -176,7 +176,7 @@ export const CARDS: Record<string, CardScript> = {
       mode(
         "Control of a nonland permanent with mana value 1 or less",
         [target.nonland("n", { maxManaValue: 1 })],
-        [fx.gainControl(ref.target("n"))],
+        [fx.gainControl(ref.target("n"), { indefinitely: true })],
       ),
     ),
   },

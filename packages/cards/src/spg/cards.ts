@@ -896,7 +896,7 @@ export const CARDS: Record<string, CardScript> = {
       activated({
         mana: "{3}",
         targets: [target.creature("t", { subtype: "Sliver" })],
-        effects: [fx.gainControl(ref.target())],
+        effects: [fx.gainControl(ref.target(), { indefinitely: true })],
         label: "Control of target Sliver",
       }),
     ],

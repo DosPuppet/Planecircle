@@ -628,8 +628,13 @@ export const RECORD_VERSION = 1;
  *   Expropriate, Mob Verdict) are all cast, starting with the controller, before their effects, each announced; Tivit's
  *   "you may vote an additional time" applies to any vote; "for each … vote" repeats its effects (one event per vote);
  *   A Killer Among Us's type is known only to the player who chose it, who alone can reveal it by activating it.
+ * - 205: PLAN-M M10c: text-changing effects that replace a word (612.2, layer 3, `LayerMods.replaceWord`): New Blood
+ *   replaces one creature type of the stolen creature's text with Vampire (type line, abilities, token specs, counts;
+ *   the type asked among those of its text) instead of adding Vampire; control with no duration in the text lasts
+ *   indefinitely (`fx.gainControl(…, { indefinitely })`) instead of ending at cleanup: Agent of Treachery, Captivating
+ *   Vampire, New Blood, Tevesh Szat's −10, Sliver Overlord, Emrakul, the World Anew, Coveted Falcon, Archmage's Charm.
  */
-export const RULES_VERSION = 204;
+export const RULES_VERSION = 205;
 
 /** One checkpoint every N decisions (plus the last one of the game). */
 export const CHECKPOINT_EVERY = 25;

@@ -529,6 +529,7 @@
  "{card}: cast {spell}?": "{card} : lancer {spell} ?",
  "{card}: choose": "{card} : choisissez",
  "{card}: choose a number": "{card} : choisissez un nombre",
+ "{card}: choose the creature type to replace with {type}": "{card} : choisissez le type de créature à remplacer par {type}",
  "{card}: choose the opponent who chooses one of the piles": "{card} : choisissez l'adversaire qui choisit une des piles",
  "{card}: choose the opponent who separates the cards into two piles": "{card} : choisissez l'adversaire qui sépare les cartes en deux piles",
  "{card}: choose the opponent you give the gift to": "{card} : choisissez l'adversaire à qui vous offrez le cadeau",

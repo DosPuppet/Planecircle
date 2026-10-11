@@ -101,6 +101,12 @@ export function Preview() {
             </div>
           )
         )}
+        {/* Words replaced in its text (New Blood, 612.2): the printed text keeps its wording. */}
+        {obj?.wordChanges?.map((w) => (
+          <div key={`${w.from}>${w.to}`} className="preview-text-box" data-word-change={`${w.from}>${w.to}`}>
+            {t("Text changed: {to} instead of {from}", { to: w.to, from: w.from })}
+          </div>
+        ))}
         {backImage && (
           <button type="button" className="btn small ghost preview-flip" onClick={() => setFlipped((x) => !x)}>
             {flipped ? t("Show the front (F)") : t("Show the back (F)")}

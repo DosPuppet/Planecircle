@@ -282,7 +282,7 @@ export const EDH_SEPHIROTH: Record<string, CardScript> = {
       }),
       loyalty(-10, {
         effects: [
-          fx.gainControl(ref.commanders(ref.eachPlayer)),
+          fx.gainControl(ref.commanders(ref.eachPlayer), { indefinitely: true }),
           fx.toBattlefield(ref.zone("command", ref.eachPlayer), { underYourControl: true }),
         ],
         label: "Gain control of all commanders; those in the command zone enter under your control",

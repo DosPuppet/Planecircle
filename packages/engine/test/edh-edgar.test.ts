@@ -8,6 +8,7 @@ import { castOption } from "../src/cardDef";
 import { chars } from "../src/layers";
 import { legalActions } from "../src/legal";
 import type { GameState, PlayerId } from "../src/types";
+import { projectView } from "../src/view";
 import {
   type Answer,
   act,
@@ -24,6 +25,7 @@ import {
   pickNamed,
   scenario,
   settle,
+  settleLogged,
   settleNoBlocks,
   throughCombat,
 } from "./helpers";
@@ -206,6 +208,9 @@ describe("Commander (EDH): Edgar Markov's Vampires", () => {
       expect(pt(s, lions)).toEqual([3, 2]);
       expect(idsOf(s, "p1", "battlefield", DIRE_MOON).every((id) => s.objects[id]?.tapped)).toBe(true);
       expect(s.objects[captivating]?.tapped).toBe(true);
+      // No duration: the control lasts after the turn.
+      s = advanceUntil(s, (x) => x.turn.number > s.turn.number);
+      expect(s.objects[lions]?.controller).toBe("p1");
     });
 
     it("Captivating Vampire: no activation with only four untapped Vampires", () => {
@@ -525,16 +530,84 @@ describe("Commander (EDH): Edgar Markov's Vampires", () => {
   });
 
   describe("spells", () => {
-    it("New Blood: as an additional cost, tap an untapped Vampire; gain control of the targeted creature, which becomes a Vampire (approximation of the text change)", () => {
+    it("New Blood: as an additional cost, tap an untapped Vampire; gain control of the targeted creature, whose only creature type becomes Vampire (no question)", () => {
       let s = scenario({
         p1: { battlefield: [DIRE_MOON, ...lands("Swamp", 4)], hand: ["New Blood"] },
         p2: { battlefield: ["Savannah Lions"] },
       });
       const lions = idOf(s, "p2", "battlefield", "Savannah Lions");
-      s = settle(castTargets(s, "p1", "New Blood", { t: [lions] }));
+      const run = settleLogged(castTargets(s, "p1", "New Blood", { t: [lions] }));
+      s = run.s;
+      expect(run.asked).toEqual([]);
       expect(s.objects[lions]?.controller).toBe("p1");
-      expect(chars(s, lions).subtypes).toContain("Vampire");
+      // 612.2: the type line reads "Creature — Vampire" (Cat replaced, not added to).
+      expect(chars(s, lions).subtypes).toEqual(["Vampire"]);
       expect(s.objects[idOf(s, "p1", "battlefield", DIRE_MOON)]?.tapped).toBe(true);
+      // No duration: the text stays changed in the following turns.
+      s = toNextMain(s);
+      expect(chars(s, lions).subtypes).toEqual(["Vampire"]);
+    });
+
+    it("New Blood: the creature type to replace is asked among those of its text (type line first); its abilities refer to Vampires", () => {
+      let s = scenario({
+        p1: { battlefield: [DIRE_MOON, ...lands("Swamp", 4)], hand: ["New Blood"] },
+        p2: { battlefield: ["Elvish Archdruid", "Llanowar Elves"] },
+      });
+      const druid = idOf(s, "p2", "battlefield", "Elvish Archdruid");
+      const elves = idOf(s, "p2", "battlefield", "Llanowar Elves");
+      const moon = idOf(s, "p1", "battlefield", DIRE_MOON);
+      expect(pt(s, elves)).toEqual([2, 2]);
+      const run = settleLogged(castTargets(s, "p1", "New Blood", { t: [druid] }));
+      s = run.s;
+      const asked = run.asked.map((a) => a.state.pending).find((p) => p?.kind === "choice");
+      const req = asked?.kind === "choice" ? asked.request : undefined;
+      expect(req?.type === "pick" ? req.options : []).toEqual(["Elf", "Druid"]);
+      expect(req?.suggested).toEqual(["Elf"]);
+      expect(s.objects[druid]?.controller).toBe("p1");
+      expect(chars(s, druid).subtypes).toEqual(["Vampire", "Druid"]);
+      // "Other Vampire creatures you control get +1/+1": the Elves no longer, your Vampires yes.
+      expect(pt(s, elves)).toEqual([1, 1]);
+      expect(pt(s, moon)).toEqual([2, 2]);
+      // "{T}: Add {G} for each Vampire you control" (the Archdruid itself and Vampire of the Dire Moon).
+      const mana = chars(s, druid).abilities.find((ab) => ab.kind === "mana");
+      expect(JSON.stringify(mana)).toContain('"subtype":"Vampire"');
+      expect(JSON.stringify(mana)).not.toContain('"Elf"');
+      // The view shows the change (badge).
+      expect(projectView(s, "p2").battlefield.find((o) => o.id === druid)?.wordChanges).toEqual([
+        { kind: "creatureType", from: "Elf", to: "Vampire" },
+      ]);
+    });
+
+    it("New Blood: another type of its text can be chosen (Druid): the abilities keep naming Elves", () => {
+      let s = scenario({
+        p1: { battlefield: [DIRE_MOON, ...lands("Swamp", 4)], hand: ["New Blood"] },
+        p2: { battlefield: ["Elvish Archdruid", "Llanowar Elves"] },
+      });
+      const druid = idOf(s, "p2", "battlefield", "Elvish Archdruid");
+      const elves = idOf(s, "p2", "battlefield", "Llanowar Elves");
+      s = settle(castTargets(s, "p1", "New Blood", { t: [druid] }), picking(["Druid"]));
+      expect(chars(s, druid).subtypes).toEqual(["Elf", "Vampire"]);
+      // Its lord ability still names Elves: p1 controls no other Elf, the Elves (p2's) aren't pumped.
+      expect(pt(s, elves)).toEqual([1, 1]);
+      expect(pt(s, idOf(s, "p1", "battlefield", DIRE_MOON))).toEqual([1, 1]);
+    });
+    it("New Blood on Krenko, Mob Boss: it creates Vampire tokens, one for each Vampire you control (token specs and counts)", () => {
+      let s = scenario({
+        p1: { battlefield: [DIRE_MOON, ...lands("Swamp", 4)], hand: ["New Blood"] },
+        p2: { battlefield: ["Krenko, Mob Boss"] },
+      });
+      const krenko = idOf(s, "p2", "battlefield", "Krenko, Mob Boss");
+      s = settle(castTargets(s, "p1", "New Blood", { t: [krenko] }));
+      expect(chars(s, krenko).subtypes).toEqual(["Vampire", "Warrior"]);
+      s = toNextMain(s);
+      // The label keeps the printed wording (display only).
+      s = settle(activateLabel(s, "p1", krenko, "A Goblin for each Goblin"));
+      const tokens = tokensOf(s, "p1");
+      expect(tokens).toHaveLength(2);
+      for (const id of tokens) {
+        expect(chars(s, id).subtypes).toEqual(["Vampire"]);
+        expect(nameOf(s, id)).toBe("Vampire");
+      }
     });
 
     it("New Blood: without an untapped Vampire, no casting", () => {

@@ -157,10 +157,18 @@ export const permanentsFx = {
   regenerate: (what: Ref): Effect => ({ op: "regenerate", what }),
   /** "[This permanent] phases out" (702.26). */
   phaseOut: (what: Ref): Effect => ({ op: "phaseOut", what }),
-  /** `whileAttached`: "for as long as [this attachment] is attached to it" (Eriette: the Aura of the event). */
-  gainControl: (what: Ref, opts: { untilEndOfYourNextTurn?: boolean; whileAttached?: Ref } = {}): Effect => ({
+  /**
+   * "Gain control of …": until end of turn by default (threaten); `indefinitely`: no duration in the text (Agent of
+   * Treachery, New Blood, Sliver Overlord); `whileAttached`: "for as long as [this attachment] is attached to it"
+   * (Eriette: the Aura of the event).
+   */
+  gainControl: (
+    what: Ref,
+    opts: { untilEndOfYourNextTurn?: boolean; whileAttached?: Ref; indefinitely?: boolean } = {},
+  ): Effect => ({
     op: "gainControl",
     what,
+    ...(opts.indefinitely ? { duration: "permanent" } : {}),
     ...(opts.untilEndOfYourNextTurn ? { duration: "endOfYourNextTurn" } : {}),
     ...(opts.whileAttached ? { duration: "whileAttached", attachment: opts.whileAttached } : {}),
   }),
@@ -208,6 +216,11 @@ export const permanentsFx = {
    */
   /** "As [this] enters, you may exchange its text box and another creature's" (in `asEnters`, Deadpool). */
   exchangeTextBox: { op: "exchangeTextBox" } as Effect,
+  /**
+   * "Change the text of [it] by replacing all instances of one creature type with `to`" (612.2, New Blood): the type
+   * replaced is chosen as it resolves.
+   */
+  replaceCreatureType: (what: Ref, to: string): Effect => ({ op: "changeText", what, kind: "creatureType", to }),
   chooseCopy: (filter: ObjectFilter, opts: Omit<Extract<Effect, { op: "chooseCopy" }>, "op" | "filter"> = {}): Effect => ({
     op: "chooseCopy",
     filter,

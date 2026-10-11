@@ -121,7 +121,7 @@ function computeLiveSourcesScanned(s: GameState): Source[] {
     !!m.addKeywords?.includes("prowess") ||
     !!m.addKeywords?.includes("decayed");
   const granted =
-    s.effects.some((e) => e.copyOf || e.textOf || grants(e)) ||
+    s.effects.some((e) => e.copyOf || e.textOf || e.replaceWord || grants(e)) ||
     s.battlefield.some((id) => (s.defs[obj(s, id).defId]?.abilities ?? []).some((ab) => ab.kind === "static" && grants(ab.mods)));
   for (const id of s.battlefield) {
     // Quick filter on the printed abilities, unless an effect grants triggered abilities.

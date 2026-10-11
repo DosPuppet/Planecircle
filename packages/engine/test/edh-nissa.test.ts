@@ -295,6 +295,8 @@ describe("Nissa, Leyline Tamer (EDH)", () => {
       const bear = idOf(s, "p2", "battlefield", "Bear Cub");
       s = settle(castIt(s, "p1", "Agent of Treachery"), picking([bear]));
       expect(s.objects[bear]?.controller).toBe("p1");
+      // No duration: the control lasts after the turn.
+      expect(advanceUntil(s, (x) => x.turn.number > s.turn.number).objects[bear]?.controller).toBe("p1");
       // Only one stolen permanent: no draw at the end step.
       const before = hand(s, "p1");
       let t = advanceUntil(s, (x) => x.turn.step === "end" && x.pending?.kind === "priority");

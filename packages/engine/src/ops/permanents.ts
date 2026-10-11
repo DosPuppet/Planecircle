@@ -24,7 +24,7 @@ import {
   resolveRef,
   store,
 } from "../effects";
-import { blockRulePlaceholder, copiableExceptions, copiedDefId, mergeMods, resolveBlockRules } from "../layers";
+import { blockRulePlaceholder, copiableExceptions, copiedDefId, mergeMods, resolveBlockRules, wordsInText } from "../layers";
 import { manaValue } from "../mana";
 import { CREATURE_TYPES, gameNames, isCreatureType, nameList, printedName, tokenCreatureTypes } from "../names";
 import { asEntersChoices, chosenValue, ENTERS_PREFIX, type EntersChoices, withEntersChoices } from "../replacement";
@@ -568,6 +568,40 @@ export const HANDLERS: OpHandlers = {
     }
     const chosen = answer.map(String).filter((id) => options.includes(id));
     r.vars.$textSwap = chosen.slice(0, 1);
+    return;
+  },
+  changeText(s, r, e, ctx, key) {
+    // 612.2 (New Blood): the word replaced, among those of its text (type line first: the suggestion), `to` excepted.
+    const id = resolveRef(s, ctx, e.what).find((x) => s.objects[x]?.zone === "battlefield");
+    if (!id) return;
+    const options = wordsInText(s, id, e.kind).filter((w) => w !== e.to);
+    if (options.length === 0) return;
+    let from = options.length === 1 ? options[0] : undefined;
+    if (!from) {
+      const answer = r.vars[key("word")];
+      if (!answer)
+        return {
+          ask: {
+            player: ctx.controller,
+            key: key("word"),
+            request: {
+              type: "pick",
+              intent: "other",
+              prompt: msg("{card}: choose the creature type to replace with {type}", {
+                card: cardRefOf(s, id),
+                type: e.to,
+              }),
+              options,
+              labels: Object.fromEntries(options.map((w) => [w, w])),
+              min: 1,
+              max: 1,
+              suggested: options.slice(0, 1),
+            },
+          },
+        };
+      from = answer.map(String).find((w) => options.includes(w)) ?? options[0];
+    }
+    if (from) addEffect(s, [id], { replaceWord: { kind: e.kind, from, to: e.to } }, "permanent");
     return;
   },
   attach(s, r, e, ctx) {

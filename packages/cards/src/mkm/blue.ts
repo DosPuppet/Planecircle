@@ -153,7 +153,7 @@ export const BLUE: Record<string, CardScript> = {
   "Coveted Falcon": {
     // Disguise: read from the text.
     abilities: [
-      triggered(when.attacksSelf, [fx.gainControl(ref.target())], {
+      triggered(when.attacksSelf, [fx.gainControl(ref.target(), { indefinitely: true })], {
         targets: [
           {
             id: "t",

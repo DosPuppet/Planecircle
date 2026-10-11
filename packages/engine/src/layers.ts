@@ -22,6 +22,7 @@ import { commandZoneAbilities, counterPT, obj } from "./state";
 import { playerStatics } from "./statics";
 import { ALL_CREATURE_TYPES, hasAllCreatureTypes, hasChosen, matchesObjectFilter, matchesView, withChosen } from "./targets";
 import { msg } from "./text";
+import { replaceWords, wordsIn } from "./textChange";
 import { checkCondition } from "./triggers";
 import { countersPutThisTurn, countTurnEvents, objectDidThisTurn, onTurnLogged } from "./turnlog";
 import type {
@@ -42,6 +43,7 @@ import type {
   PowerRule,
   ProtectionRule,
   Ref,
+  WordChange,
 } from "./types";
 import { BASIC_LAND_TYPES, LAND_TYPES, PERMANENT_TYPES } from "./types";
 
@@ -539,6 +541,53 @@ function applyTextBox(s: GameState, c: Characteristics, o: GameObject, ownDefId:
   const cda = d.cda?.pt === undefined ? undefined : cdaValue(s, o, d.cda.pt);
   c.power = (d.cda?.power === undefined ? undefined : cdaValue(s, o, d.cda.power)) ?? cda ?? own.power ?? 0;
   c.toughness = (d.cda?.toughness === undefined ? undefined : cdaValue(s, o, d.cda.toughness)) ?? cda ?? own.toughness ?? 0;
+}
+
+/**
+ * Layer 3 (612.2): the words replaced in the object's text by effects in force, in timestamp order; those older than a
+ * text box exchanged since then no longer count (the new text box replaced the changed text).
+ */
+export function wordChangesOf(s: GameState, id: ObjectId): WordChange[] {
+  if (!s.effects.some((e) => e.replaceWord)) return [];
+  let textAt = Number.NEGATIVE_INFINITY;
+  const found: { c: WordChange; ts: number }[] = [];
+  for (const e of s.effects) {
+    if (!e.affected.includes(id)) continue;
+    if (e.textOf) textAt = Math.max(textAt, e.timestamp);
+    if (e.replaceWord) found.push({ c: e.replaceWord, ts: e.timestamp });
+  }
+  return found
+    .filter((f) => f.ts > textAt)
+    .sort((a, b) => a.ts - b.ts)
+    .map((f) => f.c);
+}
+
+/**
+ * The words of this kind that an object's text uses (612.2): its type line, then its abilities and its
+ * characteristic-defining abilities, with the words already replaced; a face-down permanent has no text.
+ */
+export function wordsInText(s: GameState, id: ObjectId, kind: WordChange["kind"]): string[] {
+  const o = s.objects[id];
+  if (!o || o.faceDown) return [];
+  const defId = o.zone === "battlefield" ? copiedDefId(s, id) : (o.faceDefId ?? o.defId);
+  const d = s.defs[defId];
+  const text = s.defs[(o.zone === "battlefield" && textBoxOf(s, id)) || defId];
+  if (!d || !text) return [];
+  const words = o.zone === "battlefield" ? wordChangesOf(s, id) : [];
+  return wordsIn(replaceWords([{ subtypes: d.subtypes }, levelAbilities(o, text), text.cda ?? {}], words), kind);
+}
+
+/** A characteristic-defining P/T of the text in force (`textDefId`) recomputed with the replaced words. */
+function rewordCda(s: GameState, c: Characteristics, o: GameObject, textDefId: string): void {
+  const d = s.defs[textDefId];
+  if (!d?.cda) return;
+  const cda = replaceWords(d.cda, wordChangesOf(s, o.id));
+  if (cda === d.cda) return;
+  const pt = cda.pt === undefined ? undefined : cdaValue(s, o, cda.pt);
+  if (cda.power !== undefined || pt !== undefined)
+    c.power = (cda.power === undefined ? undefined : cdaValue(s, o, cda.power)) ?? pt ?? c.power;
+  if (cda.toughness !== undefined || pt !== undefined)
+    c.toughness = (cda.toughness === undefined ? undefined : cdaValue(s, o, cda.toughness)) ?? pt ?? c.toughness;
 }
 
 /** Printed abilities of a permanent: levels reached by a Class (716), "Solved" abilities of a Case (719). */
@@ -1079,7 +1128,10 @@ function staticSlots(s: GameState, defOfId: (id: ObjectId) => string): StaticSlo
       if (!e.affected.includes(id) || (lossAt !== undefined && e.timestamp < lossAt)) continue;
       for (const ab of e.addAbilities ?? []) if (ab.kind === "static") grantedAt.set(ab, Math.max(o.timestamp, e.timestamp));
     }
-    for (const ab of grantedAt.size ? [...printed, ...grantedAt.keys()] : printed) {
+    // Layer 3 (612.2): a word replaced in its text ("other Goblins" becomes "other Vampires", New Blood).
+    const words = printed.length && o.zone === "battlefield" ? wordChangesOf(s, id) : [];
+    const inText = words.length ? replaceWords(printed, words) : printed;
+    for (const ab of grantedAt.size ? [...inText, ...grantedAt.keys()] : inText) {
       if (ab.kind === "static" && !ab.fromGraveyard) slots.push({ id, ab, ts: grantedAt.get(ab) ?? o.timestamp });
     }
   }
@@ -1285,11 +1337,24 @@ function applyLayersScanned(s: GameState, applied: Applied[], defOfId: (id: Obje
     for (const a of applied) if (has(a.mods)) for (const id of affectedBy(a)) apply(out.get(id) as Characteristics, a.mods, a);
   };
 
-  // Layer 3: text-changing effects (612): an exchanged text box (Deadpool, Trading Card).
+  // Layer 3: text-changing effects (612), in timestamp order: an exchanged text box (Deadpool, Trading Card), a word
+  // replaced (New Blood: its type line and its abilities, 612.2).
+  const reworded = new Set<ObjectId>();
   for (const a of applied) {
     const text = a.mods.textOf;
     if (text) for (const id of affectedBy(a)) applyTextBox(s, out.get(id) as Characteristics, obj(s, id), defOfId(id), text);
+    const word = a.mods.replaceWord;
+    if (word) {
+      for (const id of affectedBy(a)) {
+        const c = out.get(id) as Characteristics;
+        c.subtypes = [...new Set(c.subtypes.map((t) => (t === word.from ? word.to : t)))];
+        c.abilities = replaceWords(c.abilities, [word]);
+        reworded.add(id);
+      }
+    }
   }
+  // A characteristic-defining P/T that names the replaced word ("the number of Goblins you control"), 604.3.
+  for (const id of reworded) rewordCda(s, out.get(id) as Characteristics, obj(s, id), textBoxOf(s, id) ?? defOfId(id));
 
   // Layer 4: types (and name, for Witness Protection).
   layer(

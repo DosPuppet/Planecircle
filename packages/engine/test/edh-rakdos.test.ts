@@ -268,6 +268,9 @@ describe("Rakdos, Lord of Riots (EDH)", () => {
       });
       s = settle(castIt(s, "p1", "Emrakul, the World Anew", { targets: { t: ["p2"] } }));
       expect(s.battlefield.filter((id) => s.objects[id]?.owner === "p2" && s.objects[id]?.controller === "p1")).toHaveLength(2);
+      // No duration: the control lasts after the turn.
+      s = advanceUntil(s, (x) => x.turn.number > s.turn.number);
+      expect(s.battlefield.filter((id) => s.objects[id]?.owner === "p2" && s.objects[id]?.controller === "p1")).toHaveLength(2);
     });
 
     it("Kozilek, the Broken Reality: the targeted player manifests two cards from their hand; you draw as many", () => {

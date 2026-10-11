@@ -4,7 +4,7 @@
  */
 
 import { castOption } from "./cardDef";
-import { copiedDefId, FACE_DOWN_WARD, textBoxOf } from "./layers";
+import { copiedDefId, FACE_DOWN_WARD, textBoxOf, wordChangesOf } from "./layers";
 import { legalActions } from "./legal";
 import { costToText, manaValue, payCostText, totalCost } from "./mana";
 import { customArtSet, keyedPrinting } from "./printing";
@@ -30,6 +30,7 @@ import type {
   ObjectId,
   PlayerId,
   Step,
+  WordChange,
   Zone,
 } from "./types";
 
@@ -131,6 +132,8 @@ export interface ObjectView extends CardFace {
   castCost?: { text: string; delta: number };
   /** Layer 3 (612): the text box it has instead of its own (Deadpool, Trading Card), shown with the card. */
   textBox?: CardFace;
+  /** Layer 3 (612.2): words replaced in its text (New Blood: "Vampire instead of Goblin"), shown as a badge. */
+  wordChanges?: WordChange[];
 }
 
 export interface StackItemView extends CardFace {
@@ -463,11 +466,13 @@ export function objectView(s: GameState, id: ObjectId): ObjectView {
   };
 }
 
-/** An exchanged text box (Deadpool, Trading Card): the face whose text it has. */
-function textBoxView(s: GameState, id: ObjectId): Pick<ObjectView, "textBox"> {
-  const text = s.objects[id]?.zone === "battlefield" ? textBoxOf(s, id) : undefined;
+/** An exchanged text box (Deadpool, Trading Card): the face whose text it has; the words replaced in its text. */
+function textBoxView(s: GameState, id: ObjectId): Pick<ObjectView, "textBox" | "wordChanges"> {
+  if (s.objects[id]?.zone !== "battlefield") return {};
+  const text = textBoxOf(s, id);
   const d = text ? s.defs[text] : undefined;
-  return d ? { textBox: cardFace(d) } : {};
+  const words = wordChangesOf(s, id);
+  return { ...(d ? { textBox: cardFace(d) } : {}), ...(words.length ? { wordChanges: words } : {}) };
 }
 
 /** Abilities activated from the battlefield, with a label and their cost (mana and {T}). */

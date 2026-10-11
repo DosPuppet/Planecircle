@@ -22,6 +22,7 @@ import type {
   TargetSpec,
   TokenSpec,
   TriggerSpec,
+  WordChange,
 } from "../types";
 
 export type Effect =
@@ -564,6 +565,13 @@ export type Effect =
    * the chosen creature is stored (`$textSwap`), and the exchange is done as it enters (layer 3, `LayerMods.textOf`).
    */
   | { op: "exchangeTextBox" }
+  /**
+   * Text-changing effect (612.2, layer 3, `LayerMods.replaceWord`): "change the text of [it] by replacing all instances
+   * of one creature type with `to`" (New Blood), with no duration: as long as it stays on the battlefield. The word
+   * replaced is chosen as it resolves among those its text uses (type line, abilities), `to` excepted; no question for a
+   * single one.
+   */
+  | { op: "changeText"; what: Ref; kind: WordChange["kind"]; to: string }
   /**
    * "You may have [this permanent] enter as a copy of …" (707.9, in `CardDef.asEnters`): the model is chosen as it
    * enters. `anyController`: any permanent (Mockingbird), otherwise one of yours; `fromGraveyards`: a card from a
