@@ -301,6 +301,27 @@ describe("Tevesh Szat & Jeska (EDH)", () => {
       expect(s.players.p2?.life).toBe(14);
     });
 
+    it("0: an opposing creature triples only the combat damage it deals to one of Jeska's controller's opponents", () => {
+      const start = () => {
+        const s = scenario({
+          players: 3,
+          p1: { battlefield: [{ name: "Jeska, Thrice Reborn", counters: { loyalty: 2 } }] },
+          p2: { battlefield: ["Bear Cub"] },
+        });
+        const bear = idOf(s, "p2", "battlefield", "Bear Cub");
+        const t = settle(activate(s, "p1", idOf(s, "p1", "battlefield", "Jeska, Thrice Reborn"), { targets: { t: [bear] } }));
+        return { s: advanceUntil(t, (x) => x.turn.active === "p2" && x.pending?.kind === "declareAttackers"), bear };
+      };
+      // Against p3, an opponent of Jeska's controller: tripled.
+      const a = start();
+      const s = throughCombat(act(a.s, "p2", { type: "declareAttackers", attackers: [{ id: a.bear, defender: "p3" }] }));
+      expect(s.players.p3?.life).toBe(14);
+      // Against Jeska's controller: not one of their opponents.
+      const b = start();
+      const t = throughCombat(act(b.s, "p2", { type: "declareAttackers", attackers: [{ id: b.bear, defender: "p1" }] }));
+      expect(t.players.p1?.life).toBe(18);
+    });
+
     it("−X: X damage to each of up to three targets", () => {
       let s = scenario({
         p1: { battlefield: [{ name: "Jeska, Thrice Reborn", counters: { loyalty: 3 } }] },

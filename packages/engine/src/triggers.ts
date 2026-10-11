@@ -570,6 +570,30 @@ function entryMuted(s: GameState, ev: RulesEvent, src: Source | undefined): bool
 }
 
 /** Does the event match the trigger? Returns the data of the event, or null. */
+/**
+ * "Whenever you attack a player [with one or more …]" (`attackWith` with `eachPlayer`): each player (not a planeswalker)
+ * attacked by at least `min` matching attackers of `attacker`, with their number, in turn order.
+ */
+function playersAttacked(
+  s: GameState,
+  t: Extract<TriggerSpec, { on: "attackWith" }>,
+  attacker: PlayerId,
+  me: PlayerId,
+  sourceId: ObjectId,
+): { player: PlayerId; count: number }[] {
+  const counts = new Map<PlayerId, number>();
+  for (const a of s.combat?.attackers ?? []) {
+    if (!s.players[a.defender]) continue;
+    const v = liveView(s, a.id);
+    if (!v || v.controller !== attacker || (t.filter && !matchesView(v, t.filter, me, sourceId))) continue;
+    counts.set(a.defender, (counts.get(a.defender) ?? 0) + 1);
+  }
+  return s.playerOrder.flatMap((p) => {
+    const count = counts.get(p) ?? 0;
+    return count >= (t.min ?? 1) ? [{ player: p, count }] : [];
+  });
+}
+
 function matchTrigger(s: GameState, ev: RulesEvent, t: TriggerSpec, src: Source): TriggerEventData | null {
   const me = src.view.controller;
   switch (t.on) {
@@ -647,6 +671,11 @@ function matchTrigger(s: GameState, ev: RulesEvent, t: TriggerSpec, src: Source)
         return count >= (t.min ?? 1) ? { player: ev.player, amount: count } : null;
       }
       if (ev.e !== "attackWith" || (!t.anyPlayer && ev.player !== me)) return null;
+      // "Whenever you attack a player": the first player attacked; the others get their own trigger (`playersAttacked`).
+      if (t.eachPlayer) {
+        const first = playersAttacked(s, t, ev.player, me, src.id)[0];
+        return first ? { player: first.player, amount: first.count } : null;
+      }
       // "Whenever you attack with one or more [Rats]": only the matching attackers.
       const f = t.filter;
       const count = f
@@ -1150,23 +1179,33 @@ export function detectTriggers(s: GameState, ev: RulesEvent, only?: (src: Source
       // Fathom Mage: "whenever a +1/+1 counter is put on it", once for each counter (each trigger counts one).
       const each = ab.trigger.on === "countersPut" && !!ab.trigger.each;
       const perCounter = each ? Math.max(0, data.amount ?? 1) : 1;
-      const event = each ? { ...data, amount: 1 } : data;
+      const event0 = each ? { ...data, amount: 1 } : data;
+      // "Whenever you attack a player": one trigger for each player attacked (Echoing Assault).
+      const events =
+        ab.trigger.on === "attackWith" && ab.trigger.eachPlayer && ev.e === "attackWith"
+          ? playersAttacked(s, ab.trigger, ev.player, src.view.controller, src.id).map((p) => ({
+              ...data,
+              player: p.player,
+              amount: p.count,
+            }))
+          : [event0];
       const again = (1 + triggerDoublers(s, src, ev)) * perCounter;
-      for (let k = 0; k < again; k++) {
-        s.triggers.push({
-          id: newId(s, "t"),
-          sourceId: src.id,
-          sourceDefId: src.view.defId,
-          abilityIndex: index,
-          controller: src.view.controller,
-          sourceSnapshot: { keywords: src.view.keywords, power: src.view.power, controller: src.view.controller },
-          event,
-          targets: {},
-          // Granted ability (not in the definition): it is carried with the trigger.
-          inline: (s.defs[src.view.defId]?.abilities[index] ?? null) === ab ? undefined : inlineOf(ab),
-          ...(ab.batched ? { batch } : {}),
-        });
-      }
+      for (const event of events)
+        for (let k = 0; k < again; k++) {
+          s.triggers.push({
+            id: newId(s, "t"),
+            sourceId: src.id,
+            sourceDefId: src.view.defId,
+            abilityIndex: index,
+            controller: src.view.controller,
+            sourceSnapshot: { keywords: src.view.keywords, power: src.view.power, controller: src.view.controller },
+            event,
+            targets: {},
+            // Granted ability (not in the definition): it is carried with the trigger.
+            inline: (s.defs[src.view.defId]?.abilities[index] ?? null) === ab ? undefined : inlineOf(ab),
+            ...(ab.batched ? { batch } : {}),
+          });
+        }
       // Firebender Ascension: an attacking creature causes, by attacking, one of its abilities to trigger.
       if (ev.e === "attack" && ev.attacker === src.id && src.view.types.includes("Creature"))
         detectTriggers(s, { e: "attackTriggered", player: src.view.controller, objectId: src.id });

@@ -23,7 +23,15 @@ import {
   snapshot,
   tapObject,
 } from "./state";
-import { type ActiveReplacement, eventReplacements, lifeCost, payableLife, playerSide, replacementAdd } from "./statics";
+import {
+  type ActiveReplacement,
+  addPlayerEffect,
+  eventReplacements,
+  lifeCost,
+  payableLife,
+  playerSide,
+  replacementAdd,
+} from "./statics";
 import { matchesObjectFilter, matchesView, withChosen } from "./targets";
 import { msg } from "./text";
 import { checkCondition } from "./triggers";
@@ -226,7 +234,11 @@ export function manaAbilitiesOf(s: GameState, id: ObjectId): ManaAbilityDef[] {
     else if (a.produceIdentity) {
       const identity = commanderIdentity(s, o.controller);
       list.push({ ...a, produce: MANA_TYPES.filter((m) => identity.includes(m as Color)) });
-    } else list.push(a.produceChosen ? { ...a, produce: o.chosen?.color ? [o.chosen.color] : a.produce } : a);
+    } else if (a.produceChosen) {
+      // The chosen color (Heraldic Banner) or the noted type of mana (Jeweled Amulet).
+      const chosen = o.chosen?.manaType ?? o.chosen?.color;
+      list.push({ ...a, produce: chosen ? [chosen] : a.produce });
+    } else list.push(a);
   }
   return list;
 }
@@ -647,7 +659,8 @@ export function activateManaAbility(
     !ab.removeCounter &&
     !ab.restriction &&
     !ab.rider &&
-    !ab.drawback;
+    !ab.drawback &&
+    !ab.playerEffect;
   const triggersBefore = s.triggers.length;
   const poolBefore = s.players[player]?.manaPool[c] ?? 0;
   // Source sacrificed for its cost (Treasure): the amount and the mana replacements are read from its last known
@@ -709,6 +722,8 @@ export function activateManaAbility(
     for (const p of life.who === "each" ? alivePlayers(s) : opponentsOf(s, player))
       if (life.delta > 0) gainLife(s, p, life.delta);
       else loseLife(s, p, -life.delta);
+  // Yuna, Grand Summoner: "when you next cast a creature spell this turn, …" (single use, until end of turn).
+  if (ab.playerEffect) addPlayerEffect(s, player, ab.playerEffect, s.turn.number, true);
   if (simple && !otherBonus && types.length <= 1 && s.triggers.length === triggersBefore && amount > 0)
     s.manaUndo = [...(s.manaUndo ?? []), { player, source: id, color: c, amount }];
   // The pool changed: a static ability may depend on it (Ozai, the Phoenix King).
@@ -919,7 +934,11 @@ function solvePaymentOnce(
     spend[m] += n;
     generic -= n;
   }
-  return generic > 0 ? null : { taps, spend };
+  if (generic > 0) return null;
+  // The rest of an "in any combination" source's mana (Vivi Ornitier with more power than needed) goes to the pool, of
+  // its first type: each mana produced has a type (`activateManaAbility`).
+  for (const w of wild) for (let k = 0; k < w.n; k++) w.tap.colors?.push(w.colors[0] as ManaType);
+  return { taps, spend };
 }
 
 function bitCount(n: number): number {

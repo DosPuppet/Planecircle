@@ -6,6 +6,7 @@
 import { card } from "@mtgx/cards";
 import { describe, expect, it } from "vitest";
 import { castOption } from "../src/cardDef";
+import { eventReplacement } from "../src/dsl";
 import { bump, chars } from "../src/layers";
 import { legalActions } from "../src/legal";
 import { manaAbilitiesOf } from "../src/mana";
@@ -15,6 +16,7 @@ import {
   advanceUntil,
   attack,
   castable,
+  customCard,
   idOf,
   idsOf,
   lands,
@@ -486,5 +488,22 @@ describe("PLAN-M M9a: approximations lifted", () => {
     const cub = idOf(s, "p2", "battlefield", "Bear Cub");
     s = settle(act(s, "p2", { type: "cast", card: feather, targets: { [spec]: [cub] } } as never));
     expect(idsOf(s, "p2", "battlefield", "Feather of Flight")).toHaveLength(1);
+  });
+});
+
+describe("PLAN-M M9b: Creeping Bloodsucker", () => {
+  it("you gain life equal to the damage really dealt this way (doubled: twice as much)", () => {
+    // Damage p1's sources deal to opponents is doubled.
+    const doubler = customCard({
+      name: "Test Doubler",
+      types: ["Enchantment"],
+      typeLine: "Enchantment",
+      abilities: [eventReplacement({ event: "damage", to: "opponent", modify: { times: 2 } })],
+    });
+    let s = scenario({ players: 3, p1: { battlefield: ["Creeping Bloodsucker", doubler] } });
+    s = toTurnOf(s, "p1", "upkeep");
+    s = settle(s);
+    expect([life(s, "p2"), life(s, "p3")]).toEqual([18, 18]);
+    expect(life(s, "p1")).toBe(24);
   });
 });

@@ -96,8 +96,9 @@ export const MULTI: Record<string, CardScript> = {
   },
   "Bitter Work": {
     abilities: [
-      triggered(when.attackWith(1, { minPower: 4 }), [fx.draw(1)], {
-        label: "Attack with a creature with power 4 or greater: draw",
+      // Once for each player attacked with such a creature (ruling).
+      triggered(when.attackAPlayerWith(1, { minPower: 4 }), [fx.draw(1)], {
+        label: "Attack a player with a creature with power 4 or greater: draw",
       }),
       exhaust({
         mana: "{4}",

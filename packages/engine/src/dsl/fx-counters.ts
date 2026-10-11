@@ -42,6 +42,18 @@ export const countersFx = {
     to,
     ...opts,
   }),
+  /**
+   * "Move any number of [kind] counters from `from` onto `to`" (one or several objects): a division for each kind
+   * (`"any"`: every kind it has), the share left on `from` staying there.
+   */
+  moveCountersDivided: (from: Ref, to: Ref, counter = "+1/+1"): Effect => ({
+    op: "countersDivided",
+    total: 0,
+    to,
+    counter,
+    anyNumber: true,
+    from,
+  }),
   proliferate: (times: Amount = 1, what?: Ref): Effect => ({ op: "proliferate", times, ...(what ? { what } : {}) }),
   removeCounters: (what: Ref, n: Amount, kind?: string, store?: string): Effect => ({
     op: "removeCounters",

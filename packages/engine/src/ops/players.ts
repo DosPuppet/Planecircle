@@ -65,10 +65,20 @@ export const HANDLERS: OpHandlers = {
         : e.ability;
     // Taii Wakeen: "this turn, noncombat damage from your sources is increased by X": the amount is frozen now.
     const add = base.replacement?.modify.add;
-    const withAdd =
+    const withAdd0 =
       base.replacement && add !== undefined && typeof add !== "number"
         ? { ...base, replacement: { ...base.replacement, modify: { ...base.replacement.modify, add: evalAmount(s, ctx, add) } } }
         : base;
+    // Jeska, Thrice Reborn: "if that creature would deal …": the designated object is frozen now (none: no effect).
+    const sourceRef = withAdd0.replacement?.sourceRef;
+    const sourceIs = sourceRef ? resolveRef(s, ctx, sourceRef).find((id) => !!s.objects[id]) : undefined;
+    if (sourceRef && !sourceIs) return;
+    const pinned = (() => {
+      if (!withAdd0.replacement || !sourceIs) return undefined;
+      const { sourceRef: _, ...rest } = withAdd0.replacement;
+      return { ...rest, sourceIs, sourceDefIs: s.objects[sourceIs]?.defId };
+    })();
+    const withAdd = pinned ? { ...withAdd0, replacement: pinned } : withAdd0;
     // Will, Scion of Peace: "spells you cast this turn cost {X} less, where X is …": X is frozen now.
     const reduce = withAdd.spellCost?.reduce;
     const ability =

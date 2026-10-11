@@ -103,6 +103,8 @@ export interface ObjectView extends CardFace {
     color?: Color;
     mode?: string;
     number?: number;
+    /** Noted type of mana (Jeweled Amulet). */
+    manaType?: ManaType;
   } | null;
   /** Reality Fracture: prepared permanent (its spell can be cast from exile). */
   prepared?: boolean;

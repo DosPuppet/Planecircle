@@ -1793,14 +1793,36 @@ export const HANDLERS: OpHandlers = {
     if (e.store) r.vars[`$ids:${e.store}`] = exiled;
     return;
   },
-  untapUpTo(s, _r, e, ctx) {
-    const ids = s.battlefield.filter(
-      (id) =>
-        s.objects[id]?.controller === ctx.controller &&
-        s.objects[id]?.tapped &&
-        matchesObjectFilter(s, ctx.controller, id, e.filter),
-    );
-    for (const id of ids.slice(0, e.n)) {
+  untapUpTo(s, r, e, ctx, key) {
+    const tapped = (id: ObjectId) => !!s.objects[id]?.tapped && matchesObjectFilter(s, ctx.controller, id, e.filter);
+    const mine = s.battlefield.filter((id) => s.objects[id]?.controller === ctx.controller && tapped(id));
+    // "Untap up to N lands" (Frantic Search, Rewind): any of them, chosen by the player (yours by default); "untap all
+    // your …" (99): yours, without a question.
+    const all = e.n >= 99 ? mine : s.battlefield.filter(tapped);
+    let chosen = mine.slice(0, e.n);
+    if (all.length > chosen.length) {
+      const answer = r.vars[key("untap")];
+      if (!answer)
+        return {
+          ask: {
+            player: ctx.controller,
+            key: key("untap"),
+            request: {
+              type: "pick",
+              intent: "other",
+              prompt: e.filter.types?.includes("Land")
+                ? msg("Untap up to {n} land(s)", { n: e.n })
+                : msg("Untap up to {n} permanent(s)", { n: e.n }),
+              options: all,
+              min: 0,
+              max: Math.min(e.n, all.length),
+              suggested: chosen,
+            },
+          },
+        };
+      chosen = answer.map(String).filter((id) => all.includes(id));
+    }
+    for (const id of chosen) {
       const o = s.objects[id];
       if (o) untapObject(s, o);
     }

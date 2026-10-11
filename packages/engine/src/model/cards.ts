@@ -372,6 +372,11 @@ export interface ModeDef {
   effects: Effect[];
   /** Spree (702.172): additional cost of this mode (combined modes add theirs up). */
   extraCost?: ManaCost;
+  /**
+   * Additional cost of this mode other than mana, added to the card's (escalate paid by tapping creatures: Collective
+   * Effort); its objects are chosen like the card's (`additionalPicks`, `CostPick.modes`).
+   */
+  additionalCost?: AdditionalCost;
   /** Mode available only if the condition is met (delirium: "choose one or more instead"). */
   condition?: Condition;
   /**
@@ -537,6 +542,12 @@ export interface ManaAbilityDef {
    * Burnwillows: they gain 1) or of each player (Cryptolith Fragment: they lose 1).
    */
   drawback?: { damageYou?: number; life?: { who: "opponents" | "each"; delta: number } };
+  /**
+   * Player effect until end of turn, single use, set as the ability resolves (605.3b): "when you next cast a creature
+   * spell this turn, that creature enters with two additional +1/+1 counters" (Yuna, Grand Summoner: `nextSpell`). A
+   * spell being cast while this ability pays its cost is that next spell (601.2i).
+   */
+  playerEffect?: Omit<PlayerStaticAbilityDef, "kind">;
   /**
    * One mana of any of the colors among the designated objects: the matching permanents you control (Meteor Crater,
    * Plaza of Heroes), the matching cards in your graveyard (The Grey Havens), the cards exiled with the source (Pit of
@@ -1044,6 +1055,12 @@ export interface EventReplacement {
   /** Damage: dealt instead to the permanent the source is attached to (`attached`: With Great Power) or to the source
    * itself (`source`: Ancient Adamantoise). */
   redirectTo?: "attached" | "source";
+  /**
+   * Set by an effect (`fx.thisTurn`, `fx.untilYourNextTurn`): "that creature" as the source, the designated object
+   * frozen as the effect resolves (`sourceIs`; Jeska, Thrice Reborn: "if that creature would deal combat damage to one
+   * of your opponents"). The recipient (`to`) is then seen from the effect's player, not from the creature's controller.
+   */
+  sourceRef?: Ref;
   /** Shield: only this source, chosen at creation (`sourceDefIs` for a spell without an object). */
   sourceIs?: ObjectId;
   /** Set by the engine (`fx.shield`, `ops/damage.ts`), never by a card: the definition of `sourceIs`. */

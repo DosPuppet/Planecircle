@@ -27,6 +27,7 @@ import {
   activationPicks,
   activationZone,
   additionalOptions,
+  additionalPicks,
   altCostFor,
   altCostPayment,
   autoAdditional,
@@ -80,6 +81,7 @@ import {
   warpOf,
   waterbendAmount,
   webSlingingOptions,
+  withModeCost,
   xCosts,
 } from "./stack";
 import { payableLife } from "./statics";
@@ -654,6 +656,18 @@ export function legalActions(s: GameState, player: PlayerId): ActionOption[] {
         : !own;
       if (!ok) modes.splice(i, 1);
     }
+    // Escalate paid by tapping creatures (Collective Effort): the mode's objects must be there, and the mana payable
+    // without them.
+    for (let i = modes.length - 1; i >= 0; i--) {
+      const own = allModes[(modes[i] as (typeof modes)[number]).index];
+      if (!own?.additionalCost) continue;
+      const paid = autoAdditional(s, player, card, withModeCost(d, own), flashback);
+      const without = paid ? new Set([...(exclude ?? []), ...paid.tap, ...paid.exile, ...paid.bounce]) : undefined;
+      const ok =
+        !!without &&
+        (altAvailable || canPay(s, player, withExtra(spellCost(s, player, d, { ...base, free: terms.free })), without, purpose));
+      if (!ok) modes.splice(i, 1);
+    }
     if (modes.length === 0) return;
     if (!modeCost && !terms.free && !normal && !freeAvailable && !altAvailable && !kickerAffordable) return;
     // A mode that requires the additional cost needs a payable kicker; a mode that excludes it, another way to pay.
@@ -749,6 +763,24 @@ export function legalActions(s: GameState, player: PlayerId): ActionOption[] {
           .filter((m) => targetsAvailable(m.targets))
       : modes;
     if (castModes.length === 0) return;
+    // The objects of a mode's own additional cost (escalate paid by tapping creatures), asked only with those modes
+    // (`CostPick.modes`); the same question for several modes is listed once.
+    const modePicks = (indices: number[]): CostPick[] => {
+      const out: CostPick[] = [];
+      if (!indices.some((i) => allModes[i]?.additionalCost)) return out;
+      const cardSlots = new Set(additionalPicks(s, player, card, d, flashback).map((p) => p.slot));
+      for (const index of indices) {
+        const own = allModes[index];
+        if (!own?.additionalCost) continue;
+        for (const p of additionalPicks(s, player, card, withModeCost(d, own), flashback)) {
+          if (cardSlots.has(p.slot)) continue;
+          const same = out.find((q) => q.slot === p.slot && q.count === p.count && q.options.join() === p.options.join());
+          if (same) same.modes = [...(same.modes ?? []), index];
+          else out.push({ ...p, modes: [index] });
+        }
+      }
+      return out;
+    };
     out.push({
       type: "cast",
       card,
@@ -788,7 +820,7 @@ export function legalActions(s: GameState, player: PlayerId): ActionOption[] {
       kickerTap: kickerPay?.tapPower ? crewSpec(s, player, card, kickerPay.tapPower, "teamwork") : undefined,
       // Objects paid as a cost (evidence, exile from the graveyard, blight X), when the player has a choice to make.
       ...(() => {
-        const picks = spellPicks(s, player, card, d, undefined, terms)
+        const picks = [...spellPicks(s, player, card, d, undefined, terms), ...modePicks(castModes.map((m) => m.index))]
           .map((p) => (p.slot === "altSacrifice" && alt?.pay?.sacrificeReduce ? emergeVictims(p) : p))
           .filter(
             (p) =>

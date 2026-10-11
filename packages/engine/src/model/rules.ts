@@ -430,12 +430,18 @@ export type TriggerSpec =
    * `defending`: an opponent attacks, and only their attackers attacking you (`"you"`, Lulu), you and/or your
    * planeswalkers (`"youOrYourPlaneswalkers"`, Tomik, Wielder of Law) count; the event player is then the attacker.
    */
+  /**
+   * `eachPlayer`: "whenever you attack a player [with one or more …]": one trigger for each player attacked (not a
+   * planeswalker) by at least `min` matching attackers, that player being `ref.eventPlayer` (Echoing Assault, Bitter
+   * Work).
+   */
   | {
       on: "attackWith";
       min?: number;
       filter?: ObjectFilter;
       anyPlayer?: boolean;
       defending?: "you" | "youOrYourPlaneswalkers";
+      eachPlayer?: boolean;
     }
   /** "Whenever counters are put on …" */
   /** `firstThisTurn`: "if it's the first time counters have been put on it this turn" (Stalwart Successor). */

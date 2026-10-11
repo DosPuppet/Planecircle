@@ -243,6 +243,8 @@ export interface CostPick {
   minTotal?: { n: number; values: Record<ObjectId, number>; fromTargets?: Record<ObjectId, number> };
   /** Spell: only if it is kicked (or bargained…), or cast for its alternative cost. */
   when?: "kicked" | "alternative";
+  /** Spell: only with one of these modes (`ModeDef.additionalCost`: escalate paid by tapping creatures). */
+  modes?: number[];
   /**
    * At most `count` objects, all used to pay (convoke, improvise, waterbend, delve); no choice: automatic payment
    * decides (`suggested` empty).

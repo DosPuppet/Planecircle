@@ -109,17 +109,30 @@ describe("Vivi Ornitier, Storm (EDH)", () => {
       expect(s.objects[bear]?.tapped).toBe(true);
     });
 
-    it("Jeweled Amulet: {1}, {T}: a charge counter; {T}, remove it: one mana", () => {
-      let s = scenario({ p1: { battlefield: ["Jeweled Amulet", "Mountain"] } });
+    it("Jeweled Amulet: {1}, {T}: a charge counter, the type of mana spent noted; {T}, remove it: one mana of that type", () => {
+      let s = scenario({ p1: { battlefield: ["Jeweled Amulet", "Forest"], hand: ["Bear Cub"] } });
       const amulet = idOf(s, "p1", "battlefield", "Jeweled Amulet");
       s = settle(activate(s, "p1", amulet));
       expect(s.objects[amulet]?.counters.charge).toBe(1);
-      // Not a second time while it has a counter.
+      expect(s.objects[amulet]?.chosen?.manaType).toBe("G");
+      // Not a second time while it has a counter; the second ability is a mana ability of the noted type only.
       s = advanceUntil(s, (x) => x.turn.number === 5 && x.turn.step === "main1");
-      expect(activations(s, "p1", amulet).map((a) => a.ability)).toEqual([1]);
-      s = settle(activate(s, "p1", amulet), picking(["R"]));
+      expect(activations(s, "p1", amulet)).toEqual([]);
+      const tap = legalActions(s, "p1").find((a) => a.type === "tapForMana" && a.source === amulet);
+      expect(tap?.type === "tapForMana" && tap.colors).toEqual(["G"]);
+      const u = settle(act(s, "p1", { type: "tapForMana", source: amulet, ability: 0, color: "G" }));
+      expect(u.objects[amulet]?.counters.charge ?? 0).toBe(0);
+      expect(pool(u, "p1").G).toBe(1);
+      // The noted type stays (the last one noted).
+      expect(u.objects[amulet]?.chosen?.manaType).toBe("G");
+      // The automatic payment uses it: the Forest and the Amulet pay for Bear Cub ({1}{G}).
+      s = settle(act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Bear Cub") }));
+      expect(idsOf(s, "p1", "battlefield", "Bear Cub")).toHaveLength(1);
       expect(s.objects[amulet]?.counters.charge ?? 0).toBe(0);
-      expect(pool(s, "p1").R).toBe(1);
+      // A charge counter without a noted type (ruling): no mana.
+      const t = scenario({ p1: { battlefield: [{ name: "Jeweled Amulet", counters: { charge: 1 } }] } });
+      const amulet2 = idOf(t, "p1", "battlefield", "Jeweled Amulet");
+      expect(legalActions(t, "p1").some((a) => a.type === "tapForMana" && a.source === amulet2)).toBe(false);
     });
 
     it("Fiery Islet: {U} or {R} for 1 life; {1}, {T}, sacrifice it: draw a card", () => {
@@ -501,5 +514,20 @@ describe("Vivi Ornitier, Storm (EDH)", () => {
     expect(cost("Lingering Souls")).toMatchObject({ generic: 1, colored: { B: 1 } });
     const looting = idOf(s, "p1", "graveyard", "Faithless Looting");
     expect(legalActions(s, "p1").some((a) => a.type === "cast" && a.card === looting)).toBe(true);
+  });
+});
+
+describe("PLAN-M M9b: automatic payment", () => {
+  it("Vivi Ornitier makes more mana than the spell needs: the rest goes to the pool (found by the strict fuzz)", () => {
+    let s = scenario({
+      p1: { battlefield: [{ name: "Vivi Ornitier", counters: { "+1/+1": 4 } }], hand: ["Mogg Salvage"] },
+      p2: { battlefield: ["Jeweled Amulet"] },
+    });
+    const amulet = idOf(s, "p2", "battlefield", "Jeweled Amulet");
+    s = act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Mogg Salvage"), targets: { t: [amulet] } });
+    // {2}{R} paid; the fourth mana stays in the pool.
+    expect(Object.values(pool(s, "p1")).reduce((a, b) => a + b, 0)).toBe(1);
+    s = settle(s);
+    expect(idsOf(s, "p2", "graveyard", "Jeweled Amulet")).toHaveLength(1);
   });
 });

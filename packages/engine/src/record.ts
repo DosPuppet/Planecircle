@@ -605,8 +605,18 @@ export const RECORD_VERSION = 1;
  *   Xenic Poltergeist lasts until your next upkeep; Share the Spoils plays only during one's own turn; Emrakul, the
  *   World Anew has protection from all spells; Mariposa Military Base may enter tapped with two rad counters; Fathom
  *   Mage triggers once per counter; Cut a Deal counts the opponents who actually drew
+ * - 202: PLAN-M M9b: Sundering Eruption's "can't block" also reaches creatures arriving later this turn (emblem);
+ *   Collective Effort's escalate taps a creature for each mode beyond the first (chosen, `ModeDef.additionalCost`);
+ *   Forgotten Ancient and Resourceful Defense move any number of counters (a division, one per kind); Jeska's 0 triples
+ *   the damage dealt to her controller's opponents (player effect, `EventReplacement.sourceRef`); Yuna's mana makes the
+ *   next creature spell enter with two counters (`ManaAbilityDef.playerEffect`, the spell being paid included); Jeweled
+ *   Amulet notes the type of mana spent and produces it (`CostPaid.manaTypes`, `chosen.manaType`); Echoing Assault and
+ *   Bitter Work trigger once for each player attacked (`attackWith.eachPlayer`); "untap up to N lands" is chosen among
+ *   all tapped lands (Frantic Search, Rewind, Unwind, Finale of Revelation); Scholar of New Horizons asks whether the
+ *   Plains enters; Creeping Bloodsucker gains the life really dealt; the automatic payment with an "in any combination"
+ *   source making more mana than needed (Vivi Ornitier) puts the rest into the pool instead of failing
  */
-export const RULES_VERSION = 201;
+export const RULES_VERSION = 202;
 
 /** One checkpoint every N decisions (plus the last one of the game). */
 export const CHECKPOINT_EVERY = 25;

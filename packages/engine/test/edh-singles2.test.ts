@@ -717,7 +717,7 @@ describe("Commander (EDH): single cards, L to Z (L11)", () => {
       expect(idsOf(s, "p1", "graveyard", "Recurring Insight")).toHaveLength(1);
     });
 
-    it("Resourceful Defense: a permanent of yours with counters leaves, its counters onto another; {4}{W} moves counters", () => {
+    it("Resourceful Defense: a permanent of yours with counters leaves, its counters onto another; {4}{W} moves any number of counters", () => {
       let s = scenario({
         p1: {
           battlefield: ["Resourceful Defense", { name: "Bear Cub", counters: { "+1/+1": 2 } }, "Savannah Lions", "Swamp"],
@@ -731,7 +731,7 @@ describe("Commander (EDH): single cards, L to Z (L11)", () => {
         p1: {
           battlefield: [
             "Resourceful Defense",
-            { name: "Bear Cub", counters: { "+1/+1": 2 } },
+            { name: "Bear Cub", counters: { "+1/+1": 3, charge: 2 } },
             "Savannah Lions",
             ...lands("Plains", 5),
           ],
@@ -739,11 +739,20 @@ describe("Commander (EDH): single cards, L to Z (L11)", () => {
       });
       const bear = idOf(t, "p1", "battlefield", "Bear Cub");
       const lions2 = idOf(t, "p1", "battlefield", "Savannah Lions");
+      // One division for each kind: the share left on the first target stays there.
+      const asked: number[] = [];
       t = settle(
         activate(t, "p1", idOf(t, "p1", "battlefield", "Resourceful Defense"), { targets: { a: [bear], b: [lions2] } }),
-        (req) => (req.type === "number" ? [2] : undefined),
+        (req) => {
+          if (req.type !== "divide") return undefined;
+          asked.push(req.total);
+          // Two of the three +1/+1 counters, none of the charge counters.
+          return req.among.map((id) => (id === lions2 ? (req.total === 3 ? 2 : 0) : req.total === 3 ? 1 : 2));
+        },
       );
-      expect([plusOne(t, bear), plusOne(t, lions2)]).toEqual([0, 2]);
+      expect(asked).toEqual([3, 2]);
+      expect([plusOne(t, bear), plusOne(t, lions2)]).toEqual([1, 2]);
+      expect([t.objects[bear]?.counters.charge, t.objects[lions2]?.counters.charge ?? 0]).toEqual([2, 0]);
     });
 
     it("Rikku, Resourceful Guardian: counters put on a creature, it can't be blocked by opposing creatures; Steal moves a counter", () => {
@@ -804,6 +813,18 @@ describe("Commander (EDH): single cards, L to Z (L11)", () => {
       });
       t = settle(activate(t, "p1", idOf(t, "p1", "battlefield", "Scholar of New Horizons")), yes);
       expect(handNames(t, "p1")).toEqual(["Plains"]);
+      // PLAN-M M9b: the opponent has more lands, but the player keeps the Plains card in hand ("you may").
+      let u = scenario({
+        p1: {
+          battlefield: [{ name: "Scholar of New Horizons", counters: { "+1/+1": 1 } }, ...lands("Plains", 2)],
+          library: ["Plains", "Forest"],
+        },
+        p2: { battlefield: lands("Mountain", 4) },
+      });
+      u = settle(activate(u, "p1", idOf(u, "p1", "battlefield", "Scholar of New Horizons")), no);
+      expect(handNames(u, "p1")).toEqual(["Plains"]);
+      expect(idsOf(u, "p1", "battlefield", "Plains")).toHaveLength(2);
+      expect(u.players.p1?.library).toHaveLength(1);
     });
 
     it("Screamer-Killer: trample; you cast a creature spell with mana value 5 or greater, 5 damage to any target", () => {

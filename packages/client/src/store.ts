@@ -1039,6 +1039,8 @@ export const useGame = create<Store>((set, get) => {
     for (const p0 of c.option.picks ?? []) {
       if (c.picks[p0.slot] !== undefined || c.skippedPicks?.[p0.slot]) continue;
       if ((p0.when === "kicked" && !c.kicked) || (p0.when === "alternative" && c.payMode !== "alt")) continue;
+      // A cost of some modes only (escalate paid by tapping creatures: Collective Effort).
+      if (p0.modes && !p0.modes.includes(c.mode ?? 0)) continue;
       // Convoke, improvise, waterbending, delve and the payment details (Kíli's {0}): the automatic payment chooses,
       // except in full control.
       if ((p0.atMost || p0.autoOk) && !get().settings.fullControl) continue;

@@ -153,7 +153,8 @@ export const EDH_RAKDOS: Record<string, CardScript> = {
   // --- Damage and life loss ------------------------------------------------------------------------------------------
   "Creeping Bloodsucker": {
     abilities: [
-      triggered(when.yourUpkeep, [fx.damage(1, ref.eachOpponent), fx.gainLife(amount.refCount(ref.eachOpponent))], {
+      // "Life equal to the damage dealt this way": what was really dealt (prevention, replacement).
+      triggered(when.yourUpkeep, [fx.damage(1, ref.eachOpponent, undefined, { storeDealt: "d" }), fx.gainLife(amount.v("d"))], {
         label: "1 damage to each opponent; you gain that much life",
       }),
     ],

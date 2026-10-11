@@ -305,10 +305,9 @@ export const EDH_COUNTER_BLITZ: Record<string, CardScript> = {
   },
   "Yuna, Grand Summoner": {
     abilities: [
-      // Approximation: the two counters go to the creature spell paid with this mana (not the next one cast this turn).
-      manaAbility(ANY_COLOR, 1, {
-        rider: { spell: { types: ["Creature"] }, effects: [fx.spellArrivalCounters(ref.eventObject, 2)] },
-      }),
+      // "When you next cast a creature spell this turn": the next creature spell, paid with this mana or not (the one
+      // being cast if Yuna pays for it).
+      manaAbility(ANY_COLOR, 1, { playerEffect: { nextSpell: { filter: { types: ["Creature"] }, counters: 2 } } }),
       triggered(
         toGraveyard({ permanent: true, controller: "you", other: true, withCounter: "any" }),
         fx.may(
@@ -379,15 +378,11 @@ export const EDH_COUNTER_BLITZ: Record<string, CardScript> = {
       triggered(when.castSpell("any"), fx.may("Put a +1/+1 counter on Forgotten Ancient?", fx.addCounters(ref.self, 1)), {
         label: "A spell is cast: a +1/+1 counter",
       }),
-      // Approximation: all its counters go onto a single other creature.
+      // "Any number of +1/+1 counters onto other creatures": no target, divided as the ability resolves (ruling).
       triggered(
         when.yourUpkeep,
-        fx.may(
-          "Move its +1/+1 counters onto another creature?",
-          fx.removeCounters(ref.self, 999, "+1/+1", "m"),
-          fx.addCounters(ref.target(), amount.v("m")),
-        ),
-        { targets: [target.upTo(1, target.creature("t", { other: true }))], label: "Move its +1/+1 counters" },
+        [fx.moveCountersDivided(ref.self, ref.zone("battlefield", ref.eachPlayer, { types: ["Creature"], other: true }))],
+        { label: "Move any number of its +1/+1 counters onto other creatures" },
       ),
     ],
   },
@@ -441,13 +436,22 @@ export const EDH_COUNTER_BLITZ: Record<string, CardScript> = {
   "Scholar of New Horizons": {
     abilities: [
       entersWith({ counters: 1, label: "A +1/+1 counter" }),
-      // Automatic choice: the Plains enters the battlefield whenever that is allowed.
+      // The Plains card found is held in the library, then put onto the battlefield (if allowed and the player wants to)
+      // or into the hand; then the library is shuffled.
       activated({
         tap: true,
         removeCounterFrom: { filter: {}, kind: "any" },
         effects: [
-          ...fx.when(cond.opponentHasMore("lands"), fx.search({ subtype: "Plains" }, { to: "battlefield", tapped: true })),
-          ...fx.when(cond.not(cond.opponentHasMore("lands")), fx.search({ subtype: "Plains" }, { to: "hand" })),
+          { op: "search", filter: { subtype: "Plains" }, count: 1, store: "plains", reveal: true },
+          ...fx.when(
+            cond.opponentHasMore("lands"),
+            fx.may(
+              "Put the Plains card onto the battlefield tapped (otherwise into your hand)?",
+              fx.moveTo(ref.stored("plains"), { to: "battlefield", tapped: true }),
+            ),
+          ),
+          fx.moveTo(ref.stored("plains"), { to: "hand" }),
+          fx.shuffle(),
         ],
         label: "Remove a counter: search for a Plains card",
       }),
@@ -622,15 +626,15 @@ export const EDH_COUNTER_BLITZ: Record<string, CardScript> = {
         targets: [target.permanent("t", [], { controller: "you" }, "permanent you control")],
         label: "Its counters onto one of your permanents",
       }),
-      // Approximation: all +1/+1 counters are moved (not "any number" of each kind).
+      // "Any number of counters": a division for each kind of counter on the first target.
       activated({
         mana: "{4}{W}",
         targets: [
           target.permanent("a", [], { controller: "you", withCounter: "any" }, "permanent of yours with counters"),
           { ...target.permanent("b", [], { controller: "you" }, "another permanent of yours"), otherThan: ["a"] },
         ],
-        effects: [fx.removeCounters(ref.target("a"), 999, "+1/+1", "m"), fx.addCounters(ref.target("b"), amount.v("m"))],
-        label: "Move the +1/+1 counters from one of your permanents onto another",
+        effects: [fx.moveCountersDivided(ref.target("a"), ref.target("b"), "any")],
+        label: "Move any number of counters from one of your permanents onto another",
       }),
     ],
   },
@@ -664,10 +668,10 @@ export const EDH_COUNTER_BLITZ: Record<string, CardScript> = {
   "Forge of Heroes": FORGE_OF_HEROES,
 
   // --- Instants and sorceries -----------------------------------------------------------------------------------------
-  // Approximation: escalate is paid {1} for each additional mode (not by tapping an untapped creature).
+  // Escalate—tap an untapped creature you control, for each mode beyond the first (the player chooses them).
   "Collective Effort": {
     spell: escalate(
-      "{1}",
+      { tap: { types: ["Creature"], controller: "you" } },
       {
         label: "Destroy a creature with power 4 or greater",
         targets: [{ ...target.creature("c", { minPower: 4 }), label: "creature with power 4 or greater" }],

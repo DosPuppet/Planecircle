@@ -792,3 +792,58 @@ describe("PLAN-M M9a: approximations lifted", () => {
     expect(legalActions(s, "p2").some((a) => a.type === "cast" && a.card === bolt)).toBe(true);
   });
 });
+
+describe("PLAN-M M9b: approximations lifted", () => {
+  it("Echoing Assault: one trigger for each player attacked; the copy of a creature attacking that player attacks them", () => {
+    let s = scenario({
+      players: 3,
+      p1: { battlefield: ["Echoing Assault", "Bear Cub", "Llanowar Elves", "Savannah Lions"] },
+    });
+    const bear = idOf(s, "p1", "battlefield", "Bear Cub");
+    const elves = idOf(s, "p1", "battlefield", "Llanowar Elves");
+    const lions = idOf(s, "p1", "battlefield", "Savannah Lions");
+    s = advanceUntil(s, (x) => x.pending?.kind === "declareAttackers");
+    s = act(s, "p1", {
+      type: "declareAttackers",
+      attackers: [
+        { id: bear, defender: "p2" },
+        { id: elves, defender: "p2" },
+        { id: lions, defender: "p3" },
+      ],
+    });
+    // Two triggers: the one for p2 offers the creatures attacking p2; the one for p3, Savannah Lions alone (no question).
+    expect(s.triggers.length + s.stack.length).toBe(2);
+    const offered: (string | undefined)[][] = [];
+    s = settle(s, (req, _p, cur) => {
+      if (req.type === "pick" && req.intent === "triggerTarget") offered.push(namesIn(cur, req.options).sort());
+      return req.type === "pick" && req.options.includes(bear) ? [bear] : undefined;
+    });
+    expect(offered).toEqual([["Bear Cub", "Llanowar Elves"]]);
+    const copies = s.battlefield.filter((id) => s.objects[id]?.isToken);
+    expect(copies.map((id) => [nameOf(s, id), s.combat?.attackers.find((a) => a.id === id)?.defender]).sort()).toEqual([
+      ["Bear Cub", "p2"],
+      ["Savannah Lions", "p3"],
+    ]);
+    expect(copies.map((id) => chars(s, id).power)).toEqual([1, 1]);
+  });
+
+  it("Sundering Eruption: creatures without flying that arrive later can't block this turn either", () => {
+    let s = scenario({
+      p1: {
+        battlefield: [...lands("Mountain", 3), ...lands("Forest", 2)],
+        hand: ["Sundering Eruption // Volcanic Fissure", "Bear Cub"],
+      },
+      p2: { battlefield: ["Plains", "Serra Angel"] },
+    });
+    s = settle(
+      castIt(s, "p1", "Sundering Eruption // Volcanic Fissure", { targets: { t: [idOf(s, "p2", "battlefield", "Plains")] } }),
+    );
+    s = settle(castIt(s, "p1", "Bear Cub"));
+    const bear = idOf(s, "p1", "battlefield", "Bear Cub");
+    expect(chars(s, bear).keywords).toContain("cantBlock");
+    expect(chars(s, idOf(s, "p2", "battlefield", "Serra Angel")).keywords).not.toContain("cantBlock");
+    // Only this turn.
+    s = advanceUntil(s, (x) => x.turn.active === "p2");
+    expect(chars(s, bear).keywords).not.toContain("cantBlock");
+  });
+});

@@ -219,7 +219,12 @@ const CardView = memo(function CardView({
               </div>
             )}
             {obj.damage > 0 && <div className="dmg-badge">−{obj.damage}</div>}
-            {obj.chosen && (
+            {obj.chosen?.manaType && (
+              <div className="chosen-badge" title={t("Noted type of mana")}>
+                <ManaCost cost={`{${obj.chosen.manaType}}`} size={15} />
+              </div>
+            )}
+            {obj.chosen && !obj.chosen.manaType && (
               <div className="chosen-badge" title={t("Choice made as it entered")}>
                 {obj.chosen.creatureType ??
                   obj.chosen.mode ??

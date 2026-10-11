@@ -5506,3 +5506,31 @@ describe("Avatar: The Last Airbender: a chosen opponent (PLAN-H H4)", () => {
     expect(s.turnLog.some((e) => e.e === "zone" && e.to === "battlefield" && e.controller === "p3")).toBe(true);
   });
 });
+
+describe("PLAN-M M9b: Bitter Work", () => {
+  it("draws one card for each player attacked with a creature with power 4 or greater", () => {
+    let s = scenario({
+      players: 3,
+      p1: {
+        battlefield: ["Bitter Work", "Serra Angel", "Serra Angel", "Serra Angel", "Bear Cub"],
+        library: lands("Island", 5),
+      },
+    });
+    const [a, b, c] = idsOf(s, "p1", "battlefield", "Serra Angel") as [string, string, string];
+    const bear = idOf(s, "p1", "battlefield", "Bear Cub");
+    const hand = s.players.p1?.hand.length ?? 0;
+    s = advanceUntil(s, (x) => x.pending?.kind === "declareAttackers");
+    // Two Angels at p2, one at p3, the Bear Cub (power 2) alone doesn't count.
+    s = act(s, "p1", {
+      type: "declareAttackers",
+      attackers: [
+        { id: a, defender: "p2" },
+        { id: b, defender: "p2" },
+        { id: c, defender: "p3" },
+        { id: bear, defender: "p3" },
+      ],
+    });
+    s = settle(s);
+    expect(s.players.p1?.hand.length).toBe(hand + 2);
+  });
+});

@@ -384,3 +384,79 @@ describe("PLAN-M M9a: approximations lifted", () => {
     expect(hand(s, "p1")).toBe(1);
   });
 });
+
+describe("PLAN-M M9b: approximations lifted", () => {
+  it("Yuna, Grand Summoner: the next creature spell cast this turn enters with two more +1/+1 counters, paid with its mana or not", () => {
+    let s = scenario({
+      p1: { battlefield: ["Yuna, Grand Summoner", ...lands("Forest", 4)], hand: ["Shock", "Bear Cub", "Llanowar Elves"] },
+    });
+    const yuna = idOf(s, "p1", "battlefield", "Yuna, Grand Summoner");
+    // Tapped by hand for {R}: Shock (not a creature spell) doesn't use up the effect.
+    s = act(s, "p1", { type: "tapForMana", source: yuna, ability: 0, color: "R" });
+    s = settle(castIt(s, "p1", "Shock", { targets: { t: ["p2"] } }));
+    expect(s.players.p2?.life).toBe(18);
+    // Bear Cub, paid with the Forests: the next creature spell.
+    s = settle(castIt(s, "p1", "Bear Cub"));
+    expect(plusOne(s, idOf(s, "p1", "battlefield", "Bear Cub"))).toBe(2);
+    // Only the next one.
+    s = settle(castIt(s, "p1", "Llanowar Elves"));
+    expect(plusOne(s, idOf(s, "p1", "battlefield", "Llanowar Elves"))).toBe(0);
+  });
+
+  it("Yuna, Grand Summoner: tapped by the automatic payment of a creature spell, that spell is the next one", () => {
+    let s = scenario({ p1: { battlefield: ["Yuna, Grand Summoner", "Forest"], hand: ["Bear Cub"] } });
+    s = settle(castIt(s, "p1", "Bear Cub"));
+    expect(s.objects[idOf(s, "p1", "battlefield", "Yuna, Grand Summoner")]?.tapped).toBe(true);
+    expect(plusOne(s, idOf(s, "p1", "battlefield", "Bear Cub"))).toBe(2);
+    // The effect ended with the spell (nothing left for later).
+    expect(s.playerEffects.some((e) => e.ability.nextSpell)).toBe(false);
+  });
+
+  it("Collective Effort: escalate—tap an untapped creature you control for each mode beyond the first, chosen by the player", () => {
+    let s = scenario({
+      p1: {
+        battlefield: [...lands("Plains", 3), "Bear Cub", "Savannah Lions", "Llanowar Elves"],
+        hand: ["Collective Effort"],
+      },
+      p2: { battlefield: ["Serra Angel", "Resourceful Defense"] },
+    });
+    const card = idOf(s, "p1", "hand", "Collective Effort");
+    const bear = idOf(s, "p1", "battlefield", "Bear Cub");
+    const lions = idOf(s, "p1", "battlefield", "Savannah Lions");
+    const elves = idOf(s, "p1", "battlefield", "Llanowar Elves");
+    const angel = idOf(s, "p2", "battlefield", "Serra Angel");
+    const defense = idOf(s, "p2", "battlefield", "Resourceful Defense");
+    const option = legalActions(s, "p1").find((a) => a.type === "cast" && a.card === card);
+    // Modes by combination: 0 A, 1 B, 2 A+B, 3 C, 4 A+C, 5 B+C, 6 A+B+C. Without mana, the escalate is a creature.
+    const taps = option?.type === "cast" ? (option.picks ?? []).filter((p) => p.slot === "costTap") : [];
+    expect(taps.map((p) => [p.count, p.modes])).toEqual([
+      [1, [2, 4, 5]],
+      [2, [6]],
+    ]);
+    // A choice for a mode without that cost is refused.
+    expect(() =>
+      castIt(s, "p1", "Collective Effort", { mode: 0, targets: { c: [angel] }, picks: { costTap: [bear] } }),
+    ).toThrow();
+    s = settle(
+      castIt(s, "p1", "Collective Effort", {
+        mode: 6,
+        targets: { c: [angel], e: [defense], p: ["p1"] },
+        picks: { costTap: [bear, elves] },
+      }),
+    );
+    expect(idsOf(s, "p2", "battlefield", "Serra Angel")).toHaveLength(0);
+    expect(idsOf(s, "p2", "battlefield", "Resourceful Defense")).toHaveLength(0);
+    expect([bear, lions, elves].map((id) => s.objects[id]?.tapped)).toEqual([true, false, true]);
+    expect([bear, lions, elves].map((id) => plusOne(s, id))).toEqual([1, 1, 1]);
+  });
+
+  it("Collective Effort: with a single untapped creature, the three modes together aren't offered", () => {
+    const s = scenario({
+      p1: { battlefield: [...lands("Plains", 3), "Bear Cub"], hand: ["Collective Effort"] },
+      p2: { battlefield: ["Serra Angel", "Resourceful Defense"] },
+    });
+    const card = idOf(s, "p1", "hand", "Collective Effort");
+    const option = legalActions(s, "p1").find((a) => a.type === "cast" && a.card === card);
+    expect(option?.type === "cast" && option.modes.map((m) => m.index)).toEqual([0, 1, 2, 3, 4, 5]);
+  });
+});

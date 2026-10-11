@@ -60,21 +60,21 @@ export const EDH_VIVI: Record<string, CardScript> = {
       activated({ mana: "{1}", tap: true, sacrifice: true, effects: [fx.draw(1)], label: "Sacrifice it: draw a card" }),
     ],
   },
-  // The noted mana type is not kept: the stored mana is of any color (see docs/approximations.md).
+  // The type of the mana spent is noted on the artifact (`chosen.manaType`); the second ability produces the last noted
+  // type (none noted: no mana).
   "Jeweled Amulet": {
     abilities: [
       activated({
         mana: "{1}",
         tap: true,
         activationCondition: cond.not(cond.counterAtLeast("charge", 1)),
-        effects: [fx.counters(ref.self, "charge")],
-        label: "Put a charge counter on it (only without a charge counter)",
+        effects: [fx.counters(ref.self, "charge"), fx.chooseForSelf("manaType", { fromCost: true })],
+        label: "Put a charge counter on it and note the type of mana spent (only without a charge counter)",
       }),
-      activated({
-        tap: true,
-        removeCounters: { kind: "charge", n: 1 },
-        effects: [fx.addManaChoice(1, [...ANY_COLOR, "C"])],
-        label: "Remove the charge counter: one mana",
+      manaAbility([], 1, {
+        produceChosen: true,
+        removeCounter: "charge",
+        condition: cond.counterAtLeast("charge", 1),
       }),
     ],
   },

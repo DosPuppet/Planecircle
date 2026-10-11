@@ -156,6 +156,16 @@ export const when = {
     ...(anyPlayer ? { anyPlayer } : {}),
   }),
   /**
+   * "Whenever you attack a player [with one or more creatures matching the filter]": once for each player attacked,
+   * `ref.eventPlayer` (Echoing Assault, Bitter Work).
+   */
+  attackAPlayerWith: (min = 1, filter?: ObjectFilter): TriggerSpec => ({
+    on: "attackWith",
+    min,
+    filter,
+    eachPlayer: true,
+  }),
+  /**
    * "Whenever an opponent attacks you with N or more creatures" (you, not your planeswalkers);
    * `orYourPlaneswalkers`: "… if N or more attack you and/or your planeswalkers" (Tomik, Mangara).
    */

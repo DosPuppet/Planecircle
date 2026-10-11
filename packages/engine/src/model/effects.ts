@@ -511,7 +511,18 @@ export type Effect =
   | {
       op: "chooseOnEnter";
       /** `player`: a player in the game (Saskia the Unyielding), read with `ref.chosenPlayer`. */
-      kind: "creatureType" | "color" | "cardName" | "landName" | "landType" | "parity" | "mode" | "number" | "player";
+      /** `manaType`: a type of mana (107.4), read by `manaAbility(…, { produceChosen })`. */
+      kind:
+        | "creatureType"
+        | "color"
+        | "cardName"
+        | "landName"
+        | "landType"
+        | "parity"
+        | "mode"
+        | "number"
+        | "player"
+        | "manaType";
       options?: string[];
       /** Name chosen among the designated cards (Koh, the Face Stealer: a card exiled with it). */
       optionsFrom?: Ref;
@@ -520,6 +531,11 @@ export type Effect =
       who?: Ref;
       /** `player` as it enters: it enters under the control of the chosen player (Xantcha, Sleeper Agent). */
       control?: boolean;
+      /**
+       * `manaType`: among the types of mana spent to pay the ability's cost, noted without a question when there is
+       * only one (Jeweled Amulet: "note the type of mana spent to pay this activation cost"); none spent: nothing.
+       */
+      fromCost?: boolean;
     }
   /**
    * Devour N (702.82, in `CardDef.asEnters`): sacrifice permanents as it enters; N +1/+1 counters per sacrificed
@@ -866,7 +882,12 @@ export type Effect =
    * Distribute counters (+1/+1 by default, `counter`) among the targets, or on resolution among the designated
    * objects; `anyNumber`: "among any number of" (no minimum per object, Crashing Wave).
    */
-  | { op: "countersDivided"; total: Amount; to: Ref; counter?: string; anyNumber?: boolean }
+  /**
+   * `from`: "move any number of [kind] counters from [it] onto [them]" (Forgotten Ancient, Resourceful Defense): the
+   * counters of that object, divided among the recipients and itself (its share stays on it); `counter: "any"`: one
+   * division for each kind of counter it has. `total` is then ignored.
+   */
+  | { op: "countersDivided"; total: Amount; to: Ref; counter?: string; anyNumber?: boolean; from?: Ref }
   /**
    * Changes the target of a spell or ability with a single target (Bolt Bend); with several targets, new targets of
    * choice for each word "target", the original ones offered ("you may choose new targets": Commandeer).

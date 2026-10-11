@@ -27,7 +27,9 @@ type Divided = Extract<Effect, { op: "damageDivided" | "countersDivided" }>;
 /** "Divide … among the targets" effect of an item (at the top level of its effects) and its "target" word. */
 export function dividedEffect(s: GameState, item: StackItem): { effect: Divided; spec: string } | undefined {
   for (const e of specsAndEffects(s, item).effects) {
-    if ((e.op === "damageDivided" || e.op === "countersDivided") && e.to.kind === "target") return { effect: e, spec: e.to.id };
+    // Counters moved from an object (`from`): divided as it resolves, its share included.
+    if ((e.op === "damageDivided" || (e.op === "countersDivided" && !e.from)) && e.to.kind === "target")
+      return { effect: e, spec: e.to.id };
   }
   return undefined;
 }

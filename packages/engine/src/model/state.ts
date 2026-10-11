@@ -119,6 +119,8 @@ export interface GameObject {
     number?: number;
     /** A player (Saskia the Unyielding: "as it enters, choose a player"). */
     player?: PlayerId;
+    /** A type of mana, noted (Jeweled Amulet: "the type of mana spent to pay this activation cost"). */
+    manaType?: ManaType;
     /** Secret choice (A Killer Among Us): hidden from opponents until it is revealed. */
     secret?: boolean;
   };
@@ -443,6 +445,8 @@ export interface CostPaid {
   beheld?: ObjectId[];
   /** Ninjutsu (702.49c): what the returned unblocked attacker was attacking (player or planeswalker). */
   defender?: string;
+  /** Types of the mana spent to pay an activation cost (Jeweled Amulet: "note the type of mana spent"). */
+  manaTypes?: ManaType[];
 }
 
 /**

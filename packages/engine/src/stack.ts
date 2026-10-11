@@ -21,6 +21,7 @@ import {
   addEffect,
   announceDiscard,
   announceDiscardBatch,
+  attackingRef,
   cardRefOf,
   concreteSpec,
   evalAmount,
@@ -127,7 +128,7 @@ import type {
   StackItem,
   TargetSpec,
 } from "./types";
-import { BASIC_LAND_TYPES, isManaAbility, PERMANENT_TYPES } from "./types";
+import { BASIC_LAND_TYPES, isManaAbility, MANA_TYPES, PERMANENT_TYPES } from "./types";
 
 export { RulesError };
 
@@ -2001,6 +2002,15 @@ export function additionalOptions(
  * exile cards from your graveyard. Payment uses what is worth the least: tokens and small permanents first; to tap,
  * creatures before lands. `null`: the cost can't be paid.
  */
+/**
+ * The card with the additional cost of the chosen mode added to its own (escalate paid by tapping creatures: Collective
+ * Effort); the card itself for a mode without one.
+ */
+export function withModeCost(d: CardDef, mode: ModeDef | undefined): CardDef {
+  const extra = mode?.additionalCost;
+  return extra ? { ...d, additionalCost: { ...d.additionalCost, ...extra } } : d;
+}
+
 /** Additional costs of the spell, and those of flashback when it is cast that way (Twinned Vision, Group Project). */
 function additionalCostOf(d: CardDef, flashback: boolean): CardDef["additionalCost"] {
   const extra = flashback ? castOption(d, "flashback")?.extra : undefined;
@@ -2344,8 +2354,9 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
   const bendPaid =
     waterbendAmount(d, kicked, x) +
     (terms.waterbendOverride && terms.costOverride && !free && !alternative ? terms.costOverride.generic : 0);
-  // Additional costs: checked before any state change.
-  const opts = additionalOptions(s, player, card, d, flashback);
+  // Additional costs: checked before any state change (with those of the chosen mode).
+  const dm = withModeCost(d, mode);
+  const opts = additionalOptions(s, player, card, dm, flashback);
   if (!opts) throw new RulesError(msg("Can't pay the additional cost"));
   // Kicker without mana (bargain): the permanent to sacrifice or return, chosen by the player (`sacrifice`, when the
   // spell has no other sacrifice as a cost); without a choice, the cheapest, tokens first.
@@ -2393,9 +2404,9 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
   };
   check(discard, opts.discard);
   check(sacrifice, opts.sacrifice);
-  const autoPaid = autoAdditional(s, player, card, d, flashback);
+  const autoPaid = autoAdditional(s, player, card, dm, flashback);
   if (!autoPaid) throw new RulesError(msg("Can't pay the additional cost"));
-  const auto = chosenAdditional(s, player, card, d, flashback, autoPaid, choices.picks);
+  const auto = chosenAdditional(s, player, card, dm, flashback, autoPaid, choices.picks);
   const beheldIds = beholdChoice(s, player, card, d, choices.picks?.behold, flashback);
   const beheldId = beheldIds[0];
   // "… if you controlled a Faerie as you cast this spell": evaluated now (601.2), before the payment.
@@ -2688,6 +2699,14 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
     });
     if (riders.length) item.riders = riders;
     if (riders.includes("uncounterable")) item.uncounterable = true;
+    // A "next spell" effect set by a mana ability activated to pay (Yuna, Grand Summoner): this spell is the next one
+    // cast (601.2i: it becomes cast once its costs are paid).
+    const late = consumeNextSpells(s, player, d);
+    if (late.length) {
+      next.push(...late);
+      item.arrival = arrivalFor(terms, next, d);
+      if (late.some((n) => n.uncounterable)) item.uncounterable = true;
+    }
   } catch (e) {
     rethrowAsRules(e, msg("Not enough mana"));
   }
@@ -4072,6 +4091,8 @@ export function activateAbility(s: GameState, player: PlayerId, source: ObjectId
   // Craft: the materials chosen by the player, otherwise the default ones (graveyard cards first).
   const materials = ab.cost.craft ? chosenCraftMaterials(s, player, source, ab, choices.materials) : [];
   if (!materials) throw new RulesError(msg("Not enough craft materials"));
+  // Types of the mana spent on the cost (Jeweled Amulet: "note the type of mana spent to pay this activation cost").
+  const manaSpent: Partial<Record<ManaType, number>> = {};
   if (ab.cost.mana) {
     const reserved = new Set([
       ...tapOthers,
@@ -4097,7 +4118,15 @@ export function activateAbility(s: GameState, player: PlayerId, source: ObjectId
       };
       if (choices.phyrexianLife && choices.phyrexianLife > (cost.phyrexian?.length ?? 0))
         throw new RulesError(msg("Not that many Phyrexian mana symbols to pay with life"));
-      payMana(s, player, cost, reserved, sacrificed.length ? { ...purpose, sacrificedForCost: new Set(sacrificed) } : purpose);
+      payMana(
+        s,
+        player,
+        cost,
+        reserved,
+        sacrificed.length ? { ...purpose, sacrificedForCost: new Set(sacrificed) } : purpose,
+        undefined,
+        manaSpent,
+      );
       if (ab.cost.tapToPay === "waterbend") bent(s, player, "water");
     } catch (e) {
       rethrowAsRules(e, msg("Not enough mana"));
@@ -4142,9 +4171,11 @@ export function activateAbility(s: GameState, player: PlayerId, source: ObjectId
   if (xc.payLife && x > 0) payLife_(s, player, x);
   for (const id of tapOthers) tapObject(s, obj(s, id));
   // The sacrificed permanents remain readable (last known information: "its toughness").
+  const spentTypes = MANA_TYPES.filter((m) => (manaSpent[m] ?? 0) > 0);
   item.paid = {
     sacrificed: sacrificed.length ? [...sacrificed] : undefined,
     tapped: tapOthers.length ? [...tapOthers] : undefined,
+    ...(spentTypes.length ? { manaTypes: spentTypes } : {}),
   };
   for (const id of sacrificed) sacrificePermanent(s, id);
   if (ab.cost.self === "sacrifice") sacrificePermanent(s, source);
@@ -4315,7 +4346,8 @@ function resolveManaAbilityNow(s: GameState, item: StackItem): void {
  */
 export function stackItemSpecs(s: GameState, item: StackItem, specs = specsAndEffects(s, item).specs): TargetSpec[] {
   // The number of targets and the other values, fixed when targeting, are not evaluated again.
-  const again = (x: TargetSpec) => x.maxManaValueAmount !== undefined || (x.of !== undefined && x.of.kind !== "target");
+  const again = (x: TargetSpec) =>
+    x.maxManaValueAmount !== undefined || (x.of !== undefined && x.of.kind !== "target") || attackingRef(x) !== undefined;
   if (!specs.some(again)) return specs;
   const ctx = {
     ...staticContext(s, item.controller, item.sourceId, { sourceDefId: item.sourceDefId, event: item.event }),

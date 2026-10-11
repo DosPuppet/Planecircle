@@ -92,8 +92,8 @@ const BELZENLOK: TokenSpec = {
 export const EDH_TEVESH_JESKA: Record<string, CardScript> = {
   // --- Commanders -----------------------------------------------------------------------------------------------------
   // Tevesh Szat, Doom of Fools: with the Sephiroth deck (`edh/sephiroth.ts`).
-  // Approximation: "one of your opponents" is read from the creature's controller (an opposing creature triples the
-  // damage it deals to its own opponents).
+  // "One of your opponents": an effect of Jeska's controller (the replacement's recipient is seen from them), whose
+  // source is the target creature, frozen as the ability resolves.
   "Jeska, Thrice Reborn": {
     abilities: [
       entersWith({
@@ -104,22 +104,9 @@ export const EDH_TEVESH_JESKA: Record<string, CardScript> = {
       loyalty(0, {
         targets: [target.creature()],
         effects: [
-          fx.modify(
-            ref.target(),
-            {
-              addAbilities: [
-                eventReplacement({
-                  event: "damage",
-                  source: { self: true },
-                  to: "opponent",
-                  combat: true,
-                  modify: { times: 3 },
-                  label: "Deals triple combat damage to opponents",
-                }),
-              ],
-            },
-            "untilYourNextTurn",
-          ),
+          fx.untilYourNextTurn({
+            replacement: { event: "damage", sourceRef: ref.target(), to: "opponent", combat: true, modify: { times: 3 } },
+          }),
         ],
         label: "Until your next turn, that creature deals triple combat damage to your opponents",
       }),

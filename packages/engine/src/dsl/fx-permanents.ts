@@ -200,7 +200,7 @@ export const permanentsFx = {
    */
   chooseForSelf: (
     kind: Extract<Effect, { op: "chooseOnEnter" }>["kind"],
-    opts: { options?: string[]; optionsFrom?: Ref; secret?: boolean; who?: Ref; control?: boolean } = {},
+    opts: { options?: string[]; optionsFrom?: Ref; secret?: boolean; who?: Ref; control?: boolean; fromCost?: boolean } = {},
   ): Effect => ({ op: "chooseOnEnter", kind, ...opts }),
   /**
    * "You may have [this permanent] enter as a copy of [filter]" (707.9, in `asEnters`): see the `chooseCopy` effect

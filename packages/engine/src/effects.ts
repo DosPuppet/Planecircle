@@ -240,8 +240,15 @@ export function needsConcrete(t: TargetSpec): boolean {
     t.manaValueAmount !== undefined ||
     t.maxManaValueAmount !== undefined ||
     t.maxTotalManaValueAmount !== undefined ||
-    (t.of !== undefined && t.of.kind !== "target")
+    (t.of !== undefined && t.of.kind !== "target") ||
+    attackingRef(t) !== undefined
   );
+}
+
+/** "Target creature that's attacking that player" (Echoing Assault): the designated players, resolved at targeting. */
+export function attackingRef(t: TargetSpec): Ref | undefined {
+  const a = t.filter.objects?.attacking;
+  return a && typeof a === "object" && !Array.isArray(a) ? a : undefined;
 }
 
 /**
@@ -265,9 +272,11 @@ export function concreteSpec(s: GameState, ctx: EffectContext, t: TargetSpec, re
     out.of = undefined;
     if (players.length > 0 || !resolving) out.ofPlayers = players;
   }
+  const attacking = attackingRef(t);
   const extra: ObjectFilter = {
     ...(t.manaValueAmount !== undefined ? { manaValue: evalAmount(s, ctx, t.manaValueAmount) } : {}),
     ...(t.maxManaValueAmount !== undefined ? { maxManaValue: evalAmount(s, ctx, t.maxManaValueAmount) } : {}),
+    ...(attacking ? { attacking: resolveRef(s, ctx, attacking).filter((p) => isPlayer(s, p)) } : {}),
   };
   if (Object.keys(extra).length) {
     const f = t.filter;

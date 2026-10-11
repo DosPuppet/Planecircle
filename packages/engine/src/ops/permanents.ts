@@ -62,7 +62,7 @@ import type {
   Resolution,
   TokenSpec,
 } from "../types";
-import { BASIC_LAND_TYPES } from "../types";
+import { BASIC_LAND_TYPES, MANA_TYPES } from "../types";
 
 /**
  * Public names to feature for "choose a (land) card name": opposing permanents, then yours, then graveyards
@@ -275,6 +275,7 @@ export function enterChoiceRequest(
     if (preset) options = preset;
     else if (kind === "landType") options = [...BASIC_LAND_TYPES];
     else if (kind === "color") options = ["W", "U", "B", "R", "G"];
+    else if (kind === "manaType") options = [...MANA_TYPES];
     else if (kind === "parity") options = ["odd", "even"];
     // Talion, the Kindly Lord: a number from 1 to 10.
     else if (kind === "number") options = Array.from({ length: 10 }, (_, i) => String(i + 1));
@@ -330,38 +331,42 @@ export function enterChoiceRequest(
       prompt:
         kind === "color"
           ? msg("Choose a color")
-          : kind === "cardName"
-            ? msg("Choose a card name (those of opposing permanents come first)")
-            : kind === "landName"
-              ? msg("Choose a land card name (those of your opponents come first)")
-              : kind === "parity"
-                ? msg("Choose: odd or even mana value")
-                : kind === "mode"
-                  ? typeModes
-                    ? msg("Choose a card type")
-                    : msg("Choose: {options}", {
-                        options: options.length ? options.reduce((a, b) => msg("{a} or {b}", { a, b })) : "",
-                      })
-                  : kind === "number"
-                    ? msg("Choose a number between 1 and 10")
-                    : kind === "landType"
-                      ? msg("Choose a basic land type")
-                      : msg("Choose a creature type"),
+          : kind === "manaType"
+            ? msg("Choose a type of mana")
+            : kind === "cardName"
+              ? msg("Choose a card name (those of opposing permanents come first)")
+              : kind === "landName"
+                ? msg("Choose a land card name (those of your opponents come first)")
+                : kind === "parity"
+                  ? msg("Choose: odd or even mana value")
+                  : kind === "mode"
+                    ? typeModes
+                      ? msg("Choose a card type")
+                      : msg("Choose: {options}", {
+                          options: options.length ? options.reduce((a, b) => msg("{a} or {b}", { a, b })) : "",
+                        })
+                    : kind === "number"
+                      ? msg("Choose a number between 1 and 10")
+                      : kind === "landType"
+                        ? msg("Choose a basic land type")
+                        : msg("Choose a creature type"),
       options,
       labels:
         kind === "color"
           ? COLOR
-          : kind === "parity"
-            ? { odd: msg("Odd"), even: msg("Even") }
-            : kind === "landType"
-              ? {
-                  Plains: msg("Plains"),
-                  Island: msg("Island"),
-                  Swamp: msg("Swamp"),
-                  Mountain: msg("Mountain"),
-                  Forest: msg("Forest"),
-                }
-              : Object.fromEntries(options.map((o) => [o, (typeModes && CARD_TYPE_LABEL[o]) || o])),
+          : kind === "manaType"
+            ? Object.fromEntries(options.map((o) => [o, `{${o}}`]))
+            : kind === "parity"
+              ? { odd: msg("Odd"), even: msg("Even") }
+              : kind === "landType"
+                ? {
+                    Plains: msg("Plains"),
+                    Island: msg("Island"),
+                    Swamp: msg("Swamp"),
+                    Mountain: msg("Mountain"),
+                    Forest: msg("Forest"),
+                  }
+                : Object.fromEntries(options.map((o) => [o, (typeModes && CARD_TYPE_LABEL[o]) || o])),
       min: 1,
       max: 1,
       suggested: [best as string],
@@ -911,7 +916,12 @@ export const HANDLERS: OpHandlers = {
     if (!answer) {
       let preset: string[] | undefined;
       if (e.options) preset = [...e.options];
-      else if (e.optionsFrom && kind === "player") {
+      else if (e.fromCost) {
+        // Jeweled Amulet: the types of mana spent on the cost (none: nothing is noted).
+        preset = [...(ctx.paid?.manaTypes ?? [])];
+        if (preset.length === 0) return;
+        if (preset.length === 1) return chooseOnEnterDone(s, r, ctx, kind, preset[0] as string, e.secret);
+      } else if (e.optionsFrom && kind === "player") {
         // "Choose an opponent" (Shinryu): among the designated players still in the game; no question for a single one.
         preset = resolveRef(s, ctx, e.optionsFrom).filter((p) => isPlayer(s, p) && !s.players[p]?.lost);
         if (preset.length === 0) return;

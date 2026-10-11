@@ -4,7 +4,7 @@
  * (Xantcha, Humble Defector, Oft-Nabbed Goat, Alexios, Vislor Turlough, Slicer) and chaos (Possibility Storm, Share the
  * Spoils, Mob Verdict, Prisoner's Dilemma).
  */
-import type { Amount, CardScript, Condition, Effect, Ref } from "@mtgx/engine";
+import { type Amount, type CardScript, type Condition, type Effect, msg, type Ref } from "@mtgx/engine";
 import {
   activated,
   amount,
@@ -425,7 +425,7 @@ export const EDH_DEADPOOL: Record<string, CardScript> = {
       ),
     ],
   },
-  // Approximation: once per attack (not for each player attacked); the copy attacks the player its controller chooses.
+  // "Whenever you attack a player": once for each player attacked; the copy attacks that player.
   "Echoing Assault": {
     abilities: [
       staticAbility(
@@ -436,11 +436,12 @@ export const EDH_DEADPOOL: Record<string, CardScript> = {
         },
       ),
       triggered(
-        when.attackWith(1),
-        [fx.copyToken(ref.target(), { pt: 1, tapped: true, attacking: true, sacrificeAtEndStep: true })],
+        when.attackAPlayerWith(1),
+        [fx.copyToken(ref.target(), { pt: 1, tapped: true, attacking: ref.eventPlayer, sacrificeAtEndStep: true })],
         {
-          targets: [target.creature("t", { controller: "you", token: false, attacking: true })],
-          label: "A 1/1 token copy of target nontoken attacking creature, tapped and attacking (sacrificed at the end step)",
+          targets: [target.creature("t", { controller: "you", token: false, attacking: ref.eventPlayer })],
+          label:
+            "A 1/1 token copy of target nontoken creature attacking that player, tapped and attacking that player (sacrificed at the end step)",
         },
       ),
     ],
@@ -618,7 +619,21 @@ export const EDH_DEADPOOL: Record<string, CardScript> = {
       [
         fx.destroy(ref.target()),
         fx.search({ types: ["Land"], basic: true }, { to: "battlefield", tapped: true }, 1, ref.controllerOf(ref.target())),
-        fx.pumpAll({ types: ["Creature"], not: { keyword: "flying" } }, 0, 0, ["cantBlock"]),
+        // "Creatures without flying can't block this turn": a rule for the turn (those that arrive later too), as the
+        // static of an emblem until end of turn.
+        fx.emblem(
+          msg("Sundering Eruption (this turn)"),
+          msg("Creatures without flying can't block this turn."),
+          [
+            staticAbility(
+              { types: ["Creature"], not: { keyword: "flying" } },
+              { addKeywords: ["cantBlock"] },
+              { label: "Creatures without flying can't block this turn" },
+            ),
+          ],
+          false,
+          true,
+        ),
       ],
     ),
   },

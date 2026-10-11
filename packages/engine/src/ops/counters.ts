@@ -3,8 +3,8 @@
 import { createTokens } from "../actions";
 import { cardRef } from "../choices";
 import { counterLabel } from "../counterLabels";
-import type { OpHandlers } from "../effects";
-import { addEffect, evalAmount, resolveRef, store } from "../effects";
+import type { EffectContext, OpHandlers, OpResult } from "../effects";
+import { addEffect, cardRefOf, evalAmount, resolveRef, store } from "../effects";
 import { RulesError } from "../errors";
 import { effectivePower } from "../layers";
 import { blightTarget } from "../stack";
@@ -23,7 +23,7 @@ import {
 } from "../state";
 import { matchesObjectFilter } from "../targets";
 import { msg } from "../text";
-import type { GameObject, ObjectId, TokenSpec } from "../types";
+import type { Effect, GameObject, GameState, ObjectId, Resolution, TokenSpec } from "../types";
 import { askCopiesInstead } from "./permanents";
 
 /** Endure token (701.64): white N/N Spirit. */
@@ -333,6 +333,7 @@ export const HANDLERS: OpHandlers = {
     return;
   },
   countersDivided(s, r, e, ctx, key) {
+    if (e.from) return moveCountersDivided(s, r, e, ctx, key);
     // Division announced as the spell is put on the stack (601.2d): the share of a target that became illegal is lost (608.2b).
     const total = evalAmount(s, ctx, e.total);
     const division = e.to.kind === "target" ? r.item.division?.[e.to.id] : undefined;
@@ -527,3 +528,61 @@ export const HANDLERS: OpHandlers = {
     return;
   },
 };
+
+/**
+ * "Move any number of counters from [it] onto [them]" (Forgotten Ancient, Resourceful Defense): for each kind, a division
+ * of its counters among the recipients and the object itself (its share stays); a single question per kind, none
+ * without a recipient or a counter. Suggestion: nothing moves.
+ */
+function moveCountersDivided(
+  s: GameState,
+  r: Resolution,
+  e: Extract<Effect, { op: "countersDivided" }>,
+  ctx: EffectContext,
+  key: (suffix: string) => string,
+): OpResult {
+  const from = e.from ? resolveRef(s, ctx, e.from).find((id) => onBattlefield(s, id)) : undefined;
+  const o = from ? s.objects[from] : undefined;
+  if (!o || !from) return;
+  const to = resolveRef(s, ctx, e.to).filter((id) => id !== from && onBattlefield(s, id));
+  if (to.length === 0) return;
+  const kinds = e.counter === "any" ? Object.keys(o.counters).filter((k) => (o.counters[k] ?? 0) > 0) : [e.counter ?? P1P1];
+  for (const kind of kinds) {
+    const k = key(`cmove:${kind}`);
+    if (r.vars[`${k}:done`]) continue;
+    const total = o.counters[kind] ?? 0;
+    if (total <= 0) continue;
+    const answer = r.vars[k];
+    if (!answer) {
+      const among = [...to, from];
+      return {
+        ask: {
+          player: ctx.controller,
+          key: k,
+          request: {
+            type: "divide",
+            intent: "divideCounters",
+            prompt: msg("Move any number of {counter} counters from {card} (its share stays on it)", {
+              counter: counterLabel(kind),
+              card: cardRefOf(s, from),
+            }),
+            among,
+            total,
+            minEach: 0,
+            suggested: among.map((id) => (id === from ? total : 0)),
+          },
+        },
+      };
+    }
+    const split = answer.map(Number);
+    r.vars[`${k}:done`] = [1];
+    const moved = to.reduce((n, _, i) => n + (split[i] ?? 0), 0);
+    if (moved <= 0) continue;
+    changeCounters(s, o, kind, -moved);
+    to.forEach((id, i) => {
+      const t = s.objects[id];
+      if (t && (split[i] ?? 0) > 0) changeCounters(s, t, kind, split[i] ?? 0);
+    });
+  }
+  return;
+}

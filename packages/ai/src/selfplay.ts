@@ -283,6 +283,8 @@ export function checkOffers(state: GameState, player: string, where: string): vo
         ? Object.fromEntries(
             a.picks
               .filter((p) => !p.when && !p.countIsX && !p.repeat && !p.atMost)
+              // A cost of some modes only: with the decision's mode.
+              .filter((p) => !p.modes || ("mode" in d0 && p.modes.includes(d0.mode ?? 0)))
               .map((p) => [
                 p.slot,
                 keepSuggestion.has(p.slot)

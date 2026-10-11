@@ -893,21 +893,35 @@ describe("Commander (EDH): single cards, A to K (PLAN-L L11)", () => {
       expect(onField(s, "p1", "Foot Chopper")).toBe(1);
     });
 
-    it("Forgotten Ancient: a spell is cast, you may put a counter on it; at your upkeep, move its counters", () => {
+    it("Forgotten Ancient: a spell is cast, you may put a counter on it; at your upkeep, move any number of its counters onto other creatures", () => {
       let s = scenario({
         p1: { battlefield: ["Forgotten Ancient", "Bear Cub", "Mountain"], hand: ["Shock"] },
-        p2: { battlefield: ["Mountain"], hand: ["Lightning Bolt"] },
+        p2: { battlefield: ["Mountain", "Mountain", "Savannah Lions"], hand: ["Lightning Bolt", "Shock"] },
       });
       const ancient = idOf(s, "p1", "battlefield", "Forgotten Ancient");
       const bear = idOf(s, "p1", "battlefield", "Bear Cub");
+      const lions = idOf(s, "p2", "battlefield", "Savannah Lions");
       s = settle(castIt(s, "p1", "Shock", { targets: { t: ["p2"] } }), yes);
       expect(plusOne(s, ancient)).toBe(1);
       // An opponent's spell too.
       s = settle(castIt(act(s, "p1", { type: "pass" }), "p2", "Lightning Bolt", { targets: { t: ["p1"] } }), yes);
-      expect(plusOne(s, ancient)).toBe(2);
+      s = settle(castIt(act(s, "p1", { type: "pass" }), "p2", "Shock", { targets: { t: ["p1"] } }), yes);
+      expect(plusOne(s, ancient)).toBe(3);
+      // No target: the counters are divided as it resolves, among the other creatures (any controller) and itself (its
+      // share stays). Suggestion: nothing moves.
       s = advanceUntil(s, (x) => x.turn.active === "p1" && x.turn.step === "upkeep" && x.stack.length > 0);
-      s = settle(s, (req) => yes(req) ?? picking([bear])(req));
-      expect([plusOne(s, ancient), plusOne(s, bear)]).toEqual([0, 2]);
+      const asked: ChoiceRequest[] = [];
+      s = settle(s, (req) => {
+        if (req.type !== "divide") return undefined;
+        asked.push(req);
+        return req.among.map(() => 1);
+      });
+      const req = asked[0];
+      expect(req?.type === "divide" && [...req.among].sort()).toEqual([ancient, bear, lions].sort());
+      expect(req?.type === "divide" && req.suggested).toEqual(
+        req?.type === "divide" ? req.among.map((id) => (id === ancient ? 3 : 0)) : [],
+      );
+      expect([plusOne(s, ancient), plusOne(s, bear), plusOne(s, lions)]).toEqual([1, 1, 1]);
     });
 
     it("Franklin Richards: at your combat, if you cast a noncreature spell this turn, discover 6", () => {

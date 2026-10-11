@@ -32,6 +32,7 @@ import type {
   GameObject,
   GameState,
   LayerMods,
+  ManaType,
   ObjectId,
   PlayerId,
   Resolution,
@@ -189,6 +190,7 @@ export function chosenValue(kind: string, value: string): GameObject["chosen"] {
   if (kind === "number") return { number: Number(value) };
   if (kind === "landType") return { landType: value };
   if (kind === "player") return { player: value };
+  if (kind === "manaType") return { manaType: value as ManaType };
   return kind === "color" ? { color: value as Color } : { creatureType: value };
 }
 

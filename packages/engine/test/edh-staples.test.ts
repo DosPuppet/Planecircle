@@ -365,6 +365,34 @@ describe("Commander (EDH): common spells and engines (E9)", () => {
       expect(idsOf(s, "p1", "battlefield", "Island").every((id) => !s.objects[id]?.tapped)).toBe(true);
     });
 
+    it("Frantic Search: the lands to untap are chosen, any player's (PLAN-M M9b)", () => {
+      let s = scenario({
+        p1: {
+          battlefield: [...lands("Island", 3), { name: "Forest", tapped: true }],
+          hand: ["Frantic Search", "Bear Cub", "Shock"],
+          library: lands("Forest", 5),
+        },
+        p2: { battlefield: [{ name: "Mountain", tapped: true }] },
+      });
+      const forest = idOf(s, "p1", "battlefield", "Forest");
+      const mountain = idOf(s, "p2", "battlefield", "Mountain");
+      const islands = idsOf(s, "p1", "battlefield", "Island");
+      let asked: ChoiceRequest | undefined;
+      s = settle(act(s, "p1", { type: "cast", card: idOf(s, "p1", "hand", "Frantic Search") }), (req) => {
+        if (req.type !== "pick" || !req.options.includes(mountain)) return undefined;
+        asked = req;
+        return [forest, mountain, islands[0] as string];
+      });
+      // Your lands by default; the opponent's tapped Mountain is offered too.
+      expect(asked?.type === "pick" && [asked.max, [...asked.options].sort()]).toEqual([
+        3,
+        [...islands, forest, mountain].sort(),
+      ]);
+      expect(asked?.suggested).toHaveLength(3);
+      expect(asked?.suggested).not.toContain(mountain);
+      expect([forest, mountain, ...islands].map((id) => s.objects[id]?.tapped)).toEqual([false, false, false, true, true]);
+    });
+
     it("Village Rites: a creature sacrificed as an additional cost; draw two cards", () => {
       const none = scenario({ p1: { battlefield: ["Swamp"], hand: ["Village Rites"] } });
       expect(castOptions(none, "p1", idOf(none, "p1", "hand", "Village Rites"))).toEqual([]);

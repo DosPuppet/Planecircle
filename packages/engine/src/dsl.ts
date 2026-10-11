@@ -492,19 +492,27 @@ export function spree(...modes: { cost: string; label: string; targets?: TargetS
  * Escalate (702.120): "choose one or more modes; pay [cost] for each mode beyond the first". All the combinations are
  * generated (target ids differ from one mode to the other).
  */
-export function escalate(cost: string, ...modes: { label: string; targets?: TargetSpec[]; effects: Effects }[]): SpellDef {
-  const each = parseManaCost(cost);
+/**
+ * The escalate cost may also be paid otherwise than with mana: `{ tap: filter }`, "tap an untapped [creature] you
+ * control" (Collective Effort), as many times as there are modes beyond the first (`ModeDef.additionalCost`).
+ */
+export function escalate(
+  cost: string | { tap: ObjectFilter },
+  ...modes: { label: string; targets?: TargetSpec[]; effects: Effects }[]
+): SpellDef {
+  const each = typeof cost === "string" ? parseManaCost(cost) : undefined;
   const out: ModeDef[] = [];
   for (let mask = 1; mask < 1 << modes.length; mask++) {
     const chosen = modes.filter((_, i) => mask & (1 << i));
     const n = chosen.length - 1;
     const colored: ManaCost["colored"] = {};
-    for (const [k, v] of Object.entries(each.colored)) colored[k as ManaType] = (v ?? 0) * n;
+    for (const [k, v] of Object.entries(each?.colored ?? {})) colored[k as ManaType] = (v ?? 0) * n;
     out.push({
       label: joinLabels(chosen.map((m) => m.label)),
       targets: chosen.flatMap((m) => m.targets ?? []),
       effects: chosen.flatMap((m) => m.effects.flat()),
-      ...(n > 0 ? { extraCost: { generic: each.generic * n, colored, x: 0 } } : {}),
+      ...(n > 0 && each ? { extraCost: { generic: each.generic * n, colored, x: 0 } } : {}),
+      ...(n > 0 && typeof cost !== "string" ? { additionalCost: { tap: { filter: cost.tap, count: n } } } : {}),
     });
   }
   return { modes: out };
@@ -648,6 +656,8 @@ export function manaAbility(
     likeLands?: ObjectFilter;
     /** Commander: a color of your commander's color identity (Command Tower, Arcane Signet). */
     commanderIdentity?: boolean;
+    /** Player effect until end of turn set as it resolves (Yuna: "when you next cast a creature spell this turn"). */
+    playerEffect?: ManaAbilityDef["playerEffect"];
   } = {},
 ): ManaAbilityDef {
   return {
@@ -661,6 +671,7 @@ export function manaAbility(
     addCounter: opts.addCounter,
     removeCounter: opts.removeCounter,
     ...(opts.drawback ? { drawback: opts.drawback } : {}),
+    ...(opts.playerEffect ? { playerEffect: opts.playerEffect } : {}),
     ...(opts.linkedColors ? { produceColorsOf: { kind: "linked" } as Ref } : {}),
     ...(opts.colorsOf
       ? {
