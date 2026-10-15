@@ -218,6 +218,31 @@ const handCount = (page: Page) => page.evaluate(() => (window as unknown as DevW
   await page.context().close();
 }
 
+// Deck editor on a phone in portrait: the collection or the deck, one at a time, at full width.
+{
+  const ctx = await browser.newContext(devices["Pixel 7"]);
+  const page = await ctx.newPage();
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto("http://localhost:5173/?fast");
+  await page.getByRole("button", { name: "Mes decks" }).tap({ timeout: 15_000 });
+  await page.waitForTimeout(1000);
+  const vw = page.viewportSize()?.width ?? 0;
+  const wide = await page.evaluate(() => document.documentElement.scrollWidth);
+  check(wide <= vw + 1, "deck editor (phone): no sideways scrolling", { wide, vw });
+  check(
+    (await page.locator(".collection").isVisible()) && !(await page.locator(".deck-panel").isVisible()),
+    "deck editor (phone): the collection alone",
+  );
+  await page.getByRole("button", { name: /^Deck \(/ }).tap();
+  await page.waitForTimeout(300);
+  check(
+    (await page.locator(".deck-panel").isVisible()) && !(await page.locator(".collection").isVisible()),
+    "deck editor (phone): the deck alone after the switch",
+  );
+  await page.screenshot({ path: `${OUT}/deck-editor-portrait.png` });
+  await ctx.close();
+}
+
 // Phone in portrait: a duel has no rotate prompt (checked above); 3 players ask to turn the device to landscape.
 {
   const page = await open(devices["iPhone 13"], OPP, 2);

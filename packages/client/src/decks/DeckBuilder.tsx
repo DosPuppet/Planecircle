@@ -666,6 +666,8 @@ export function DeckBuilder() {
   const { save, remove, duplicate, create } = useDecks();
   const [tab, setTab] = useState<"main" | "side" | "commander">("main");
   const [modal, setModal] = useState<"import" | "export" | "hand" | null>(null);
+  // Phone: one pane at a time, the collection or the deck (switch shown under 760 px).
+  const [pane, setPane] = useState<"collection" | "deck">("collection");
   // A deck received by a link (QR code): the import window opens with it.
   const shared = useGame((s) => s.sharedDeck);
   const closeImport = () => {
@@ -852,7 +854,15 @@ export function DeckBuilder() {
           <LangToggle />
         </div>
       </header>
-      <div className="builder-body">
+      <div className="seg builder-switch">
+        <button type="button" className={pane === "collection" ? "on" : ""} onClick={() => setPane("collection")}>
+          {t("Collection")}
+        </button>
+        <button type="button" className={pane === "deck" ? "on" : ""} onClick={() => setPane("deck")}>
+          {t("Deck ({n})", { n: v.mainCount })}
+        </button>
+      </div>
+      <div className="builder-body" data-pane={pane}>
         {columns ? (
           <DeckColumns
             entries={shownTab === "main" ? deck.main : shownTab === "commander" ? (deck.commander ?? []) : (deck.sideboard ?? [])}

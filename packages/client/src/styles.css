@@ -1616,11 +1616,6 @@ button.emblem-chip.activatable {
       0 0 26px 8px color-mix(in srgb, var(--g, var(--target)) 45%, transparent);
   }
 }
-@keyframes blink {
-  50% {
-    opacity: 0.35;
-  }
-}
 
 /* Mana symbols */
 .mana-cost {
@@ -3109,9 +3104,6 @@ button.emblem-chip.activatable {
     box-shadow: 0 0 22px rgba(120, 190, 255, 0.75);
   }
 }
-.life {
-  display: inline-block;
-}
 
 /* ------------------------------------------------------------------------ */
 /* Deckbuilder                                                               */
@@ -3569,6 +3561,65 @@ button.emblem-chip.activatable {
   }
   .builder-preview {
     display: none;
+  }
+}
+/* Phone (narrow, or short in landscape): the collection or the deck, one at a time, at full width (switch under the
+   header). */
+.builder-switch {
+  display: none;
+}
+@media (max-width: 760px), (max-height: 500px) {
+  .builder {
+    grid-template-rows: auto auto minmax(0, 1fr);
+  }
+  .builder-switch {
+    display: inline-flex;
+    justify-self: center;
+    margin: 6px 0;
+  }
+  .builder-switch button {
+    padding: 6px 18px;
+    font-size: 0.875rem;
+  }
+  .builder-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .builder-body[data-pane="deck"] > :is(.collection, .deck-columns),
+  .builder-body[data-pane="collection"] > .deck-panel {
+    display: none;
+  }
+  .deck-panel,
+  .collection {
+    border-right: none;
+  }
+  .filters .search {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+  .builder-head {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+  .deck-name-input {
+    min-width: 0;
+    flex: 1;
+  }
+}
+/* Short screen (phone in landscape): the whole editor scrolls as one page, the header and filters go by; the switch
+   stays at the top. */
+@media (max-height: 500px) {
+  .builder {
+    display: block;
+    overflow-y: auto;
+  }
+  .builder-switch {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    display: flex;
+    width: fit-content;
+    margin: 6px auto;
+    background: var(--surface);
   }
 }
 

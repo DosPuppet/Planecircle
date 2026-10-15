@@ -70,5 +70,5 @@ The game screen follows MTG Arena, as phase-rs does, but stays light: no image t
   - tilt: `--tilt`.
 
   Use them rather than new hard-coded colors.
-- **Budget:** `tools/bundle-size.ts` budgets the stylesheet (`index.css`, 62 KB). A change deletes the rules it replaces.
+- **Budget:** `tools/bundle-size.ts` budgets the stylesheet (`index.css`, 64 KB). A change deletes the rules it replaces.
 - **No endless animation on the board,** except the target pulse (an accessibility cue) and the "thinking…" blink.
