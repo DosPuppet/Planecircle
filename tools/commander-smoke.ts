@@ -26,7 +26,8 @@ await page.goto("http://localhost:5173/?fast");
 await page.getByRole("button", { name: "Jouer contre l'IA" }).waitFor({ timeout: 30_000 });
 // The Commander format is offered on the home screen.
 await page.getByRole("button", { name: "Commander", exact: true }).first().click();
-// The Commander precons, sorted by estimated bracket (badge on the art).
+// The Commander precons, sorted by estimated bracket (badge on the art), in the window that changes your deck.
+await page.locator(".deck-summary").first().click();
 await page
   .locator(".deck-choice")
   .first()
@@ -41,6 +42,7 @@ const ranks = brackets.map((b) => {
 if (brackets.length < 3 || ranks.some((r, i) => Number.isNaN(r) || (i > 0 && r < (ranks[i - 1] ?? 0))))
   errors.push(`Commander decks not sorted by bracket: ${brackets.join(", ")}`);
 await page.screenshot({ path: join(OUT, "01-home-commander.png") });
+await page.keyboard.press("Escape");
 
 // Deck builder: the Edgar Markov precon, validated in Commander (100 cards, Game Changers, estimated bracket).
 await page.getByRole("button", { name: "Mes decks" }).click();

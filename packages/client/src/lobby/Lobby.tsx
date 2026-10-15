@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { SoundControl } from "../audio/SoundControl";
 import { ManaCost } from "../board/Card";
 import { resolveBoardTheme } from "../boardThemes";
+import { Dialog } from "../Dialog";
 import { deckCover, deckDescription, deckName, useAllDecks } from "../decks/store";
 import { CustomArtToggle, ImageRelayToggle } from "../ImageRelayToggle";
 import { useRelayActive } from "../images";
@@ -70,12 +71,15 @@ export function DeckChoice({
   value,
   onChange,
   format = "standard",
+  showLabel = true,
 }: {
   label: string;
   value: string;
   onChange: (id: string) => void;
   /** Format of the game: a deck illegal in this format cannot be chosen. */
   format?: Format;
+  /** The label above the list (not in the picker window, whose title it is). */
+  showLabel?: boolean;
 }) {
   const decks = useAllDecks();
   useRelayActive(); // deck art relayed if Scryfall is blocked
@@ -95,7 +99,7 @@ export function DeckChoice({
     .sort((a, b) => (category === "commander" ? rank(a) - rank(b) : 0));
   return (
     <div className="deck-choice">
-      <div className="deck-choice-label">{label}</div>
+      {showLabel && <div className="deck-choice-label">{label}</div>}
       <div className="seg deck-categories" role="tablist" aria-label={t("{label}: categories", { label })}>
         {CATEGORIES.map((c) => {
           const n = decks.filter((d) => deckCategory(d) === c.key).length;
@@ -171,6 +175,74 @@ export function DeckChoice({
   );
 }
 
+/**
+ * The chosen deck as a summary (art, name, colors, cards, format); a click opens a window to change it (`DeckChoice`):
+ * the home screen fits on one screen, whatever the number of decks.
+ */
+export function DeckSelect({
+  label,
+  value,
+  onChange,
+  format = "standard",
+  compact = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (id: string) => void;
+  format?: Format;
+  /** Several AIs: a smaller summary, the art on the side. */
+  compact?: boolean;
+}) {
+  const decks = useAllDecks();
+  useRelayActive(); // deck art relayed if Scryfall is blocked
+  const lang = useGame((s) => s.lang);
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  const d = decks.find((x) => x.id === value);
+  const status = d && deckStatus(d, format);
+  const cover = d && deckCover(d);
+  return (
+    <div className={`deck-pick ${compact ? "compact" : ""}`}>
+      <div className="deck-choice-label">{label}</div>
+      <button
+        type="button"
+        className={`deck-summary ${status && !status.ok ? "invalid" : ""}`}
+        onClick={() => setOpen(true)}
+        title={t("Change the deck")}
+      >
+        <div className="deck-summary-art" style={{ backgroundImage: cover ? `url(${cover})` : undefined }} />
+        <div className="deck-summary-body">
+          <div className="deck-name">
+            {d ? deckName(d, lang) : "—"} {d && <ManaCost cost={d.colors.map((c) => `{${c}}`).join("")} size={14} />}
+          </div>
+          {d && (
+            <div className="deck-count">
+              {t("{n} cards", { n: d.main.reduce((n, [k]) => n + k, 0) })}
+              {status?.ok ? ` · ${textIn(lang, status.format)}` : ""}
+              {status && !status.ok && <span className="deck-invalid"> · {status.reason && textIn(lang, status.reason)}</span>}
+            </div>
+          )}
+        </div>
+        <span className="deck-summary-change">{t("Change")}</span>
+      </button>
+      {open && (
+        <Dialog title={label} className="wide deck-picker" backdropClassName="full" onClose={() => setOpen(false)}>
+          <DeckChoice
+            label={label}
+            value={value}
+            format={format}
+            showLabel={false}
+            onChange={(id) => {
+              onChange(id);
+              setOpen(false);
+            }}
+          />
+        </Dialog>
+      )}
+    </div>
+  );
+}
+
 const LEVEL_KEY = "planecircle.aiLevel";
 
 /** AI levels; `label` and `hint` are texts to translate (`textIn`). */
@@ -221,9 +293,6 @@ export function Lobby() {
   // One deck per AI (three at most); at first, different decks to vary the opponents.
   const [ai, setAi] = useState(() => [1, 2, 3].map((i) => decks[i]?.id ?? decks[1]?.id ?? ""));
   const [aiCount, setAiCount] = useState(1);
-  // AI whose deck is being chosen (multiplayer).
-  const [editing, setEditing] = useState(0);
-  const slot = Math.min(editing, aiCount - 1);
   const byId = (id: string) => decks.find((d) => d.id === id);
   const me = byId(mine);
   const them = ai.slice(0, aiCount).map(byId);
@@ -254,112 +323,109 @@ export function Lobby() {
   };
   // The menus stand on the chosen table texture (still; "random": the first one).
   const board = useGame((s) => resolveBoardTheme(s.boardTheme, 0));
+  const play = () =>
+    canStart &&
+    startGame(
+      me.main,
+      them.map((d) => (d as DeckList).main),
+      undefined,
+      level,
+      bo3 && aiCount === 1 && !commander ? { bestOf: 3, sideboard: me.sideboard ?? [], format } : undefined,
+      commander ? { player: me.commander ?? [], ai: them.map((d) => (d as DeckList).commander ?? []) } : undefined,
+    );
   return (
-    <div className="lobby" data-board={board}>
-      <header className="lobby-head">
-        <div className="lobby-sound">
-          <SoundControl />
-          <ImageRelayToggle />
-          <CustomArtToggle />
-          <LangToggle />
-        </div>
-        <h1>
+    <div className="lobby home" data-board={board}>
+      {/* Top bar (as on MTGA): the other places of the game, and the settings. */}
+      <header className="lobby-top">
+        <h1 className="lobby-logo">
           Planecircle <span className="build-tag">(alpha build)</span>
         </h1>
-      </header>
-      <div className="lobby-body">
-        <FormatChoice value={format} onChange={chooseFormat} />
-        <DeckChoice label={t("Your deck")} value={mine} onChange={setMine} format={format} />
-        <div className="ai-count">
-          <span>{t("AI opponents")}</span>
-          <div className="seg">
-            {[1, 2, 3].map((n) => (
-              <button key={n} type="button" className={aiCount === n ? "on" : ""} onClick={() => setAiCount(n)}>
-                {n}
-              </button>
-            ))}
-          </div>
-          <span className="hint">
-            {aiCount > 1 ? t("Free-for-all multiplayer") : t("Duel")}
-            {commander ? ` · ${t("{n} life", { n: 40 })}` : ""}
-          </span>
-          {aiCount === 1 && !commander && (
-            <label className="toggle" title={t("Best of three games, with your sideboard between the games")}>
-              <input type="checkbox" checked={bo3} onChange={(e) => setBo3(e.target.checked)} />
-              {t("Match of 3 games (BO3)")}
-            </label>
-          )}
-        </div>
-        {aiCount > 1 && (
-          <div className="seg ai-decks" role="tablist" aria-label={t("Each AI's deck")}>
-            {them.map((d, i) => (
-              <button
-                key={i}
-                type="button"
-                role="tab"
-                aria-selected={slot === i}
-                className={slot === i ? "on" : ""}
-                onClick={() => setEditing(i)}
-              >
-                {t("AI {n}", { n: i + 1 })} <span className="ai-deck-name">{d ? deckName(d, lang) : "—"}</span>
-              </button>
-            ))}
-          </div>
-        )}
-        <DeckChoice
-          key={slot}
-          label={aiCount > 1 ? t("Deck of AI {n}", { n: slot + 1 }) : t("AI's deck")}
-          value={ai[slot] ?? ""}
-          format={format}
-          onChange={(id) => setAi((prev) => prev.map((v, i) => (i === slot ? id : v)))}
-        />
-        <div className="ai-level">
-          <div className="ai-count">
-            <span>{t("AI level")}</span>
-            <div className="seg">
-              {LEVELS.map((l) => (
-                <button
-                  key={l.level}
-                  type="button"
-                  className={level === l.level ? "on" : ""}
-                  onClick={() => chooseLevel(l.level)}
-                >
-                  {textIn(lang, l.label)}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="hint ai-level-hint">{textIn(lang, LEVELS.find((l) => l.level === level)?.hint ?? "")}</div>
-        </div>
-        <div className="lobby-actions">
-          <button
-            type="button"
-            className="btn primary big"
-            disabled={!canStart}
-            onClick={() =>
-              canStart &&
-              startGame(
-                me.main,
-                them.map((d) => (d as DeckList).main),
-                undefined,
-                level,
-                bo3 && aiCount === 1 && !commander ? { bestOf: 3, sideboard: me.sideboard ?? [], format } : undefined,
-                commander ? { player: me.commander ?? [], ai: them.map((d) => (d as DeckList).commander ?? []) } : undefined,
-              )
-            }
-          >
-            {t("Play against the AI")}
-          </button>
-          <button type="button" className="btn big" onClick={() => openDeckBuilder(null)}>
+        <nav className="lobby-nav">
+          <button type="button" className="btn" onClick={() => openDeckBuilder(null)}>
             {t("My decks")}
           </button>
-          <button type="button" className="btn big" onClick={openOnline}>
+          <button type="button" className="btn" onClick={openOnline}>
             {t("Against a player")}
           </button>
-          <button type="button" className={`btn big ${newcomer ? "learn" : ""}`} onClick={openTutorial}>
+          <button type="button" className={`btn ${newcomer ? "learn" : ""}`} onClick={openTutorial}>
             {t("Learn to play")}
           </button>
           <ReplayOpener />
+        </nav>
+        <div className="lobby-settings">
+          <SoundControl />
+          <LangToggle />
+          <details className="lobby-more">
+            <summary title={t("More settings")} aria-label={t("More settings")}>
+              ⚙
+            </summary>
+            <div className="lobby-more-panel">
+              <ImageRelayToggle />
+              <CustomArtToggle />
+            </div>
+          </details>
+        </div>
+      </header>
+      {/* A game against the AI: your side against theirs, on one screen. */}
+      <main className="lobby-play">
+        <FormatChoice value={format} onChange={chooseFormat} />
+        <div className="lobby-sides">
+          <section className="side-panel">
+            <DeckSelect label={t("Your deck")} value={mine} onChange={setMine} format={format} />
+          </section>
+          <div className="lobby-vs" aria-hidden="true">
+            VS
+          </div>
+          <section className="side-panel ai-side">
+            <div className="ai-count">
+              <span>{t("AI opponents")}</span>
+              <div className="seg">
+                {[1, 2, 3].map((n) => (
+                  <button key={n} type="button" className={aiCount === n ? "on" : ""} onClick={() => setAiCount(n)}>
+                    {n}
+                  </button>
+                ))}
+              </div>
+              <span className="hint">
+                {aiCount > 1 ? t("Free-for-all multiplayer") : t("Duel")}
+                {commander ? ` · ${t("{n} life", { n: 40 })}` : ""}
+              </span>
+            </div>
+            {them.map((_, i) => (
+              <DeckSelect
+                key={i}
+                label={aiCount > 1 ? t("Deck of AI {n}", { n: i + 1 }) : t("AI's deck")}
+                value={ai[i] ?? ""}
+                format={format}
+                compact={aiCount > 1}
+                onChange={(id) => setAi((prev) => prev.map((v, k) => (k === i ? id : v)))}
+              />
+            ))}
+            <div className="ai-level">
+              <div className="ai-count">
+                <span>{t("AI level")}</span>
+                <div className="seg">
+                  {LEVELS.map((l) => (
+                    <button
+                      key={l.level}
+                      type="button"
+                      className={level === l.level ? "on" : ""}
+                      onClick={() => chooseLevel(l.level)}
+                    >
+                      {textIn(lang, l.label)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="hint ai-level-hint">{textIn(lang, LEVELS.find((l) => l.level === level)?.hint ?? "")}</div>
+            </div>
+            {aiCount === 1 && !commander && (
+              <label className="toggle" title={t("Best of three games, with your sideboard between the games")}>
+                <input type="checkbox" checked={bo3} onChange={(e) => setBo3(e.target.checked)} />
+                {t("Match of 3 games (BO3)")}
+              </label>
+            )}
+          </section>
         </div>
         <div className="lobby-help">
           <strong>{t("Shortcuts:")}</strong>{" "}
@@ -367,12 +433,18 @@ export function Lobby() {
             "Space = main button · Enter = pass the turn · Esc = cancel · M = mute. Drag a card to the battlefield (or onto its target) to play it. The small dots under the phase bar set your stops.",
           )}
         </div>
+        <footer className="lobby-foot">
+          {t(
+            "Free and non-commercial fan project. Magic: The Gathering is a trademark of Wizards of the Coast; this project is neither approved nor endorsed by Wizards. Card images and data: Scryfall.",
+          )}
+        </footer>
+      </main>
+      {/* Always in sight, bottom right (as on MTGA). */}
+      <div className="play-bar">
+        <button type="button" className="btn primary play-button" disabled={!canStart} onClick={play}>
+          {t("Play against the AI")}
+        </button>
       </div>
-      <footer className="lobby-foot">
-        {t(
-          "Free and non-commercial fan project. Magic: The Gathering is a trademark of Wizards of the Coast; this project is neither approved nor endorsed by Wizards. Card images and data: Scryfall.",
-        )}
-      </footer>
     </div>
   );
 }
@@ -383,7 +455,7 @@ function ReplayOpener() {
   const notify = useGame((s) => s.notify);
   const t = useT();
   return (
-    <label className="btn big replay-open">
+    <label className="btn replay-open">
       {t("Replay a game")}
       <input
         type="file"

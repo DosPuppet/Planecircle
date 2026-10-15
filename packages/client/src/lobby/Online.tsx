@@ -15,7 +15,7 @@ import { useT } from "../localize";
 import { loadName, useGame } from "../store";
 import { textIn } from "../translate";
 import { FormatChoice, loadFormat, saveFormat } from "./FormatChoice";
-import { DeckChoice, deckStatus, LEVELS } from "./Lobby";
+import { DeckSelect, deckStatus, LEVELS } from "./Lobby";
 
 /** Code prefilled by an invitation link (?room=CODE). */
 function codeFromUrl(): string {
@@ -150,7 +150,7 @@ export function Online() {
             </label>
             <FormatChoice value={format} onChange={chooseFormat} formats={ONLINE_FORMATS} />
             {commander && <p className="hint">{t("Commander: joining a Commander room requires a deck with a commander.")}</p>}
-            <DeckChoice
+            <DeckSelect
               label={
                 format === "unlimited"
                   ? t("Your deck (unlimited)")

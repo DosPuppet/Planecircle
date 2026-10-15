@@ -57,6 +57,18 @@ The game screen follows MTG Arena, as phase-rs does, but stays light: no image t
   - Cost: half resolution, 24 frames per second at most, paused while the tab is hidden.
   - Off with reduced motion, in `?fast` mode, and in software WebGL (`failIfMajorPerformanceCaveat`). Headless tests therefore keep the still CSS background; in dev mode, `?backdrop=force` draws it anyway, for screenshots.
 
+## Home screen
+
+- **Layout:**
+  - a top bar with the places of the game (My decks, Against a player, Learn to play, Replay) and the settings (sound, language; image options behind ⚙);
+  - your side and the AI side in two panels, with VS between them;
+  - the "Play against the AI" button fixed at the bottom right (full width on a phone).
+- **Decks:**
+  - a chosen deck shows as a summary (`DeckSelect`: art, name, colors, cards, format), framed in gold;
+  - a click opens the picker window (`DeckChoice`: categories, tiles, a check mark on the chosen one);
+  - the online lobby uses the same summary.
+- **Phone:** the panels stack, the four places sit in a 2 × 2 grid under the logo.
+
 ## Tokens and budgets
 
 - **`:root` tokens:**
@@ -70,5 +82,5 @@ The game screen follows MTG Arena, as phase-rs does, but stays light: no image t
   - tilt: `--tilt`.
 
   Use them rather than new hard-coded colors.
-- **Budget:** `tools/bundle-size.ts` budgets the stylesheet (`index.css`, 64 KB). A change deletes the rules it replaces.
+- **Budget:** `tools/bundle-size.ts` budgets the stylesheet (`index.css`, 68 KB). A change deletes the rules it replaces.
 - **No endless animation on the board,** except the target pulse (an accessibility cue) and the "thinking…" blink.

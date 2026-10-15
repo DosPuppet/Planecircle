@@ -22,11 +22,11 @@ function check(ok: boolean, label: string, detail?: unknown): void {
   if (!ok) failures.push(label);
 }
 
-/** Art of the home-screen decks (CSS background): URL and actual loading. */
+/** Art of the home-screen decks (CSS background: the chosen decks' summaries): URL and actual loading. */
 type Covers = { urls: string[] };
 const covers = (page: Page) =>
   page.evaluate(`(() => ({
-    urls: [...document.querySelectorAll(".deck-art")]
+    urls: [...document.querySelectorAll(".deck-art, .deck-summary-art")]
       .map((e) => getComputedStyle(e).backgroundImage.replace(/^url\\("?|"?\\)$/g, ""))
       .filter((u) => u && u !== "none"),
   }))()`) as Promise<Covers>;
@@ -110,6 +110,7 @@ const browser = await chromium.launch();
     "home: direct art",
     c.urls.slice(0, 2),
   );
+  await page.locator(".lobby-more summary").click(); // the setting is behind ⚙
   await box.check();
   c = await covers(page);
   check(

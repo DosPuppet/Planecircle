@@ -2416,19 +2416,237 @@ button.emblem-chip.activatable {
   padding: 4px 14px;
   font-size: 0.875rem;
 }
-/* Home screen, multiplayer: one AI at a time, with the name of its deck. */
-.ai-decks {
-  align-self: center;
+/* Home screen (as on MTGA): a top bar, your side against the AI's on one screen, the Play button always in sight. */
+.lobby.home {
+  align-items: stretch;
+  padding: 0 0 calc(110px + env(safe-area-inset-bottom));
+}
+.lobby-top {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
   flex-wrap: wrap;
-  max-width: 100%;
+  align-items: center;
+  gap: 10px 16px;
+  padding: calc(10px + env(safe-area-inset-top)) 20px 10px;
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
+  border-bottom: 1px solid var(--hairline);
 }
-.ai-decks button {
-  padding: 6px 12px;
-  font-size: 0.8125rem;
+.lobby-logo {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  letter-spacing: 3px;
+  background: linear-gradient(180deg, #ffe2a3, var(--gold-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
-.ai-deck-name {
-  color: var(--dim);
-  margin-left: 4px;
+.lobby-logo .build-tag {
+  font: 500 0.75rem var(--font-ui);
+  letter-spacing: 0;
+  -webkit-text-fill-color: var(--dim);
+}
+.lobby-nav {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.lobby-settings {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.lobby-more {
+  position: relative;
+}
+.lobby-more summary {
+  list-style: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-1);
+  border: 1px solid var(--line);
+  cursor: pointer;
+}
+.lobby-more-panel {
+  position: absolute;
+  right: 0;
+  top: 38px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  white-space: nowrap;
+  border-radius: var(--r-2);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-2);
+}
+.lobby-play {
+  width: min(1100px, 100%);
+  margin: 18px auto 0;
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.lobby-sides {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.lobby-vs {
+  align-self: center;
+  font: 700 2rem var(--font-display);
+  color: var(--gold);
+  text-shadow: 0 0 18px rgba(240, 184, 74, 0.45);
+}
+.side-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border-radius: var(--r-3);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-1);
+}
+.side-panel .ai-count {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+/* The chosen deck: a summary framed in gold; a click opens the picker. */
+.deck-summary {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: var(--r-2);
+  border: 2px solid var(--gold);
+  background: #151c26;
+  box-shadow: 0 0 16px rgba(240, 184, 74, 0.25);
+}
+.deck-summary.invalid {
+  border-color: #ff7b7b;
+}
+.deck-summary-art {
+  height: 150px;
+  background-size: cover;
+  background-position: center 30%;
+}
+.deck-pick.compact .deck-summary {
+  flex-direction: row;
+}
+.deck-pick.compact .deck-summary-art {
+  width: 110px;
+  height: auto;
+  min-height: 64px;
+  flex: none;
+}
+.deck-summary-body {
+  padding: 10px 12px;
+}
+.deck-summary-change {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(10, 14, 22, 0.85);
+  border: 1px solid var(--hairline);
+  font-size: 0.75rem;
+}
+.play-bar {
+  position: fixed;
+  right: calc(20px + env(safe-area-inset-right));
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  z-index: 20;
+}
+.play-button {
+  padding: 16px 36px;
+  border-radius: 999px;
+  font-size: 1.125rem;
+  box-shadow: 0 8px 28px rgba(224, 123, 26, 0.45);
+}
+/* Picker window: smaller tiles, the chosen one with a check mark. */
+.deck-picker .deck-list {
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+}
+.deck-picker .deck-art {
+  height: 84px;
+}
+.deck-tile.on::after {
+  content: "✓";
+  position: absolute;
+  top: 50px;
+  left: 8px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--gold);
+  color: #1d1406;
+  font-weight: 800;
+  pointer-events: none;
+}
+@media (max-width: 760px) {
+  /* Logo and settings on one line, the places of the game on a line that scrolls under them. */
+  .lobby-top {
+    padding: calc(8px + env(safe-area-inset-top)) 12px 8px;
+    justify-content: space-between;
+  }
+  .lobby-logo {
+    font-size: 1.2rem;
+  }
+  .lobby-logo .build-tag,
+  .lobby-settings .sound-control input[type="range"] {
+    display: none;
+  }
+  .lobby-nav {
+    order: 3;
+    flex-basis: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .lobby-nav .btn {
+    text-align: center;
+    white-space: nowrap;
+  }
+  .lobby-sides {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .lobby-vs {
+    justify-self: center;
+    font-size: 1.4rem;
+  }
+  .lobby-nav .btn {
+    padding: 6px 10px;
+    font-size: 0.8125rem;
+  }
+  .deck-summary-art {
+    height: 90px;
+  }
+  .play-bar {
+    left: calc(16px + env(safe-area-inset-left));
+    right: calc(16px + env(safe-area-inset-right));
+  }
+  .play-button {
+    width: 100%;
+  }
 }
 .lobby-actions {
   display: flex;
