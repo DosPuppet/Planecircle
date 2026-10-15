@@ -1,7 +1,5 @@
 :root {
   --bg: #0c1015;
-  --felt-1: #1c2735;
-  --felt-2: #0d131b;
   --panel: rgba(10, 14, 20, 0.82);
   --panel-2: rgba(255, 255, 255, 0.04);
   /* Surfaces of the MTGA look (PLAN-V): floating panels, dialogs, hairline borders. */
@@ -143,9 +141,6 @@ button {
   grid-template-rows: auto minmax(0, 1fr) auto minmax(0, 1fr) auto;
   /* Bounded column: the battlefield's content must never widen the board (layout.ts measures this width). */
   grid-template-columns: minmax(0, 1fr);
-  background:
-    radial-gradient(ellipse at 50% 50%, rgba(80, 110, 150, 0.18), transparent 65%),
-    linear-gradient(180deg, var(--felt-2), var(--felt-1) 50%, var(--felt-2));
   overflow: clip;
   min-width: 0;
   min-height: 0;
@@ -157,42 +152,51 @@ button {
   --noise-coarse: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.25' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.14 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   --wood-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='240'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.004 0.18' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.05 0 0 0 0 0.02 0 0 0 0 0 0 0 0 0.55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
 }
-[data-board="night"] {
+/* One painted-table look for every texture (as on MTGA): a dark ground, lighter towards the middle, a pool of light
+   at the center and the edges in shadow. A texture only sets its palette (deep, mid, light) and its grain. */
+[data-board] {
+  --bd-0: #06080c;
+  --bd-1: #1b2433;
+  --bd-pool: #6f8fb8;
   background:
-    radial-gradient(ellipse at 50% 50%, rgba(80, 110, 150, 0.18), transparent 65%),
-    linear-gradient(180deg, var(--felt-2), var(--felt-1) 50%, var(--felt-2));
+    var(--bd-tex, none),
+    radial-gradient(ellipse 55% 42% at 50% 48%, color-mix(in srgb, var(--bd-pool) 28%, transparent), transparent 70%),
+    radial-gradient(ellipse 120% 95% at 50% 50%, var(--bd-1), var(--bd-0) 78%);
 }
 [data-board="felt"] {
-  background:
-    var(--noise-fine), radial-gradient(ellipse at 50% 50%, rgba(120, 190, 130, 0.22), transparent 70%),
-    linear-gradient(180deg, #0c2216, #1d4a30 50%, #0c2216);
+  --bd-0: #050f0a;
+  --bd-1: #173326;
+  --bd-pool: #6f9f7c;
+  --bd-tex: var(--noise-fine);
 }
 [data-board="wood"] {
-  background:
-    var(--noise-fine), var(--wood-grain), radial-gradient(ellipse at 50% 45%, rgba(255, 190, 120, 0.12), transparent 70%),
-    linear-gradient(180deg, #1e110a, #3d2416 50%, #1e110a);
+  --bd-0: #0d0805;
+  --bd-1: #33200f;
+  --bd-pool: #c08a52;
+  --bd-tex: var(--noise-fine), var(--wood-grain);
 }
 [data-board="slate"] {
-  background:
-    var(--noise-coarse), radial-gradient(ellipse at 50% 50%, rgba(170, 185, 200, 0.12), transparent 70%),
-    linear-gradient(180deg, #15191e, #2c333b 50%, #15191e);
+  --bd-0: #08090b;
+  --bd-1: #262b31;
+  --bd-pool: #9aa6b2;
+  --bd-tex: var(--noise-coarse);
 }
 [data-board="leather"] {
-  background:
-    var(--noise-fine), radial-gradient(ellipse at 50% 50%, rgba(220, 120, 90, 0.16), transparent 68%),
-    linear-gradient(180deg, #1f0b0c, #4a1c1c 50%, #1f0b0c);
+  --bd-0: #0e0505;
+  --bd-1: #3a1715;
+  --bd-pool: #b86a52;
+  --bd-tex: var(--noise-fine);
 }
 [data-board="arcane"] {
-  background:
-    var(--noise-fine), radial-gradient(circle at 22% 30%, rgba(170, 90, 255, 0.22), transparent 38%),
-    radial-gradient(circle at 78% 72%, rgba(80, 140, 255, 0.18), transparent 40%),
-    linear-gradient(180deg, #0b0716, #1d1236 50%, #0b0716);
+  --bd-0: #07050f;
+  --bd-1: #221838;
+  --bd-pool: #8f6cd8;
 }
 [data-board="ocean"] {
-  background:
-    var(--noise-coarse), radial-gradient(ellipse at 30% 35%, rgba(90, 210, 220, 0.16), transparent 45%),
-    radial-gradient(ellipse at 70% 70%, rgba(40, 140, 190, 0.18), transparent 50%),
-    linear-gradient(180deg, #04141b, #0e3442 50%, #04141b);
+  --bd-0: #030b10;
+  --bd-1: #0f2d38;
+  --bd-pool: #5fb4c4;
+  --bd-tex: var(--noise-coarse);
 }
 .board-theme-control {
   display: flex;
@@ -219,7 +223,7 @@ button {
   outline-offset: 1px;
 }
 .swatch.random {
-  background: conic-gradient(#1d4a30, #3d2416, #2c333b, #4a1c1c, #1d1236, #0e3442, #1c2735, #1d4a30);
+  background: conic-gradient(#173326, #33200f, #262b31, #3a1715, #221838, #0f2d38, #1b2433, #173326);
   color: var(--text);
   font-size: 0.75rem;
   font-weight: 700;
