@@ -139,6 +139,9 @@ button {
 .board {
   position: relative;
   display: grid;
+  /* Notched phones and the installed app (viewport-fit=cover): the table runs under the status bar and the notch, its
+     content keeps clear of them. */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
   /* Opponent bars · opponent battlefields · center strip · your battlefield · your hand: both battlefields have the same height. */
   grid-template-rows: auto minmax(0, 1fr) auto minmax(0, 1fr) auto;
   /* Bounded column: the battlefield's content must never widen the board (layout.ts measures this width). */
@@ -335,8 +338,9 @@ button {
 }
 .bottom-row {
   align-items: flex-end;
-  padding-bottom: 0;
-  height: calc(var(--hand-w) * 1.395 * var(--hand-peek));
+  /* Notched phones: above the home indicator (0 elsewhere). */
+  padding-bottom: env(safe-area-inset-bottom);
+  height: calc(var(--hand-w) * 1.395 * var(--hand-peek) + env(safe-area-inset-bottom));
 }
 .bottom-row > .player-bar,
 .bottom-row > .action-panel {
@@ -1770,7 +1774,7 @@ button.emblem-chip.activatable {
   bottom: 0;
   width: min(360px, 86vw);
   z-index: 120;
-  padding-right: env(safe-area-inset-right);
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) 0;
   background: var(--surface);
   border-left: 1px solid var(--hairline);
   box-shadow: -10px 0 40px rgba(0, 0, 0, 0.6);
@@ -2235,7 +2239,7 @@ button.emblem-chip.activatable {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 40px 16px;
+  padding: max(40px, calc(env(safe-area-inset-top) + 16px)) 16px max(40px, env(safe-area-inset-bottom));
   user-select: none;
 }
 .lobby-head {
@@ -2244,7 +2248,7 @@ button.emblem-chip.activatable {
 }
 .lobby-sound {
   position: fixed;
-  top: 14px;
+  top: calc(14px + env(safe-area-inset-top));
   right: 18px;
   display: flex;
   flex-direction: column;
@@ -2636,7 +2640,7 @@ button.emblem-chip.activatable {
     padding: 2px 8px;
   }
   .bottom-row {
-    padding-bottom: 0;
+    padding-bottom: env(safe-area-inset-bottom);
   }
   .player-bar {
     min-width: 0;
@@ -2831,6 +2835,17 @@ button.emblem-chip.activatable {
   }
 }
 
+/* Installed app (display-mode standalone): the screen itself. On iOS, with the translucent status bar, 100dvh misses
+   the bar's height and left an empty strip at the bottom. */
+@media (display-mode: standalone) {
+  .game,
+  .builder {
+    position: fixed;
+    inset: 0;
+    height: auto;
+  }
+}
+
 /* Phone in portrait, duel: the hand on a line of its own under your avatar and the main button, the phases on one line
    that scrolls, the banner under them (it may wrap). */
 @media (orientation: portrait) and (max-width: 600px) {
@@ -2849,7 +2864,7 @@ button.emblem-chip.activatable {
     align-items: center;
     gap: 2px 8px;
     height: auto;
-    padding: 2px 8px 0;
+    padding: 2px 8px env(safe-area-inset-bottom);
   }
   .bottom-row > .player-bar {
     grid-area: me;
@@ -3105,6 +3120,7 @@ button.emblem-chip.activatable {
 .builder {
   --collection-w: clamp(110px, 9.5vw, 150px);
   height: 100dvh;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   background: linear-gradient(180deg, #111822, var(--bg));
