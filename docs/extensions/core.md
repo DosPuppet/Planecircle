@@ -167,6 +167,7 @@ Lot 0.23 (audit P2: token images):
 - `npm run import-tokens` (`tools/import-tokens.ts`) imports the Scryfall tokens of the Standard sets (sets `t<code>`, double-faced faces included) into `packages/cards/data/tokens.json` (334 faces): name, type line, P/T, colors, text, image URL;
 - `tokenImage` (`cards/src/tokenImages.ts`) chooses the image of the closest token of the same name (same P/T, then same colors, then same type line; on a tie, the most recent set). A token's face (`CardFace`) carries its colors; `faceImage` (client) uses it when the face has no image. 104 of the 112 token profiles in scripts have an image; the others keep the text frame;
 - tests: `cards/test/token-images.test.ts`.
+- 2026-10-15: the import adds, by exact name in any set (newest first, then a card of that name), the tokens of the scripts that the Standard token sets lack (Commander decks, reprints: Eldrazi Scion, Orc Army, Human Cleric…), one image per profile; Roles take the engine's name ("Cursed Role", Scryfall "Cursed"). `cards/src/createdTokens.ts` lists the tokens the scripts create; 247 of the 249 profiles have an image (402 faces), Banana and Tombspawn have no printed token; the test fails on any new token without an image.
 
 Lot 0.24 (audit P2: loading):
 - split build (`client/vite.config.ts`, Rolldown groups): `cartes-*.js` (card data, 5.8 MB, 750 KB in brotli), `bibliotheques-*.js` (React, Motion, Zustand: 100 KB in brotli), `index-*.js` (application: 225 KB in brotli). A code update no longer makes the card data download again;

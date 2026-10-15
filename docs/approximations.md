@@ -33,7 +33,7 @@ Each entry carries its nature:
 - **Standard legality:** snapshot of the Scryfall legalities at the time of import (`legalities.standard` in `data/<set>.json`). After a rotation or a ban announcement, reimport the sets (`npm run import-cards -- <set>`).
 - **Phasing (Robe of Stars):** phased-out permanents are not displayed.
 - **Changed words (612.2, New Blood):** the card image, its Oracle text and its ability labels keep the printed wording; a badge and a line of the preview give the change ("Vampire instead of Elf"), and the rules read the changed text.
-- **Token images:** that of the closest Scryfall token (same name, then same P/T and colors; `data/tokens.json`, `npm run import-tokens`); a token of unknown name keeps the text frame.
+- **Token images:** that of the closest Scryfall token (same name, then same P/T and colors; `data/tokens.json`, `npm run import-tokens`); a token of unknown name keeps the text frame (Banana, Tombspawn: no printed token).
 
 ## Card by card
 

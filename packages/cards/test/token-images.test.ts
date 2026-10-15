@@ -1,7 +1,8 @@
 /** Token images (`tokenImage`, data/tokens.json). */
 import { describe, expect, it } from "vitest";
 import TOKENS from "../data/tokens.json";
-import { TOKEN_SPECS, tokenImage } from "../src/index";
+import { createdTokens, tokenTypeLine } from "../src/createdTokens";
+import { CARDS, TOKEN_SPECS, tokenImage } from "../src/index";
 
 describe("token images", () => {
   it("common tokens have an image, with the right profile (P/T and colors)", () => {
@@ -35,6 +36,30 @@ describe("token images", () => {
       const chosen = arts.find((x) => x.image === url);
       expect([chosen?.power, chosen?.toughness]).toEqual([a.power, a.toughness]);
     }
+  });
+
+  it("every token a card creates has an image (otherwise: npm run import-tokens)", () => {
+    // No printed token of that name anywhere on Scryfall: they keep the text frame.
+    const NO_PRINTED_TOKEN = ["Banana", "Tombspawn"];
+    const missing = createdTokens(CARDS)
+      .filter(
+        ({ spec: t }) =>
+          !NO_PRINTED_TOKEN.includes(t.name) &&
+          !tokenImage({
+            name: t.name,
+            typeLine: tokenTypeLine(t),
+            basePower: t.power,
+            baseToughness: t.toughness,
+            colors: t.colors,
+          }),
+      )
+      .map(({ spec, cards }) => `${spec.name} (${cards.join(", ")})`);
+    expect(missing).toEqual([]);
+    expect(createdTokens(CARDS).filter(({ spec }) => NO_PRINTED_TOKEN.includes(spec.name))).toHaveLength(NO_PRINTED_TOKEN.length);
+  });
+
+  it("a Role keeps the engine's name (Scryfall: “Cursed”, scripts: “Cursed Role”)", () => {
+    expect(tokenImage({ name: "Cursed Role", typeLine: "Token Enchantment — Aura Role" })).toMatch(/^https:/);
   });
 
   it("no token of that name: no image (text frame)", () => {

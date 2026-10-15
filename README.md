@@ -174,7 +174,7 @@ Card images come from Scryfall (`cards.scryfall.io`). Some networks (company, sc
 | `npm run replay-smoke` | Replays: game against the AI exported, then reopened in the viewer (forward, back, end, point of view) (dev server running) |
 | `npm run mobile-smoke` | Emulated tablet and phone: hand, main button and fields on screen, long press, tap to raise a card, drawer, portrait (dev server running) |
 | `npm run battlefield-smoke` | Loaded boards (tokens, 2nd row, 4 players) put into play by the dev-mode sandbox: rows, token stacks, no cropped card (dev server running) |
-| `npm run import-tokens` | Token images: Scryfall tokens of the Standard sets (`t<code>`) into `packages/cards/data/tokens.json` |
+| `npm run import-tokens` | Token images: Scryfall tokens of the Standard sets (`t<code>`), then those of the scripts' other tokens by name, into `packages/cards/data/tokens.json` |
 | `npm run import-cards -- <set>\|all\|edh` | Scryfall import of a set, of all Standard sets except FDN and FRA (`all`), or by name of the Commander deck cards missing from the catalog (`edh`, French printings first) |
 | `npm run import-printings` | Printings table (illustrations of your choice in the deck editor); also compares the color identity against Scryfall |
 | `npx tsx tools/check-legality.ts [--commander] [--write]` | Standard legalities (or Commander bans and Game Changers) compared against Scryfall; weekly CI task |
