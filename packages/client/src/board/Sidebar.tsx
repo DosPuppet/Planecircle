@@ -284,6 +284,36 @@ function PaceControl() {
   );
 }
 
+/** Graphics: animated table and tilted battlefield, or light (less powerful devices). */
+function GraphicsControl() {
+  const effects = useGame((s) => s.effects);
+  const setEffects = useGame((s) => s.setEffects);
+  const t = useT();
+  return (
+    <div className="pace-control">
+      <span>{t("Graphics")}</span>
+      <div className="seg">
+        <button
+          type="button"
+          className={effects === "full" ? "on" : ""}
+          title={t("Animated table and tilted battlefield")}
+          onClick={() => setEffects("full")}
+        >
+          {t("ctx:graphics|Full")}
+        </button>
+        <button
+          type="button"
+          className={effects === "light" ? "on" : ""}
+          title={t("Still table and flat battlefield, for less powerful devices")}
+          onClick={() => setEffects("light")}
+        >
+          {t("ctx:graphics|Light")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /** Board texture: one swatch per texture, and "random" (a texture drawn for each game). */
 function BoardThemeControl() {
   const choice = useGame((s) => s.boardTheme);
@@ -358,6 +388,7 @@ function Settings() {
         </button>
       )}
       <PaceControl />
+      <GraphicsControl />
       <BoardThemeControl />
       <ImageRelayToggle />
       <CustomArtToggle />

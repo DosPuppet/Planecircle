@@ -49,6 +49,40 @@ export function saveBoardTheme(choice: BoardThemeChoice): void {
   }
 }
 
+/**
+ * Graphics (PLAN-V): "full", the animated table and the tilted battlefield; "light", a still table and a flat
+ * battlefield, for less powerful devices. Kept in `localStorage`.
+ */
+export type Effects = "full" | "light";
+
+const EFFECTS_KEY = "planecircle.effects";
+
+/** Default graphics: light on a touch screen under 1,100 px (phone, small tablet), full otherwise. */
+export function defaultEffects(): Effects {
+  try {
+    return window.matchMedia("(pointer: coarse) and (max-width: 1100px)").matches ? "light" : "full";
+  } catch {
+    return "full";
+  }
+}
+
+export function loadEffects(): Effects {
+  try {
+    const v = localStorage.getItem(EFFECTS_KEY);
+    return v === "full" || v === "light" ? v : defaultEffects();
+  } catch {
+    return defaultEffects();
+  }
+}
+
+export function saveEffects(effects: Effects): void {
+  try {
+    localStorage.setItem(EFFECTS_KEY, effects);
+  } catch {
+    // storage unavailable: setting not kept
+  }
+}
+
 /** The texture displayed: the chosen one, or, for "random", a texture drawn from `roll` (a number in [0, 1)). */
 export function resolveBoardTheme(choice: BoardThemeChoice, roll: number): BoardTheme {
   if (choice !== "random") return choice;

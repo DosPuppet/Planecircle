@@ -1,6 +1,6 @@
 /** Board textures: the choice is remembered, and the "random" draw always gives a real texture. */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { BOARD_THEMES, loadBoardTheme, resolveBoardTheme, saveBoardTheme } from "../src/boardThemes";
+import { BOARD_THEMES, loadBoardTheme, loadEffects, resolveBoardTheme, saveBoardTheme, saveEffects } from "../src/boardThemes";
 
 describe("board textures", () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -41,5 +41,29 @@ describe("board textures", () => {
       },
     });
     expect(loadBoardTheme()).toBe("night");
+  });
+
+  it("graphics (PLAN-V): full by default with a mouse, light on a small touch screen; the choice is remembered", () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => store.set(k, v),
+    });
+    let coarse = false;
+    vi.stubGlobal("window", { matchMedia: () => ({ matches: coarse }) });
+    expect(loadEffects()).toBe("full");
+    coarse = true;
+    expect(loadEffects()).toBe("light");
+    saveEffects("full");
+    expect(loadEffects()).toBe("full");
+    store.set("planecircle.effects", "unknown");
+    expect(loadEffects()).toBe("light");
+    vi.stubGlobal("localStorage", {
+      getItem: () => {
+        throw new Error("unavailable");
+      },
+    });
+    coarse = false;
+    expect(loadEffects()).toBe("full");
   });
 });

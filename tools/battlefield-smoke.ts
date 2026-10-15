@@ -134,20 +134,25 @@ async function audit(page: Page, label: string) {
             (objs.get((el as HTMLElement).dataset.oid ?? "")?.types ?? []).includes("Planeswalker")
           )
             problems.push(`back: ${(objs.get((el as HTMLElement).dataset.oid ?? "")?.types ?? []).join(" ")}`);
-        // Planeswalkers: in their own zone, to the right of all the rows of their side.
+        // Planeswalkers: in their own zone, to the right of all the rows of their side. Compared in layout coordinates
+        // (offsetLeft): the tilted table (PLAN-V) skews the projected boxes. No named function (tsx __name).
         for (const bf of document.querySelectorAll(".battlefield")) {
-          const rowsRight = Math.max(
-            0,
-            ...[...bf.querySelectorAll(".bf-rows .perm > .card-slot")].map((e) => e.getBoundingClientRect().right),
-          );
+          let rowsRight = 0;
+          for (const e of bf.querySelectorAll(".bf-rows .perm > .card-slot")) {
+            let x = (e as HTMLElement).offsetWidth;
+            for (let p = e as HTMLElement | null; p; p = p.offsetParent as HTMLElement | null) x += p.offsetLeft;
+            rowsRight = Math.max(rowsRight, x);
+          }
           for (const el of bf.querySelectorAll(".perm > [data-oid]")) {
             if (
               !(objs.get((el as HTMLElement).dataset.oid ?? "")?.types ?? []).includes("Planeswalker") ||
               (objs.get((el as HTMLElement).dataset.oid ?? "")?.types ?? []).includes("Creature")
             )
               continue;
+            let left = 0;
+            for (let p = el as HTMLElement | null; p; p = p.offsetParent as HTMLElement | null) left += p.offsetLeft;
             if (!el.closest(".walker-zone")) problems.push("planeswalker outside its zone");
-            else if (el.getBoundingClientRect().left < rowsRight) problems.push("planeswalker not to the right of the rows");
+            else if (left < rowsRight) problems.push("planeswalker not to the right of the rows");
           }
         }
         // Back row: lands, then artifacts, then enchantments.
@@ -173,6 +178,8 @@ async function audit(page: Page, label: string) {
       })(),
       /** Width of the cards of the front row, per zone (set by fitBattlefield). */
       frontW: zones.map((bf) => Math.round(Number.parseFloat((bf as HTMLElement).style.getPropertyValue("--card-w")) || 0)),
+      /** Graphics "full" (default with a mouse): the battlefields lean back (PLAN-V). */
+      tilted: getComputedStyle(document.querySelector(".battlefield.me") as Element).transform !== "none",
       /** Battlefield art cards show the Scryfall art crop (PLAN-V). */
       artCrops: [...document.querySelectorAll(".battlefield .perm .card.art-card img")].filter((i) =>
         (i as HTMLImageElement).src.includes("/art_crop/"),
@@ -202,6 +209,7 @@ check(r.stacks.includes("×12") && r.stacks.includes("×5"), "identical tokens g
 check(!r.stacks.includes("×3"), "3 identical tokens are not grouped", r.stacks);
 check(r.supportInBack === 1, "artifacts and enchantments in the back row, apart from the lands", r.supportInBack);
 check(r.artCrops > 10, "battlefield art cards show the art crop", r.artCrops);
+check(r.tilted, "graphics full: the table is tilted (perspective)", r.tilted);
 
 check((r.lines[0]?.[1] ?? 0) >= 2, "the crowded opponent goes over several lines", r.lines);
 check(

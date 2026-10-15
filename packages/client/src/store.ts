@@ -44,7 +44,7 @@ import { create } from "zustand";
 import { soundsFor } from "./audio/eventSounds";
 import { playSound, preloadSounds } from "./audio/sfx";
 import { findObjectEl } from "./board/layout";
-import { type BoardThemeChoice, loadBoardTheme, saveBoardTheme } from "./boardThemes";
+import { type BoardThemeChoice, type Effects, loadBoardTheme, loadEffects, saveBoardTheme, saveEffects } from "./boardThemes";
 import { fastMode } from "./fast";
 import { describeEvents, type Lang, type LogLine, literal, localizeText } from "./i18n";
 import { boardPick, togglePick } from "./prompts/boardChoice";
@@ -300,6 +300,9 @@ interface Store {
   /** Board texture (`boardThemes.ts`), kept in `localStorage`. */
   boardTheme: BoardThemeChoice;
   setBoardTheme(choice: BoardThemeChoice): void;
+  /** Graphics (`boardThemes.ts`): animated table and tilted battlefield, or light. */
+  effects: Effects;
+  setEffects(effects: Effects): void;
 
   startGame(
     playerDeck: DeckEntries,
@@ -1151,6 +1154,11 @@ export const useGame = create<Store>((set, get) => {
     setBoardTheme(boardTheme) {
       set({ boardTheme });
       saveBoardTheme(boardTheme);
+    },
+    effects: loadEffects(),
+    setEffects(effects) {
+      set({ effects });
+      saveEffects(effects);
     },
     pace: loadPace(),
     setPace(pace) {
