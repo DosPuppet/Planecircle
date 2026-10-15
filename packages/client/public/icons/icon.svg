@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+<defs>
+  <radialGradient id="bg" cx="50%" cy="46%" r="70%">
+    <stop offset="0" stop-color="#22304a"/><stop offset="0.55" stop-color="#121a28"/><stop offset="1" stop-color="#06080c"/>
+  </radialGradient>
+  <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+    <stop offset="0" stop-color="#ffe2a0" stop-opacity="0.75"/><stop offset="0.35" stop-color="#f0b84a" stop-opacity="0.28"/>
+    <stop offset="1" stop-color="#f0b84a" stop-opacity="0"/>
+  </radialGradient>
+  <linearGradient id="spark" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#fff6dc"/><stop offset="0.5" stop-color="#ffd47a"/><stop offset="1" stop-color="#e09a2a"/>
+  </linearGradient>
+  <filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="7"/></filter>
+</defs>
+<rect x="8" y="8" width="496" height="496" rx="112" fill="url(#bg)"/>
+<g transform="translate(256 256) scale(1) translate(-256 -256)">
+  <circle cx="256" cy="256" r="158" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="58"/>
+  <g fill="none" stroke-width="30" stroke-linecap="round" filter="url(#soft)" opacity="0.55"><path d="M 173.45 121.28 A 158 158 0 0 1 338.55 121.28" stroke="#f4e7c3"/><path d="M 358.61 135.86 A 158 158 0 0 1 409.63 292.88" stroke="#3a8fd8"/><path d="M 401.97 316.46 A 158 158 0 0 1 268.40 413.51" stroke="#9a8aa8"/><path d="M 243.60 413.51 A 158 158 0 0 1 110.03 316.46" stroke="#e0503f"/><path d="M 102.37 292.88 A 158 158 0 0 1 153.39 135.86" stroke="#38a35e"/></g>
+  <g fill="none" stroke-width="26" stroke-linecap="round"><path d="M 173.45 121.28 A 158 158 0 0 1 338.55 121.28" stroke="#f4e7c3"/><path d="M 358.61 135.86 A 158 158 0 0 1 409.63 292.88" stroke="#3a8fd8"/><path d="M 401.97 316.46 A 158 158 0 0 1 268.40 413.51" stroke="#9a8aa8"/><path d="M 243.60 413.51 A 158 158 0 0 1 110.03 316.46" stroke="#e0503f"/><path d="M 102.37 292.88 A 158 158 0 0 1 153.39 135.86" stroke="#38a35e"/></g>
+  <circle cx="256" cy="256" r="118" fill="url(#glow)"/>
+  <g fill="url(#spark)" opacity="0.55"><path transform="rotate(45 256 256)" d="M256 186 C 265 247 265 247 299.4 256 C 265 265 265 265 256 326 C 247 265 247 265 212.6 256 C 247 247 247 247 256 186 Z"/></g>
+  <g fill="url(#spark)"><path transform="rotate(0 256 256)" d="M256 144 C 270 242 270 242 325.44 256 C 270 270 270 270 256 368 C 242 270 242 270 186.56 256 C 242 242 242 242 256 144 Z"/></g>
+  <circle cx="256" cy="256" r="11" fill="#fffaf0"/>
+</g>
+</svg>

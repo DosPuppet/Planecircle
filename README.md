@@ -143,6 +143,7 @@ The interface adapts to the screen: tablet in landscape or portrait, phone in la
   - a long press on any card shows it large, and a tap closes it.
 - **Settings and log** are in a drawer opened by the ☰ button, at every screen width.
 - **Graphics:** "light" by default on a small touch screen (flat battlefield, still table), "full" otherwise; to change in the drawer.
+- **Install as an app (PWA):** "Add to Home Screen" (Safari) or "Install" (Chrome) gives Planecircle its icon and a full-screen window; games against the AI work offline. The icon is drawn in code: `npx tsx tools/make-icons.ts` renders `packages/client/public/icons/`.
 - **Trying on a real device:** `npm run dev -- --host`, then open the displayed "Network" address from the tablet (same Wi-Fi network).
 
 ### Images blocked by the network
