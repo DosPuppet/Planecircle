@@ -9,6 +9,7 @@ import { boardPick, choiceSource, pickValid, shortPrompt } from "../prompts/boar
 import { myActions, useGame } from "../store";
 import { isTouch, justLongPressed } from "../touch";
 import { Arrows } from "./Arrows";
+import { Backdrop } from "./Backdrop";
 import { Card, CardBack, type Glow, ManaCost } from "./Card";
 import { combatPreview } from "./combatPreview";
 import { Effects } from "./Effects";
@@ -1370,6 +1371,7 @@ export function Board() {
   const opponents = view.opponents.map((id) => view.players[id]).filter((p): p is PlayerView => !!p);
   return (
     <div className="board" id="board" data-board={theme}>
+      <Backdrop theme={theme} />
       <div className={`opp-bars n${opponents.length}`}>
         {opponents.map((opp) => (
           <div key={opp.id} className={`top-row ${opp.lost ? "eliminated" : ""}`}>

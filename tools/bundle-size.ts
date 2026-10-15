@@ -22,6 +22,8 @@ const BUDGET: Record<string, number> = {
   vendor: 450 * KB,
   // Printings table (deck builder), loaded on demand; 466 KB with the Commander cards (07/10/2026).
   printings: 600 * KB,
+  // Animated table (PLAN-V, raw WebGL), loaded on demand: a missing chunk means it was merged into the application.
+  backdrop: 12 * KB,
 };
 
 /** Stylesheet (PLAN-V): 56.5 KB before the MTGA restyle (2026-10-15); each restyle batch deletes the rules it replaces. */
