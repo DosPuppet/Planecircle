@@ -11,6 +11,7 @@ A platform for playing Magic: The Gathering against one or more AIs (head-to-hea
 - modified mana cost (reduction, tax, flashback) shown on the card in hand;
 - AI at three selectable levels (beginner, medium, high), from heuristic play to ISMCTS search in duels (see docs/ai.md);
 - browsable exile: a button next to the graveyard, and cards exiled by a permanent shown under it (hover to see them);
+- an MTG Arena-style table: battlefield art cards that lean when tapped, a tilted table with an optional animated background (a few kilobytes of WebGL, off in "light" graphics), the card preview floating at the left, settings and log in a ☰ drawer (see docs/ui.md);
 - playable on tablets and on phones in landscape (see "Tablet and phone");
 - card images relayed by the server when the player's network blocks Scryfall (see "Images blocked by the network");
 - cards in French or English: name, text and illustration of the matching printing (the French printing of another set when the original does not exist in French; text completed by hand when Scryfall does not have it).
@@ -127,7 +128,7 @@ npm run dev          # http://localhost:5173
 
 ### Replays and game export
 
-- **Export the game** (sidebar) downloads a JSON file: the seed, the decks and all the decisions. Since the engine is deterministic, this file is enough to replay the game exactly; attach it to a bug report. Against the AI, export is possible at any time; online, only once the game is over (the file reveals the decks).
+- **Export the game** (☰ drawer) downloads a JSON file: the seed, the decks and all the decisions. Since the engine is deterministic, this file is enough to replay the game exactly; attach it to a bug report. Against the AI, export is possible at any time; online, only once the game is over (the file reveals the decks).
 - **Review a game** (home screen) opens this file in the viewer: step by step, automatic playback, jump to the start or the end, and choice of point of view (each player sees only what they saw).
 - **Online,** games are saved the same way by the server (`data/rooms`): a restart no longer cuts them off.
 - **Rules version:** the record notes the engine's rules version and a fingerprint of the game every 25 decisions. A game recorded by an earlier engine version that no longer replays identically stops at the first divergence, shown in the viewer's bar.
@@ -140,7 +141,8 @@ The interface adapts to the screen: tablet in landscape or portrait, phone in la
 - **By finger:**
   - a first tap raises a card in hand and enlarges it, a second plays it; you can also drag it to the battlefield;
   - a long press on any card shows it large, and a tap closes it.
-- **Narrow screen** (under 1100 px, for example a tablet in portrait): the settings and the log move into a drawer opened by the ☰ button.
+- **Settings and log** are in a drawer opened by the ☰ button, at every screen width.
+- **Graphics:** "light" by default on a small touch screen (flat battlefield, still table), "full" otherwise; to change in the drawer.
 - **Trying on a real device:** `npm run dev -- --host`, then open the displayed "Network" address from the tablet (same Wi-Fi network).
 
 ### Images blocked by the network
@@ -196,7 +198,7 @@ packages/
             scripted opponent (tutorial); guide: docs/ai.md
   server/   online play: rooms of 2 to 4 seats, server-side GameHost (authoritative), AI seats in workers,
             timer, reconnection, saving and resuming; shared protocol; Scryfall image relay (/scry/)
-  client/   React + Vite + Zustand + Motion; the game runs in a Web Worker; deckbuilder; MTGA-style board layout (board/layout.ts);
+  client/   React + Vite + Zustand + Motion; the game runs in a Web Worker; deckbuilder; MTGA-style board layout (board/layout.ts) and look (docs/ui.md);
             sound effects (audio/); touch gestures (touch.ts); image relay (images.ts)
 tools/      Scryfall import, checks, fuzz, bench, coverage, interface tests
 docs/       engine guide, known approximations, set details, deployment

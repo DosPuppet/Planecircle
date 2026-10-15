@@ -51,6 +51,7 @@ You can **play through everything** (the next lesson is offered first), **resume
 - **Invisible opposing turn.** When the opponent does nothing visible (in `?fast` mode, or without any AI action), the view jumps straight to the next turn. An end of turn is therefore awaited with the turn number (`pastTurn`), not with "it is the opposing turn".
 - **Stops.** The autopilot skips the steps where the player has nothing significant to do, even with a stop. For the game to stop in the second main phase, the player must have something to play there (lesson 4: the Falcon).
 - **Opposing spell.** During a guided step, the opposing spell panel (`StackReveal`) no longer passes by itself: the player clicks OK when the guide asks (`useTutorialHold`). The end-of-game window is hidden during a lesson: the guide announces the end.
+- **Preview and log (PLAN-V).** There is no sidebar any more. A step whose target is `log` or `settings` opens the drawer, and closes it afterwards if the guide opened it. A step whose target is `preview` keeps the floating preview open on the last hovered card (`previewHold`, `[data-tuto="preview"]`). See `useShownTarget` in `Coach.tsx`.
 - **Card names.** The scenario and the conditions use English names, the texts use the French names shown by the interface. A card without a French name in the data would be displayed in English: avoid it.
 
 ## Adding or changing a lesson

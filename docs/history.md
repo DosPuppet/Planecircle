@@ -367,3 +367,21 @@ Rules 95 -> 102 (96: Cryptex; 97 to 102: S2, S3, S4, S6c, S6d-e, S8b); every no-
 - **M12 (no rules change):** `CardScript` derived from `CardDef`; 98 card files rewritten by codemod; the 13,148 definitions identical.
 
 **Bilan (2026-10-11).** Rules 195 -> 208. Approximations: per-card lines 195 -> 67, general 23 -> 18. Debt reference: union variants 16 -> 12, single-card ops 14 -> 11, single-card keys 82 -> 93 and single-card values 131 -> 151 (new generic forms with one user so far, each justified), player statics 50 -> 54; ceilings Effect 148 -> 140, Effect (fields) 650 -> 638, `CardDef` 91 -> 52 (with `KickerDef` 5, `CardRules` 13, `CastOption` 10), `GameState` 41 -> 39, Ref 38 -> 37, Condition 47 -> 46, CostDef 28 -> 33; largest import cycle 21 -> 10. Tests: 14,756 -> 14,898 (vitest). **No golden game was regenerated.** Final `npm run verify -- --full`: every step passed except the bench's absolute target (random, 2 players, 4,711 dec/s for 5,000); compared alone against the code before PLAN-M (edebe1b, twice each, alternated): 4,753 / 4,937 before, 4,856 / 4,821 after, the other lines equal within noise: no regression. Bundle budget of the `index` chunk 2,300 -> 2,350 KB (2,329 KB). Not done, with their reason: `docs/backlog.md` ("PLAN-M: not done").
+
+## 17. PLAN-V: MTGA-style restyle of the game screen (2026-10-15)
+
+**Context and goal.** The game screen read as a web application: a 340 px sidebar (settings, docked preview, log), full cards on a flat board, spinning avatar rings, many hard-coded colors. The user asked for a look closer to MTG Arena, as phase-rs (github.com/phase-rs/phase) does, but lighter, with a browser 3D engine allowed. User decisions: CSS 3D perspective plus a light WebGL backdrop (no three.js), procedural textures (no image to download), MTGA art cards on the battlefield, no sidebar. Plan: `docs/plans/PLAN-V.md`; conventions: `docs/ui.md`.
+
+**Lots (2026-10-15, one commit each; no rules change).**
+- **V0:** `:root` tokens (surfaces, hairline, radii, shadows, easing, fonts, card shapes, tilt); one glow recipe (`--g`); CSS budget in `tools/bundle-size.ts`.
+- **V1:** no sidebar: a drawer for the settings and the log at every width, the preview floating at the left (`PreviewFloat`, `hoverLive`); the tutorial opens the drawer or holds the preview.
+- **V2:** battlefield art cards (Scryfall art crop derived in the client from the displayed image, frame by color, name, P/T box); `PERM_RATIO` 1.2; tapped = 17° in a `TAP_W` slot.
+- **V3:** avatars with a life pill and a steady turn ring (endless animations removed), opponents centered with their hand fanned at the top edge, transparent center line with phase pills, stack panel on the right, amber main button (blue to resolve), deeper hand rising whole on hover.
+- **V5 (before V4, for the CSS budget):** textures as palettes, one painted-table rule for the board, the swatches and later the menus.
+- **V4:** graphics setting (`planecircle.effects`, full or light); tilted battlefields in CSS perspective; mats.
+- **V6:** animated table: raw WebGL 1 shader in a lazy 3 KB chunk, half resolution, 24 fps at most, off without a GPU, with reduced motion or light graphics.
+- **V7:** dialogs, primary buttons and menus matched (surfaces, amber, table texture behind the menus).
+- **V8:** documentation (`docs/ui.md`, tutorial, README, CLAUDE.md).
+
+**Bilan.** Final `npm run verify -- --full`: every step passed but the bench's absolute target (random, 2 players, 4,779 dec/s for 5,000; 4,711 at the close of PLAN-M; no engine change). Bundle: `index` 2,329 -> 2,332 KB, `index.css` 57 -> 59 KB (budget 60), `backdrop` 3 KB (lazy). Tests: layout (+2), board themes (+1), battlefield-smoke (art crops, 17° lean, tilt, planeswalker column in layout coordinates); proxy, always-answer and lang smokes read the drawer. Not done, with their reason: the art-crop prefetch of permanents on the stack (battlefield images are no longer lazy-loaded, which was enough on screenshots), a graveyard tile with the top card's art (the pill keeps its name), the rope next to the main button (it stays on the center line).
+
