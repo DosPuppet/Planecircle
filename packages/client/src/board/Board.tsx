@@ -16,6 +16,7 @@ import {
   type BattlefieldFit,
   battlefieldRows,
   battlefieldSlots,
+  CARD_RATIO,
   fitBattlefield,
   fitHand,
   LAND_SCALE,
@@ -1044,14 +1045,19 @@ function Hand() {
   const n = cards.length;
 
   // Step between the cards: they close up to fit in the width of the hand (see fitHand).
-  const [box, setBox] = useState({ width: 0, cardW: 0 });
+  const [box, setBox] = useState({ width: 0, cardW: 0, rise: 34 });
   // biome-ignore lint/correctness/useExhaustiveDependencies: measured again when the number of cards changes
   useLayoutEffect(() => {
     const el = handRef.current;
     if (!el) return;
     const measure = () => {
       const cardW = (el.firstElementChild as HTMLElement | null)?.offsetWidth ?? 0;
-      setBox((cur) => (cur.width === el.clientWidth && cur.cardW === cardW ? cur : { width: el.clientWidth, cardW }));
+      // Hovered card: it rises out of the bottom of the screen until it is whole (share hidden: 1 − --hand-peek).
+      const peek = Number.parseFloat(getComputedStyle(el).getPropertyValue("--hand-peek")) || 0.82;
+      const rise = Math.max(34, Math.round(cardW * CARD_RATIO * (1 - peek)) + 12);
+      setBox((cur) =>
+        cur.width === el.clientWidth && cur.cardW === cardW && cur.rise === rise ? cur : { width: el.clientWidth, cardW, rise },
+      );
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -1084,11 +1090,11 @@ function Hand() {
             key={c.uid}
             className={`hand-card ${elsewhere.has(c.id) ? `from-elsewhere from-${elsewhere.get(c.id)}` : ""} ${up ? "lifted" : ""}`}
             style={{ zIndex: up ? 40 : i, margin }}
-            animate={up ? { rotate: 0, y: "-38%", scale: 1.15 } : { rotate: angle, y: lift, scale: 1 }}
+            animate={up ? { rotate: 0, y: -box.rise, scale: 1.12 } : { rotate: angle, y: lift, scale: 1 }}
             drag
             dragSnapToOrigin
             dragMomentum={false}
-            whileHover={{ y: lift - 34, scale: 1.12, zIndex: 40, rotate: 0 }}
+            whileHover={{ y: -box.rise, scale: 1.08, zIndex: 40, rotate: 0 }}
             whileDrag={{ scale: 1.05, zIndex: 60, rotate: 0 }}
             onPointerDown={() => {
               dragged.current = false;
@@ -1142,17 +1148,24 @@ function Hand() {
   );
 }
 
+/** An opponent's hand: card backs fanned at the top edge of the screen, as on MTGA. */
 function OpponentHand({ count, custom }: { count: number; custom?: boolean | string }) {
   return (
-    <div className="opp-hand">
+    <div className="opp-hand" style={{ "--n": count } as CSSProperties}>
       {Array.from({ length: count }, (_, i) => (
-        <CardBack key={i} width="var(--back-w)" custom={custom} />
+        <span key={i} className="opp-back" style={{ "--i": i } as CSSProperties}>
+          <CardBack width="var(--back-w)" custom={custom} />
+        </span>
       ))}
     </div>
   );
 }
 
-export function useMainAction(): { label: string; run?: () => void; disabled?: boolean; hot?: boolean } {
+/**
+ * The main button: its label, its action; `hot` (amber, as on MTGA) when it moves the game forward, `respond` (blue)
+ * when it lets the stack resolve.
+ */
+export function useMainAction(): { label: string; run?: () => void; disabled?: boolean; hot?: boolean; respond?: boolean } {
   // Only these data matter: no redraw on each card hover (the whole store would change).
   const s = useGame(
     useShallow((g) => ({
@@ -1180,7 +1193,7 @@ export function useMainAction(): { label: string; run?: () => void; disabled?: b
     case "priority":
       if (s.casting) return { label: t("Cancel"), run: s.cancel };
       if (p.castNow) return { label: t("Don't cast"), run: pass };
-      if (v.stack.length > 0) return { label: t("Resolve"), run: pass, hot: true };
+      if (v.stack.length > 0) return { label: t("Resolve"), run: pass, hot: true, respond: true };
       if (v.turn.active === v.viewer) {
         if (v.turn.step === "main1" && v.potentialAttackers > 0) return { label: t("Combat"), run: pass, hot: true };
         if (v.turn.step === "main1" || v.turn.step === "main2")
@@ -1290,7 +1303,7 @@ function ActionPanel() {
       )}
       <button
         type="button"
-        className={`main-button ${action.hot ? "hot" : ""}`}
+        className={`main-button ${action.hot ? "hot" : ""} ${action.respond ? "respond" : ""}`}
         data-tuto="main-button"
         disabled={action.disabled}
         onClick={action.run}

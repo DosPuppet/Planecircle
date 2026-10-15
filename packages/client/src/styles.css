@@ -41,10 +41,10 @@
   --land-w: calc(var(--card-w) * 0.72);
   --hand-w: clamp(72px, min(14.5vh, 12vw), 172px);
   /* Visible share of the height of the hand's cards (the rest sticks out below the screen, as on MTGA). */
-  --hand-peek: 0.82;
+  --hand-peek: 0.62;
   --stack-w: clamp(80px, 11vh, 140px);
   --spotlight-w: clamp(150px, 26vh, 260px);
-  --back-w: 24px;
+  --back-w: clamp(30px, 4.6vh, 46px);
   --pick-w: clamp(120px, 18vh, 210px);
   color-scheme: dark;
 }
@@ -242,6 +242,7 @@ button {
 .opp-bars > .top-row {
   flex: 1;
   min-width: 0;
+  justify-content: center;
 }
 .opp-bars > .top-row + .top-row {
   border-left: 1px solid var(--line);
@@ -298,20 +299,23 @@ button {
 .bottom-row .player-bar {
   align-self: center;
 }
+/* Avatar (as on MTGA): a round portrait, the life total in a pill at its foot. */
 .avatar {
   position: relative;
-  width: 58px;
-  height: 58px;
+  width: 62px;
+  height: 62px;
+  margin-bottom: 8px;
   border-radius: 50%;
-  border: 2px solid var(--line);
-  background: radial-gradient(circle at 35% 30%, #3a4a5e, #161d27);
+  border: 2px solid var(--hairline);
+  background: radial-gradient(circle at 50% 32%, color-mix(in srgb, var(--turn) 30%, #2a3444), #10151d 72%);
+  box-shadow: var(--shadow-1);
   cursor: pointer;
   flex: none;
   transition:
     box-shadow 0.2s,
-    border-color 0.2s;
+    border-color 0.2s,
+    outline-color 0.2s;
 }
-/* Player whose turn it is: rotating ring, pulsing halo and "Your turn" / "Their turn" label. */
 .player-bar.me {
   --turn: var(--me);
   --turn-glow: rgba(98, 196, 138, 0.55);
@@ -320,37 +324,11 @@ button {
   --turn: var(--opp);
   --turn-glow: rgba(224, 121, 91, 0.55);
 }
+/* Player whose turn it is: a steady ring of their color (no endless animation) and "Your turn" / "Their turn". */
 .avatar.active {
-  border: 3px solid var(--turn);
-  animation: turn-glow 2s ease-in-out infinite;
-}
-.avatar.active::before {
-  content: "";
-  position: absolute;
-  inset: -9px;
-  border-radius: 50%;
-  background: conic-gradient(from 0deg, transparent 0 55%, var(--turn) 75%, #fff 80%, var(--turn) 85%, transparent 100%);
-  mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
-  animation: turn-spin 2.4s linear infinite;
-  pointer-events: none;
-}
-@keyframes turn-glow {
-  0%,
-  100% {
-    box-shadow:
-      0 0 0 2px var(--turn-glow),
-      0 0 14px 3px var(--turn-glow);
-  }
-  50% {
-    box-shadow:
-      0 0 0 4px var(--turn-glow),
-      0 0 30px 10px var(--turn-glow);
-  }
-}
-@keyframes turn-spin {
-  to {
-    transform: rotate(1turn);
-  }
+  border-color: var(--turn);
+  outline: 2px solid color-mix(in srgb, var(--turn) 55%, transparent);
+  outline-offset: 3px;
 }
 .turn-chip {
   margin-left: 8px;
@@ -369,19 +347,29 @@ button {
 }
 .avatar-initial {
   position: absolute;
-  top: 7px;
-  left: 0;
-  right: 0;
-  font-size: 0.6875rem;
-  color: var(--dim);
-  font-weight: 600;
+  inset: 0 0 10px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.72);
 }
 .life {
   position: absolute;
-  inset: 16px 0 0;
-  font-size: 1.5rem;
+  left: 50%;
+  bottom: -10px;
+  translate: -50% 0;
+  min-width: 42px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: linear-gradient(#1f2734, #0b0f16);
+  border: 1px solid color-mix(in srgb, var(--turn) 55%, var(--hairline));
+  font-family: var(--font-display);
   font-weight: 700;
-  font-family: Cinzel, serif;
+  font-size: 1.125rem;
+  line-height: 1.35;
+  box-shadow: var(--shadow-1);
 }
 .life.low {
   color: #ff7a6b;
@@ -400,11 +388,21 @@ button {
 }
 .player-counts {
   display: flex;
-  gap: 10px;
+  gap: 6px;
   color: var(--dim);
   font-size: 0.75rem;
-  margin-top: 3px;
+  margin-top: 4px;
   align-items: center;
+}
+/* Library, hand, graveyard, exile: small pills. */
+.player-counts > :where(span:not([class]), .gy-button) {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--hairline);
 }
 .icon {
   width: 13px;
@@ -444,12 +442,22 @@ button {
   border-bottom: 2px dotted var(--gold, #d4a24c);
   opacity: 0.85;
 }
+/* An opponent's hand: backs fanned and cut by the top edge of the screen (as on MTGA). */
 .opp-hand {
   display: flex;
-  margin-left: 10px;
+  align-self: flex-start;
+  margin: calc(var(--back-w) * -0.7) 0 0 8px;
 }
-.opp-hand .card-back + .card-back {
-  margin-left: calc(var(--back-w) * -0.45);
+.opp-back {
+  display: block;
+  rotate: calc((var(--i) - (var(--n) - 1) / 2) * -3deg);
+  transform-origin: 50% -150%;
+}
+.opp-back + .opp-back {
+  margin-left: calc(var(--back-w) * -0.55);
+}
+.opp-back .card-back {
+  box-shadow: var(--shadow-1);
 }
 
 /* Battlefield (layout computed in board/layout.ts):
@@ -700,10 +708,18 @@ button {
   align-items: center;
   gap: 16px;
   padding: 6px 14px;
-  background: linear-gradient(90deg, rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0.12));
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
   min-height: 64px;
+}
+/* The middle line of the table: a hairline that fades at both ends. */
+.center-strip::before {
+  content: "";
+  position: absolute;
+  left: 3%;
+  right: 3%;
+  top: 50%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--hairline) 18%, var(--hairline) 82%, transparent);
+  pointer-events: none;
 }
 .center-main {
   display: flex;
@@ -730,19 +746,23 @@ button {
   flex-direction: column;
   align-items: center;
   gap: 3px;
-  padding: 3px 6px;
-  border-radius: 6px;
+  padding: 3px 7px;
+  border-radius: var(--r-1);
   font-size: 0.6562rem;
   color: var(--dim);
-  background: var(--panel-2);
+  background: rgba(0, 0, 0, 0.38);
+  border: 1px solid var(--hairline);
 }
+/* Current step: lit and underlined in the color of the player whose turn it is. */
 .phase.current.me {
-  background: rgba(98, 196, 138, 0.22);
-  color: #d8ffe6;
+  color: #fff;
+  background: color-mix(in srgb, var(--me) 22%, rgba(0, 0, 0, 0.38));
+  box-shadow: inset 0 -2px 0 var(--me);
 }
 .phase.current.opp {
-  background: rgba(224, 121, 91, 0.22);
-  color: #ffe2d8;
+  color: #fff;
+  background: color-mix(in srgb, var(--opp) 22%, rgba(0, 0, 0, 0.38));
+  box-shadow: inset 0 -2px 0 var(--opp);
 }
 .stops {
   display: flex;
@@ -766,10 +786,12 @@ button {
   border-color: var(--opp);
 }
 .banner {
+  position: relative;
   padding: 8px 16px;
   border-radius: 20px;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid var(--line);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-1);
   color: var(--dim);
   display: flex;
   gap: 10px;
@@ -783,28 +805,39 @@ button {
   border-color: rgba(240, 184, 74, 0.5);
 }
 
-/* Stack */
+/* Stack (as on MTGA): a panel on the right at mid-height, the spells cascading, the newest in front. */
 .stack {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  translate: 0 -50%;
+  z-index: 6;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  padding: 6px 10px 12px;
+  border-radius: var(--r-3);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-2);
 }
 .stack-label {
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-  font-size: 0.6875rem;
+  font-size: 0.625rem;
   color: var(--dim);
   letter-spacing: 2px;
   text-transform: uppercase;
 }
 .stack-items {
   display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 .stack-item {
   position: relative;
 }
 .stack-item + .stack-item {
-  margin-left: calc(var(--stack-w) * -0.45);
+  margin-top: calc(var(--stack-w) * -1.1);
 }
 .stack-item.opp .card {
   outline: 2px solid rgba(224, 121, 91, 0.7);
@@ -945,25 +978,43 @@ button {
   align-self: center;
   min-width: 170px;
 }
+/* The main button (as on MTGA): amber when it moves the game forward, blue when it lets the stack resolve. */
 .main-button {
-  min-width: 160px;
-  height: 50px;
-  border-radius: 25px;
-  border: 1px solid var(--line);
-  background: #2a3240;
+  min-width: 170px;
+  height: 54px;
+  padding: 0 22px;
+  border-radius: 27px;
+  border: 1px solid var(--hairline);
+  background: linear-gradient(#2c3442, #1b212c);
+  color: var(--dim);
   font-weight: 700;
   font-size: 0.9375rem;
+  letter-spacing: 0.02em;
+  box-shadow: var(--shadow-1);
   cursor: pointer;
   transition:
     transform 0.1s,
     box-shadow 0.2s,
-    background 0.2s;
+    filter 0.2s;
 }
 .main-button.hot {
-  background: linear-gradient(180deg, var(--gold), var(--gold-2));
-  color: #1d1406;
-  border-color: transparent;
-  box-shadow: 0 0 18px rgba(240, 184, 74, 0.45);
+  background: linear-gradient(180deg, #ffb547, #e07b1a);
+  color: #2a1503;
+  border-color: rgba(255, 210, 140, 0.6);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.4),
+    0 6px 22px rgba(224, 123, 26, 0.45);
+}
+.main-button.hot.respond {
+  background: linear-gradient(180deg, #4fa8ff, #1d6fd1);
+  color: #fff;
+  border-color: rgba(170, 215, 255, 0.6);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.4),
+    0 6px 22px rgba(29, 111, 209, 0.5);
+}
+.main-button.hot:hover:not(:disabled) {
+  filter: brightness(1.08);
 }
 .main-button:active:not(:disabled) {
   transform: scale(0.97);
@@ -1087,6 +1138,13 @@ button {
   color: #b2271b;
 }
 .art-card .counter-badges {
+  top: 16%;
+}
+/* Summoning sickness: top right, clear of the P/T box on small cards. */
+.art-card .sick-badge {
+  left: auto;
+  right: 4px;
+  bottom: auto;
   top: 16%;
 }
 .text-frame {
@@ -2495,7 +2553,7 @@ button.emblem-chip.activatable {
     --stack-w: clamp(52px, 13vh, 90px);
     --spotlight-w: clamp(110px, 38vh, 200px);
     --pick-w: clamp(90px, 28vh, 160px);
-    --back-w: 16px;
+    --back-w: 22px;
   }
   .top-row,
   .bottom-row {
@@ -2512,13 +2570,16 @@ button.emblem-chip.activatable {
   .avatar {
     width: 40px;
     height: 40px;
+    margin-bottom: 6px;
   }
   .avatar-initial {
     display: none;
   }
   .life {
-    inset: 7px 0 0;
-    font-size: 1.125rem;
+    bottom: -8px;
+    min-width: 32px;
+    padding: 0 6px;
+    font-size: 0.875rem;
   }
   .player-name {
     font-size: 0.75rem;
