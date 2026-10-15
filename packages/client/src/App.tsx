@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Board, useMainAction } from "./board/Board";
 import { ReplayBar } from "./board/ReplayBar";
-import { DrawerToggle, HoverPreview, Sidebar, TouchPreview } from "./board/Sidebar";
+import { DrawerToggle, PreviewFloat, Sidebar, TouchPreview } from "./board/Sidebar";
 import { DeckBuilder } from "./decks/DeckBuilder";
 import { Lobby } from "./lobby/Lobby";
 import { Online } from "./lobby/Online";
@@ -91,7 +91,7 @@ function GameScreen() {
       <DrawerToggle />
       <Prompts />
       <TouchPreview />
-      <HoverPreview />
+      <PreviewFloat />
       <Coach />
       <div className="rotate-hint">
         <div className="rotate-icon">⟳</div>

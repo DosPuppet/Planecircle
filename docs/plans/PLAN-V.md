@@ -222,8 +222,8 @@ The user's choices:
 
 | Lot | State | Commit |
 |---|---|---|
-| V0 | done: `:root` tokens (surfaces, hairline, radii, shadows, easing, fonts, card ratios, tilt), one glow recipe (`--g` per state), tabular figures, CSS budget in `tools/bundle-size.ts` (`index.css` 57 KB of 60) | |
-| V1 | to do | |
+| V0 | done: `:root` tokens (surfaces, hairline, radii, shadows, easing, fonts, card ratios, tilt), one glow recipe (`--g` per state), tabular figures, CSS budget in `tools/bundle-size.ts` (`index.css` 57 KB of 60) | 9781822 |
+| V1 | done: no sidebar (one-column game, `.sidebar` is the settings and log drawer at every width, hidden from Tab when closed); `PreviewFloat` replaces `HoverPreview` (left of the screen, right when the pointer is under it; closes 80 ms after the pointer leaves any card, `hoverLive`, or on a click); the Coach opens the drawer for log and settings steps and holds the preview (`previewHold`); proxy, always-answer and lang smokes read the drawer | |
 | V2 | to do | |
 | V3 | to do | |
 | V4 | to do | |

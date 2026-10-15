@@ -273,10 +273,15 @@ interface Store {
   blocks: Record<string, string>;
   selectedBlocker: string | null;
   selection: string[];
+  /** Last card hovered (kept after the pointer leaves: the tutorial reads it). */
   hover: Hover | null;
+  /** The pointer is still on the hovered card: the floating preview shows it (PLAN-V). */
+  hoverLive: boolean;
+  /** Floating preview kept open without hovering (tutorial step that shows the preview). */
+  previewHold: boolean;
   /** Touch screen: card enlarged in an overlay (long press). */
   peek: Hover | null;
-  /** Narrow screen: sidebar (settings, preview, log) open as a drawer. */
+  /** Drawer of the log and settings (☰ button). */
   drawerOpen: boolean;
   graveyardOpen: string | null;
   /** Exile being viewed (cards owned by this player). */
@@ -426,6 +431,9 @@ interface Store {
   applySettings(partial: Partial<AutopilotSettings>): void;
   setLang(lang: Lang): void;
   setHover(h: Hover | null): void;
+  /** The pointer left the hovered card: the floating preview closes (`hover` stays). */
+  endHover(): void;
+  setPreviewHold(hold: boolean): void;
   setPeek(h: Hover | null): void;
   setDrawerOpen(open: boolean): void;
   toggleSelection(id: string): void;
@@ -1129,6 +1137,8 @@ export const useGame = create<Store>((set, get) => {
     selectedBlocker: null,
     selection: [],
     hover: null,
+    hoverLive: false,
+    previewHold: false,
     peek: null,
     drawerOpen: false,
     graveyardOpen: null,
@@ -2079,7 +2089,15 @@ export const useGame = create<Store>((set, get) => {
     },
 
     setHover(h) {
-      set({ hover: h });
+      set({ hover: h, hoverLive: !!h });
+    },
+
+    endHover() {
+      if (get().hoverLive) set({ hoverLive: false });
+    },
+
+    setPreviewHold(hold) {
+      set({ previewHold: hold });
     },
 
     setPeek(h) {

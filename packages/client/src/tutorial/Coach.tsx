@@ -27,7 +27,7 @@ const SELECTORS: Record<Exclude<Target, object>, string[]> = {
   mainButton: ['[data-tuto="main-button"]'],
   endTurn: ['[data-tuto="end-turn"]'],
   log: [".sidebar .log"],
-  preview: [".sidebar .preview"],
+  preview: ['[data-tuto="preview"]'],
   // The panel of an opponent's spell (OK button) if it is shown, otherwise the stack.
   stack: [".stack-reveal", '[data-tuto="stack"]'],
   settings: [".sidebar .settings"],
@@ -127,6 +127,25 @@ export function RichText({ text }: { text: string }) {
 const GAP = 14;
 const PAD = 6;
 
+/**
+ * A step about the log or the settings opens their drawer (closed again afterwards if the guide opened it); a step about
+ * the preview keeps the floating preview open (PLAN-V: no sidebar).
+ */
+function useShownTarget(target: Target | undefined) {
+  useEffect(() => {
+    const game = useGame.getState();
+    if (target === "log" || target === "settings") {
+      if (game.drawerOpen) return;
+      game.setDrawerOpen(true);
+      return () => useGame.getState().setDrawerOpen(false);
+    }
+    if (target === "preview") {
+      game.setPreviewHold(true);
+      return () => useGame.getState().setPreviewHold(false);
+    }
+  }, [target]);
+}
+
 export function Coach() {
   const tuto = useTutorial();
   const t = useT();
@@ -138,6 +157,7 @@ export function Coach() {
   const [hidden, setHidden] = useState(false);
   // biome-ignore lint/correctness/useExhaustiveDependencies: the bubble reappears at every new step
   useEffect(() => setHidden(false), [tuto.lessonId, tuto.step, tuto.finished]);
+  useShownTarget(tuto.finished ? undefined : step?.target);
   if (!lesson || !step) return null;
   const index = LESSONS.indexOf(lesson);
   const nextLesson = LESSONS[index + 1];

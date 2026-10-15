@@ -397,7 +397,6 @@ export function Sidebar() {
         ×
       </button>
       <Settings />
-      <Preview />
       <div className="log-title">{t("Log")}</div>
       <Log />
     </aside>
@@ -423,41 +422,50 @@ export function TouchPreview() {
   );
 }
 
+/** What shows a card's preview when hovered: cards (board, hand, stack, dialogs), names in the log, commanders. */
+const HOVER_SOURCES = ".card-slot, .log-card, .commander-chip";
+/** Width taken by the floating preview, for the side switch (image and info column). */
+const FLOAT_ROOM = 640;
+
 /**
- * Narrow screen with a mouse (under 1,100 px, sidebar as a drawer): the preview of the hovered card follows the
- * pointer, on the side where there is room. It does not capture the mouse.
+ * Preview of the hovered card, floating at the left of the screen as on MTG Arena (PLAN-V), on the right when the
+ * pointer is under it. It closes shortly after the pointer leaves the card, and does not catch the mouse. Touch screens
+ * use `TouchPreview`.
  */
-export function HoverPreview() {
+export function PreviewFloat() {
   const hover = useGame((s) => s.hover);
-  const drawerOpen = useGame((s) => s.drawerOpen);
-  const lang = useGame((s) => s.lang);
-  useRelayActive();
-  const [narrow, setNarrow] = useState(() => window.matchMedia("(max-width: 1100px)").matches);
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const live = useGame((s) => s.hoverLive);
+  const hold = useGame((s) => s.previewHold);
+  const [right, setRight] = useState(false);
   useEffect(() => {
-    const mq = window.matchMedia("(max-width: 1100px)");
-    const onChange = () => setNarrow(mq.matches);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
+    if (isTouch()) return;
+    let timer = 0;
+    // The pointer is on no card any more (also when the hovered card leaves the screen without a mouseleave).
+    const onOver = (e: PointerEvent) => {
+      window.clearTimeout(timer);
+      if (e.pointerType !== "mouse") return;
+      setRight(e.clientX < FLOAT_ROOM);
+      if (!(e.target as Element | null)?.closest?.(HOVER_SOURCES))
+        timer = window.setTimeout(() => useGame.getState().endHover(), 80);
+    };
+    const onDown = () => useGame.getState().endHover();
+    document.addEventListener("pointerover", onOver);
+    document.addEventListener("pointerdown", onDown);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("pointerover", onOver);
+      document.removeEventListener("pointerdown", onDown);
+    };
   }, []);
-  const active = narrow && !drawerOpen && !!hover && !isTouch();
-  useEffect(() => {
-    if (!active) return;
-    const onMove = (e: MouseEvent) => setPos({ x: e.clientX, y: e.clientY });
-    window.addEventListener("mousemove", onMove);
-    return () => window.removeEventListener("mousemove", onMove);
-  }, [active]);
-  if (!active || !hover || !pos) return null;
-  const src = faceImage(hover.obj?.faceDownCard ?? hover.face, lang);
-  if (!src) return null;
-  const w = 240;
-  const h = Math.round((w * 680) / 488);
-  const left = pos.x + 24 + w < window.innerWidth ? pos.x + 24 : Math.max(8, pos.x - 24 - w);
-  const top = Math.min(Math.max(8, pos.y - h / 2), window.innerHeight - h - 8);
-  return <img className="hover-preview" src={src} alt={faceName(hover.face, lang)} style={{ left, top, width: w, height: h }} />;
+  if (isTouch() || !(hold || (live && hover))) return null;
+  return (
+    <div className={`preview-float ${right && !hold ? "right" : ""}`} data-tuto="preview">
+      <Preview />
+    </div>
+  );
 }
 
-/** Narrow screen: button that opens the sidebar (settings, log) as a drawer. */
+/** Button that opens the drawer of the log and settings. */
 export function DrawerToggle() {
   const t = useT();
   const open = useGame((s) => s.drawerOpen);

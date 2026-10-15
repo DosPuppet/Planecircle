@@ -104,8 +104,9 @@ const onField = await page.evaluate(
   () => (window as unknown as DevWindow).__mtgx.getState().view?.battlefield.filter((o) => o.name === "Solemn Simulacrum").length,
 );
 check(!asked && onField === 2, "the second trigger is answered without a window", { asked, onField });
+await page.locator(".drawer-toggle").click(); // settings drawer
 const forget = page.getByRole("button", { name: /Oublier les réponses gardées \(1\)/ }); // i18n-ignore: the French interface
-check(await forget.isVisible(), "forget button in the sidebar");
+check(await forget.isVisible(), "forget button in the settings drawer");
 await page.screenshot({ path: `${OUT}/2-sidebar.png` });
 await forget.click();
 const after = await page.evaluate(() => (window as unknown as DevWindow).__mtgx.getState().settings.autoAnswers);

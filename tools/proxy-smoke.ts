@@ -123,8 +123,10 @@ const browser = await chromium.launch();
   await startGame(page);
   let imgs = await cardImages(page);
   check(imgs.total > 0 && imgs.srcs.every((s) => s?.startsWith("/scry/")), "game: relay forced", imgs.srcs.slice(0, 2));
-  // Uncheck in the game settings: back to direct.
+  // Uncheck in the game settings (drawer): back to direct.
+  await page.locator(".drawer-toggle").click();
   await page.locator(".sidebar .image-relay input").uncheck();
+  await page.keyboard.press("Escape");
   await page.waitForTimeout(500);
   imgs = await cardImages(page);
   check(

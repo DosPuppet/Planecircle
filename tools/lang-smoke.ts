@@ -40,6 +40,11 @@ const problems = new Map<string, string>();
 async function texts(page: Page): Promise<string[]> {
   return page.evaluate(() => {
     const out = document.body.innerText.split("\n");
+    // The drawer (log, settings) is hidden while closed: its texts are read anyway, line by line.
+    for (const el of document.querySelectorAll(".sidebar .log-line")) out.push(el.textContent ?? "");
+    const settings = document.querySelector(".sidebar .settings");
+    const walker = settings && document.createTreeWalker(settings, NodeFilter.SHOW_TEXT);
+    while (walker?.nextNode()) out.push(walker.currentNode.textContent ?? "");
     for (const el of document.querySelectorAll("[title], [aria-label]")) {
       const t = el.getAttribute("title");
       const a = el.getAttribute("aria-label");
