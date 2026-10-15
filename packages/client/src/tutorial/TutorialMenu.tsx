@@ -1,4 +1,5 @@
 /** Tutorial menu: play everything through, resume where you left off, or choose a lesson. */
+import { resolveBoardTheme } from "../boardThemes";
 import { useT } from "../localize";
 import { useGame } from "../store";
 import { textIn } from "../translate";
@@ -14,8 +15,10 @@ export function TutorialMenu() {
   const t = useT();
   const resume = lessonById(progress.current);
   const allDone = LESSONS.every((l) => progress.done.includes(l.id));
+  // The menus stand on the chosen table texture (still; "random": the first one).
+  const board = useGame((s) => resolveBoardTheme(s.boardTheme, 0));
   return (
-    <div className="lobby tutorial-menu">
+    <div className="lobby tutorial-menu" data-board={board}>
       <header className="lobby-head">
         <h1>{t("Learn to play")}</h1>
       </header>

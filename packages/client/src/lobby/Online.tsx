@@ -8,6 +8,7 @@ import { FORMAT_LABELS, ONLINE_FORMATS } from "@mtgx/cards";
 import type { Format } from "@mtgx/engine";
 import { useState } from "react";
 import { SoundControl } from "../audio/SoundControl";
+import { resolveBoardTheme } from "../boardThemes";
 import { useAllDecks } from "../decks/store";
 import { LangToggle } from "../LangToggle";
 import { useT } from "../localize";
@@ -120,8 +121,10 @@ export function Online() {
   const busy = online?.status === "connecting" && !online.error;
   const waiting = online?.status === "waiting";
 
+  // The menus stand on the chosen table texture (still; "random": the first one).
+  const board = useGame((s) => resolveBoardTheme(s.boardTheme, 0));
   return (
-    <div className="lobby online">
+    <div className="lobby online" data-board={board}>
       <header className="lobby-head">
         <div className="lobby-sound">
           <SoundControl />

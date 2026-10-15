@@ -4,6 +4,7 @@ import { type Format, isGameRecord, msg } from "@mtgx/engine";
 import { useEffect, useMemo, useState } from "react";
 import { SoundControl } from "../audio/SoundControl";
 import { ManaCost } from "../board/Card";
+import { resolveBoardTheme } from "../boardThemes";
 import { deckCover, deckDescription, deckName, useAllDecks } from "../decks/store";
 import { CustomArtToggle, ImageRelayToggle } from "../ImageRelayToggle";
 import { useRelayActive } from "../images";
@@ -251,8 +252,10 @@ export function Lobby() {
     setLevel(l);
     saveLevel(l);
   };
+  // The menus stand on the chosen table texture (still; "random": the first one).
+  const board = useGame((s) => resolveBoardTheme(s.boardTheme, 0));
   return (
-    <div className="lobby">
+    <div className="lobby" data-board={board}>
       <header className="lobby-head">
         <div className="lobby-sound">
           <SoundControl />
