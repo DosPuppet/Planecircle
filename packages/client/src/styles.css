@@ -2274,6 +2274,11 @@ button.emblem-chip.activatable {
   color: var(--text, #e8edf2);
   cursor: pointer;
 }
+.sound-test {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 6px;
+}
 .sound-toggle:hover {
   border-color: var(--gold);
 }

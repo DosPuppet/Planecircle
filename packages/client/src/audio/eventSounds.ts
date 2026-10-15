@@ -53,6 +53,7 @@ export function soundsFor(events: GameEvent[], view: GameView, prev: GameView | 
       case "cast":
       case "copy":
         add("cast");
+        add(castColor(faces[e.defId]));
         break;
       case "activate":
       case "trigger":
@@ -115,6 +116,14 @@ export function soundsFor(events: GameEvent[], view: GameView, prev: GameView | 
   }
 
   return collapse(cues);
+}
+
+/** The cue of a spell's colors, read in its mana cost (hybrid symbols included): one color, several, or none. */
+export function castColor(face: CardFace | undefined): SoundKey {
+  const colors = new Set((face?.manaCost ?? "").match(/[WUBRG]/g) ?? []);
+  if (colors.size > 1) return "castM";
+  const [c] = [...colors];
+  return c ? (`cast${c}` as SoundKey) : "castC";
 }
 
 /** A series of more than MAX_REPEAT identical sounds becomes a single sound, a little louder. */

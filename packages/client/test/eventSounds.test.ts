@@ -1,15 +1,15 @@
 import { existsSync } from "node:fs";
 import type { CardFace, GameEvent, GameView, ObjectView, StackItemView } from "@mtgx/engine";
 import { describe, expect, it } from "vitest";
-import { soundsFor } from "../src/audio/eventSounds";
-import { SOUND_FILES, SOUNDS } from "../src/audio/sounds";
+import { castColor, soundsFor } from "../src/audio/eventSounds";
+import { SOUND_FILES, SOUND_LABELS, SOUNDS } from "../src/audio/sounds";
 
 const land = (id: string, tapped: boolean, controller = "p1") =>
   ({ id, controller, tapped, types: ["Land"] }) as unknown as ObjectView;
 const view = (over: Partial<GameView> = {}) => ({ viewer: "p1", battlefield: [], stack: [], ...over }) as unknown as GameView;
 const faces: Record<string, CardFace> = {
   bear: { typeLine: "Creature — Bear" } as CardFace,
-  bolt: { typeLine: "Instant" } as CardFace,
+  bolt: { typeLine: "Instant", manaCost: "{R}" } as CardFace,
 };
 const keys = (events: GameEvent[], prev: GameView | null = null, v = view()) =>
   soundsFor(events, v, prev, faces).map((c) => c.key);
@@ -29,7 +29,7 @@ describe("event sounds", () => {
         { type: "token", objectId: "9", defId: "token:x", controller: "p1" },
         { type: "turnStart", turn: 2, player: "p2" },
       ]),
-    ).toEqual(["shuffle", "turn", "draw", "land", "cast", "ability", "counter", "token"]);
+    ).toEqual(["shuffle", "turn", "draw", "land", "cast", "castR", "ability", "counter", "token"]);
   });
 
   it("Commander: a commander entering the command zone has its sound", () => {
@@ -110,8 +110,18 @@ describe("event sounds", () => {
     expect(keys([], prev, view({ battlefield: [land("a", false), land("b", true), land("c", true, "p2")] }))).toEqual([]);
   });
 
-  it("each sound layer designates an existing sound", () => {
-    for (const def of Object.values(SOUNDS)) if ("layer" in def) expect(SOUNDS).toHaveProperty(def.layer);
+  it("a cast has the cue of its colors: one color, several (hybrid included), or none", () => {
+    const face = (manaCost: string) => ({ manaCost }) as CardFace;
+    expect(castColor(face("{2}{W}{W}"))).toBe("castW");
+    expect(castColor(face("{1}{U}"))).toBe("castU");
+    expect(castColor(face("{B}{G}"))).toBe("castM");
+    expect(castColor(face("{R/G}"))).toBe("castM");
+    expect(castColor(face("{4}"))).toBe("castC");
+    expect(castColor(undefined)).toBe("castC");
+  });
+
+  it("every sound has a label in the listening panel", () => {
+    expect(Object.keys(SOUND_LABELS).sort()).toEqual(Object.keys(SOUNDS).sort());
   });
 
   it("each file in the table is present in public/sounds", () => {

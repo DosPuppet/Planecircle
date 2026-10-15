@@ -24,6 +24,8 @@ const BUDGET: Record<string, number> = {
   printings: 600 * KB,
   // Animated table (PLAN-V, raw WebGL), loaded on demand: a missing chunk means it was merged into the application.
   backdrop: 12 * KB,
+  // Synthesized sound cues (audio/synth.ts), loaded on demand.
+  synth: 12 * KB,
 };
 
 /**

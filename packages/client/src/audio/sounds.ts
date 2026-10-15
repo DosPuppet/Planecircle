@@ -1,48 +1,96 @@
 /**
- * Table of the sound effects: stable key → files (randomly drawn variants) in public/sounds/.
- * Kenney samples (CC0), see public/sounds/LICENSE-kenney.txt. Changing a sound = changing one line here.
+ * Table of the sound effects: stable key → recorded samples (randomly drawn variants, public/sounds/) for the physical
+ * sounds (cards, shuffle, lands, tokens: Kenney CC0 samples, see public/sounds/LICENSE-kenney.txt), or a synthesized
+ * cue (synth.ts, loaded on demand) for the musical and magical ones. Changing a sound = changing one line here (or its
+ * cue in synth.ts). Every key has a label for the listening panel (`SoundTest`).
  */
+import { msg } from "@mtgx/engine";
+import type { SynthId } from "./synth";
 
-export interface SoundDef {
-  files: string[];
-  /** Relative volume (0 to 1), before the master volume. */
-  volume: number;
-  /** Another sound (key of SOUNDS) played at the same time, e.g. a spell's shimmer. */
-  layer?: string;
-  /** No pitch variation (jingles). */
-  steady?: boolean;
-}
+export type SoundDef =
+  | {
+      files: string[];
+      /** Relative volume (0 to 1), before the master volume. */
+      volume: number;
+      /** No pitch variation (jingles). */
+      steady?: boolean;
+    }
+  | { synth: SynthId; volume: number };
 
 const range = (prefix: string, ids: (string | number)[]) => ids.map((i) => `${prefix}${i}.ogg`);
+const synth = (id: SynthId, volume = 1): SoundDef => ({ synth: id, volume });
 
 export const SOUNDS = {
   shuffle: { files: ["card-shuffle.ogg"], volume: 0.6 },
   draw: { files: range("card-slide-", [1, 2, 3, 5]), volume: 0.55 },
   land: { files: range("card-place-", [1, 2, 3, 4]), volume: 0.7 },
-  cast: { files: range("card-shove-", [1, 2, 3, 4]), volume: 0.6, layer: "castShimmer" },
-  castShimmer: { files: range("phaserUp", [1, 3]), volume: 0.12 },
+  // Casting: the card slides onto the stack, and a cue of the color of its mana.
+  cast: { files: range("card-shove-", [1, 2, 3, 4]), volume: 0.55 },
+  castW: synth("castW"),
+  castU: synth("castU", 1.4),
+  castB: synth("castB"),
+  castR: synth("castR", 1.3),
+  castG: synth("castG"),
+  castC: synth("castC", 1.6),
+  castM: synth("castM"),
   resolve: { files: range("card-place-", [1, 2, 3, 4]), volume: 0.55 },
-  ability: { files: range("pluck_00", [1, 2]), volume: 0.5 },
-  counter: { files: range("phaserDown", [1, 2]), volume: 0.35 },
-  attack: { files: range("drawKnife", [1, 2, 3]), volume: 0.6 },
-  block: { files: range("impactPlate_medium_00", [0, 1, 2]), volume: 0.45 },
-  hit: { files: range("impactPunch_medium_00", [0, 1, 2]), volume: 0.6 },
-  hitHeavy: { files: range("impactPunch_heavy_00", [0, 1, 2]), volume: 0.75 },
-  heal: { files: range("confirmation_00", [2, 4]), volume: 0.45 },
-  dies: { files: range("impactSoft_heavy_00", [0, 1, 2]), volume: 0.7 },
+  ability: synth("ability"),
+  counter: synth("counter", 1.4),
+  attack: synth("attack"),
+  block: synth("block"),
+  hit: synth("hit"),
+  hitHeavy: synth("hitHeavy"),
+  heal: synth("heal"),
+  dies: synth("dies"),
   token: { files: range("chip-lay-", [1, 2, 3]), volume: 0.7 },
   attach: { files: ["metalClick.ogg"], volume: 0.5 },
   // Commander (PLAN-E): a commander rejoins the command zone.
-  command: { files: range("phaserUp", [1, 3]), volume: 0.4 },
-  poison: { files: range("drop_00", [2, 4]), volume: 0.6 },
-  turn: { files: ["bong_001.ogg"], volume: 0.5 },
+  command: synth("command"),
+  poison: synth("poison"),
+  turn: synth("turn"),
   tap: { files: range("card-shove-", [1, 2, 3, 4]), volume: 0.25 },
-  click: { files: ["click_001.ogg"], volume: 0.35 },
-  error: { files: range("error_00", [6, 8]), volume: 0.45 },
-  win: { files: ["win.ogg"], volume: 0.7, steady: true },
-  lose: { files: ["lose.ogg"], volume: 0.7, steady: true },
+  click: synth("click"),
+  error: synth("error"),
+  win: synth("win"),
+  lose: synth("lose"),
 } satisfies Record<string, SoundDef>;
 
 export type SoundKey = keyof typeof SOUNDS;
 
-export const SOUND_FILES: string[] = [...new Set(Object.values(SOUNDS).flatMap((s) => s.files))];
+export const SOUND_FILES: string[] = [
+  ...new Set(Object.values(SOUNDS as Record<string, SoundDef>).flatMap((s) => ("files" in s ? s.files : []))),
+];
+
+/** Labels of the listening panel, in the order of the game. */
+export const SOUND_LABELS: Record<SoundKey, string> = {
+  shuffle: msg("Shuffle"),
+  draw: msg("ctx:sound|Draw"),
+  land: msg("Land"),
+  cast: msg("Cast"),
+  castW: msg("White spell"),
+  castU: msg("Blue spell"),
+  castB: msg("Black spell"),
+  castR: msg("Red spell"),
+  castG: msg("Green spell"),
+  castC: msg("Colorless spell"),
+  castM: msg("Multicolored spell"),
+  resolve: msg("Permanent arrives"),
+  ability: msg("Ability"),
+  counter: msg("Countered"),
+  attack: msg("Attack"),
+  block: msg("Block"),
+  hit: msg("Hit"),
+  hitHeavy: msg("Heavy hit"),
+  heal: msg("Life gain"),
+  dies: msg("Dies"),
+  token: msg("Token"),
+  attach: msg("Attach"),
+  command: msg("Back to the command zone"),
+  poison: msg("Poison"),
+  turn: msg("Your turn"),
+  tap: msg("Tap"),
+  click: msg("Click"),
+  error: msg("Error"),
+  win: msg("Victory"),
+  lose: msg("Defeat"),
+};

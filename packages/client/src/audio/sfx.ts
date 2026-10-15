@@ -1,10 +1,10 @@
 /**
- * Sound effects (Web Audio): decoded and cached buffers, randomly drawn variants,
- * slight pitch variation, safeguards against cacophony.
+ * Sound effects (Web Audio): recorded samples (decoded and cached buffers, randomly drawn variants, slight pitch
+ * variation) and synthesized cues (synth.ts, a chunk loaded on demand); safeguards against cacophony.
  * Sound must never break a game: any error (file, decoding, refused context) is ignored.
  */
 import { create } from "zustand";
-import { SOUND_FILES, SOUNDS, type SoundKey } from "./sounds";
+import { SOUND_FILES, SOUNDS, type SoundDef, type SoundKey } from "./sounds";
 
 const BASE = `${import.meta.env.BASE_URL}sounds/`;
 /** Minimum gap between two plays of the same sound. */
@@ -112,9 +112,17 @@ export function unlockAudio(): void {
   if (c?.state === "suspended") c.resume().catch(() => {});
 }
 
+let synthModule: Promise<typeof import("./synth") | null> | null = null;
+/** The synthesizer, loaded once (its own chunk). */
+const synth = () => {
+  synthModule ??= import("./synth").catch(() => null);
+  return synthModule;
+};
+
 /** Loads every sound in advance (start of the game), so that they play without latency. */
 export function preloadSounds(): void {
   for (const f of SOUND_FILES) void load(f);
+  void synth();
 }
 
 export function playSound(key: SoundKey, opts: { delay?: number; gain?: number } = {}): void {
@@ -125,15 +133,27 @@ export function playSound(key: SoundKey, opts: { delay?: number; gain?: number }
   const now = performance.now() + (opts.delay ?? 0) * 1000;
   if (now - (lastPlayed.get(key) ?? Number.NEGATIVE_INFINITY) < MIN_GAP_MS) return;
   lastPlayed.set(key, now);
-  const def = SOUNDS[key];
-  const file = def.files[Math.floor(Math.random() * def.files.length)] as string;
+  const def: SoundDef = SOUNDS[key];
   devLog?.push(key);
+  const startAt = () => c.currentTime + Math.max(0, (now - performance.now()) / 1000);
+  if ("synth" in def) {
+    void synth().then((m) => {
+      if (!m || !master) return;
+      try {
+        m.playSynth(c, master, def.synth, startAt(), def.volume * (opts.gain ?? 1));
+      } catch {
+        // playback impossible: carry on without sound
+      }
+    });
+    return;
+  }
+  const file = def.files[Math.floor(Math.random() * def.files.length)] as string;
   void load(file).then((buffer) => {
     if (!buffer || !master || voices >= MAX_VOICES) return;
     try {
       const src = c.createBufferSource();
       src.buffer = buffer;
-      if (!("steady" in def && def.steady)) src.playbackRate.value = 0.95 + Math.random() * 0.1;
+      if (!def.steady) src.playbackRate.value = 0.95 + Math.random() * 0.1;
       const gain = c.createGain();
       gain.gain.value = Math.min(1, def.volume * (opts.gain ?? 1));
       src.connect(gain).connect(master);
@@ -141,10 +161,9 @@ export function playSound(key: SoundKey, opts: { delay?: number; gain?: number }
       src.onended = () => {
         voices -= 1;
       };
-      src.start(c.currentTime + Math.max(0, (now - performance.now()) / 1000));
+      src.start(startAt());
     } catch {
       // playback impossible: carry on without sound
     }
   });
-  if ("layer" in def && def.layer) playSound(def.layer as SoundKey, opts);
 }
