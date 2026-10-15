@@ -1760,7 +1760,8 @@ button.emblem-chip.activatable {
   position: fixed;
   top: max(8px, env(safe-area-inset-top));
   right: max(8px, env(safe-area-inset-right));
-  z-index: 90;
+  /* Above the dialogs' backdrop (100): the log and the settings stay reachable during a choice. */
+  z-index: 105;
   width: 42px;
   height: 42px;
   border-radius: 50%;

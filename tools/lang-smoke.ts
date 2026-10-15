@@ -66,8 +66,24 @@ async function check(page: Page, lang: Lang, where: string): Promise<void> {
 }
 
 const NAMES = {
-  fr: { play: "Jouer contre l'IA", keep: "Garder", decks: "Mes decks", online: "Contre un joueur", learn: "Apprendre à jouer" },
-  en: { play: "Play against the AI", keep: "Keep", decks: "My decks", online: "Against a player", learn: "Learn to play" },
+  fr: {
+    play: "Jouer contre l'IA",
+    keep: "Garder",
+    decks: "Mes decks",
+    online: "Contre un joueur", // i18n-ignore: the French interface
+    learn: "Apprendre à jouer", // i18n-ignore: the French interface
+    concede: "Abandonner",
+    confirm: "Confirmer",
+  },
+  en: {
+    play: "Play against the AI",
+    keep: "Keep",
+    decks: "My decks",
+    online: "Against a player",
+    learn: "Learn to play",
+    concede: "Concede",
+    confirm: "Yes, concede",
+  },
 } as const;
 
 const browser = await chromium.launch();
@@ -139,6 +155,17 @@ for (const lang of ["fr", "en"] as const) {
   }
   await check(page, lang, "end");
   await page.screenshot({ path: join(OUT, `${lang}-game.png`) });
+  // Game not over within MAX actions: the settings drawer, then a concession, for the end-of-game window.
+  if (!(await page.locator(".gameover").count())) {
+    await page.locator(".drawer-toggle").click();
+    await page.waitForTimeout(400);
+    await check(page, lang, "drawer");
+    await page.getByRole("button", { name: n.concede, exact: true }).click();
+    await page.getByRole("button", { name: n.confirm, exact: true }).click();
+    await page.locator(".gameover").waitFor({ timeout: 10_000 });
+    await page.waitForTimeout(500);
+    await check(page, lang, "game over");
+  }
   await page.close();
 }
 await browser.close();

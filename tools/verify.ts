@@ -14,7 +14,7 @@
  * the view or the protocol changed since the last commit.
  */
 import { spawn } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { availableParallelism } from "node:os";
 
 const argv = process.argv.slice(2);
@@ -165,7 +165,20 @@ ok &&= await group([
   },
   { name: "bundle", cmd: "npx tsx tools/bundle-size.ts", show: /^bundle: .*$/ },
 ]);
-ok &&= await group([{ name: "vitest", cmd: "npx vitest run", show: /^\s*Tests .*$/ }]);
+// A lot runs the card smoke test of its own set only (the others: CI on every push, --full); META spans every set.
+const SMOKE = "packages/ai/test/smoke";
+const smokeFiles = readdirSync(SMOKE).filter((f) => f.endsWith(".test.ts"));
+const own = (code: string) => smokeFiles.filter((f) => f === `${code}.test.ts` || f.startsWith(`${code}-`));
+const lotCode = set === "COMMANDER" ? "edh" : set?.toLowerCase();
+const keep = !full && !ci && lotCode && set !== "META" ? (own(lotCode).length ? own(lotCode) : ["others.test.ts"]) : null;
+const skip = keep ? smokeFiles.filter((f) => !keep.includes(f)).map((f) => `${SMOKE}/${f}`) : [];
+ok &&= await group([
+  {
+    name: keep ? `vitest (smoke: ${keep.join(", ")})` : "vitest",
+    cmd: `MTGX_SKIP=${skip.join(",")} npx vitest run`,
+    show: /^\s*Tests .*$/,
+  },
+]);
 
 // 2. Fuzz: all the series together, on all the cores.
 const fuzzes = ci
@@ -243,7 +256,11 @@ if (!ci && !flag("no-ui") && (full || flag("ui") || uiTouched)) {
     ]);
     ok = results.every(Boolean) && ok;
     // Display in both languages (PLAN-I): two games in the browser, alone (in a queue, it slowed the others into timeouts).
-    ok = (await group([{ name: "lang-smoke", cmd: "npx tsx tools/lang-smoke.ts 150", show: /^ok: both languages.*$/ }])) && ok;
+    // A lot plays 50 actions per game, then concedes (the end-of-game window is checked either way); --full plays 150.
+    ok =
+      (await group([
+        { name: "lang-smoke", cmd: `npx tsx tools/lang-smoke.ts ${full ? 150 : 50}`, show: /^ok: both languages.*$/ },
+      ])) && ok;
     // Latency of the high AI in real time: alone (a parallel load would skew the measurement), full verification.
     if (full)
       ok =
