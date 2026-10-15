@@ -565,11 +565,11 @@ button {
   gap: 6px;
 }
 .perm-row.front {
-  min-height: calc(var(--card-w) * 1.395 + 10px);
+  min-height: calc(var(--card-w) * var(--perm-ratio) + 10px);
   justify-content: center;
 }
 .perm-row.back {
-  min-height: calc(var(--land-w) * 1.395);
+  min-height: calc(var(--land-w) * var(--perm-ratio));
   justify-content: center;
 }
 /* No automatic wrapping: the lines are split by splitLines (layout.ts). */
@@ -632,10 +632,10 @@ button {
 /* Auras and Equipment: stacked behind their host, their top sticks out (ATTACH_PEEK in layout.ts). */
 .perm.has-attach {
   position: relative;
-  padding-top: calc(var(--card-w) * 1.395 * 0.2 * var(--attach-n));
+  padding-top: calc(var(--card-w) * var(--perm-ratio) * 0.2 * var(--attach-n));
 }
 .perm-row.back .perm.has-attach {
-  padding-top: calc(var(--land-w) * 1.395 * 0.2 * var(--attach-n));
+  padding-top: calc(var(--land-w) * var(--perm-ratio) * 0.2 * var(--attach-n));
 }
 .perm > .card-slot {
   position: relative;
@@ -644,11 +644,11 @@ button {
 .attachment {
   position: absolute;
   left: 0;
-  top: calc(var(--card-w) * 1.395 * 0.2 * var(--attach-i));
+  top: calc(var(--card-w) * var(--perm-ratio) * 0.2 * var(--attach-i));
   z-index: 0;
 }
 .perm-row.back .attachment {
-  top: calc(var(--land-w) * 1.395 * 0.2 * var(--attach-i));
+  top: calc(var(--land-w) * var(--perm-ratio) * 0.2 * var(--attach-i));
 }
 .attachment .card-slot {
   position: relative;
@@ -1007,6 +1007,88 @@ button {
 .card.dim {
   filter: grayscale(0.7) brightness(0.7);
 }
+/* Art card of the battlefield (PLAN-V, as on MTGA): the art in a frame of the card's color, name on top when there is
+   room, P/T in a light box in the corner. */
+.card.art-card {
+  border: 2px solid var(--frame);
+  border-radius: 7px;
+  background: #111;
+  container-type: inline-size;
+}
+.c-W {
+  --frame: #e8dcc0;
+}
+.c-U {
+  --frame: #2f7fc4;
+}
+.c-B {
+  --frame: #5d5563;
+}
+.c-R {
+  --frame: #d0453a;
+}
+.c-G {
+  --frame: #2f8a4f;
+}
+.c-M {
+  --frame: #d4b45a;
+}
+.c-C {
+  --frame: #a9b0b8;
+}
+.c-L {
+  --frame: #9c8a66;
+}
+/* No art crop (custom art): the whole card, framed on its art box. */
+.card img.full {
+  inset: auto;
+  top: -4%;
+  left: -9.5%;
+  width: 119%;
+  height: auto;
+  object-fit: fill;
+}
+.art-name {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 1;
+  padding: 2px 4px 7px;
+  font-weight: 600;
+  font-size: clamp(8px, 9.5cqi, 11px);
+  line-height: 1.15;
+  color: #fff;
+  text-shadow: 0 1px 2px #000;
+  background: linear-gradient(rgba(0, 0, 0, 0.72), transparent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+@container (max-width: 84px) {
+  .art-name {
+    display: none;
+  }
+}
+.art-card .pt-badge {
+  right: -1px;
+  bottom: -1px;
+  padding: 1px 6px;
+  border-radius: 6px 0 5px;
+  border: 1px solid #2b241b;
+  background: linear-gradient(#f4efe4, #cbc2ae);
+  color: #1a1612;
+  font-size: clamp(10px, 13cqi, 15px);
+}
+.art-card .pt-badge.buffed {
+  color: #1f7a3d;
+}
+.art-card .pt-badge.debuffed,
+.art-card .pt-badge .damaged {
+  color: #b2271b;
+}
+.art-card .counter-badges {
+  top: 16%;
+}
 .text-frame {
   position: absolute;
   inset: 0;
@@ -1237,16 +1319,8 @@ button.emblem-chip.activatable {
 .pt-badge.debuffed {
   color: #ff8d80;
 }
-.dmg-badge {
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  background: #c0392b;
-  color: #fff;
-  font-weight: 700;
-  font-size: 0.6875rem;
-  padding: 1px 5px;
-  border-radius: 8px;
+.pt-badge .damaged {
+  color: #ff8d80;
 }
 .counter-badges {
   position: absolute;

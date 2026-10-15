@@ -223,8 +223,8 @@ The user's choices:
 | Lot | State | Commit |
 |---|---|---|
 | V0 | done: `:root` tokens (surfaces, hairline, radii, shadows, easing, fonts, card ratios, tilt), one glow recipe (`--g` per state), tabular figures, CSS budget in `tools/bundle-size.ts` (`index.css` 57 KB of 60) | 9781822 |
-| V1 | done: no sidebar (one-column game, `.sidebar` is the settings and log drawer at every width, hidden from Tab when closed); `PreviewFloat` replaces `HoverPreview` (left of the screen, right when the pointer is under it; closes 80 ms after the pointer leaves any card, `hoverLive`, or on a click); the Coach opens the drawer for log and settings steps and holds the preview (`previewHold`); proxy, always-answer and lang smokes read the drawer | |
-| V2 | to do | |
+| V1 | done: no sidebar (one-column game, `.sidebar` is the settings and log drawer at every width, hidden from Tab when closed); `PreviewFloat` replaces `HoverPreview` (left of the screen, right when the pointer is under it; closes 80 ms after the pointer leaves any card, `hoverLive`, or on a click); the Coach opens the drawer for log and settings steps and holds the preview (`previewHold`); proxy, always-answer and lang smokes read the drawer | d3a7e2d |
+| V2 | done: battlefield art cards (`Card art`): Scryfall art crop derived from the displayed image (`artCropOf`, `faceArt`; no engine or protocol change), the whole card framed on its art box for custom art or a failed crop, frame by color (`c-W/U/B/R/G/M/C/L`), name on top from 84 px, P/T in a light corner box (damage in red in the toughness, `.dmg-badge` removed); `PERM_RATIO` 1.2, tapped = 17° in a `TAP_W` (1.31) slot; the tap bleed (about 0.12 card) is not reserved: a tapped card overlaps the next line slightly, as on MTGA; layout tests (+2) and battlefield-smoke (art crops, 17° lean) | |
 | V3 | to do | |
 | V4 | to do | |
 | V5 | to do | |

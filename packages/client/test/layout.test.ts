@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import type { ObjectView } from "@mtgx/engine";
 import { describe, expect, it } from "vitest";
 import {
@@ -8,9 +9,12 @@ import {
   HAND_MIN_STEP,
   HAND_STEP,
   MIN_W,
+  PERM_RATIO,
   type Slot,
   slotUnits,
   splitLines,
+  TAP_DEG,
+  TAP_W,
   TOKEN_GROUP_MIN,
   tokenSlots,
   WALKER_MIN_PEEK,
@@ -149,6 +153,26 @@ describe("lines and card size", () => {
     expect(perLine * fit.cardW + 10 * (perLine - 1)).toBeLessThanOrEqual(420 - 28);
   });
 
+  it("a tapped art card leans by 17° and takes the width of its leaning box (PLAN-V)", () => {
+    const rad = (TAP_DEG * Math.PI) / 180;
+    expect(TAP_W).toBeCloseTo(Math.cos(rad) + PERM_RATIO * Math.sin(rad));
+    expect(TAP_W).toBeGreaterThan(1.3);
+    expect(TAP_W).toBeLessThan(1.32);
+    const tapped = (k: number): Slot => ({
+      kind: k > 1 ? "pile" : "single",
+      objs: n(k, () => obj({ types: ["Land"], tapped: true })),
+    });
+    expect(slotUnits(tapped(1))).toBeCloseTo(TAP_W);
+    // A pile of three tapped lands: each card behind shows the same share as untapped (LAND_OVERLAP).
+    expect(slotUnits(tapped(3))).toBeCloseTo(TAP_W + 2 * (TAP_W - 0.74));
+  });
+
+  it("the card shapes match styles.css", () => {
+    const css = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
+    expect(css).toContain(`--perm-ratio: ${PERM_RATIO};`);
+    expect(css).toContain("--card-ratio: 1.395;");
+  });
+
   it("a stack of tokens takes barely more than one card", () => {
     const [stack] = tokenSlots(n(12, () => token("Goblin")));
     expect(slotUnits(stack as Slot)).toBeLessThan(1.2);
@@ -180,7 +204,7 @@ describe("planeswalker area (as in MTGA)", () => {
   });
 
   it("several planeswalkers stack, then overlap without hiding their name", () => {
-    const h = 100 * 1.395;
+    const h = 100 * PERM_RATIO;
     expect(walkerStep(2, 100, 400)).toBeGreaterThanOrEqual(h);
     const step = walkerStep(5, 100, 400);
     expect(step).toBeLessThan(h);

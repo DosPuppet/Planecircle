@@ -11,7 +11,7 @@ import {
   msg,
   type Step,
 } from "@mtgx/engine";
-import { customImage, imageUrl } from "./images";
+import { artCropOf, customImage, imageUrl } from "./images";
 import { type Lang, localize, textIn, tr } from "./translate";
 
 export type { Lang } from "./translate";
@@ -150,6 +150,20 @@ export function faceImage(face: CardFace, lang: Lang): string | undefined {
   if (custom) return custom;
   // Token: the image of a matching Scryfall token (data/tokens.json), otherwise the text frame.
   return imageUrl((lang === "fr" && face.fr?.image) || face.image || (face.isToken ? tokenImage(face) : undefined));
+}
+
+/**
+ * Art of a face for an art card of the battlefield (PLAN-V): the crop of the image `faceImage` shows (same printing,
+ * same language); `full`: no crop exists (custom art), the whole card is shown, framed on its art box.
+ */
+export function faceArt(face: CardFace, lang: Lang): { src: string; full: boolean } | undefined {
+  const custom =
+    face.customArt && face.defId !== HIDDEN_CARD_ID ? customImage(face.name, face.isToken, face.customArt) : undefined;
+  if (custom) return { src: custom, full: true };
+  const raw = (lang === "fr" && face.fr?.image) || face.image || (face.isToken ? tokenImage(face) : undefined);
+  const crop = artCropOf(raw);
+  if (crop) return { src: imageUrl(crop), full: false };
+  return raw ? { src: imageUrl(raw), full: true } : undefined;
 }
 
 export interface LogLine {

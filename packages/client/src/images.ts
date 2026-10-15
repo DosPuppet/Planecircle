@@ -115,6 +115,14 @@ export function imageUrl(url: string | undefined): string | undefined {
 }
 
 /**
+ * Art crop of a Scryfall card image (battlefield art cards, PLAN-V): same image id, `art_crop` instead of `normal`.
+ * Any other image (custom art): undefined.
+ */
+export function artCropOf(url: string | undefined): string | undefined {
+  return url?.startsWith(`${SCRYFALL}normal/`) ? `${SCRYFALL}art_crop/${url.slice(SCRYFALL.length + 7)}` : undefined;
+}
+
+/**
  * Custom art of a card (by its English name, or that of its first face) or of a token; `set`: the art set to look in
  * first (`CardFace.customArt`).
  */

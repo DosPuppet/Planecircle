@@ -171,10 +171,12 @@ async function audit(page: Page, label: string) {
         }
         return problems;
       })(),
-      /** Width of the cards of the front row, per zone (height / 1.395: unaffected by tapping). */
-      frontW: zones.map((bf) =>
-        Math.round((bf.querySelector(".perm-row.front .perm > .card-slot")?.getBoundingClientRect().height ?? 0) / 1.395),
-      ),
+      /** Width of the cards of the front row, per zone (set by fitBattlefield). */
+      frontW: zones.map((bf) => Math.round(Number.parseFloat((bf as HTMLElement).style.getPropertyValue("--card-w")) || 0)),
+      /** Battlefield art cards show the Scryfall art crop (PLAN-V). */
+      artCrops: [...document.querySelectorAll(".battlefield .perm .card.art-card img")].filter((i) =>
+        (i as HTMLImageElement).src.includes("/art_crop/"),
+      ).length,
       supportInBack: document.querySelectorAll(".battlefield.me .perm-row.back .slot.block-start").length,
     };
   });
@@ -199,6 +201,7 @@ let r = await audit(page, "duel 1600");
 check(r.stacks.includes("×12") && r.stacks.includes("×5"), "identical tokens grouped (×12, ×5)", r.stacks);
 check(!r.stacks.includes("×3"), "3 identical tokens are not grouped", r.stacks);
 check(r.supportInBack === 1, "artifacts and enchantments in the back row, apart from the lands", r.supportInBack);
+check(r.artCrops > 10, "battlefield art cards show the art crop", r.artCrops);
 
 check((r.lines[0]?.[1] ?? 0) >= 2, "the crowded opponent goes over several lines", r.lines);
 check(
@@ -243,6 +246,27 @@ const after = await page.locator(".battlefield.me .token-count").allInnerTexts()
 check(after.includes("×10"), "two clicks on the pile make two tokens attack (×12 → ×10)", after);
 check(/Attaquer \(2\)/.test(await page.locator(".main-button").innerText()), "the button counts 2 attackers");
 await page.screenshot({ path: `${OUT}/2-attack.png` });
+// Declared: the attackers tap and lean by 17° (as on MTGA), their slot as wide as their leaning box.
+await page.locator(".main-button").click();
+await page.waitForTimeout(1200);
+const leaning = await page.evaluate(() =>
+  [...document.querySelectorAll(".battlefield.me .perm > .card-slot")]
+    .map((slot) => {
+      const card = slot.querySelector(".card") as HTMLElement | null;
+      const m = new DOMMatrix(card ? getComputedStyle(card).transform : "none");
+      return {
+        deg: Math.round((Math.atan2(m.b, m.a) * 180) / Math.PI),
+        ratio: (slot as HTMLElement).offsetWidth / (card?.offsetWidth || 1),
+      };
+    })
+    .filter((x) => x.deg !== 0),
+);
+check(
+  leaning.length > 0 && leaning.every((x) => x.deg === 17 && Math.abs(x.ratio - 1.307) < 0.03),
+  "tapped attackers lean by 17° in a slot 1.31 cards wide",
+  leaning,
+);
+await page.screenshot({ path: `${OUT}/2b-attack-declared.png` });
 await page.context().browser()?.close();
 
 // 3. Small screen.

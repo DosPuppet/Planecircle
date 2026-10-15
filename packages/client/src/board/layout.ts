@@ -9,7 +9,15 @@
  */
 import type { ObjectView } from "@mtgx/engine";
 
+/** Full card (hand, stack, dialogs): height / width (styles.css --card-ratio). */
 export const CARD_RATIO = 1.395;
+/** Art card of the battlefield (PLAN-V, as on MTGA): height / width (styles.css --perm-ratio). */
+export const PERM_RATIO = 1.2;
+/** A tapped permanent leans by this angle (as on MTGA) instead of turning a quarter. */
+export const TAP_DEG = 17;
+const TAP = (TAP_DEG * Math.PI) / 180;
+/** Width taken by a tapped art card, in card widths (its bounding box: w·cos + h·sin ≈ 1.31). */
+export const TAP_W = Math.cos(TAP) + PERM_RATIO * Math.sin(TAP);
 /** Size of the back row (lands, artifacts, enchantments) relative to the creatures. */
 export const LAND_SCALE = 0.72;
 /** Overlap of identical stacked lands (see .perm-group.pile). */
@@ -158,10 +166,10 @@ export function battlefieldSlots(
   return { front, back, walkers };
 }
 
-/** Width of a slot, in card widths (a tapped card takes up its height). */
+/** Width of a slot, in card widths (a tapped card takes up the width of its leaning box). */
 export function slotUnits(s: Slot): number {
   const first = s.objs[0];
-  const slot = first?.tapped ? CARD_RATIO : 1;
+  const slot = first?.tapped ? TAP_W : 1;
   if (s.kind === "pile") return slot + (s.objs.length - 1) * (slot - LAND_OVERLAP);
   if (s.kind === "tokens") return slot + TOKEN_OFFSET * Math.min(TOKEN_SHADOWS, s.objs.length - 1);
   return slot;
@@ -230,7 +238,7 @@ const WALKER_GAP = 6;
 
 /** Vertical step of the planeswalker zone for `n` cards of width `cardW` in `height` pixels. */
 export function walkerStep(n: number, cardW: number, height: number): number {
-  const h = cardW * CARD_RATIO;
+  const h = cardW * PERM_RATIO;
   const avail = height - FIXED_H / 2;
   if (n <= 1 || n * h + (n - 1) * WALKER_GAP <= avail) return h + WALKER_GAP;
   return Math.max(h * WALKER_MIN_PEEK, (avail - h) / (n - 1));
@@ -260,7 +268,7 @@ export function fitBattlefield(
   for (const [f, b] of combos) {
     if ((f > 1 && front.length < f) || (b > 1 && back.length < b)) continue;
     const peek = 1 + ATTACH_PEEK * attachDepth;
-    const byHeight = (height - FIXED_H - LINE_GAP * (f - 1 + b - 1)) / (CARD_RATIO * peek * (f + b * LAND_SCALE));
+    const byHeight = (height - FIXED_H - LINE_GAP * (f - 1 + b - 1)) / (PERM_RATIO * peek * (f + b * LAND_SCALE));
     const byFront = Math.min(...splitLines(front, f).map((l) => lineFit(l, avail, 1, reserve)));
     const byBack = Math.min(...splitLines(back, b).map((l) => lineFit(l, avail, LAND_SCALE, reserve)));
     // Compared before the MIN_W floor: below that threshold, the option that overflows least is kept.

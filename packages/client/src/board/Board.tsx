@@ -16,10 +16,10 @@ import {
   type BattlefieldFit,
   battlefieldRows,
   battlefieldSlots,
-  CARD_RATIO,
   fitBattlefield,
   fitHand,
   LAND_SCALE,
+  PERM_RATIO,
   type Slot,
   splitLines,
   TOKEN_SHADOWS,
@@ -387,6 +387,7 @@ function Permanent({
             face={a}
             obj={a}
             width={width}
+            art
             layoutId={a.uid}
             tapped={a.tapped}
             glow={glow(a)}
@@ -402,7 +403,7 @@ function Permanent({
           style={{ "--attach-i": attached.length + i } as CSSProperties}
           title={t("Exiled card (hover to see it)")}
         >
-          <Card face={a} obj={a} width={width} />
+          <Card face={a} obj={a} width={width} art />
           <span className="exiled-tag">{t("ctx:zone|Exile")}</span>
         </div>
       ))}
@@ -410,6 +411,7 @@ function Permanent({
         face={o}
         obj={o}
         width={width}
+        art
         layoutId={o.uid}
         tapped={o.tapped}
         glow={glow(o)}
@@ -439,7 +441,7 @@ function TokenStack({ slot, width, isMe, glow }: { slot: Slot; width: string; is
     >
       {slot.objs.slice(1, 1 + shadows).map((o, i) => (
         <div key={o.uid} className="token-shadow" style={{ "--shadow-i": shadows - i } as CSSProperties}>
-          <Card face={o} obj={o} width={width} tapped={o.tapped} hoverable={false} />
+          <Card face={o} obj={o} width={width} art tapped={o.tapped} hoverable={false} />
         </div>
       ))}
       <Permanent o={top} width={width} isMe={isMe} attached={[]} glow={glow} showStats />
@@ -578,7 +580,7 @@ function Battlefield({ player, isMe }: { player: string; isMe: boolean }) {
   ];
   const style = cardW ? ({ "--card-w": `${cardW}px`, "--land-w": `${cardW * LAND_SCALE}px` } as CSSProperties) : undefined;
   // Planeswalkers overlap when they don't fit in height (the top of each card stays visible).
-  const overlap = cardW ? Math.min(0, walkerStep - cardW * CARD_RATIO) : 0;
+  const overlap = cardW ? Math.min(0, walkerStep - cardW * PERM_RATIO) : 0;
   return (
     <div ref={ref} className={`battlefield ${isMe ? "me" : "opp"}`} data-tuto={isMe ? "field-me" : "field-opp"} style={style}>
       {view.players[player]?.citysBlessing && <CitysBlessing name={isMe ? null : (view.players[player]?.name ?? "")} />}

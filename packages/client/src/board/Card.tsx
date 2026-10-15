@@ -1,12 +1,13 @@
 import { type CardFace, counterLabel, HIDDEN_CARD_ID, msg, type ObjectView } from "@mtgx/engine";
 import { motion } from "motion/react";
 import { type CSSProperties, memo, useCallback, useRef, useState } from "react";
-import { faceImage, faceName, faceText, faceType } from "../i18n";
+import { faceArt, faceImage, faceName, faceText, faceType } from "../i18n";
 import { detectBlockedScryfall, useCustomBack, useRelayActive } from "../images";
 import { useLocalize, useT } from "../localize";
 import { useGame } from "../store";
 import { useLongPress } from "../touch";
 import { KeywordBadges } from "./Keywords";
+import { PERM_RATIO, TAP_DEG, TAP_W } from "./layout";
 
 export type Glow =
   | "playable"
@@ -83,6 +84,8 @@ interface CardProps {
   obj?: ObjectView;
   /** CSS width (variable or value). */
   width: string;
+  /** Battlefield art card (PLAN-V, as on MTGA): the art in a colored frame, shorter, leaning when tapped. */
+  art?: boolean;
   layoutId?: string;
   tapped?: boolean;
   glow?: Glow;
@@ -121,6 +124,7 @@ const CardView = memo(function CardView({
   face,
   obj,
   width,
+  art = false,
   layoutId,
   tapped,
   glow,
@@ -139,17 +143,23 @@ const CardView = memo(function CardView({
   // Touch screen: a long press replaces hovering (overlaid preview).
   const longPress = useLongPress(hoverable ? () => setPeek({ face, obj }) : undefined);
   useRelayActive(); // new URL when the image relay turns on
-  const src = faceImage(face, lang);
-  // Failed image: text frame. A new URL (relay turned on in the meantime) gets another try.
-  const [failedSrc, setFailedSrc] = useState<string | undefined>();
-  const failed = failedSrc !== undefined && failedSrc === src;
-  const height = `calc(${width} * 1.395)`;
+  // Failed images: next image, then the text frame. A new URL (relay turned on in the meantime) gets another try.
+  const [failedSrcs, setFailedSrcs] = useState<string[]>([]);
+  // Art card: the art crop; if it fails, the whole card framed on its art box.
+  const crop = art ? faceArt(face, lang) : undefined;
+  const cropOk = crop && !failedSrcs.includes(crop.src);
+  const src = cropOk ? crop.src : faceImage(face, lang);
+  const fullArt = art && (!cropOk || crop.full);
+  const failed = !!src && failedSrcs.includes(src);
+  const ratio = art ? PERM_RATIO : 1.395;
+  const height = `calc(${width} * ${ratio})`;
+  const slotW = !tapped ? width : art ? `calc(${width} * ${TAP_W})` : height;
 
   // A card exiled face down that the player can't look at (406.3): its back.
   if (face.defId === HIDDEN_CARD_ID)
     return (
       <div className={`card-slot ${className ?? ""}`} style={{ width, height }} data-oid={oid}>
-        <CardBack width={width} custom={obj ? customBackOf(obj.owner) : false} />
+        <CardBack width={width} ratio={ratio} custom={obj ? customBackOf(obj.owner) : false} />
       </div>
     );
 
@@ -162,7 +172,7 @@ const CardView = memo(function CardView({
     // biome-ignore lint/a11y/noStaticElementInteractions: a role "button" when the card can be used; otherwise, hovering only shows its preview
     <div
       className={`card-slot ${className ?? ""}`}
-      style={{ width: tapped ? height : width, height }}
+      style={{ width: slotW, height }}
       data-oid={oid}
       onMouseEnter={hoverable ? () => setHover({ face, obj }) : undefined}
       // Keyboard: Tab to reach a playable card, Enter or Space to use it (focus shows the preview).
@@ -184,25 +194,29 @@ const CardView = memo(function CardView({
         layoutId={layoutId}
         layout
         transition={SPRING}
-        className={`card ${glow ? `glow-${glow}` : ""} ${dim ? "dim" : ""} ${onClick ? "clickable" : ""}`}
+        className={`card ${art ? `art-card c-${frameOf(obj)}` : ""} ${glow ? `glow-${glow}` : ""} ${dim ? "dim" : ""} ${onClick ? "clickable" : ""}`}
         style={{ width, height }}
-        animate={{ rotate: tapped ? 90 : 0 }}
+        animate={{ rotate: tapped ? (art ? TAP_DEG : 90) : 0 }}
         onClick={onClick}
       >
         <TextFrame face={face} obj={obj} />
         {src && !failed && (
           <img
             src={src}
+            className={fullArt ? "full" : undefined}
             alt={faceName(face, lang)}
             draggable={false}
             onError={() => {
-              setFailedSrc(src);
+              setFailedSrcs((f) => [...f, src]);
               // Scryfall blocked by the network? The server's relay takes over (auto mode).
               void detectBlockedScryfall();
             }}
-            loading="lazy"
+            // The battlefield shows at once (no lazy loading: the card arrives from the hand or the stack).
+            loading={art ? undefined : "lazy"}
+            decoding="async"
           />
         )}
+        {art && src && !failed && <div className="art-name">{faceName(face, lang)}</div>}
         {obj?.castCost && obj.zone !== "battlefield" && obj.zone !== "stack" && (
           <div
             className={`cost-badge ${obj.castCost.delta < 0 ? "cheaper" : obj.castCost.delta > 0 ? "dearer" : ""}`}
@@ -214,11 +228,13 @@ const CardView = memo(function CardView({
         {showStats && obj && (
           <>
             {power !== undefined && (
-              <div className={`pt-badge ${buffed ? "buffed" : ""} ${debuffed ? "debuffed" : ""}`}>
-                {power}/{(toughness ?? 0) - obj.damage}
+              <div
+                className={`pt-badge ${buffed ? "buffed" : ""} ${debuffed ? "debuffed" : ""}`}
+                title={obj.damage > 0 ? t("{n} damage marked", { n: obj.damage }) : undefined}
+              >
+                {power}/<span className={obj.damage > 0 ? "damaged" : undefined}>{(toughness ?? 0) - obj.damage}</span>
               </div>
             )}
-            {obj.damage > 0 && <div className="dmg-badge">−{obj.damage}</div>}
             {obj.chosen?.manaType && (
               <div className="chosen-badge" title={t("Noted type of mana")}>
                 <ManaCost cost={`{${obj.chosen.manaType}}`} size={15} />
@@ -291,12 +307,20 @@ function CounterBadges({ counters }: { counters: Record<string, number> }) {
   );
 }
 
+/** Frame color of an art card: land, colorless, multicolored (gold) or its color. */
+function frameOf(obj: ObjectView | undefined): string {
+  if (!obj) return "C";
+  if (obj.types.includes("Land")) return "L";
+  if (obj.colors.length > 1) return "M";
+  return obj.colors[0] ?? "C";
+}
+
 /** Does this player's deck use custom art (card backs)? A string: their art set. */
 const customBackOf = (owner: string): boolean | string => useGame.getState().view?.players[owner]?.customArt ?? false;
 
 /** The back of a card; `custom`: the player who owns it uses custom art (a string: of that art set first). */
-export function CardBack({ width, custom }: { width: string; custom?: boolean | string }) {
+export function CardBack({ width, custom, ratio = 1.395 }: { width: string; custom?: boolean | string; ratio?: number }) {
   const back = useCustomBack(typeof custom === "string" ? custom : undefined);
   const image = custom && back ? { backgroundImage: `url("${back}")` } : {};
-  return <div className="card-back" style={{ width, height: `calc(${width} * 1.395)`, ...image }} />;
+  return <div className="card-back" style={{ width, height: `calc(${width} * ${ratio})`, ...image }} />;
 }
