@@ -135,7 +135,7 @@ npm run dev          # http://localhost:5173
 
 ### Tablet and phone
 
-The interface adapts to the screen: tablet in landscape or portrait, phone in landscape. In portrait, a phone shows "Rotate your device".
+The interface adapts to the screen: tablet in landscape or portrait, phone in landscape, and phone in portrait for a duel (the hand on a line of its own under your avatar and the main button). With 3 or 4 players, a phone in portrait shows "Rotate your device".
 
 - **The hand** tightens to always fit the width of the screen. On a phone, it extends below the screen, as in MTG Arena.
 - **By finger:**

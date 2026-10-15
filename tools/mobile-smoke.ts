@@ -2,7 +2,7 @@
  * End-to-end test of the interface on tablet and phone (Playwright device emulation): a 10-card hand and a battlefield
  * filled by the dev-mode sandbox. Checks that the hand, the main button and both battlefields fit on the screen,
  * without page scrolling; then the touch gestures (long press = preview; tap = card lifted, second tap = played) and
- * the "rotate your device" screen.
+ * the "rotate your device" screen (3 or 4 players only: a duel plays in portrait on a phone too).
  * Screenshots in test-results/mobile/.
  *
  * Requires: `npm run dev` running (restarted after an engine change).
@@ -69,15 +69,16 @@ function check(ok: boolean, label: string, detail?: unknown): void {
 
 const browser = await chromium.launch();
 
-async function open(device: BrowserContextOptions, opp: Side = OPP): Promise<Page> {
+/** `ais`: number of AI opponents (2: a 3-player game). */
+async function open(device: BrowserContextOptions, opp: Side = OPP, ais = 1): Promise<Page> {
   const ctx = await browser.newContext(device);
   const page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("http://localhost:5173/?fast");
-  await page.evaluate(([deck, sb]) => (window as unknown as DevWindow).__mtgx.getState().startGame(deck, [deck], sb), [
-    DECK,
-    { p1: ME, p2: opp },
-  ] as const);
+  await page.evaluate(
+    ([deck, sb, n]) => (window as unknown as DevWindow).__mtgx.getState().startGame(deck, Array(n).fill(deck), sb),
+    [DECK, { p1: ME, p2: opp }, ais] as const,
+  );
   return page;
 }
 
@@ -122,6 +123,9 @@ const DEVICES: [string, BrowserContextOptions][] = [
   ["android-tablet", devices["Galaxy Tab S4 landscape"]],
   ["pixel-landscape", devices["Pixel 7 landscape"]],
   ["iphone-landscape", devices["iPhone 13 landscape"]],
+  // A duel plays in portrait on a phone too.
+  ["iphone-portrait", devices["iPhone 13"]],
+  ["pixel-portrait", devices["Pixel 7"]],
 ];
 
 for (const [name, device] of DEVICES) {
@@ -129,6 +133,8 @@ for (const [name, device] of DEVICES) {
   await keep(page);
   await page.screenshot({ path: `${OUT}/${name}.png` });
   await fits(page, name);
+  if (name.endsWith("-portrait") && !name.startsWith("ipad"))
+    check(!(await page.locator(".rotate-hint").isVisible()), `${name}: a duel plays in portrait (no rotate prompt)`);
   await page.context().close();
 }
 
@@ -212,12 +218,12 @@ const handCount = (page: Page) => page.evaluate(() => (window as unknown as DevW
   await page.context().close();
 }
 
-// Phone in portrait: prompt to rotate the device.
+// Phone in portrait: a duel has no rotate prompt (checked above); 3 players ask to turn the device to landscape.
 {
-  const page = await open(devices["iPhone 13"]);
-  await page.waitForTimeout(1500);
-  check(await page.locator(".rotate-hint").isVisible(), "phone in portrait: rotate-your-device hint");
-  await page.screenshot({ path: `${OUT}/iphone-portrait.png` });
+  const page = await open(devices["iPhone 13"], OPP, 2);
+  await page.waitForTimeout(2500);
+  check(await page.locator(".rotate-hint").isVisible(), "phone in portrait, 3 players: rotate-your-device hint");
+  await page.screenshot({ path: `${OUT}/iphone-portrait-multi.png` });
   await page.context().close();
 }
 

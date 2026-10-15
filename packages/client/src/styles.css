@@ -258,7 +258,9 @@ button {
 .opp-bars {
   display: flex;
   min-height: 0;
-  /* Room for the drawer button (top right). */
+}
+/* Room for the drawer button (top right): the bars only, the battlefields keep the whole width. */
+.opp-bars {
   padding-right: 52px;
 }
 .opp-bars > .top-row {
@@ -2794,12 +2796,96 @@ button.emblem-chip.activatable {
   }
 }
 
-/* Phone in portrait: the game is played in landscape (as MTG Arena on mobile). */
+/* Phone in portrait, duel: the hand on a line of its own under your avatar and the main button, the phases on one line
+   that scrolls, the banner under them (it may wrap). */
+@media (orientation: portrait) and (max-width: 600px) {
+  :root {
+    --hand-w: clamp(72px, 22vw, 110px);
+    --hand-peek: 0.55;
+    --back-w: 24px;
+    --stack-w: clamp(60px, 16vw, 90px);
+  }
+  .bottom-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "me act"
+      "hand hand";
+    align-items: center;
+    gap: 2px 8px;
+    height: auto;
+    padding: 2px 8px 0;
+  }
+  .bottom-row > .player-bar {
+    grid-area: me;
+  }
+  .bottom-row > .action-panel {
+    grid-area: act;
+    min-width: 0;
+    gap: 3px;
+  }
+  .bottom-row > .hand {
+    grid-area: hand;
+    height: calc(var(--hand-w) * 1.395 * var(--hand-peek));
+  }
+  .player-bar {
+    min-width: 0;
+    gap: 6px;
+  }
+  .avatar {
+    width: 46px;
+    height: 46px;
+  }
+  .avatar-initial {
+    font-size: 0.8125rem;
+  }
+  .life {
+    min-width: 34px;
+    font-size: 1rem;
+  }
+  .main-button {
+    min-width: 0;
+    height: 42px;
+    padding: 0 16px;
+    font-size: 0.875rem;
+  }
+  .opp-bars > .top-row {
+    justify-content: flex-start;
+  }
+  .center-strip {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+    min-height: 0;
+    padding: 4px 8px;
+  }
+  /* The ten steps share the width: all of them on screen. */
+  .phases {
+    display: grid;
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+  }
+  .phase {
+    padding: 3px 1px;
+  }
+  .stops {
+    gap: 2px;
+  }
+  .stop {
+    width: 10px;
+    height: 10px;
+  }
+  .banner {
+    justify-content: center;
+    white-space: normal;
+    font-size: 0.75rem;
+  }
+}
+
+/* Phone in portrait: a duel plays in portrait (layout below); 3 or 4 players ask to turn the device to landscape. */
 .rotate-hint {
   display: none;
 }
 @media (orientation: portrait) and (max-width: 600px) {
-  .rotate-hint {
+  .game.multi > .rotate-hint {
     display: flex;
     flex-direction: column;
     align-items: center;

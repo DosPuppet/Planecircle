@@ -1066,6 +1066,8 @@ function Hand() {
     return () => ro.disconnect();
   }, [n]);
   const step = box.cardW ? fitHand(box.width, box.cardW, n) : null;
+  // Spread of the fan (degrees): flatter in a narrow hand (phone in portrait), where tilted cards would leave the screen.
+  const spread = box.cardW ? Math.min(24, (3 * box.width) / box.cardW) : 24;
   const margin = step === null ? undefined : `0 ${-(box.cardW - step) / 2}px`;
   const selecting =
     view.pending?.player === view.viewer && (view.pending.kind === "discard" || view.pending.kind === "bottomCards");
@@ -1083,7 +1085,7 @@ function Hand() {
   return (
     <div className="hand" data-tuto="hand" ref={handRef}>
       {cards.map((c, i) => {
-        const angle = n > 1 ? (i - (n - 1) / 2) * Math.min(4, 24 / n) : 0;
+        const angle = n > 1 ? (i - (n - 1) / 2) * Math.min(4, spread / n) : 0;
         const lift = Math.abs(i - (n - 1) / 2) * Math.min(6, 30 / n);
         const up = liftedId === c.id;
         return (

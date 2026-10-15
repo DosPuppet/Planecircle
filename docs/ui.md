@@ -22,6 +22,12 @@ The game screen follows MTG Arena, as phase-rs does, but stays light: no image t
   - the hand fanned along the bottom, partly below the screen (`--hand-peek` 0.62, 0.5 on a phone); a hovered card rises until it is whole;
   - the main button at the bottom right: amber when it moves the game forward, blue (`respond`) when it lets the stack resolve.
 
+- **Phone in portrait** (under 600 px wide):
+  - a duel plays in portrait: your avatar and the main button share a line, the hand has a line of its own under them, the phases scroll on one line, the banner wraps under them;
+  - the fan of the hand is flatter in a narrow hand (spread `3 × width / card width` degrees, 24 at most), so its end cards stay on the screen;
+  - 3 or 4 players ask to turn the device to landscape (`.game.multi`): side by side, three opponents would be unreadable;
+  - `mobile-smoke` checks iPhone and Pixel in portrait.
+
 ## Cards
 
 - **Full cards** (hand, stack, dialogs, preview) are 1.395 times as high as they are wide (`CARD_RATIO`, `--card-ratio`).
@@ -64,5 +70,5 @@ The game screen follows MTG Arena, as phase-rs does, but stays light: no image t
   - tilt: `--tilt`.
 
   Use them rather than new hard-coded colors.
-- **Budget:** `tools/bundle-size.ts` budgets the stylesheet (`index.css`, 60 KB). A change deletes the rules it replaces.
+- **Budget:** `tools/bundle-size.ts` budgets the stylesheet (`index.css`, 62 KB). A change deletes the rules it replaces.
 - **No endless animation on the board,** except the target pulse (an accessibility cue) and the "thinking…" blink.

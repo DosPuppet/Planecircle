@@ -78,11 +78,13 @@ function GameScreen() {
   useShortcuts();
   const drawerOpen = useGame((s) => s.drawerOpen);
   const effects = useGame((s) => s.effects);
+  // 3 or 4 players: too narrow for a phone in portrait (the rotate prompt stays); a duel plays in portrait too.
+  const multi = useGame((s) => (s.view?.opponents.length ?? 1) > 1);
   const t = useT();
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: only the browser's context menu is suppressed (touch), not an interaction
     <div
-      className={`game ${drawerOpen ? "drawer-open" : ""}`}
+      className={`game ${drawerOpen ? "drawer-open" : ""} ${multi ? "multi" : ""}`}
       data-effects={effects}
       // Long press with a finger: no browser context menu (the card preview replaces it).
       onContextMenu={(e) => isTouch() && e.preventDefault()}
