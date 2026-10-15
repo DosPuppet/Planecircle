@@ -216,6 +216,36 @@ button {
 .board-backdrop.on {
   opacity: 1;
 }
+/* Deck shared by a QR code (export window), and the camera scanner (import window). */
+.deck-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+.deck-qr-code {
+  width: min(78vw, 360px);
+  padding: 8px;
+  border-radius: var(--r-2);
+  background: #fff;
+}
+.deck-qr-code svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.qr-scanner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.qr-scanner video {
+  width: min(80vw, 420px);
+  border-radius: var(--r-2);
+  background: #000;
+}
 .board-theme-control {
   display: flex;
   gap: 6px;

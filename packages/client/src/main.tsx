@@ -1,10 +1,12 @@
 // First: the "mtgmate.*" keys renamed before the stores read them.
 import "./storageRename";
+import { msg } from "@mtgx/engine";
 import { LayoutGroup, MotionConfig } from "motion/react";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { playSound, unlockAudio, useAudio } from "./audio/sfx";
+import { decodeDeck, sharedDeckData } from "./decks/share";
 import { detectBlockedScryfall, loadCustomArt } from "./images";
 import { prefetchGameWorker } from "./session";
 import { flushSave, useGame } from "./store";
@@ -66,8 +68,16 @@ void loadCustomArt();
 
 // Page reopened: resume the online game, otherwise the saved game against the AI (except for an invitation link
 // ?room=CODE, which opens online play; the saved game resumes at the next opening).
+// A deck link (#deck=…, scanned QR code): the deck editor offers to import it; nothing is resumed.
 const invited = new URLSearchParams(location.search).has("room");
-if (invited && !localStorage.getItem("planecircle.online")) useGame.getState().openOnline();
+const deckData = sharedDeckData(location.hash);
+if (deckData) {
+  history.replaceState(null, "", location.pathname + location.search);
+  void decodeDeck(deckData).then((list) => {
+    if (list) useGame.setState({ screen: "decks", sharedDeck: list });
+    else useGame.getState().notify(msg("This deck link is damaged."));
+  });
+} else if (invited && !localStorage.getItem("planecircle.online")) useGame.getState().openOnline();
 else useGame.getState().resumeAtStartup();
 // Page closed: the save of the local game is written at once.
 window.addEventListener("pagehide", flushSave);

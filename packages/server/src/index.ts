@@ -117,7 +117,8 @@ const SECURITY_HEADERS: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
   "Referrer-Policy": "no-referrer",
-  "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+  // The camera only for this site: scanning a deck's QR code (deck editor).
+  "Permissions-Policy": "camera=(self), microphone=(), geolocation=()",
 };
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",

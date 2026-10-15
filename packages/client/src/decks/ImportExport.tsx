@@ -1,14 +1,75 @@
 /**
- * Import and export of decklists (MTGA and MTGO formats, English or French names).
+ * Import and export of decklists (MTGA and MTGO formats, English or French names), and of a deck by a link and its QR
+ * code (`share.ts`).
  */
 import { CARDS, CardIndex, type DeckList, parseDeckList, serializeDeckList } from "@mtgx/cards";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { renderSVG } from "uqr";
 import { Dialog } from "../Dialog";
 import { useT } from "../localize";
 import { useGame } from "../store";
 import { textIn } from "../translate";
 import { usePrintings } from "./printings";
+import { deckLink, decodeDeck, sharedDeckData } from "./share";
 import { deckName } from "./store";
+
+/** The browser's own QR detector (Chrome, Android); not on every browser: the scan button only shows where it exists. */
+type Detector = { detect(source: HTMLVideoElement): Promise<{ rawValue: string }[]> };
+const DetectorClass = () =>
+  (window as unknown as { BarcodeDetector?: new (o: { formats: string[] }) => Detector }).BarcodeDetector;
+const canScan = () => typeof window !== "undefined" && !!DetectorClass() && !!navigator.mediaDevices?.getUserMedia;
+
+/** Camera scanner of a QR code: calls `onText` with the first code read. */
+function QrScanner({ onText, onClose }: { onText: (text: string) => void; onClose: () => void }) {
+  const video = useRef<HTMLVideoElement>(null);
+  const [failed, setFailed] = useState(false);
+  const t = useT();
+  const latest = useRef(onText);
+  latest.current = onText;
+  useEffect(() => {
+    let stream: MediaStream | null = null;
+    let timer = 0;
+    let stopped = false;
+    const Detector = DetectorClass();
+    (async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        const v = video.current;
+        if (stopped || !v || !Detector) return;
+        v.srcObject = stream;
+        await v.play();
+        const detector = new Detector({ formats: ["qr_code"] });
+        const scan = async () => {
+          if (stopped) return;
+          const [hit] = await detector.detect(v).catch(() => []);
+          if (hit?.rawValue) return latest.current(hit.rawValue);
+          timer = window.setTimeout(scan, 300);
+        };
+        void scan();
+      } catch {
+        setFailed(true);
+      }
+    })();
+    return () => {
+      stopped = true;
+      window.clearTimeout(timer);
+      for (const track of stream?.getTracks() ?? []) track.stop();
+    };
+  }, []);
+  return (
+    <div className="qr-scanner">
+      {failed ? (
+        <p className="hint">{t("The camera is not available.")}</p>
+      ) : (
+        <p className="hint">{t("Point the camera at a deck's QR code.")}</p>
+      )}
+      <video ref={video} muted playsInline />
+      <button type="button" className="btn ghost" onClick={onClose}>
+        {t("Cancel")}
+      </button>
+    </div>
+  );
+}
 
 /** Place of a JSX element in a translated sentence (split around it). */
 const SLOT = "\u0001";
@@ -25,18 +86,23 @@ export function DeckModal({ title, children, onClose }: { title: string; childre
 
 export function ImportModal({
   current,
+  initialText = "",
   onClose,
   onCreate,
   onReplace,
 }: {
+  /** Decklist to start from (a deck received by a link). */
+  initialText?: string;
   /** Editable deck currently open (null if it is read only). */
   current: DeckList | null;
   onClose: () => void;
   onCreate: (deck: DeckList) => void;
   onReplace: (deck: DeckList) => void;
 }) {
-  const [text, setText] = useState("");
+  const [text, setText] = useState(initialText);
   const [name, setName] = useState("");
+  const [scanning, setScanning] = useState(false);
+  const notify = useGame((s) => s.notify);
   const lang = useGame((s) => s.lang);
   const t = useT();
   // "(STA) 42": printing of the table, once loaded.
@@ -69,6 +135,24 @@ export function ImportModal({
       <p className="hint">
         {t('Paste a list exported from MTG Arena, MTGO or a deck site ("4 Llanowar Elves (FDN) 227", "4 Elfes de Llanowar"…).')}
       </p>
+      {scanning ? (
+        <QrScanner
+          onClose={() => setScanning(false)}
+          onText={(raw) => {
+            setScanning(false);
+            // A Planecircle deck link, or a decklist written in the code itself.
+            const data = sharedDeckData(raw);
+            if (!data) return setText(raw);
+            void decodeDeck(data).then((list) => (list ? setText(list) : notify(t("This deck link is damaged."))));
+          }}
+        />
+      ) : (
+        canScan() && (
+          <button type="button" className="btn small" onClick={() => setScanning(true)}>
+            {t("Scan a QR code")}
+          </button>
+        )
+      )}
       <textarea
         className="decklist-input"
         value={text}
@@ -117,8 +201,39 @@ export function ImportModal({
   );
 }
 
+/** QR code of the deck's link: a phone camera opens Planecircle, which offers to import it. */
+function DeckQr({ deck }: { deck: DeckList }) {
+  const [link, setLink] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const t = useT();
+  useEffect(() => {
+    let live = true;
+    void deckLink(deck).then((l) => live && setLink(l));
+    return () => {
+      live = false;
+    };
+  }, [deck]);
+  if (!link) return null;
+  const copy = async () => {
+    await navigator.clipboard?.writeText(link).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+  return (
+    <div className="deck-qr">
+      {/* Dark modules on white, with a quiet zone: what phone cameras read best. */}
+      {/* biome-ignore lint/security/noDangerouslySetInnerHtml: SVG generated by uqr from our own link */}
+      <div className="deck-qr-code" dangerouslySetInnerHTML={{ __html: renderSVG(link, { ecc: "L", border: 3 }) }} />
+      <p className="hint">{t("Scan it with a phone camera: Planecircle opens and offers to import the deck.")}</p>
+      <button type="button" className="btn small" onClick={copy}>
+        {copied ? t("Link copied!") : t("Copy the link")}
+      </button>
+    </div>
+  );
+}
+
 export function ExportModal({ deck, onClose }: { deck: DeckList; onClose: () => void }) {
-  const [format, setFormat] = useState<"mtga" | "fr" | "en">("mtga");
+  const [format, setFormat] = useState<"mtga" | "fr" | "en" | "qr">("mtga");
   const [copied, setCopied] = useState(false);
   const lang = useGame((s) => s.lang);
   const t = useT();
@@ -127,7 +242,7 @@ export function ExportModal({ deck, onClose }: { deck: DeckList; onClose: () => 
   const text = serializeDeckList(
     { ...deck, name },
     CARDS,
-    format === "mtga" ? { format: "mtga" } : { format: "plain", lang: format },
+    format === "mtga" || format === "qr" ? { format: "mtga" } : { format: "plain", lang: format },
   );
   const copy = async () => {
     try {
@@ -160,18 +275,29 @@ export function ExportModal({ deck, onClose }: { deck: DeckList; onClose: () => 
         <button type="button" className={format === "fr" ? "on" : ""} onClick={() => setFormat("fr")}>
           {t("Text (French)")}
         </button>
+        <button type="button" className={format === "qr" ? "on" : ""} onClick={() => setFormat("qr")}>
+          {t("QR code")}
+        </button>
       </div>
-      <textarea className="decklist-output" value={text} readOnly rows={14} spellCheck={false} />
+      {format === "qr" ? (
+        <DeckQr deck={{ ...deck, name }} />
+      ) : (
+        <textarea className="decklist-output" value={text} readOnly rows={14} spellCheck={false} />
+      )}
       <div className="modal-actions">
         <button type="button" className="btn ghost" onClick={onClose}>
           {t("Close")}
         </button>
-        <button type="button" className="btn" onClick={download}>
-          {t("Download (.txt)")}
-        </button>
-        <button type="button" className="btn primary" onClick={copy}>
-          {copied ? t("Copied!") : t("Copy")}
-        </button>
+        {format !== "qr" && (
+          <>
+            <button type="button" className="btn" onClick={download}>
+              {t("Download (.txt)")}
+            </button>
+            <button type="button" className="btn primary" onClick={copy}>
+              {copied ? t("Copied!") : t("Copy")}
+            </button>
+          </>
+        )}
       </div>
     </DeckModal>
   );

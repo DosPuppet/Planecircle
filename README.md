@@ -12,6 +12,7 @@ A platform for playing Magic: The Gathering against one or more AIs (head-to-hea
 - AI at three selectable levels (beginner, medium, high), from heuristic play to ISMCTS search in duels (see docs/ai.md);
 - browsable exile: a button next to the graveyard, and cards exiled by a permanent shown under it (hover to see them);
 - an MTG Arena-style table: battlefield art cards that lean when tapped, a tilted table with an optional animated background (a few kilobytes of WebGL, off in "light" graphics), the card preview floating at the left, settings and log in a ☰ drawer (see docs/ui.md);
+- decks shared by a QR code: the export window draws a code of a Planecircle link that carries the deck; any phone camera opens it, and Planecircle offers to import the deck (a scan button in the import window where the browser reads QR codes itself, as Chrome on Android);
 - playable on tablets and on phones in landscape (see "Tablet and phone");
 - card images relayed by the server when the player's network blocks Scryfall (see "Images blocked by the network");
 - cards in French or English: name, text and illustration of the matching printing (the French printing of another set when the original does not exist in French; text completed by hand when Scryfall does not have it).

@@ -666,6 +666,12 @@ export function DeckBuilder() {
   const { save, remove, duplicate, create } = useDecks();
   const [tab, setTab] = useState<"main" | "side" | "commander">("main");
   const [modal, setModal] = useState<"import" | "export" | "hand" | null>(null);
+  // A deck received by a link (QR code): the import window opens with it.
+  const shared = useGame((s) => s.sharedDeck);
+  const closeImport = () => {
+    setModal(null);
+    useGame.setState({ sharedDeck: null });
+  };
   // The main area: the collection, or the deck in mana-value columns (PLAN-L L9).
   const [columns, setColumns] = useState(false);
   const select = (id: string | null) => useGame.setState({ editingDeck: id });
@@ -976,14 +982,15 @@ export function DeckBuilder() {
           <Preview />
         </aside>
       </div>
-      {modal === "import" && (
+      {(modal === "import" || shared) && (
         <ImportModal
           current={readOnly ? null : deck}
-          onClose={() => setModal(null)}
+          initialText={shared ?? ""}
+          onClose={closeImport}
           onCreate={(d) => {
             const id = duplicate(d, d.name);
             select(id);
-            setModal(null);
+            closeImport();
           }}
           onReplace={(d) => {
             save({
@@ -992,7 +999,7 @@ export function DeckBuilder() {
               sideboard: d.sideboard,
               ...(d.commander ? { commander: d.commander, format: "commander" as const } : {}),
             });
-            setModal(null);
+            closeImport();
           }}
         />
       )}

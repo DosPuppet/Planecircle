@@ -346,7 +346,7 @@ export function serializeDeckList(
 }
 
 /** Exported name: the full name "A // B" for a split card, the front face alone for the other multi-faced cards. */
-function exportName(c: CardDef | undefined, name: string): string {
+export function exportName(c: CardDef | undefined, name: string): string {
   if (!c?.faceDefs?.length || c.layout === "split") return name;
   return c.faceDefs[0]?.name ?? name;
 }

@@ -1,6 +1,7 @@
 /**
  * End-to-end test of the deck builder: import of a decklist (French names, a typo fixed by a suggestion), editing by
- * clicks, export, persistence after a reload, then a game played with the deck.
+ * clicks, export, persistence after a reload, then a game played with the deck; finally the deck's link (QR code),
+ * opened in a fresh browser, offers to import the same deck.
  *
  * Requires: `npm run dev` running. Usage: npx tsx tools/deck-smoke.ts [screenshot-dir]
  */
@@ -92,6 +93,17 @@ await page.getByRole("button", { name: "Exporter" }).click();
 const exported = await page.locator(".decklist-output").inputValue();
 check(/^About\nName Test importé\n\nDeck\n/.test(exported) && exported.includes("(FDN)"), "export in MTGA format");
 check(exported.includes("Sideboard\n2 Broken Wings"), "sideboard exported");
+// QR code: the deck's link, drawn and copied.
+await page.getByRole("button", { name: "QR code" }).click();
+await page
+  .locator(".deck-qr-code svg")
+  .waitFor({ timeout: 5000 })
+  .catch(() => {});
+check((await page.locator(".deck-qr-code svg").count()) === 1, "QR code of the deck drawn");
+await page.getByRole("button", { name: "Copier le lien" }).click();
+const link = await page.evaluate(() => navigator.clipboard.readText());
+check(/^http:\/\/localhost:5173\/#deck=1\.[\w-]+$/.test(link), "deck link copied");
+await page.screenshot({ path: join(OUT, "deck-qr.png") });
 await page.getByRole("button", { name: "Fermer" }).click();
 
 // Persistence.
@@ -162,4 +174,19 @@ await page.screenshot({ path: join(OUT, "03-game.png") });
 check((await page.locator(".battlefield").count()) >= 2, "game started with the imported deck");
 check((await turn()) >= 3 || (await page.locator(".gameover").count()) > 0, "game played up to turn 3");
 console.log(errors.length ? `Page errors:\n${errors.join("\n")}` : "No page error.");
+// The link opened in another browser (a scanned QR code): the import window, filled in, creates the same deck.
+{
+  const other = await browser.newContext({ viewport: { width: 1600, height: 900 } });
+  const p2 = await other.newPage();
+  p2.on("pageerror", (e) => errors.push(e.message));
+  await p2.goto(link);
+  await p2.locator(".decklist-input").waitFor({ timeout: 15_000 });
+  check((await p2.locator(".decklist-input").inputValue()).includes("Name Test importé"), "link: import window filled in");
+  check(!(await p2.evaluate(() => location.hash)), "link: the fragment is cleared");
+  await p2.getByRole("button", { name: "Créer un nouveau deck" }).click();
+  await p2.waitForTimeout(500);
+  check((await p2.locator(".deck-name-input").inputValue()) === "Test importé", "link: deck created with its name");
+  check((await p2.locator(".deck-tabs").innerText()).includes("60"), "link: 60 cards");
+  await other.close();
+}
 await browser.close();

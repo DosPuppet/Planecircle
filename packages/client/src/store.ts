@@ -240,6 +240,8 @@ interface Store {
   tutorialGame: boolean;
   /** Deck open in the deck builder. */
   editingDeck: string | null;
+  /** Decklist received by a link (`#deck=…`, decks/share.ts): the deck editor offers to import it. */
+  sharedDeck: string | null;
   session: Session | null;
   online: OnlineState | null;
   view: GameView | null;
@@ -1119,6 +1121,7 @@ export const useGame = create<Store>((set, get) => {
     replay: null,
     tutorialGame: false,
     editingDeck: null,
+    sharedDeck: null,
     session: null,
     online: null,
     view: null,

@@ -23,6 +23,7 @@ export {
   type DeckIssue,
   type DeckValidation,
   deckColors,
+  exportName,
   FORMAT_LABELS,
   FORMATS,
   isFormat,
