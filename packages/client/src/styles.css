@@ -4,7 +4,19 @@
   --felt-2: #0d131b;
   --panel: rgba(10, 14, 20, 0.82);
   --panel-2: rgba(255, 255, 255, 0.04);
-  --line: rgba(255, 255, 255, 0.09);
+  /* Surfaces of the MTGA look (PLAN-V): floating panels, dialogs, hairline borders. */
+  --surface: rgba(11, 16, 32, 0.96);
+  --surface-2: rgba(18, 24, 40, 0.88);
+  --hairline: rgba(255, 255, 255, 0.1);
+  --line: var(--hairline);
+  --r-1: 6px;
+  --r-2: 10px;
+  --r-3: 14px;
+  --shadow-1: 0 2px 8px rgba(0, 0, 0, 0.5);
+  --shadow-2: 0 12px 40px rgba(0, 0, 0, 0.6);
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --font-display: Cinzel, Georgia, serif;
+  --font-ui: Inter, system-ui, sans-serif;
   --text: #e9edf2;
   --dim: #95a2b0;
   --gold: #f0b84a;
@@ -14,8 +26,15 @@
   --picked: #5ed684;
   --attack: #ff5a4f;
   --block: #58a6ff;
+  --activatable: #8cf0a0;
   --me: #62c48a;
   --opp: #e0795b;
+
+  /* Card shapes (layout.ts CARD_RATIO, PERM_RATIO): full cards (hand, stack, dialogs), art cards (battlefield). */
+  --card-ratio: 1.395;
+  --perm-ratio: 1.2;
+  /* Tilt of the battlefields (CSS perspective, effects "full"). */
+  --tilt: 10deg;
 
   /* Sizes bounded by the height and width of the screen (tablet in portrait, phone in landscape). */
   --card-w: clamp(56px, min(12.5vh, 10vw), 150px);
@@ -42,7 +61,7 @@ body,
   height: 100%;
   background: var(--bg);
   color: var(--text);
-  font-family: Inter, system-ui, sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.875rem;
   overflow: clip;
   user-select: none;
@@ -1272,32 +1291,50 @@ button.emblem-chip.activatable {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
-/* Glows */
-.glow-playable {
+/* Figures that change during the game: fixed-width digits (no jitter). */
+:is(.life, .pt-badge, .token-count, .loyalty-badge, .counter-badge) {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Glows: one recipe (PLAN-V); each state only sets its color --g. */
+:is(
+  .glow-playable,
+  .glow-target,
+  .glow-selectable,
+  .glow-selected,
+  .glow-picked,
+  .glow-attacking,
+  .glow-blocking,
+  .glow-activatable
+) {
   box-shadow:
-    0 0 0 2px var(--playable),
-    0 0 14px 3px rgba(77, 182, 255, 0.65);
+    0 0 0 2px var(--g),
+    0 0 14px 4px color-mix(in srgb, var(--g) 55%, transparent);
+}
+.glow-playable {
+  --g: var(--playable);
 }
 .glow-target {
-  box-shadow:
-    0 0 0 3px var(--target),
-    0 0 18px 5px rgba(255, 216, 77, 0.7);
+  --g: var(--target);
   animation: pulse 1s ease-in-out infinite;
 }
 .glow-selectable {
-  box-shadow:
-    0 0 0 2px rgba(255, 255, 255, 0.75),
-    0 0 10px rgba(255, 255, 255, 0.35);
+  --g: rgba(255, 255, 255, 0.75);
 }
 .glow-selected {
-  box-shadow:
-    0 0 0 3px var(--gold),
-    0 0 16px 4px rgba(240, 184, 74, 0.7);
+  --g: var(--gold);
 }
 .glow-picked {
-  box-shadow:
-    0 0 0 3px var(--picked),
-    0 0 16px 4px rgba(94, 214, 132, 0.7);
+  --g: var(--picked);
+}
+.glow-attacking {
+  --g: var(--attack);
+}
+.glow-blocking {
+  --g: var(--block);
+}
+.glow-activatable {
+  --g: var(--activatable);
 }
 /* Check mark in the middle of the art: the selection stands out at a glance from the remaining options. */
 .card.glow-picked::after {
@@ -1322,19 +1359,6 @@ button.emblem-chip.activatable {
 }
 .avatar.glow-picked {
   border-color: var(--picked);
-}
-.glow-attacking {
-  box-shadow:
-    0 0 0 3px var(--attack),
-    0 0 16px 4px rgba(255, 90, 79, 0.7);
-}
-.glow-blocking {
-  box-shadow:
-    0 0 0 3px var(--block),
-    0 0 16px 4px rgba(88, 166, 255, 0.7);
-}
-.glow-activatable {
-  box-shadow: 0 0 0 2px rgba(140, 240, 160, 0.8);
 }
 /* Accessibility: a shape in addition to the color (PLAN-C, C18). Attack and block: sword or shield badge;
    selectable and selected: dotted or solid outline; target: pulse; picked: check mark. */
@@ -1382,8 +1406,8 @@ button.emblem-chip.activatable {
 @keyframes pulse {
   50% {
     box-shadow:
-      0 0 0 3px var(--target),
-      0 0 26px 8px rgba(255, 216, 77, 0.45);
+      0 0 0 3px var(--g, var(--target)),
+      0 0 26px 8px color-mix(in srgb, var(--g, var(--target)) 45%, transparent);
   }
 }
 @keyframes blink {

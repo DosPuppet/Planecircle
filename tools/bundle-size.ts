@@ -24,23 +24,35 @@ const BUDGET: Record<string, number> = {
   printings: 600 * KB,
 };
 
+/** Stylesheet (PLAN-V): 56.5 KB before the MTGA restyle (2026-10-15); each restyle batch deletes the rules it replaces. */
+const CSS_BUDGET: Record<string, number> = {
+  index: 60 * KB,
+};
+
 execSync("npm run build -w @mtgx/client", { stdio: "pipe" });
 const dir = new URL("../packages/client/dist/assets/", import.meta.url);
-const files = readdirSync(dir).filter((f) => f.endsWith(".js"));
+const all = readdirSync(dir);
 const errors: string[] = [];
 const sizes: string[] = [];
-for (const [prefix, max] of Object.entries(BUDGET)) {
-  const file = files.find((f) => f.startsWith(`${prefix}-`));
-  if (!file) {
-    errors.push(`chunk ${prefix} not found`);
-    continue;
+for (const [ext, budget] of [
+  [".js", BUDGET],
+  [".css", CSS_BUDGET],
+] as const) {
+  const files = all.filter((f) => f.endsWith(ext));
+  for (const [prefix, max] of Object.entries(budget)) {
+    const file = files.find((f) => f.startsWith(`${prefix}-`));
+    const name = ext === ".js" ? prefix : `${prefix}${ext}`;
+    if (!file) {
+      errors.push(`chunk ${name} not found`);
+      continue;
+    }
+    const size = statSync(new URL(file, dir)).size;
+    sizes.push(`${name} ${Math.round(size / KB)} KB`);
+    if (size > max) errors.push(`${name}: ${Math.round(size / KB)} KB, budget ${Math.round(max / KB)} KB`);
   }
-  const size = statSync(new URL(file, dir)).size;
-  sizes.push(`${prefix} ${Math.round(size / KB)} KB`);
-  if (size > max) errors.push(`${prefix}: ${Math.round(size / KB)} KB, budget ${Math.round(max / KB)} KB`);
 }
 // A scripted card in the worker means that it imports @mtgx/cards (CLAUDE.md rule, "Bundle").
-const worker = files.find((f) => f.startsWith("game.worker-"));
+const worker = all.find((f) => f.startsWith("game.worker-"));
 if (worker && readFileSync(new URL(worker, dir), "utf8").includes("Luminous Rebuke"))
   errors.push("the worker embeds the cards (@mtgx/cards imported)");
 console.log(`bundle: ${sizes.join(", ")}`);
