@@ -21,6 +21,7 @@ import {
 import type { PrintingOption } from "@mtgx/cards/printings";
 import {
   type CardDef,
+  type CardFace,
   type Color,
   CUSTOM_PRINTING,
   cardFace,
@@ -36,12 +37,13 @@ import {
 } from "@mtgx/engine";
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Card, ManaCost } from "../board/Card";
-import { Preview } from "../board/Sidebar";
+import { Preview, TouchPreview } from "../board/Sidebar";
 import { faceName } from "../i18n";
 import { customArtSets, hasCustomArt, useImages } from "../images";
 import { LangToggle } from "../LangToggle";
 import { useT } from "../localize";
 import { useGame } from "../store";
+import { isTouch } from "../touch";
 import { type Lang, textIn, tr } from "../translate";
 import { withBasicLands } from "./autoLands";
 import { DeckModal, ExportModal, ImportModal } from "./ImportExport";
@@ -423,6 +425,10 @@ function DeckLines({
   const lang = useGame((s) => s.lang);
   const t = useT();
   const setHover = useGame((s) => s.setHover);
+  const setPeek = useGame((s) => s.setPeek);
+  // Touch screen, or no preview column (under 1,200 px): the card's name opens it large, in an overlay.
+  const showCard = (face: CardFace) =>
+    isTouch() || window.matchMedia("(max-width: 1200px)").matches ? setPeek({ face }) : setHover({ face });
   const table = usePrintings();
   const custom = useImages((s) => s.custom);
   return (
@@ -456,7 +462,9 @@ function DeckLines({
                   onMouseEnter={() => setHover({ face })}
                 >
                   <span className="deck-line-n">{n}</span>
-                  <span className="deck-line-name">{faceName(face, lang)}</span>
+                  <button type="button" className="deck-line-name" onClick={() => showCard(face)} title={t("Show the card")}>
+                    {faceName(face, lang)}
+                  </button>
                   <ManaCost cost={face.manaCost} size={13} />
                   {choices.length > 1 && (
                     <select
@@ -992,6 +1000,8 @@ export function DeckBuilder() {
           <Preview />
         </aside>
       </div>
+      {/* The card enlarged by a long press (collection) or a tap on its name (deck), when there is no preview column. */}
+      <TouchPreview />
       {(modal === "import" || shared) && (
         <ImportModal
           current={readOnly ? null : deck}

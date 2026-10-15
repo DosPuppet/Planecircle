@@ -239,7 +239,35 @@ const handCount = (page: Page) => page.evaluate(() => (window as unknown as DevW
     (await page.locator(".deck-panel").isVisible()) && !(await page.locator(".collection").isVisible()),
     "deck editor (phone): the deck alone after the switch",
   );
+  // No preview column: a tap on a card's name shows it large; a tap closes it.
+  await page.locator(".deck-line-name").first().tap();
+  await page.waitForTimeout(300);
+  check(
+    await page.locator(".touch-preview .preview-img").isVisible(),
+    "deck editor (phone): a tap on a deck line shows the card",
+  );
   await page.screenshot({ path: `${OUT}/deck-editor-portrait.png` });
+  await page.locator(".touch-preview").tap({ position: { x: 10, y: 10 } });
+  check((await page.locator(".touch-preview").count()) === 0, "deck editor (phone): a tap closes the card");
+  await ctx.close();
+}
+
+// Deck editor on a tablet in portrait (no preview column): a long press on a collection card shows it large.
+{
+  const ctx = await browser.newContext(devices["iPad Pro 11"]);
+  const page = await ctx.newPage();
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto("http://localhost:5173/?fast");
+  await page.getByRole("button", { name: "Mes decks" }).tap({ timeout: 15_000 });
+  await page.waitForTimeout(1500);
+  const card = await page.locator(".collection-card .card-slot").first().boundingBox();
+  if (card) await longPress(page, card.x + card.width / 2, card.y + card.height / 2);
+  await page.waitForTimeout(300);
+  check(
+    await page.locator(".touch-preview .preview-img").isVisible(),
+    "deck editor (tablet): long press shows the collection card",
+  );
+  await page.screenshot({ path: `${OUT}/deck-editor-tablet-preview.png` });
   await ctx.close();
 }
 
