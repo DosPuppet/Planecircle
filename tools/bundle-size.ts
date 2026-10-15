@@ -26,6 +26,8 @@ const BUDGET: Record<string, number> = {
   backdrop: 12 * KB,
   // Synthesized sound cues (audio/synth.ts), loaded on demand.
   synth: 12 * KB,
+  // QR code reader (jsQR, 127 KB), loaded only by the camera scanner without a native detector (Safari).
+  qrscan: 140 * KB,
 };
 
 /**

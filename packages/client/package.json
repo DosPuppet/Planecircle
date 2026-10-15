@@ -13,6 +13,7 @@
     "@mtgx/cards": "^0.1.0",
     "@mtgx/engine": "^0.1.0",
     "@mtgx/server": "^0.1.0",
+    "jsqr": "1.4.0",
     "motion": "^13.4.3",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

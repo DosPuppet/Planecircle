@@ -1,13 +1,15 @@
 /**
  * End-to-end test of the deck builder: import of a decklist (French names, a typo fixed by a suggestion), editing by
  * clicks, export, persistence after a reload, then a game played with the deck; finally the deck's link (QR code),
- * opened in a fresh browser, offers to import the same deck.
+ * opened in a fresh browser, offers to import the same deck; pasted into the import window, and scanned by the camera
+ * (a fake camera showing the code: the jsQR reader, as on an iPhone where the app scans by itself).
  *
  * Requires: `npm run dev` running. Usage: npx tsx tools/deck-smoke.ts [screenshot-dir]
  */
-import { mkdirSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { chromium } from "playwright";
+import { encode } from "uqr";
 
 const OUT = process.argv[2] ?? "test-results/decks";
 mkdirSync(OUT, { recursive: true });
@@ -173,7 +175,6 @@ for (let i = 0; i < 300 && !(await page.locator(".gameover").count()) && (await 
 await page.screenshot({ path: join(OUT, "03-game.png") });
 check((await page.locator(".battlefield").count()) >= 2, "game started with the imported deck");
 check((await turn()) >= 3 || (await page.locator(".gameover").count()) > 0, "game played up to turn 3");
-console.log(errors.length ? `Page errors:\n${errors.join("\n")}` : "No page error.");
 // The link opened in another browser (a scanned QR code): the import window, filled in, creates the same deck.
 {
   const other = await browser.newContext({ viewport: { width: 1600, height: 900 } });
@@ -189,4 +190,61 @@ console.log(errors.length ? `Page errors:\n${errors.join("\n")}` : "No page erro
   check((await p2.locator(".deck-tabs").innerText()).includes("60"), "link: 60 cards");
   await other.close();
 }
+
+// The link pasted into the import window: replaced by its decklist.
+{
+  const other = await browser.newContext({ viewport: { width: 1600, height: 900 } });
+  const p3 = await other.newPage();
+  p3.on("pageerror", (e) => errors.push(e.message));
+  await p3.goto("http://localhost:5173/?fast");
+  await p3.getByRole("button", { name: "Mes decks" }).click();
+  await p3.getByRole("button", { name: "Importer" }).click();
+  await p3.locator(".decklist-input").fill(link);
+  await p3.waitForTimeout(800);
+  check((await p3.locator(".decklist-input").inputValue()).includes("Name Test importé"), "pasted link: decklist filled in");
+  await other.close();
+}
 await browser.close();
+
+// Scanned by the camera: a fake camera (Chromium) films the QR code; Linux Chromium has no native detector, so the
+// jsQR reader of Safari runs.
+{
+  const qr = encode(link, { ecc: "L", border: 4 });
+  const W = 640;
+  const H = 480;
+  const px = Math.floor(Math.min(W, H) / qr.size);
+  const left = Math.floor((W - qr.size * px) / 2);
+  const top = Math.floor((H - qr.size * px) / 2);
+  const y = Buffer.alloc(W * H, 235);
+  for (let r = 0; r < qr.size; r++)
+    for (let c = 0; c < qr.size; c++)
+      if (qr.data[r]?.[c])
+        for (let dy = 0; dy < px; dy++)
+          y.fill(16, (top + r * px + dy) * W + left + c * px, (top + r * px + dy) * W + left + (c + 1) * px);
+  const chroma = Buffer.alloc((W / 2) * (H / 2) * 2, 128);
+  const frame = Buffer.concat([Buffer.from("FRAME\n"), y, chroma]);
+  const video = join(OUT, "qr-camera.y4m");
+  writeFileSync(video, Buffer.concat([Buffer.from(`YUV4MPEG2 W${W} H${H} F10:1 Ip A1:1 C420jpeg\n`), frame, frame, frame]));
+  const camera = await chromium.launch({
+    args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream", `--use-file-for-fake-video-capture=${video}`],
+  });
+  const ctx = await camera.newContext({ viewport: { width: 1600, height: 900 } });
+  await ctx.grantPermissions(["camera"]);
+  const p4 = await ctx.newPage();
+  p4.on("pageerror", (e) => errors.push(e.message));
+  await p4.goto("http://localhost:5173/?fast");
+  await p4.getByRole("button", { name: "Mes decks" }).click();
+  await p4.getByRole("button", { name: "Importer" }).click();
+  await p4.getByRole("button", { name: "Scanner un QR code" }).click();
+  let scanned = "";
+  for (let i = 0; i < 30 && !scanned.includes("Name Test importé"); i++) {
+    await p4.waitForTimeout(500);
+    scanned = await p4
+      .locator(".decklist-input")
+      .inputValue()
+      .catch(() => "");
+  }
+  check(scanned.includes("Name Test importé"), "camera scan (jsQR): decklist filled in");
+  await camera.close();
+}
+console.log(errors.length ? `Page errors:\n${errors.join("\n")}` : "No page error.");

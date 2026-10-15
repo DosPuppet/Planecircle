@@ -13,11 +13,37 @@ import { usePrintings } from "./printings";
 import { deckLink, decodeDeck, sharedDeckData } from "./share";
 import { deckName } from "./store";
 
-/** The browser's own QR detector (Chrome, Android); not on every browser: the scan button only shows where it exists. */
+/**
+ * Reading a QR code from the camera: the browser's own detector where it exists (Chrome, Android), otherwise jsQR, a
+ * chunk of its own loaded only then (Safari, iPhone: a deck link scanned by the camera opens Safari, not the installed
+ * app, so the app scans by itself).
+ */
 type Detector = { detect(source: HTMLVideoElement): Promise<{ rawValue: string }[]> };
 const DetectorClass = () =>
   (window as unknown as { BarcodeDetector?: new (o: { formats: string[] }) => Detector }).BarcodeDetector;
-const canScan = () => typeof window !== "undefined" && !!DetectorClass() && !!navigator.mediaDevices?.getUserMedia;
+const canScan = () => typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia;
+
+/** A reader of the current video frame: the text of the QR code seen, or null. */
+async function frameReader(v: HTMLVideoElement): Promise<() => Promise<string | null>> {
+  const Detector = DetectorClass();
+  if (Detector) {
+    const detector = new Detector({ formats: ["qr_code"] });
+    return async () => (await detector.detect(v).catch(() => []))[0]?.rawValue ?? null;
+  }
+  const { default: jsQR } = await import("jsqr");
+  const canvas = document.createElement("canvas");
+  const g = canvas.getContext("2d", { willReadFrequently: true });
+  return async () => {
+    if (!g || !v.videoWidth) return null;
+    // At most 720 px on the long side: enough for a code filling part of the frame, and fast.
+    const k = Math.min(1, 720 / Math.max(v.videoWidth, v.videoHeight));
+    canvas.width = Math.round(v.videoWidth * k);
+    canvas.height = Math.round(v.videoHeight * k);
+    g.drawImage(v, 0, 0, canvas.width, canvas.height);
+    const img = g.getImageData(0, 0, canvas.width, canvas.height);
+    return jsQR(img.data, img.width, img.height, { inversionAttempts: "dontInvert" })?.data || null;
+  };
+}
 
 /** Camera scanner of a QR code: calls `onText` with the first code read. */
 function QrScanner({ onText, onClose }: { onText: (text: string) => void; onClose: () => void }) {
@@ -30,20 +56,19 @@ function QrScanner({ onText, onClose }: { onText: (text: string) => void; onClos
     let stream: MediaStream | null = null;
     let timer = 0;
     let stopped = false;
-    const Detector = DetectorClass();
     (async () => {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
         const v = video.current;
-        if (stopped || !v || !Detector) return;
+        if (stopped || !v) return;
         v.srcObject = stream;
         await v.play();
-        const detector = new Detector({ formats: ["qr_code"] });
+        const read = await frameReader(v);
         const scan = async () => {
           if (stopped) return;
-          const [hit] = await detector.detect(v).catch(() => []);
-          if (hit?.rawValue) return latest.current(hit.rawValue);
-          timer = window.setTimeout(scan, 300);
+          const text = await read().catch(() => null);
+          if (text) return latest.current(text);
+          timer = window.setTimeout(scan, 250);
         };
         void scan();
       } catch {
@@ -105,6 +130,21 @@ export function ImportModal({
   const notify = useGame((s) => s.notify);
   const lang = useGame((s) => s.lang);
   const t = useT();
+  // A deck link pasted (copied from Safari, received in a message): replaced by its decklist.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: decoded again only when the text changes
+  useEffect(() => {
+    const data = sharedDeckData(text.trim());
+    if (!data || /\n/.test(text.trim())) return;
+    let live = true;
+    void decodeDeck(data).then((list) => {
+      if (!live) return;
+      if (list) setText(list);
+      else notify(t("This deck link is damaged."));
+    });
+    return () => {
+      live = false;
+    };
+  }, [text]);
   // "(STA) 42": printing of the table, once loaded.
   const table = usePrintings();
   const parsed = useMemo(() => parseDeckList(text, INDEX, table?.findPrinting), [text, table]);
@@ -133,7 +173,9 @@ export function ImportModal({
   return (
     <DeckModal title={t("Import a decklist")} onClose={onClose}>
       <p className="hint">
-        {t('Paste a list exported from MTG Arena, MTGO or a deck site ("4 Llanowar Elves (FDN) 227", "4 Elfes de Llanowar"…).')}
+        {t(
+          'Paste a list exported from MTG Arena, MTGO or a deck site ("4 Llanowar Elves (FDN) 227", "4 Elfes de Llanowar"…), or a Planecircle deck link.',
+        )}
       </p>
       {scanning ? (
         <QrScanner

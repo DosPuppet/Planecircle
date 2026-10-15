@@ -46,6 +46,8 @@ export default defineConfig({
             { name: "locales", test: /packages[\\/]\w+[\\/]locales[\\/]/ },
             // The printings table (deck builder) stays a file of its own, loaded on demand.
             { name: "cards", test: /packages[\\/]cards[\\/]data[\\/](?!printings|edh\.json)/ },
+            // QR code reader (jsQR, 250 KB): only when the camera scanner has no native detector (Safari).
+            { name: "qrscan", test: /node_modules[\\/]jsqr[\\/]/ },
             { name: "vendor", test: /node_modules/ },
           ],
         },
