@@ -1,0 +1,4 @@
+Mana symbols from Mana 1.18.0 (https://github.com/andrewgioia/mana), by Andrew Gioia.
+The Mana font is licensed under the SIL OFL 1.1; its CSS under the MIT License.
+All mana, tap and card type symbol images are copyright Wizards of the Coast.
+Copied by tools/mana-symbols.ts.

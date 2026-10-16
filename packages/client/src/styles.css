@@ -1630,6 +1630,7 @@ button.emblem-chip.activatable {
   vertical-align: middle;
 }
 .mana-sym {
+  position: relative;
   width: var(--sym);
   height: var(--sym);
   border-radius: 50%;
@@ -1641,86 +1642,23 @@ button.emblem-chip.activatable {
   color: #1a1a1a;
   box-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
 }
-.mana-W {
-  background: #f8f3d6;
+/* Hybrid symbols: a disc split diagonally, one glyph in each half. */
+.mana-sym.hybrid {
+  background: linear-gradient(135deg, var(--m1) 50%, var(--m2) 50%);
 }
-.mana-U {
-  background: #a9d0ef;
+/* The official glyph (public/mana/), drawn as a mask in the symbol's ink. */
+.mana-glyph {
+  position: absolute;
+  inset: 15%;
+  background: #161616;
+  -webkit-mask: var(--glyph) center / contain no-repeat;
+  mask: var(--glyph) center / contain no-repeat;
 }
-.mana-B {
-  background: #b7ada8;
+.mana-glyph.g1 {
+  inset: 6% 46% 46% 6%;
 }
-.mana-R {
-  background: #f09a7c;
-}
-.mana-G {
-  background: #99cc9a;
-}
-.mana-C,
-.mana-N {
-  background: #d0cac4;
-}
-
-/* Hybrid symbols: a disc split diagonally */
-.mana-W-U {
-  background: linear-gradient(135deg, #f8f3d6 50%, #a9d0ef 50%);
-}
-.mana-W-B {
-  background: linear-gradient(135deg, #f8f3d6 50%, #b7ada8 50%);
-}
-.mana-W-R {
-  background: linear-gradient(135deg, #f8f3d6 50%, #f09a7c 50%);
-}
-.mana-W-G {
-  background: linear-gradient(135deg, #f8f3d6 50%, #99cc9a 50%);
-}
-.mana-U-W {
-  background: linear-gradient(135deg, #a9d0ef 50%, #f8f3d6 50%);
-}
-.mana-U-B {
-  background: linear-gradient(135deg, #a9d0ef 50%, #b7ada8 50%);
-}
-.mana-U-R {
-  background: linear-gradient(135deg, #a9d0ef 50%, #f09a7c 50%);
-}
-.mana-U-G {
-  background: linear-gradient(135deg, #a9d0ef 50%, #99cc9a 50%);
-}
-.mana-B-W {
-  background: linear-gradient(135deg, #b7ada8 50%, #f8f3d6 50%);
-}
-.mana-B-U {
-  background: linear-gradient(135deg, #b7ada8 50%, #a9d0ef 50%);
-}
-.mana-B-R {
-  background: linear-gradient(135deg, #b7ada8 50%, #f09a7c 50%);
-}
-.mana-B-G {
-  background: linear-gradient(135deg, #b7ada8 50%, #99cc9a 50%);
-}
-.mana-R-W {
-  background: linear-gradient(135deg, #f09a7c 50%, #f8f3d6 50%);
-}
-.mana-R-U {
-  background: linear-gradient(135deg, #f09a7c 50%, #a9d0ef 50%);
-}
-.mana-R-B {
-  background: linear-gradient(135deg, #f09a7c 50%, #b7ada8 50%);
-}
-.mana-R-G {
-  background: linear-gradient(135deg, #f09a7c 50%, #99cc9a 50%);
-}
-.mana-G-W {
-  background: linear-gradient(135deg, #99cc9a 50%, #f8f3d6 50%);
-}
-.mana-G-U {
-  background: linear-gradient(135deg, #99cc9a 50%, #a9d0ef 50%);
-}
-.mana-G-B {
-  background: linear-gradient(135deg, #99cc9a 50%, #b7ada8 50%);
-}
-.mana-G-R {
-  background: linear-gradient(135deg, #99cc9a 50%, #f09a7c 50%);
+.mana-glyph.g2 {
+  inset: 46% 6% 6% 46%;
 }
 
 /* Arrows */

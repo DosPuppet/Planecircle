@@ -1,6 +1,6 @@
 /**
  * Planecircle service worker (production build only, registered by main.tsx).
- * - /assets/* (named by their hash) and /sounds/*: from the cache after the first visit; a new version of a file
+ * - /assets/* (named by their hash), /sounds/* and /mana/* (mana symbols): from the cache after the first visit; a new version of a file
  *   replaces the old one (same name prefix);
  * - the page: network first, cache when offline (a game against the AI without network; the Scryfall images stay
  *   with the browser).
@@ -54,6 +54,7 @@ async function networkFirst(request) {
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET" || url.origin !== self.location.origin) return;
-  if (url.pathname.startsWith("/assets/") || url.pathname.startsWith("/sounds/")) e.respondWith(cacheFirst(e.request));
+  if (url.pathname.startsWith("/assets/") || url.pathname.startsWith("/sounds/") || url.pathname.startsWith("/mana/"))
+    e.respondWith(cacheFirst(e.request));
   else if (e.request.mode === "navigate") e.respondWith(networkFirst(e.request));
 });

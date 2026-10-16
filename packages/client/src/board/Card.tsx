@@ -23,31 +23,78 @@ export type Glow =
 
 const SPRING = { type: "spring", stiffness: 420, damping: 38 } as const;
 
-/** Mana symbols: "{2}{G}{G}" → colored pips. */
+/** Colors of the mana discs (hybrid symbols: split between two). */
+const MANA_COLOR: Record<string, string> = {
+  W: "#f8f3d6",
+  U: "#a9d0ef",
+  B: "#b7ada8",
+  R: "#f09a7c",
+  G: "#99cc9a",
+};
+const GREY = "#d0cac4";
+
+/** Official glyphs (Mana font, public/mana/, `tools/mana-symbols.ts`): letters lowercased, T → tap, Q → untap. */
+const GLYPHS = new Set(
+  "w u b r g c s e x y z p tap untap chaos half infinity 100 1000000"
+    .split(" ")
+    .concat(Array.from({ length: 21 }, (_, i) => String(i))),
+);
+const glyphName = (sym: string) => ({ T: "tap", Q: "untap", "∞": "infinity", "½": "half" })[sym] ?? sym.toLowerCase();
+
+/** The glyph of a symbol, drawn as a mask in the symbol's ink; `part`: one half of a hybrid symbol. */
+function Glyph({ sym, part }: { sym: string; part?: 1 | 2 }) {
+  const name = glyphName(sym);
+  if (!GLYPHS.has(name)) return <>{sym}</>;
+  return (
+    <span
+      className={`mana-glyph ${part ? `g${part}` : ""}`}
+      style={{ "--glyph": `url("${import.meta.env.BASE_URL}mana/${name}.svg")` } as CSSProperties}
+    />
+  );
+}
+
+/** Mana symbols: "{2}{G}{G}" → the official symbols, on their colored discs. */
 export function ManaCost({ cost, size = 16 }: { cost: string; size?: number }) {
   const t = useT();
   const symbols = [...cost.matchAll(/\{([^}]+)\}/g)].map((m) => m[1] as string);
   return (
     <span className="mana-cost" style={{ "--sym": `${size}px` } as CSSProperties}>
-      {symbols.map((s, i) =>
-        /^[WUBRG]\/[WUBRG]$/.test(s) ? (
-          <span key={i} className={`mana-sym hybrid mana-${s[0]}-${s[2]}`} title={`{${s}}`} />
-        ) : /^[WUBRG]\/P$/.test(s) ? (
-          // Phyrexian mana: the color, or 2 life.
-          <span
-            key={i}
-            className={`mana-sym mana-${s[0]}`}
-            title={t("{symbol}: {color} or 2 life", { symbol: `{${s}}`, color: `{${s[0]}}` })}
-          >
-            Φ
+      {symbols.map((s, i) => {
+        // Hybrid ({W/U}) or generic hybrid ({2/W}): a disc split diagonally, both glyphs.
+        const hybrid = /^([WUBRG2])\/([WUBRG])$/.exec(s);
+        if (hybrid) {
+          const [, a = "", b = ""] = hybrid;
+          return (
+            <span
+              key={i}
+              className="mana-sym hybrid"
+              title={`{${s}}`}
+              style={{ "--m1": MANA_COLOR[a] ?? GREY, "--m2": MANA_COLOR[b] ?? GREY } as CSSProperties}
+            >
+              <Glyph sym={a} part={1} />
+              <Glyph sym={b} part={2} />
+            </span>
+          );
+        }
+        // Phyrexian mana: the color, or 2 life.
+        const phyrexian = /^([WUBRG])\/P$/.exec(s);
+        if (phyrexian)
+          return (
+            <span
+              key={i}
+              className="mana-sym"
+              style={{ background: MANA_COLOR[phyrexian[1] ?? ""] }}
+              title={t("{symbol}: {color} or 2 life", { symbol: `{${s}}`, color: `{${phyrexian[1]}}` })}
+            >
+              <Glyph sym="P" />
+            </span>
+          );
+        return (
+          <span key={i} className="mana-sym" style={{ background: MANA_COLOR[s] ?? GREY }} title={`{${s}}`}>
+            <Glyph sym={s} />
           </span>
-        ) : (
-          // Letter in the pip: black and colorless are not told apart by color alone (accessibility).
-          <span key={i} className={`mana-sym mana-${/^[WUBRGC]$/.test(s) ? s : "N"}`} title={`{${s}}`}>
-            {s}
-          </span>
-        ),
-      )}
+        );
+      })}
     </span>
   );
 }
