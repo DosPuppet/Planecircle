@@ -2187,6 +2187,33 @@ button.emblem-chip.activatable {
   font-size: 1.125rem;
   min-width: 60px;
 }
+/* End of the game, the window set aside: the result and its actions in a bar on the center line, over the final
+   battlefield. */
+.gameover-bar {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-2);
+  white-space: nowrap;
+}
+.gameover-bar strong {
+  font-family: var(--font-display);
+}
+.gameover-bar.won strong {
+  color: #8bf0a8;
+}
+.gameover-bar.lost strong {
+  color: #ff8d80;
+}
 .gameover {
   text-align: center;
 }

@@ -996,6 +996,13 @@ function GameOver({ view }: { view: GameView }) {
   const replay = useGame((s) => !!s.replay);
   const nextGame = useGame((s) => s.nextGame);
   const t = useT();
+  // The window set aside to look at the final battlefield (a bar at the top brings it back).
+  const [viewing, setViewing] = useState(false);
+  useEffect(() => {
+    if (!view.over) setViewing(false);
+    // Conceded from the drawer: it closes, the result shows.
+    else useGame.getState().setDrawerOpen(false);
+  }, [view.over]);
   // Tutorial: the guide announces the end of the game itself and offers what comes next.
   const coached = useTutorial((x) => !!x.lessonId);
   if (!view.over || coached || replay) return null;
@@ -1011,24 +1018,31 @@ function GameOver({ view }: { view: GameView }) {
   const between = !!match && !match.decided && (online ? online.status === "sideboard" : true);
   const deckNow = online ? online.deck : localMatch?.deck;
   const original = online ? online.deck : localMatch?.original;
+  const title = match?.decided
+    ? match.wonMatch
+      ? t("Match won!")
+      : match.mine === match.theirs
+        ? t("Match drawn")
+        : t("Match lost")
+    : won
+      ? t("Victory!")
+      : view.winner
+        ? t("Defeat")
+        : t("Game drawn");
+  if (viewing)
+    return (
+      <div className={`gameover-bar ${won ? "won" : "lost"}`} role="status">
+        <strong>{title}</strong>
+        <button type="button" className="btn small primary" onClick={() => setViewing(false)}>
+          {t("Back to the result")}
+        </button>
+        <button type="button" className="btn small" onClick={backToLobby}>
+          {online ? t("Quit") : t("Back to menu")}
+        </button>
+      </div>
+    );
   return (
-    <Dialog
-      backdropClassName="soft"
-      className={`gameover ${won ? "won" : "lost"} ${between ? "wide" : ""}`}
-      title={
-        match?.decided
-          ? match.wonMatch
-            ? t("Match won!")
-            : match.mine === match.theirs
-              ? t("Match drawn")
-              : t("Match lost")
-          : won
-            ? t("Victory!")
-            : view.winner
-              ? t("Defeat")
-              : t("Game drawn")
-      }
-    >
+    <Dialog backdropClassName="soft" className={`gameover ${won ? "won" : "lost"} ${between ? "wide" : ""}`} title={title}>
       {!won && view.winner && view.opponents.length > 1 && (
         <p className="match-score">{t("{name} wins the game.", { name: view.players[view.winner]?.name ?? "" })}</p>
       )}
@@ -1098,6 +1112,9 @@ function GameOver({ view }: { view: GameView }) {
               : t("Rematch")}
           </button>
         )}
+        <button type="button" className="btn ghost" onClick={() => setViewing(true)}>
+          {t("View the battlefield")}
+        </button>
         <button type="button" className={`btn ${online ? "" : "primary"}`} onClick={backToLobby}>
           {online ? t("Quit") : t("Back to menu")}
         </button>
