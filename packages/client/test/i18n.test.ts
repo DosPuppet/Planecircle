@@ -51,4 +51,26 @@ describe("interface texts", () => {
     expect(lines[0]?.cards?.map((c) => c.defId)).toEqual(["bolt"]);
     expect(lines[1]?.cards).toBeUndefined();
   });
+
+  it("log: coin flips (heads, tails) and skipped turns (Ral Zarek, Guest Lecturer)", () => {
+    const lines = describeEvents(
+      [
+        { type: "coinFlip", player: "p1", won: true },
+        { type: "coinFlip", player: "p1", won: false },
+        { type: "coinFlip", player: "p2", won: true },
+        { type: "turnSkipped", player: "p2" },
+        { type: "turnSkipped", player: "p1" },
+      ],
+      view,
+      faces,
+      "fr",
+    ).map((l) => l.text);
+    expect(lines).toEqual([
+      "Vous lancez une pièce : face.", // i18n-ignore: checks the French log
+      "Vous lancez une pièce : pile.", // i18n-ignore: checks the French log
+      "Bob lance une pièce : face.", // i18n-ignore: checks the French log
+      "Bob passe son tour.", // i18n-ignore: checks the French log
+      "Vous passez votre tour.", // i18n-ignore: checks the French log
+    ]);
+  });
 });

@@ -544,6 +544,8 @@ export type GameEvent =
   | { type: "plotted"; player: PlayerId; defId: string }
   /** 705: coin flip. */
   | { type: "coinFlip"; player: PlayerId; won: boolean }
+  /** 500.11: a player skips their turn (Ral Zarek, Guest Lecturer). */
+  | { type: "turnSkipped"; player: PlayerId }
   | { type: "dieRoll"; player: PlayerId; sides: number; result: number }
   /** A safety cap cut an amount (`limits.ts`): approximation reported in the log. */
   | { type: "capReached"; cap: "tokens" | "amount" | "permutations" | "layers" }

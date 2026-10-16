@@ -527,6 +527,25 @@ export function describeEvents(
         add(text, kind(e.player));
         break;
       }
+      case "coinFlip":
+        // 705: heads or tails (Ral Zarek counts the heads; a flip "won" comes up heads).
+        add(
+          e.player === me
+            ? e.won
+              ? msg("You flip a coin: heads.")
+              : msg("You flip a coin: tails.")
+            : e.won
+              ? msg("{player} flips a coin: heads.", { player: player(e.player) })
+              : msg("{player} flips a coin: tails.", { player: player(e.player) }),
+          kind(e.player),
+        );
+        break;
+      case "turnSkipped":
+        add(
+          e.player === me ? msg("You skip your turn.") : msg("{player} skips their turn.", { player: player(e.player) }),
+          "turn",
+        );
+        break;
       case "dieRoll":
         add(
           e.player === me

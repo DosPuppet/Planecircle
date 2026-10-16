@@ -10,7 +10,7 @@ import { costToText, manaValue, payCostText, totalCost } from "./mana";
 import { customArtSet, keyedPrinting } from "./printing";
 import { abilitiesOf, castTerms, landPermitted, modesOf, spellCost } from "./stack";
 import { chars, commanderOf, decider, HIDDEN_CARD_ID, isSummoningSick, obj } from "./state";
-import { mayLookAt, untapStepRule } from "./statics";
+import { mayLookAt, turnsToSkip, untapStepRule } from "./statics";
 import { msg } from "./text";
 import { pendingTriggerSource } from "./triggers";
 import { allowedDefenders, attackableDefenders, attackCandidates, blockCandidates, forcedAttacks } from "./turn";
@@ -188,6 +188,8 @@ export interface PlayerView {
   poison?: number;
   /** Rad counters (Fallout), absent when they have none. */
   rad?: number;
+  /** Turns the player will skip (Ral Zarek, Guest Lecturer), absent when none. */
+  skipTurns?: number;
 }
 
 export type PendingView =
@@ -601,6 +603,7 @@ export function projectView(s: GameState, viewer: PlayerId): GameView {
       ...(s.monarch === p ? { monarch: true as const } : {}),
       ...(pl.counters?.poison ? { poison: pl.counters.poison } : {}),
       ...(pl.counters?.rad ? { rad: pl.counters.rad } : {}),
+      ...(turnsToSkip(s, p) ? { skipTurns: turnsToSkip(s, p) } : {}),
       graveyard: pl.graveyard.map((id) => objectView(s, id)),
       manaPool: { ...pl.manaPool },
       ...(pl.restrictedMana?.length ? { restrictedMana: pl.restrictedMana.map((m) => m.type) } : {}),

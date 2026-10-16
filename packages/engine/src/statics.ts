@@ -442,6 +442,11 @@ export function addPlayerEffect(
   s.version += 1; // characteristics can depend on it
 }
 
+/** Turns this player will skip (Ral Zarek: one one-shot effect per turn), shown on their bar. */
+export function turnsToSkip(s: GameState, player: PlayerId): number {
+  return liveEffects(s, player).filter((e) => e.once && e.ability.skips === "turn").length;
+}
+
 /**
  * Removes the first one-shot effect of this player that carries `key` (with this value, if given); true if there was
  * one.

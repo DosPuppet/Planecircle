@@ -12,6 +12,7 @@ import { addReplacement } from "../src/replacement";
 import { chars } from "../src/state";
 import { playerStatic } from "../src/statics";
 import type { GameState } from "../src/types";
+import { projectView } from "../src/view";
 import { act, advanceUntil, customCard, idOf, idsOf, passAccepting, passUntil, scenario } from "./helpers";
 
 type S = GameState;
@@ -1020,8 +1021,13 @@ describe("Meta, lot M6", () => {
       }),
     );
     const skips = s.playerEffects.filter((e) => e.player === "p2" && e.ability.skips === "turn").length;
+    // Every player sees how many turns the opponent will skip (its bar), as many as the coins that came up heads.
+    expect(projectView(s, "p1").players.p2?.skipTurns ?? 0).toBe(skips);
+    expect(projectView(s, "p2").players.p2?.skipTurns ?? 0).toBe(skips);
     s = advanceUntil(s, (x) => x.turn.number > 3 && x.turn.step === "main1");
     expect(s.turn.active).toBe(skips > 0 ? "p1" : "p2");
+    // A skipped turn consumes one.
+    if (skips > 0) expect(projectView(s, "p1").players.p2?.skipTurns ?? 0).toBeLessThan(skips);
   });
 
   it("Jennifer Walters transforms into The Sensational She-Hulk", () => {

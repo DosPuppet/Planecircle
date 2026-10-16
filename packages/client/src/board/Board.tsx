@@ -181,6 +181,15 @@ function PlayerBar({ player, isMe }: { player: PlayerView; isMe: boolean }) {
               ☢ {player.rad}
             </span>
           )}
+          {!!player.skipTurns && (
+            <span
+              className="poison-chip skip-chip"
+              title={t("Skips their next {n} turn(s)", { n: player.skipTurns })}
+              data-testid="skip-turns"
+            >
+              ⏭ {player.skipTurns}
+            </span>
+          )}
           {player.speed !== undefined && <SpeedGauge player={player.id} speed={player.speed} />}
           {player.emblems.map((e, i) =>
             // Emblem with an ability that can be activated now (Karn, Living Legacy): a button.

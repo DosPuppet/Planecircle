@@ -714,8 +714,10 @@ function endStep(s: GameState): void {
     if (extraTurn) s.turn.extra = true;
     else delete s.turn.extra;
     // Ral Zarek: a player who must skip their turn skips it (one effect consumed per skipped turn).
-    for (let guard = 0; guard < s.playerOrder.length && consumePlayerEffect(s, s.turn.active, "skips", "turn"); guard++)
+    for (let guard = 0; guard < s.playerOrder.length && consumePlayerEffect(s, s.turn.active, "skips", "turn"); guard++) {
+      emit({ type: "turnSkipped", player: s.turn.active });
       s.turn.active = nextPlayer(s, s.turn.active);
+    }
     s.turn.endSteps = 0;
     clearAdded(s);
     delete s.turn.mainPhase;
