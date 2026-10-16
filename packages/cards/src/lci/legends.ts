@@ -166,7 +166,7 @@ export const LEGENDS: Record<string, CardScript> = {
           mode("+2 life and scry 2", [], [fx.gainLife(2), fx.scry(2)]),
           mode("Exile a player's graveyard", [target.player()], [fx.moveAll("graveyard", ref.target(), {}, { to: "exile" })]),
         ],
-        { label: "Flanking" },
+        { label: "Choose one" },
       ),
     ],
   },
