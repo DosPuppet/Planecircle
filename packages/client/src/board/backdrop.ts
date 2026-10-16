@@ -8,34 +8,59 @@
 
 const VERTEX = "attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}";
 
-const FRAGMENT = `precision mediump float;
+// The fog: gradient noise (quintic blend, no grid lines), octaves rotated (nothing aligned with the axes), two layers
+// drifting at different speeds through a domain warp; high precision where the GPU has it (the classic sin hash breaks
+// into blocks in medium precision, on phones); a triangular dither against banding in the dark gradients.
+const FRAGMENT = `#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
 uniform vec2 u_res;
 uniform float u_time;
 uniform vec3 u_base;
 uniform vec3 u_mid;
 uniform vec3 u_pool;
-float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+vec2 hash2(vec2 p) {
+  vec3 p3 = fract(vec3(p.xyx) * vec3(.1031, .1030, .0973));
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.xx + p3.yz) * p3.zy) * 2. - 1.;
+}
+float hash1(vec2 p) {
+  vec3 p3 = fract(vec3(p.xyx) * .1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
+}
 float noise(vec2 p) {
   vec2 i = floor(p);
   vec2 f = fract(p);
-  vec2 u = f * f * (3. - 2. * f);
-  return mix(mix(hash(i), hash(i + vec2(1., 0.)), u.x), mix(hash(i + vec2(0., 1.)), hash(i + vec2(1., 1.)), u.x), u.y);
+  vec2 u = f * f * f * (f * (f * 6. - 15.) + 10.);
+  float a = dot(hash2(i), f);
+  float b = dot(hash2(i + vec2(1., 0.)), f - vec2(1., 0.));
+  float c = dot(hash2(i + vec2(0., 1.)), f - vec2(0., 1.));
+  float d = dot(hash2(i + vec2(1., 1.)), f - vec2(1., 1.));
+  return .5 + .7 * mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
 }
+const mat2 ROT = mat2(1.6, 1.2, -1.2, 1.6);
 float fbm(vec2 p) {
   float v = 0.;
   float a = .5;
-  for (int k = 0; k < 4; k++) { v += a * noise(p); p = p * 2.03 + 17.; a *= .5; }
+  for (int k = 0; k < 5; k++) { v += a * noise(p); p = ROT * p + vec2(7.3, 1.9); a *= .5; }
   return v;
 }
 void main() {
   vec2 p = (gl_FragCoord.xy - .5 * u_res) / u_res.y;
-  float t = u_time * .02;
-  float n = fbm(p * 2.2 + vec2(t, -.6 * t) + .8 * fbm(p * 1.3 - t));
-  vec3 col = mix(u_base, u_mid, smoothstep(.2, .9, n));
+  float t = u_time * .015;
+  vec2 warp = vec2(fbm(p * 1.4 + vec2(0., t)), fbm(p * 1.4 + vec2(5.2, -t)));
+  float far = fbm(p * 1.6 + 1.3 * warp + vec2(t, -.4 * t));
+  float near = fbm(p * 3.1 - .8 * warp + vec2(-1.7 * t, .9 * t));
+  float fog = smoothstep(.25, .85, mix(far, near, .35));
+  vec3 col = mix(u_base, u_mid, fog);
   vec2 q = p * vec2(.9, 1.6);
-  col += u_pool * .28 * exp(-2.4 * dot(q, q));
-  col *= mix(.4, 1., smoothstep(1.2, .3, length(p * vec2(.8, 1.1))));
-  col += (hash(gl_FragCoord.xy + fract(u_time)) - .5) / 255.;
+  col += u_pool * .26 * exp(-2.4 * dot(q, q)) * (.75 + .5 * fog);
+  col *= mix(.42, 1., smoothstep(1.25, .3, length(p * vec2(.8, 1.1))));
+  float dither = hash1(gl_FragCoord.xy + fract(u_time) * 61.) + hash1(gl_FragCoord.yx + fract(u_time) * 37.) - 1.;
+  col += dither * 1.5 / 255.;
   gl_FragColor = vec4(col, 1.);
 }`;
 
