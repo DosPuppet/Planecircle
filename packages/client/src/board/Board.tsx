@@ -1290,6 +1290,7 @@ function ActionPanel() {
   const view = useGame((s) => s.view) as GameView;
   const endTurn = useGame((s) => s.endTurn);
   const decide = useGame((s) => s.decide);
+  const resolveAll = useGame((s) => s.resolveAll);
   const attackers = useGame((s) => s.attackers);
   const action = useMainAction();
   const t = useT();
@@ -1314,37 +1315,51 @@ function ActionPanel() {
       >
         {action.label}
       </button>
-      {p?.kind === "declareAttackers" &&
-        p.player === view.viewer &&
-        (attackers.length > 0 || (p.candidates?.length ?? 0) > 0) && (
+      {/* The secondary actions on one line under the main button. */}
+      <div className="action-row">
+        {/* Three items or more on the stack (as on MTGA): resolve them all, unless an opponent responds. */}
+        {action.respond && !action.disabled && view.stack.length > 2 && (
           <button
             type="button"
-            className="btn small no-attack"
-            onClick={() => decide({ type: "declareAttackers", attackers: [] })}
-            title={t("Don't attack this turn")}
+            className="btn small resolve-all"
+            onClick={resolveAll}
+            title={t("Pass until the stack is empty (stops if an opponent responds)")}
           >
-            {t("No attack")}
+            {t("Resolve all ({n})", { n: view.stack.length })}
           </button>
         )}
-      {mine && !view.over && (
-        <button
-          type="button"
-          className="btn small ghost"
-          data-tuto="end-turn"
-          onClick={(e) => endTurn(e.shiftKey)}
-          title={
-            myTurn
-              ? t(
-                  "Enter: pass until the end of the turn (stops if an opponent acts); Shift+Enter or Shift+click: let everything pass",
-                )
-              : t(
-                  "Enter: pass until your turn (stops if the opponent casts a spell, and for your blocks); Shift+Enter or Shift+click: let everything pass",
-                )
-          }
-        >
-          {myTurn ? t("Pass the turn ⏎") : t("Until my turn ⏎")}
-        </button>
-      )}
+        {p?.kind === "declareAttackers" &&
+          p.player === view.viewer &&
+          (attackers.length > 0 || (p.candidates?.length ?? 0) > 0) && (
+            <button
+              type="button"
+              className="btn small no-attack"
+              onClick={() => decide({ type: "declareAttackers", attackers: [] })}
+              title={t("Don't attack this turn")}
+            >
+              {t("No attack")}
+            </button>
+          )}
+        {mine && !view.over && (
+          <button
+            type="button"
+            className="btn small ghost"
+            data-tuto="end-turn"
+            onClick={(e) => endTurn(e.shiftKey)}
+            title={
+              myTurn
+                ? t(
+                    "Enter: pass until the end of the turn (stops if an opponent acts); Shift+Enter or Shift+click: let everything pass",
+                  )
+                : t(
+                    "Enter: pass until your turn (stops if the opponent casts a spell, and for your blocks); Shift+Enter or Shift+click: let everything pass",
+                  )
+            }
+          >
+            {myTurn ? t("Pass the turn ⏎") : t("Until my turn ⏎")}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

@@ -343,7 +343,13 @@ button {
   height: calc(var(--hand-w) * 1.395 * var(--hand-peek) + env(safe-area-inset-bottom));
 }
 .bottom-row > .player-bar,
-.bottom-row > .action-panel {
+.bottom-row > .action-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+.action-panel {
   flex: none;
 }
 

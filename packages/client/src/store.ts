@@ -377,6 +377,11 @@ interface Store {
   resumeLocal(): boolean;
   /** Pass priority; with floating mana that would be lost, a first press only warns. */
   passPriority(): void;
+  /**
+   * "Resolve all" (as on MTGA): passes priority until the stack is empty; stops if an opponent adds a spell or an
+   * ability, or as soon as the player plays something.
+   */
+  resolveAll(): void;
   /** Decision for which the floating mana warning was already given. */
   floatWarned: string | null;
   clickHandCard(id: string): void;
@@ -870,6 +875,9 @@ const playback: { msg: Extract<FromWorker, { type: "update" }>; session: Session
 let pumping = false;
 let resolvingNow = false;
 
+/** "Resolve all" in progress: the stack items known when it started, and the player's own added since. */
+let resolvingAll: Set<string> | null = null;
+
 /** A resolution is being shown, or updates are waiting: the displayed view is not the latest yet. */
 function playbackBusy(): boolean {
   return resolvingNow || playback.length > 0;
@@ -921,6 +929,18 @@ export const useGame = create<Store>((set, get) => {
       resolvingNow = false;
       if (get().resolving) set({ resolving: null });
     }
+    continueResolveAll();
+  };
+  /** "Resolve all": once the updates are shown, passes again while the stack resolves without an opposing response. */
+  const continueResolveAll = () => {
+    const v = get().view;
+    if (!resolvingAll || !v || playbackBusy()) return;
+    if (v.over || v.stack.length === 0 || v.stack.some((i) => !resolvingAll?.has(i.id) && i.controller !== v.viewer)) {
+      resolvingAll = null;
+      return;
+    }
+    for (const i of v.stack) resolvingAll.add(i.id);
+    if (v.pending?.kind === "priority" && v.pending.player === v.viewer) get().decide({ type: "pass" });
   };
   /** Choice on the board in progress (MTGA style): a click selects or removes the option. Returns false outside this mode. */
   const pickOnBoard = (id: string): boolean => {
@@ -1511,6 +1531,7 @@ export const useGame = create<Store>((set, get) => {
     },
 
     backToLobby() {
+      resolvingAll = null;
       if (replayTimer) clearInterval(replayTimer);
       replayTimer = null;
       if (get().replay) set({ replay: null });
@@ -1618,6 +1639,8 @@ export const useGame = create<Store>((set, get) => {
     decide(d) {
       // While a resolution is being shown, the displayed view is not the game's yet.
       if (playbackBusy()) return;
+      // Playing something ends "Resolve all" (answering a question of a resolving spell does not).
+      if (d.type === "cast" || d.type === "activate" || d.type === "playLand") resolvingAll = null;
       if (refused(d)) return;
       get().session?.send({ type: "decision", decision: d });
       // Mana tapped by hand during the "mana" stage of a cast: the cast goes on.
@@ -1642,6 +1665,13 @@ export const useGame = create<Store>((set, get) => {
       const m = get().manaPick;
       if (!m || ids === undefined) return set({ manaPick: null });
       get().decide({ ...m.decision, picks: { [m.pick.slot]: ids } });
+    },
+
+    resolveAll() {
+      const v = get().view;
+      if (!v || v.stack.length === 0) return;
+      resolvingAll = new Set(v.stack.map((i) => i.id));
+      get().decide({ type: "pass" });
     },
 
     passPriority() {
