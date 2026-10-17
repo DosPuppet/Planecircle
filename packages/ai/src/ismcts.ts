@@ -106,7 +106,8 @@ export function determinize(s: GameState, me: PlayerId, rand: () => number, keep
       if (o?.owner === p && o.exiledFaceDown && !o.exiledFaceDown.includes(me) && spells.length && !keep.has(id))
         o.defId = pick(spells);
     }
-    for (const id of [...pl.hand, ...pl.library]) {
+    // Their sideboard too (North Wind Avatar): hidden like the hand.
+    for (const id of [...pl.hand, ...pl.library, ...pl.sideboard]) {
       const o = d.objects[id];
       // A commander is public (Commander): it stays what it is, even in a hand. So does a card shown to `me` now.
       if (!o || commanderOf(d, o) || keep.has(id)) continue;

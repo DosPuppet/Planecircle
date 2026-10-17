@@ -57,6 +57,10 @@ export interface PlayerSetup {
   printings?: (string | null | undefined)[];
   /** Commander (903.6, PLAN-E): indices of the commanders in `deck`; they start in the command zone. */
   commanders?: number[];
+  /** Sideboard: the cards outside the game (400.11b) that an effect may put into the game (North Wind Avatar). */
+  sideboard?: CardDef[];
+  /** Printing chosen for each card of the sideboard (same order). */
+  sideboardPrintings?: (string | null | undefined)[];
 }
 
 export interface GameOptions {
@@ -142,6 +146,7 @@ export function blankState(opts: {
       graveyard: [],
       command: [],
       phasedOut: [],
+      sideboard: [],
       manaPool: emptyPool(),
       drewFromEmptyLibrary: false,
       lost: false,
@@ -157,6 +162,12 @@ export function blankState(opts: {
 export function createGame(opts: GameOptions): StepResult {
   const [state, events] = collectEvents(() => {
     const s = blankState(opts);
+    // Art of another printing (reprint, or printing from the table, checked by the caller): recorded by physical
+    // identity, followed from one zone to another.
+    const art = (uid: string, card: CardDef, key: string | null | undefined) => {
+      if (key && (customArtSet(key) !== undefined || card.printings?.some((x) => x.key === key) || keyedPrinting(key)))
+        s.printings = { ...s.printings, [uid]: key };
+    };
     for (const p of opts.players) {
       p.deck.forEach((card, i) => {
         registerDef(s, card);
@@ -164,14 +175,16 @@ export function createGame(opts: GameOptions): StepResult {
         const commander = !!s.commander && !!p.commanders?.includes(i);
         const o = createObject(s, card.id, p.id, commander ? "command" : "library");
         if (commander && s.commander) s.commander.cards[o.uid] = { owner: p.id, defId: card.id, casts: 0, damage: {} };
-        // Art of another printing (reprint, or printing from the table, checked by the caller): recorded by physical
-        // identity, followed from one zone to another.
-        const key = p.printings?.[i];
-        if (key && (customArtSet(key) !== undefined || card.printings?.some((x) => x.key === key) || keyedPrinting(key)))
-          s.printings = { ...s.printings, [o.uid]: key };
+        art(o.uid, card, p.printings?.[i]);
       });
       shuffle(s, s.players[p.id]?.library ?? []);
     }
+    // The sideboards after every deck: a game without one numbers its objects as before.
+    for (const p of opts.players)
+      p.sideboard?.forEach((card, i) => {
+        registerDef(s, card);
+        art(createObject(s, card.id, p.id, "sideboard").uid, card, p.sideboardPrintings?.[i]);
+      });
     const starting = opts.startingPlayer ?? (s.playerOrder[Math.floor(random(s) * s.playerOrder.length)] as PlayerId);
     s.turn.startingPlayer = starting;
     s.turn.active = starting;

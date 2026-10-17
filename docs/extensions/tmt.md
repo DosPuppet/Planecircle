@@ -82,9 +82,18 @@ Scripts are in `packages/cards/src/tmt/`: `cards` (meta cards), `white`, `blue`,
   - sacrifice as a cost that can include the source (`sacrificeOther.includeSelf`); `ref.sameNameInGraveyard` (the card and its namesakes);
   - approximations lifted: "each opponent exiles until..." applies to each designated player (Krang & Shredder); "half, rounded up" in a single mill (`fx.millHalf(…, true)`, Kitsune's Technique);
   - `RULES_VERSION` = 56, golden games regenerated.
-- **Approximations:** North Wind Avatar (no "outside the game" zone); Ninja Teen (the attacker returned by the granted Sneak is the weakest).
+- **Approximations:** North Wind Avatar (no "outside the game" zone, lifted in rules 209); Ninja Teen (the attacker returned by the granted Sneak is the weakest).
 - **Tests:** 8 rules tests ("lot C1").
 
 ## PLAN-M M8b (rules 200)
 
 - **Renet, Temporal Apprentice:** "entered this turn" on the battlefield is the arrival logged in the turn log with the new object's id (`enteredThisTurn`, `turnlog.ts`), not `controlledSince`: a change of control is no longer an arrival (power-up "if he entered this turn", Cloudspire Coordinator and the other `enteredThisTurn` filters too). Test added.
+
+## Outside the game: the sideboard (rules 209)
+
+- **Engine:** the sideboard is a hidden zone of its owner (`sideboard`, `PlayerState.sideboard`, 400.11b), filled from `PlayerSetup.sideboard` after every deck (a game without one is numbered and shuffled as before), kept by the record (`GameRecord.players[].sideboard`), hidden like the hand (`filterEvents`, `determinize`), emptied when its owner leaves (800.4a); `fx.pickFromZone("sideboard", …)` takes a card from it. Online and against the AI, the deck's sideboard (only its cards the engine plays, `sideboardInGame`) is the one of the current game (after a BO3 swap); none in Commander.
+- **Forms:** `fx.pickFromZone("sideboard", …)`, `ref.zone("sideboard", who, filter)` (choices among cards held outside the game, `chooseAmong`), `fx.search(…, { alsoFrom: ["sideboard"] })` ("your library and/or outside the game").
+- **North Wind Avatar:** "you may put a card you own from outside the game into your hand" picks from the sideboard (none: nothing happens); the opponent's log says only that a card came from outside the game.
+- **Turtles Forever:** the search offers the legendary creature cards of the sideboard with the library's; the four are revealed; the two not chosen are shuffled into the library, a sideboard card too (Oracle). Still approximated: "exactly four".
+- **Extrapolate the Impossible (FRA):** see `docs/extensions/fra.md`.
+- **Tests:** 5 rules tests (North Wind Avatar: the pick, hidden from the opponent, declined; setup, record, replay, elimination; Turtles Forever from the sideboard; Extrapolate the Impossible: two tests in `fra.test.ts`).

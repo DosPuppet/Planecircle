@@ -7,7 +7,7 @@
  */
 
 import type { AiLevel } from "@mtgx/ai";
-import { CARDS, card, type DeckEntries, sideboardSwapError } from "@mtgx/cards";
+import { CARDS, card, type DeckEntries, sideboardInGame, sideboardSwapError } from "@mtgx/cards";
 import {
   type ActionOption,
   type AutopilotSettings,
@@ -210,6 +210,8 @@ export interface LocalMatch {
   deck: { main: DeckEntries; sideboard: DeckEntries };
   original: { main: DeckEntries; sideboard: DeckEntries };
   aiDeck: DeckEntries;
+  /** The AI's sideboard (it keeps it from one game to the next). */
+  aiSide?: DeckEntries;
   aiLevel?: AiLevel;
   /** Format of the match (absent: Standard): the sideboard swap must stay legal in it. */
   format?: Format;
@@ -314,6 +316,8 @@ interface Store {
     match?: { bestOf: 3; sideboard: DeckEntries; format?: Format },
     /** Commander (PLAN-E): the player's commander, then each AI's. */
     commander?: { player: DeckEntries; ai: DeckEntries[] },
+    /** Sideboards of the player and of each AI, outside the game (North Wind Avatar); a match uses its own. */
+    sides?: { player?: DeckEntries; ai?: DeckEntries[] },
   ): void;
   /** Match against the AI in progress (BO3). */
   localMatch: LocalMatch | null;
@@ -1108,6 +1112,7 @@ export const useGame = create<Store>((set, get) => {
     startingPlayer?: string,
     /** Commander: number of commanders at the top of each deck (player, then AIs). */
     commanders?: number[],
+    sides?: { player?: DeckEntries; ai?: DeckEntries[] },
   ): void {
     get().session?.close();
     preloadSounds();
@@ -1119,6 +1124,9 @@ export const useGame = create<Store>((set, get) => {
     const session = new LocalSession((m) => get().receive(m));
     const settings = { ...get().settings, passUntilTurn: null };
     set({ screen: "game", session, view: null, log: [], casting: null, attackers: [], blocks: {}, selection: [], settings });
+    // Outside the game: only the cards of the sideboard that the engine plays.
+    const playerSide = sideboardInGame(sides?.player);
+    const aiSides = aiDecks.map((_, i) => sideboardInGame(sides?.ai?.[i]));
     session.send({
       type: "start",
       seed: Math.floor(Math.random() * 2 ** 31),
@@ -1126,7 +1134,9 @@ export const useGame = create<Store>((set, get) => {
       aiNames: aiDecks.length > 1 ? aiDecks.map((_, i) => t("AI {n}", { n: i + 1 })) : [t("AI")],
       playerDeck,
       aiDecks,
-      defs: defsFor([playerDeck, ...aiDecks], sandbox),
+      ...(playerSide.length ? { playerSide } : {}),
+      ...(aiSides.some((x) => x.length) ? { aiSides } : {}),
+      defs: defsFor([playerDeck, ...aiDecks, playerSide, ...aiSides], sandbox),
       sandbox,
       fast: fastMode(),
       aiLevel,
@@ -1193,7 +1203,7 @@ export const useGame = create<Store>((set, get) => {
       }
     },
 
-    startGame(playerDeck, aiDecks, sandbox, aiLevel, match, commander) {
+    startGame(playerDeck, aiDecks, sandbox, aiLevel, match, commander, sides) {
       get().session?.close();
       const localMatch: LocalMatch | null =
         match && aiDecks.length === 1
@@ -1205,6 +1215,7 @@ export const useGame = create<Store>((set, get) => {
               deck: { main: playerDeck, sideboard: match.sideboard },
               original: { main: playerDeck, sideboard: match.sideboard },
               aiDeck: aiDecks[0] as DeckEntries,
+              ...(sides?.ai?.[0]?.length ? { aiSide: sides.ai[0] } : {}),
               aiLevel,
               ...(match.format && match.format !== "standard" ? { format: match.format } : {}),
             }
@@ -1223,7 +1234,10 @@ export const useGame = create<Store>((set, get) => {
         );
         return;
       }
-      startLocal(playerDeck, aiDecks, sandbox, aiLevel);
+      startLocal(playerDeck, aiDecks, sandbox, aiLevel, undefined, undefined, {
+        player: match?.sideboard ?? sides?.player,
+        ai: sides?.ai,
+      });
     },
 
     nextGame(main, sideboard) {
@@ -1240,7 +1254,10 @@ export const useGame = create<Store>((set, get) => {
       const last = get().view;
       const loser = last?.winner ? (last.winner === "p1" ? "p2" : "p1") : undefined;
       set({ localMatch: { ...m, deck: { main, sideboard }, game: m.game + 1 } });
-      startLocal(main, [m.aiDeck], undefined, m.aiLevel, loser);
+      startLocal(main, [m.aiDeck], undefined, m.aiLevel, loser, undefined, {
+        player: sideboard,
+        ...(m.aiSide ? { ai: [m.aiSide] } : {}),
+      });
     },
 
     localMatch: null,
@@ -1701,7 +1718,9 @@ export const useGame = create<Store>((set, get) => {
       const saved = loadSavedGame();
       if (!saved) return false;
       // The game's cards: a card removed or renamed since (update) makes the resume impossible, without blocking.
-      const decks = saved.record.players.map((p) => p.deck.map((name) => [1, name] as [number, string]));
+      const decks = saved.record.players.map((p) =>
+        [...p.deck, ...(p.sideboard ?? [])].map((name) => [1, name] as [number, string]),
+      );
       let defs: Record<string, CardDef>;
       try {
         defs = defsFor(decks);

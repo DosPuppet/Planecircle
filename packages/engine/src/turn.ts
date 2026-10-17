@@ -1910,6 +1910,7 @@ function removePlayerObjects(s: GameState, p: PlayerId): void {
   player.graveyard = [];
   player.command = [];
   player.phasedOut = [];
+  player.sideboard = [];
   s.battlefield = s.battlefield.filter((id) => !gone.has(id));
   s.exile = s.exile.filter((id) => !gone.has(id));
   // 800.4a: a spell they control without owning it (opponent's card cast from exile) is exiled; a copy ceases

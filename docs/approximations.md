@@ -58,7 +58,6 @@ In the order they were added, set by set.
   - `rule` Cavern mana (Bat Colony) and "using mana produced by [source]" (Tecutlan, The Myriad Pools): only the mana committed by the automatic payment;
   - `rule` The Myriad Pools: the permanent becomes a copy of the spell on the stack.
 - **Reality Fracture (`docs/extensions/fra.md`):**
-  - `rule` Extrapolate the Impossible: does nothing, as on Arena in BO1 (no "outside the game" cards);
   - `rule` Emrakul, the Exigent Doom: the ability granted to the land ends as soon as the card leaves exile, in any way (and not only when it is cast); once cast, it lasts until the spell is cast (601.2i) and can be used to pay for it.
 - **Lorwyn Eclipsed (`docs/extensions/ecl.md`):**
   - `rule` Rhys, the Evermore: removes all −1/−1 counters from the target, and only those (neither the number nor the other kinds of counters can be chosen);
@@ -88,8 +87,7 @@ In the order they were added, set by set.
 - **Marvel's Spider-Man (`docs/extensions/spm.md`):**
   - `rule` The Death of Gwen Stacy: at chapter II, each player chooses then acts in turn (no APNAP choices followed by simultaneous actions).
 - **Teenage Mutant Ninja Turtles (`docs/extensions/tmt.md`):**
-  - `rule` Turtles Forever: the search only covers the library (nothing outside the game), and "exactly four" is not enforced (the opponent chooses among the cards found);
-  - `rule` North Wind Avatar: the engine has no "outside the game" zone (no sideboard during a game): the enters ability has no effect.
+  - `rule` Turtles Forever: "exactly four" is not enforced (with fewer cards found, the opponent chooses among those);
 - **The Hobbit (`docs/extensions/hob.md`):**
   - `rule` Burglar's Plot: "two target nonland permanents that share a card type" is a modal spell, one mode per type;
 - **Reprints, "Unlimited" (`docs/extensions/reprints.md`):**

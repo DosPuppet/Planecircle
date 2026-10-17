@@ -34,6 +34,7 @@ import {
   pickNamed,
   scenario,
   settle,
+  settleLogged,
   settleNoBlocks,
 } from "./helpers";
 
@@ -3286,5 +3287,54 @@ describe("Reality Fracture, PLAN-M M8a", () => {
     expect(chars(s, bear).keywords).toContain("trample");
     expect([chars(s, lions).power, chars(s, lions).toughness]).toEqual([2, 1]);
     expect(chars(s, lions).keywords).not.toContain("trample");
+  });
+});
+
+describe("Extrapolate the Impossible: outside the game is the sideboard (rules 209)", () => {
+  const setup = (sideboard: string[]) =>
+    cast(
+      scenario({ p1: { battlefield: ["Swamp", "Swamp"], hand: ["Extrapolate the Impossible"], sideboard } }),
+      "p1",
+      "Extrapolate the Impossible",
+    );
+
+  it("two cards with different names are revealed, an opponent chooses the one that goes into your hand", () => {
+    const asked: { player: string; options: (string | undefined)[] }[] = [];
+    const run = settleLogged(setup(["Shock", "Shock", "Negate"]), (req, player, cur) => {
+      if (req.type !== "pick") return undefined;
+      asked.push({ player, options: namesIn(cur, req.options.map(String)) });
+      if (player === "p1") return pickNamed(cur, req, "Shock")?.slice(0, 1);
+      return pickNamed(cur, req, "Negate");
+    });
+    const s = run.s;
+    // You choose the first one (or none); the second, the only one with another name, needs no question; then the
+    // opponent chooses.
+    expect(asked).toEqual([
+      { player: "p1", options: ["Shock", "Shock", "Negate"] },
+      { player: "p2", options: ["Shock", "Negate"] },
+    ]);
+    const reveal = run.events.find((e) => e.type === "reveal" && !e.look);
+    expect(reveal?.type === "reveal" && reveal.defIds.map((d) => s.defs[d]?.name).sort()).toEqual(["Negate", "Shock"]);
+    expect(namesIn(s, s.players.p1?.hand)).toEqual(["Negate"]);
+    // The other card stays outside the game (ruling).
+    expect(namesIn(s, s.players.p1?.sideboard)).toEqual(["Shock", "Shock"]);
+  });
+
+  it("nothing without two cards with different names, nor when you decline", () => {
+    // Two copies of one card: the first is chosen, no second one, nothing is revealed.
+    const same = settleLogged(setup(["Shock", "Shock"]), (req, _p, cur) =>
+      req.type === "pick" ? pickNamed(cur, req, "Shock")?.slice(0, 1) : undefined,
+    );
+    expect(same.events.some((e) => e.type === "reveal")).toBe(false);
+    expect(same.s.players.p1?.hand).toHaveLength(0);
+    expect(same.s.players.p1?.sideboard).toHaveLength(2);
+    // Declined.
+    const declined = settle(setup(["Shock", "Negate"]), (req) => (req.type === "pick" ? [] : undefined));
+    expect(declined.players.p1?.hand).toHaveLength(0);
+    expect(declined.players.p1?.sideboard).toHaveLength(2);
+    // A single card (or no sideboard): no question.
+    const one = settleLogged(setup(["Negate"]));
+    expect(one.asked).toHaveLength(0);
+    expect(one.s.players.p1?.sideboard).toHaveLength(1);
   });
 });

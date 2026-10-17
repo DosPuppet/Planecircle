@@ -65,6 +65,9 @@ export type ToWorker =
       /** Forced first player (next game of a BO3: the loser of the previous one); absent: random draw. */
       startingPlayer?: string;
       aiDecks: DeckEntries[];
+      /** Sideboards of the player and of each AI, outside the game (North Wind Avatar); absent: none. */
+      playerSide?: DeckEntries;
+      aiSides?: DeckEntries[];
       /** Definitions of the cards used (by name): the worker does not bundle the whole card database. */
       defs: Record<string, CardDef>;
       sandbox?: Sandbox;

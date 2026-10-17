@@ -734,7 +734,7 @@ export function projectView(s: GameState, viewer: PlayerId): GameView {
   };
 }
 
-const HIDDEN_ZONES: ReadonlySet<Zone> = new Set(["hand", "library"]);
+const HIDDEN_ZONES: ReadonlySet<Zone> = new Set(["hand", "library", "sideboard"]);
 
 /**
  * Removes from the events the information hidden from the viewer: cards drawn by another player,

@@ -407,10 +407,11 @@ export type Effect =
       reveal?: boolean;
       /**
        * "Search your library and/or graveyard" (Vision Quest, Delivery Moogle…), "your graveyard, hand, and/or library"
-       * (Say Its Name, Agency Outfitter): the matching cards of these zones are offered with the library's, in one
-       * choice; the library counts as searched (event, shuffle) when nothing is found or a card comes from it.
+       * (Say Its Name, Agency Outfitter), "your library and/or outside the game" (`sideboard`, Turtles Forever): the
+       * matching cards of these zones are offered with the library's, in one choice; the library counts as searched
+       * (event, shuffle) when nothing is found or a card comes from it.
        */
-      alsoFrom?: ("graveyard" | "hand")[];
+      alsoFrom?: ("graveyard" | "hand" | "sideboard")[];
       /**
        * One filter per card ("a basic land card and a Shrine card": Aang's Journey; "a card named Magnifying Glass
        * and/or a card named Thinking Cap": Agency Outfitter): up to one card for each filter (`count` ignored), each
@@ -1066,7 +1067,8 @@ export type Effect =
   /** Choose cards (not targeted) in a zone of the controller and move them. */
   | {
       op: "pickFromZone";
-      zone: "graveyard" | "hand";
+      /** `sideboard`: "a card you own from outside the game" (400.11b, North Wind Avatar). */
+      zone: "graveyard" | "hand" | "sideboard";
       /** Each designated player chooses in their own zone (Worlds Within Worlds); otherwise the controller. */
       who?: Ref;
       filter: ObjectFilter;

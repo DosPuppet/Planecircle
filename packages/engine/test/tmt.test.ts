@@ -6,9 +6,12 @@
 import { card } from "@mtgx/cards";
 import { describe, expect, it } from "vitest";
 import { destroy } from "../src/actions";
+import { createGame } from "../src/game";
 import { legalActions } from "../src/legal";
+import { createRecordedGame, isGameRecord, replayGame } from "../src/record";
 import { chars } from "../src/state";
 import type { ActionOption, ChoiceRequest, ChoiceValue, GameState, ManaType, PlayerId } from "../src/types";
+import { filterEvents, projectView, visibleFaces } from "../src/view";
 import {
   type Answer,
   act,
@@ -30,6 +33,7 @@ import {
   pickNamed,
   scenario,
   settleNoBlocks as settle,
+  settleLogged,
   steal,
   throughCombat,
   untilCastNow,
@@ -984,6 +988,42 @@ describe("lot A, blanc", () => {
       expect(s.players.p1?.hand).toHaveLength(2);
       expect(namesIn(s, s.players.p1?.hand)).toContain("Koya, Death from Above");
       expect(s.players.p1?.library).toHaveLength(4);
+    });
+
+    it("Turtles Forever: the library and/or outside the game (the sideboard); the rest is shuffled into the library", () => {
+      let s = scenario({
+        p1: {
+          battlefield: lands("Plains", 4),
+          hand: ["Turtles Forever"],
+          library: ["Leonardo, Big Brother", "Koya, Death from Above", "Plains"],
+          sideboard: ["Leonardo, Cutting Edge", "Sally Pride, Lioness Leader", "Bear Cub"],
+        },
+      });
+      let offered: (string | undefined)[] = [];
+      const run = settleLogged(cast(s, "p1", "Turtles Forever"), (req, _player, cur) => {
+        if (req.type !== "pick") return undefined;
+        if (req.intent === "search") {
+          offered = namesIn(cur, req.options.map(String));
+          return req.options;
+        }
+        const koya = pickNamed(cur, req, "Koya, Death from Above") ?? [];
+        return koya.length ? koya : pickNamed(cur, req, "Sally Pride, Lioness Leader");
+      });
+      s = run.s;
+      // The legendary creature cards of both zones, the sideboard's before the library's; not Bear Cub.
+      expect(offered).toEqual([
+        "Leonardo, Cutting Edge",
+        "Sally Pride, Lioness Leader",
+        "Leonardo, Big Brother",
+        "Koya, Death from Above",
+      ]);
+      // The four cards are revealed to everyone.
+      const reveal = run.events.find((e) => e.type === "reveal" && !e.look);
+      expect(reveal?.type === "reveal" && reveal.defIds).toHaveLength(4);
+      expect(namesIn(s, s.players.p1?.hand).sort()).toEqual(["Koya, Death from Above", "Sally Pride, Lioness Leader"]);
+      // The other two, Leonardo, Cutting Edge from the sideboard too, are shuffled into the library.
+      expect(namesIn(s, s.players.p1?.library).sort()).toEqual(["Leonardo, Big Brother", "Leonardo, Cutting Edge", "Plains"]);
+      expect(namesIn(s, s.players.p1?.sideboard)).toEqual(["Bear Cub"]);
     });
 
     it("Uneasy Alliance: the enchanted creature can't attack or block; {5}, sacrifice: exiled, and a 1/1 Ninja for you", () => {
@@ -4355,7 +4395,7 @@ describe("Teenage Mutant Ninja Turtles, PLAN-D D9: last cards", () => {
     expect([chars(s, avatar).power, chars(s, avatar).toughness]).toEqual([5, 5]);
     expect(chars(s, avatar).keywords).toContain("flying");
     expect([...chars(s, avatar).subtypes].sort()).toEqual(["Avatar", "Dragon", "Spirit"]);
-    // Approximation (docs/approximations.md): no "outside the game" zone, the ability has no effect.
+    // Without a sideboard, nothing outside the game: no question, nothing happens.
     const hand = s.players.p1?.hand.length ?? 0;
     s = settle(s);
     expect(s.players.p1?.hand).toHaveLength(hand);
@@ -4366,6 +4406,93 @@ describe("Teenage Mutant Ninja Turtles, PLAN-D D9: last cards", () => {
     expect(idsOf(t, "p1", "battlefield", "North Wind Avatar")).toHaveLength(1);
     expect(t.stack).toHaveLength(0);
     expect(t.triggers).toHaveLength(0);
+  });
+
+  it("North Wind Avatar: you may put a card from your sideboard (outside the game) into your hand, unseen by the opponent", () => {
+    const setup = () => {
+      let s = scenario({
+        p1: { battlefield: [...lands("Island", 4), "Mountain"], hand: ["North Wind Avatar"], sideboard: ["Shock", "Duress"] },
+        p2: { sideboard: ["Negate"] },
+      });
+      s = cast(s, "p1", "North Wind Avatar");
+      return passAccepting(s, (x) => !x.stack.some((i) => i.kind === "spell"));
+    };
+    const shock = (s: S) => s.players.p1?.sideboard.find((id) => nameOf(s, id) === "Shock") as string;
+    let s = setup();
+    const {
+      s: after,
+      events,
+      asked,
+    } = settleLogged(s, (req, p, x) => (p === "p1" && req.type === "pick" ? [shock(x)] : undefined));
+    // A single question: the owner's sideboard only (not the opponent's), "may" (none is allowed).
+    expect(asked).toHaveLength(1);
+    const req = asked[0]?.state.pending;
+    expect(req?.kind === "choice" && req.request.type === "pick" && [req.request.min, req.request.max]).toEqual([0, 1]);
+    expect(req?.kind === "choice" && req.request.type === "pick" && namesIn(s, req.request.options).sort()).toEqual([
+      "Duress",
+      "Shock",
+    ]);
+    // The opponent doesn't see the cards offered.
+    const seen = projectView(asked[0]?.state as S, "p2").pending;
+    expect(seen).toEqual({ kind: "choice", player: "p1" });
+    s = after;
+    expect(namesIn(s, s.players.p1?.hand)).toEqual(["Shock"]);
+    expect(namesIn(s, s.players.p1?.sideboard)).toEqual(["Duress"]);
+    expect(namesIn(s, s.players.p2?.sideboard)).toEqual(["Negate"]);
+    // The opponent learns that a card came from outside the game, not which one.
+    const moved = events.filter((e) => e.type === "moved" && e.from === "sideboard");
+    expect(moved).toHaveLength(1);
+    expect(filterEvents(moved, "p1")[0]).toMatchObject({ defId: s.objects[s.players.p1?.hand[0] ?? ""]?.defId });
+    expect(filterEvents(moved, "p2")[0]).toEqual({ type: "moved", owner: "p1", from: "sideboard", to: "hand" });
+    // Declined: the card stays in the sideboard.
+    const declined = settle(setup(), (req) => (req.type === "pick" ? [] : undefined));
+    expect(declined.players.p1?.hand).toHaveLength(0);
+    expect(declined.players.p1?.sideboard).toHaveLength(2);
+  });
+
+  it("The sideboard is set up outside the game, kept by the record, and leaves with an eliminated player", () => {
+    const deck = Array(40).fill(card("Island"));
+    const { state, record } = createRecordedGame({
+      seed: 7,
+      players: [
+        { id: "p1", name: "A", deck, sideboard: [card("Shock"), card("North Wind Avatar")] },
+        { id: "p2", name: "B", deck },
+      ],
+    });
+    expect(namesIn(state, state.players.p1?.sideboard)).toEqual(["Shock", "North Wind Avatar"]);
+    expect(state.players.p2?.sideboard).toEqual([]);
+    expect(state.objects[state.players.p1?.sideboard[0] ?? ""]?.zone).toBe("sideboard");
+    // The sideboard comes after every deck and draws nothing at random: the libraries are shuffled as without it.
+    const plain = createGame({
+      seed: 7,
+      players: [
+        { id: "p1", name: "A", deck },
+        { id: "p2", name: "B", deck },
+      ],
+    }).state;
+    expect(plain.players.p2?.library.slice(0, 5)).toEqual(state.players.p2?.library.slice(0, 5));
+    expect(plain.turn.startingPlayer).toBe(state.turn.startingPlayer);
+    expect(record.players[0]?.sideboard).toEqual(["Shock", "North Wind Avatar"]);
+    expect(isGameRecord(record)).toBe(true);
+    const replayed = replayGame(record, card).state;
+    expect(namesIn(replayed, replayed.players.p1?.sideboard)).toEqual(["Shock", "North Wind Avatar"]);
+    // Neither the opponent's view nor their faces cite the sideboard.
+    const view = projectView(state, "p2");
+    const sideDefs = new Set((state.players.p1?.sideboard ?? []).map((id) => state.objects[id]?.defId));
+    expect(Object.keys(visibleFaces(state, view, [])).some((d) => sideDefs.has(d))).toBe(false);
+    // A player who leaves a multiplayer game takes their sideboard with them (800.4a).
+    const three = createGame({
+      seed: 7,
+      players: [
+        { id: "p1", name: "A", deck, sideboard: [card("Shock")] },
+        { id: "p2", name: "B", deck },
+        { id: "p3", name: "C", deck },
+      ],
+    }).state;
+    const gone = act(three, "p1", { type: "concede" });
+    expect(gone.over).toBe(false);
+    expect(gone.players.p1?.sideboard).toEqual([]);
+    expect(Object.values(gone.objects).some((o) => o.zone === "sideboard")).toBe(false);
   });
 });
 

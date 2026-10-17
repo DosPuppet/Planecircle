@@ -654,8 +654,11 @@ export const RECORD_VERSION = 1;
  *   returning from a linked exile with a real choice (an Aura's host among several, "as it enters" effects such as Mox
  *   Diamond's discard, devour or Sin's counters, riot, a shock land's life) returns through `moveTo` and asks its
  *   questions; Gemstone Caverns asks which card of the hand is exiled.
+ * - 209: the sideboard is the zone outside the game (400.11b, `PlayerState.sideboard`, `PlayerSetup.sideboard`):
+ *   North Wind Avatar may put a card from it into its owner's hand; Turtles Forever searches it with the library;
+ *   Extrapolate the Impossible reveals two of its cards (it did nothing).
  */
-export const RULES_VERSION = 208;
+export const RULES_VERSION = 209;
 
 /** One checkpoint every N decisions (plus the last one of the game). */
 export const CHECKPOINT_EVERY = 25;
@@ -674,9 +677,18 @@ export interface GameRecord {
   variant?: GameVariant;
   /**
    * `printings`: printing chosen for each card of the deck (same order; absent if none); `commanders`: indices of the
-   * commanders in the deck (Commander).
+   * commanders in the deck (Commander); `sideboard`: the cards outside the game (absent if none), `sideboardPrintings`
+   * their printings.
    */
-  players: { id: PlayerId; name: string; deck: string[]; printings?: (string | null)[]; commanders?: number[] }[];
+  players: {
+    id: PlayerId;
+    name: string;
+    deck: string[];
+    printings?: (string | null)[];
+    commanders?: number[];
+    sideboard?: string[];
+    sideboardPrintings?: (string | null)[];
+  }[];
   /** Applied decisions, in order: [player who decided, decision]. */
   decisions: [PlayerId, Decision][];
   /** Start date (ISO), for display. */
@@ -703,6 +715,10 @@ export function createRecordedGame(opts: GameOptions): StepResult & { record: Ga
       deck: p.deck.map((c) => c.name),
       ...(p.printings?.some(Boolean) ? { printings: p.deck.map((_, i) => p.printings?.[i] ?? null) } : {}),
       ...(p.commanders?.length ? { commanders: [...p.commanders] } : {}),
+      ...(p.sideboard?.length ? { sideboard: p.sideboard.map((c) => c.name) } : {}),
+      ...(p.sideboard?.length && p.sideboardPrintings?.some(Boolean)
+        ? { sideboardPrintings: p.sideboard.map((_, i) => p.sideboardPrintings?.[i] ?? null) }
+        : {}),
     })),
     decisions: [],
     createdAt: new Date().toISOString(),
@@ -752,7 +768,10 @@ export function isGameRecord(x: unknown): x is GameRecord {
         (p.commanders === undefined ||
           (Array.isArray(p.commanders) && p.commanders.every((i) => Number.isInteger(i) && i >= 0 && i < p.deck.length))) &&
         (p.printings === undefined ||
-          (Array.isArray(p.printings) && p.printings.every((k) => k === null || typeof k === "string"))),
+          (Array.isArray(p.printings) && p.printings.every((k) => k === null || typeof k === "string"))) &&
+        (p.sideboard === undefined || (Array.isArray(p.sideboard) && p.sideboard.every((n) => typeof n === "string"))) &&
+        (p.sideboardPrintings === undefined ||
+          (Array.isArray(p.sideboardPrintings) && p.sideboardPrintings.every((k) => k === null || typeof k === "string"))),
     ) &&
     Array.isArray(r.decisions) &&
     r.decisions.every((d) => Array.isArray(d) && typeof d[0] === "string" && !!d[1] && typeof d[1] === "object")
@@ -771,6 +790,8 @@ function initial(record: GameRecord, resolve: (name: string) => CardDef): StepRe
       deck: p.deck.map(resolve),
       printings: p.printings,
       commanders: p.commanders,
+      sideboard: p.sideboard?.map(resolve),
+      sideboardPrintings: p.sideboardPrintings,
     })),
   });
 }

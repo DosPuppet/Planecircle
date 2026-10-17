@@ -146,12 +146,26 @@ export const UNIQUE: Record<string, CardScript> = {
     ],
   },
   "North Wind Avatar": {
-    // Flying: read from the text. The engine has no "outside the game" zone: the enters ability has no effect.
+    // Flying: read from the text. Outside the game: the sideboard (400.11b); none in Commander.
     abilities: [
-      triggered(when.entersSelf, [], {
-        condition: cond.wasCast,
-        label: "If you cast it: a card you own from outside the game (none here)",
-      }),
+      triggered(
+        when.entersSelf,
+        [
+          fx.pickFromZone(
+            "sideboard",
+            {},
+            { to: "hand" },
+            {
+              min: 0,
+              prompt: "You may put a card from your sideboard into your hand",
+            },
+          ),
+        ],
+        {
+          condition: cond.wasCast,
+          label: "If you cast it: you may put a card from your sideboard into your hand",
+        },
+      ),
     ],
   },
 };

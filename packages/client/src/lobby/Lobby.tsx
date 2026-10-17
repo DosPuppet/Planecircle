@@ -332,6 +332,7 @@ export function Lobby() {
       level,
       bo3 && aiCount === 1 && !commander ? { bestOf: 3, sideboard: me.sideboard ?? [], format } : undefined,
       commander ? { player: me.commander ?? [], ai: them.map((d) => (d as DeckList).commander ?? []) } : undefined,
+      { player: me.sideboard, ai: them.map((d) => (d as DeckList).sideboard ?? []) },
     );
   return (
     <div className="lobby home" data-board={board}>

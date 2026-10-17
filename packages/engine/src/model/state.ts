@@ -25,7 +25,8 @@ export type ObjectId = string;
 
 /** "command": command zone (Commander, emblems). */
 /** `phasedOut`: a phased-out permanent (702.26), treated as though it didn't exist until it phases in. */
-export type Zone = "library" | "hand" | "battlefield" | "graveyard" | "stack" | "exile" | "command" | "phasedOut";
+/** `sideboard`: a card of its owner's sideboard, outside the game (400.11b), hidden from the other players. */
+export type Zone = "library" | "hand" | "battlefield" | "graveyard" | "stack" | "exile" | "command" | "phasedOut" | "sideboard";
 
 export type Step =
   | "untap"
@@ -219,6 +220,11 @@ export interface PlayerState {
   command: ObjectId[];
   /** Phased-out permanents of this player (owner) (702.26). */
   phasedOut: ObjectId[];
+  /**
+   * Their sideboard: the cards they own from outside the game (400.11b, North Wind Avatar), hidden from the other
+   * players; empty without a sideboard (Commander, Arena-style BO1).
+   */
+  sideboard: ObjectId[];
   manaPool: Record<ManaType, number>;
   /**
    * Tagged mana of the pool, one entry per mana: restricted (Ashling, Rimebound: "only for spells with MV 4 or

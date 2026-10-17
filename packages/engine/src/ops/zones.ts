@@ -1478,12 +1478,13 @@ export const HANDLERS: OpHandlers = {
       const maxMv = e.maxManaValue !== undefined ? evalAmount(s, ctx, e.maxManaValue) : undefined;
       // "mana value X or less": the X of the resolving spell (Nature's Rhythm).
       const base = withX(s, e.filter, ctx);
-      // "Library and/or graveyard" (and hand): the graveyard's cards first (they are public), then the hand's, then the
-      // library's.
+      // "Library and/or graveyard" (and hand, and outside the game): the graveyard's cards first (they are public), then
+      // the hand's, the sideboard's, then the library's.
       const also = e.alsoFrom ?? [];
       const pool = [
         ...(also.includes("graveyard") ? player.graveyard : []),
         ...(also.includes("hand") ? player.hand : []),
+        ...(also.includes("sideboard") ? player.sideboard : []),
         ...player.library,
       ];
       // "A basic land card and a Shrine card": the filters a card can be taken for.
@@ -1534,11 +1535,13 @@ export const HANDLERS: OpHandlers = {
                 intent: "search",
                 prompt: also.includes("hand")
                   ? msg("Search your graveyard, hand and/or library: up to {n} card(s)", { n: wanted })
-                  : also.length
-                    ? msg("Search your library and/or graveyard: up to {n} card(s)", { n: wanted })
-                    : libraries
-                      ? msg("Search that player's library: up to {n} card(s)", { n: wanted })
-                      : msg("Search your library: up to {n} card(s)", { n: wanted }),
+                  : also.includes("sideboard")
+                    ? msg("Search your library and/or your sideboard (outside the game): up to {n} card(s)", { n: wanted })
+                    : also.length
+                      ? msg("Search your library and/or graveyard: up to {n} card(s)", { n: wanted })
+                      : libraries
+                        ? msg("Search that player's library: up to {n} card(s)", { n: wanted })
+                        : msg("Search your library: up to {n} card(s)", { n: wanted }),
                 options,
                 min: 0,
                 max: Math.min(wanted, options.length),

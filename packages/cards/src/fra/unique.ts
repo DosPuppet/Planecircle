@@ -324,8 +324,41 @@ export const UNIQUE: Record<string, CardScript> = {
       [fx.sacrifice(ref.target(), CREATURE_OR_WALKER, 1, { greatestManaValue: true }), fx.gainLife(2)],
     ),
   },
-  /** Arena (BO1): "outside the game" doesn't exist, the spell does nothing. */
-  "Extrapolate the Impossible": { spell: spell([], []) },
+  /**
+   * Outside the game: the sideboard (400.11b). Two cards with different names, chosen one after the other (the second
+   * with another name than the first); without a second one, nothing is revealed. The other card stays outside the game.
+   */
+  "Extrapolate the Impossible": {
+    spell: spell(
+      [],
+      fx.when(
+        cond.amountAtLeast(amount.refCount(ref.zone("sideboard", ref.you)), 2),
+        fx.chooseAmong(ref.zone("sideboard", ref.you), ref.you, "first", {
+          optional: true,
+          anyZone: true,
+          prompt: "You may reveal two cards with different names from your sideboard: the first one",
+        }),
+        fx.when(
+          cond.amountAtLeast(amount.refCount(ref.stored("first")), 1),
+          fx.chooseAmong(
+            ref.zone("sideboard", ref.you, { not: { shares: { what: "name", with: ref.stored("first") } } }),
+            ref.you,
+            "second",
+            { anyZone: true, prompt: "The second card to reveal, with a different name" },
+          ),
+          fx.when(
+            cond.amountAtLeast(amount.refCount(ref.stored("second")), 1),
+            fx.reveal(ref.union(ref.stored("first"), ref.stored("second"))),
+            fx.chooseAmong(ref.union(ref.stored("first"), ref.stored("second")), ref.eachOpponent, "chosen", {
+              anyZone: true,
+              prompt: "Choose the card your opponent puts into their hand",
+            }),
+            fx.toHand(ref.stored("chosen")),
+          ),
+        ),
+      ),
+    ),
+  },
   "Danitha, Spear of Agony": {
     abilities: [
       triggered(when.castSpell("you", undefined, { players: "opponent", objects: { controller: "opponent" } }), [

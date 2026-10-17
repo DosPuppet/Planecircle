@@ -60,3 +60,7 @@
 ## PLAN-M M8a (rules 199)
 
 - **Garruk, Curse Breaker −4:** the emblem triggers whenever one or more creatures (any player's) attack one of your opponents, and only the creatures attacking an opponent get +2/+2 and trample (`when.attackWith(1, { attacking: "opponent" }, true)`). Jace, Reality Sculptor's −3 emblem was already exact. 1 test (`fra.test.ts`, three players).
+
+## Extrapolate the Impossible: outside the game (rules 209)
+
+- **Extrapolate the Impossible** no longer does nothing: outside the game is the sideboard (400.11b, see `docs/extensions/tmt.md`, "Outside the game"). You may choose a first card of your sideboard, then a second with another name (`ref.zone("sideboard", …)` filtered by `not: { shares: { what: "name" } }`; no question for a single option); without a second one, nothing is revealed. The two cards are revealed, the next opponent chooses the one that goes into your hand, the other stays outside the game (ruling). No question with fewer than two cards in the sideboard. 2 tests (`fra.test.ts`).

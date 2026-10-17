@@ -854,6 +854,7 @@ export function DeckBuilder() {
                 undefined,
                 undefined,
                 isCommander ? { player: deck.commander ?? [], ai: [opponent.commander ?? []] } : undefined,
+                { player: deck.sideboard, ai: [opponent.sideboard ?? []] },
               )
             }
           >

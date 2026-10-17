@@ -1,5 +1,5 @@
 /** Teenage Mutant Ninja Turtles — white cards (lot A). */
-import type { Effect, ObjectFilter } from "@mtgx/engine";
+import type { ObjectFilter } from "@mtgx/engine";
 import {
   activated,
   amount,
@@ -280,15 +280,16 @@ export const WHITE: Record<string, CardScript> = {
     ],
   },
   "Turtles Forever": {
-    // Approximation: only the library (nothing "from outside the game"); with fewer than four cards found, the opponent
-    // chooses among those.
+    // Outside the game: the sideboard (400.11b); the cards not chosen, from the sideboard too, are shuffled into the
+    // library. Approximation: with fewer than four cards found, the opponent chooses among those.
     spell: spell(
       [],
       [
-        {
-          ...fx.search({ types: ["Creature"], legendary: true }, { to: "hand" }, 4, undefined, "f"),
+        fx.search({ types: ["Creature"], legendary: true }, { to: "hand" }, 4, undefined, "f", undefined, {
+          alsoFrom: ["sideboard"],
+          reveal: true,
           distinctNames: true,
-        } as Effect,
+        }),
         fx.chooseAmong(ref.stored("f"), ref.eachOpponent, "c1", { anyZone: true }),
         fx.chooseAmong(ref.stored("c1Rest"), ref.eachOpponent, "c2", { anyZone: true }),
         fx.moveTo(ref.stored("c2Rest"), { to: "libraryTop", shuffle: true }),

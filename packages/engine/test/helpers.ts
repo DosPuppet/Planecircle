@@ -37,6 +37,8 @@ export interface Side {
   hand?: (string | CardDef)[];
   library?: (string | CardDef)[];
   graveyard?: (string | CardDef)[];
+  /** Sideboard: the cards outside the game (North Wind Avatar). */
+  sideboard?: (string | CardDef)[];
   /** Commander (PLAN-E): commanders in the command zone (the game becomes a Commander game). */
   command?: (string | CardDef)[];
 }
@@ -89,7 +91,7 @@ export function scenario(opts: ScenarioOptions): GameState {
       // Turns already begun by this player (Jace Reawakened): every other turn in a two-player game.
       player.turnsTaken = Math.ceil(turn / 2);
       player.drewFromEmptyLibrary = false;
-      const add = (c: string | CardDef, zone: "hand" | "library" | "graveyard") => {
+      const add = (c: string | CardDef, zone: "hand" | "library" | "graveyard" | "sideboard") => {
         const d = def(c);
         registerDef(s, d);
         createObject(s, d.id, p, zone);
@@ -97,6 +99,7 @@ export function scenario(opts: ScenarioOptions): GameState {
       for (const c of side.hand ?? []) add(c, "hand");
       for (const c of side.library ?? Array(10).fill("Forest")) add(c, "library");
       for (const c of side.graveyard ?? []) add(c, "graveyard");
+      for (const c of side.sideboard ?? []) add(c, "sideboard");
       for (const c of side.command ?? []) {
         const d = def(c);
         registerDef(s, d);

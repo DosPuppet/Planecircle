@@ -776,8 +776,11 @@ export type Ref =
    */
   | {
       kind: "zone";
-      /** `library`: the cards of the library, in order (searched: Sphinx Ambassador; never shown outside a choice). */
-      zone: "battlefield" | "graveyard" | "hand" | "exile" | "stack" | "command" | "library";
+      /**
+       * `library`: the cards of the library, in order (searched: Sphinx Ambassador; never shown outside a choice);
+       * `sideboard`: the cards outside the game (Extrapolate the Impossible; never shown outside a choice).
+       */
+      zone: "battlefield" | "graveyard" | "hand" | "exile" | "stack" | "command" | "library" | "sideboard";
       who: Ref;
       filter?: ObjectFilter;
       maxManaValue?: Amount;

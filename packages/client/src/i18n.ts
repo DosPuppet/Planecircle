@@ -580,6 +580,16 @@ export function describeEvents(
           add(e.to === "phasedOut" ? msg("{card} phases out.", { card }) : msg("{card} phases in.", { card }), "info");
           break;
         }
+        // A card from outside the game (the sideboard, North Wind Avatar): named for its owner only.
+        if (e.from === "sideboard") {
+          add(
+            e.defId
+              ? msg("{card} is put into your hand from outside the game.", { card: name(e.defId) })
+              : msg("{player} puts a card from outside the game into their hand.", { player: player(e.owner) }),
+            e.defId ? "info" : "opp",
+          );
+          break;
+        }
         if (!e.defId) {
           // Another player's hidden card (search into the hand, card put back into the library…).
           const p = player(e.owner);

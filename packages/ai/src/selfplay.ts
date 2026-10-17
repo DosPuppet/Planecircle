@@ -59,7 +59,7 @@ export function checkInvariants(s: GameState, deckSizes: Record<string, number>)
   for (const p of s.playerOrder) {
     const pl = s.players[p];
     if (!pl) continue;
-    for (const z of ["library", "hand", "graveyard", "command", "phasedOut"] as const)
+    for (const z of ["library", "hand", "graveyard", "command", "phasedOut", "sideboard"] as const)
       for (const id of pl[z] ?? []) place(id, `${p}.${z}`);
   }
   for (const id of s.battlefield) place(id, "battlefield");

@@ -182,6 +182,9 @@ async function handle(msg: ToWorker): Promise<void> {
         const n = msg.commanders?.[seat] ?? 0;
         return n ? Array.from({ length: n }, (_, k) => k) : undefined;
       };
+      // The sideboard, outside the game (North Wind Avatar).
+      const sideOf = (side: DeckEntries | undefined) =>
+        side?.length ? { sideboard: buildDeck(side), sideboardPrintings: deckPrintings(side) } : {};
       const { state, events, record } = createRecordedGame({
         seed: msg.seed,
         startingPlayer: msg.startingPlayer,
@@ -193,6 +196,7 @@ async function handle(msg: ToWorker): Promise<void> {
             deck: buildDeck(msg.playerDeck),
             printings: deckPrintings(msg.playerDeck),
             commanders: commandersOf(0),
+            ...sideOf(msg.playerSide),
           },
           ...msg.aiDecks.map((deck, i) => ({
             id: `p${i + 2}`,
@@ -200,6 +204,7 @@ async function handle(msg: ToWorker): Promise<void> {
             deck: buildDeck(deck),
             printings: deckPrintings(deck),
             commanders: commandersOf(i + 1),
+            ...sideOf(msg.aiSides?.[i]),
           })),
         ],
       });

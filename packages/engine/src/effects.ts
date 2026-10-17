@@ -186,6 +186,8 @@ function zoneObjects(s: GameState, ctx: EffectContext, ref: Extract<Ref, { kind:
       });
     case "library":
       return players.flatMap((p) => s.players[p]?.library ?? []).filter(card);
+    case "sideboard":
+      return players.flatMap((p) => s.players[p]?.sideboard ?? []).filter(card);
     case "command":
       // The cards of the command zone (commanders), not emblems.
       return players.flatMap((p) => s.players[p]?.command ?? []).filter((id) => !s.objects[id]?.isToken && card(id));

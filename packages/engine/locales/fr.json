@@ -350,6 +350,7 @@
  "Search that player's library: up to {n} card(s)": "Cherchez dans la bibliothèque de ce joueur : jusqu'à {n} carte(s)",
  "Search your graveyard, hand and/or library: up to {n} card(s)": "Cherchez dans votre cimetière, votre main et/ou votre bibliothèque : jusqu'à {n} carte(s)",
  "Search your library and/or graveyard: up to {n} card(s)": "Cherchez dans votre bibliothèque et/ou votre cimetière : jusqu'à {n} carte(s)",
+ "Search your library and/or your sideboard (outside the game): up to {n} card(s)": "Cherchez dans votre bibliothèque et/ou votre réserve (hors de la partie) : jusqu'à {n} carte(s)",
  "Search your library: up to {n} card(s)": "Cherchez dans votre bibliothèque : jusqu'à {n} carte(s)",
  "Second pile: {cards}": "Seconde pile : {cards}",
  "Separate the revealed cards into two piles: choose those of the first pile": "Séparez les cartes révélées en deux piles : choisissez celles de la première pile",

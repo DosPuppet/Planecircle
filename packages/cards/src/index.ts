@@ -1,5 +1,6 @@
 import { type CardDef, isSingleName, type NameCatalog } from "@mtgx/engine";
 import legalityOverrides from "../data/legality-overrides.json";
+import type { DeckEntries } from "./decklist";
 import { DECKS, type DeckList } from "./decks";
 import { toCardDef } from "./scryfall";
 import { SETS } from "./sets";
@@ -102,19 +103,46 @@ export function buildDeck(list: Pick<DeckList, "main">): CardDef[] {
 
 /**
  * Deck of a game (PLAN-E): in Commander, the commander(s) first, then the deck; `commanders` gives their indices (to
- * pass in `PlayerSetup.commanders`), `printings` the printing of each card, in the same order.
+ * pass in `PlayerSetup.commanders`), `printings` the printing of each card, in the same order; `sideboard` and
+ * `sideboardPrintings` likewise (`PlayerSetup.sideboard`).
  */
-export function buildGameDeck(list: Pick<DeckList, "main" | "commander">): {
+export function buildGameDeck(list: Pick<DeckList, "main" | "commander" | "sideboard">): {
   deck: CardDef[];
   commanders?: number[];
   printings?: (string | null)[];
+  sideboard?: CardDef[];
+  sideboardPrintings?: (string | null)[];
 } {
   const commander = list.commander ?? [];
   const entries = [...commander, ...list.main];
   const deck = buildDeck({ main: entries });
   const printings = deckPrintings({ main: entries });
   const commanders = commander.length ? Array.from({ length: commander.reduce((a, [n]) => a + n, 0) }, (_, i) => i) : undefined;
-  return { deck, ...(commanders ? { commanders } : {}), ...(printings ? { printings } : {}) };
+  return {
+    deck,
+    ...(commanders ? { commanders } : {}),
+    ...(printings ? { printings } : {}),
+    ...gameSideboard(list),
+  };
+}
+
+/**
+ * The sideboard of a game, outside the game (400.11b): its cards that the engine knows how to play (a card not
+ * handled yet may stay in a sideboard, `validateDeck`).
+ */
+export function sideboardInGame(side: DeckEntries | undefined): DeckEntries {
+  return (side ?? []).filter(([, name]) => CARDS[name]?.implemented);
+}
+
+/** The sideboard of a game (`sideboardInGame`) and its printings, to pass in `PlayerSetup`; nothing without one. */
+export function gameSideboard(list: Pick<DeckList, "sideboard">): {
+  sideboard?: CardDef[];
+  sideboardPrintings?: (string | null)[];
+} {
+  const entries = sideboardInGame(list.sideboard);
+  if (!entries.length) return {};
+  const printings = deckPrintings({ main: entries });
+  return { sideboard: buildDeck({ main: entries }), ...(printings ? { sideboardPrintings: printings } : {}) };
 }
 
 /**

@@ -5,7 +5,7 @@ import { allMatching } from "./shared";
 
 /** Options of a search (`fx.search`, `fx.searchHold`). */
 interface SearchOpts {
-  alsoFrom?: ("graveyard" | "hand")[];
+  alsoFrom?: ("graveyard" | "hand" | "sideboard")[];
   each?: ObjectFilter[];
   reveal?: boolean;
   distinctNames?: boolean;
@@ -377,9 +377,9 @@ export const zonesFx = {
   }),
   /** `toHand`: the cards return to their owner's hand, and graveyard cards can be exiled. */
   exileUntilLeaves: (what: Ref, toHand?: boolean): Effect => ({ op: "exileUntilLeaves", what, ...(toHand ? { toHand } : {}) }),
-  /** Choose (without targeting) cards from your graveyard or your hand. */
+  /** Choose (without targeting) cards from your graveyard, your hand or your sideboard (outside the game). */
   pickFromZone: (
-    zone: "graveyard" | "hand",
+    zone: "graveyard" | "hand" | "sideboard",
     filter: ObjectFilter,
     to: MoveSpec,
     opts: {
@@ -428,7 +428,8 @@ export const zonesFx = {
     store?: string,
     manaValue?: Amount,
     /**
-     * `alsoFrom`: "search your library and/or graveyard" (and hand), one choice among these zones; `each`: one filter per
+     * `alsoFrom`: "search your library and/or graveyard" (and hand, and outside the game: `sideboard`), one choice among
+     * these zones; `each`: one filter per
      * card ("a basic land card and a Shrine card"); `reveal`: the found cards are shown to all players.
      */
     opts: SearchOpts = {},

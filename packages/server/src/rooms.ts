@@ -411,13 +411,16 @@ export class Room {
       ...(commander ? { variant: "commander" as const } : {}),
       players: this.seats.map((s) => {
         // Commander: the commander at the top of the deck, designated by its index.
-        const built = buildGameDeck({ main: s.deck, ...(commander ? { commander: s.commander } : {}) });
+        // The sideboard of this game (after the swaps of a BO3) is outside the game (North Wind Avatar).
+        const built = buildGameDeck({ main: s.deck, sideboard: s.side, ...(commander ? { commander: s.commander } : {}) });
         return {
           id: s.seat,
           name: s.name,
           deck: built.deck,
           ...(built.printings ? { printings: built.printings } : {}),
           ...(built.commanders ? { commanders: built.commanders } : {}),
+          ...(built.sideboard ? { sideboard: built.sideboard } : {}),
+          ...(built.sideboardPrintings ? { sideboardPrintings: built.sideboardPrintings } : {}),
         };
       }),
     });
