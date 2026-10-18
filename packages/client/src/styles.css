@@ -3977,6 +3977,75 @@ button.emblem-chip.activatable {
   display: flex;
   gap: 8px;
 }
+/*
+ * Phone in portrait: on the left, the panel would cover the permanents to choose. It takes the place of the hand (a
+ * choice on the board never involves it), compact: the prompt and the selection, the suggestion; the main button
+ * confirms ("Confirm (n)"), the source card is not shown.
+ */
+@media (orientation: portrait) and (max-width: 600px) {
+  .board-choice {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "frame actions"
+      "hint actions";
+    align-items: center;
+    gap: 2px 8px;
+    left: 8px;
+    right: 8px;
+    top: auto;
+    bottom: env(safe-area-inset-bottom);
+    translate: none;
+    max-width: none;
+    height: calc(var(--hand-w) * 1.395 * var(--hand-peek));
+    padding: 4px 8px;
+    border-radius: 10px;
+  }
+  .board-choice > :not(.effect-frame, .board-choice-hint, .board-choice-actions) {
+    display: none;
+  }
+  .board-choice .effect-frame {
+    grid-area: frame;
+    min-width: 0;
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    line-height: 1.25;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+  .board-choice .effect-frame-kind {
+    display: inline;
+    margin: 0 6px 0 0;
+  }
+  .board-choice-hint {
+    grid-area: hint;
+    font-size: 0.6875rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .board-choice-actions {
+    grid-area: actions;
+  }
+  .board-choice-actions > .primary {
+    display: none;
+  }
+}
+/* Short screen (phone in landscape): the panel stays on the left, without the source card, so as not to reach your avatar. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .board-choice > :not(.board-choice-label, .effect-frame, .board-choice-hint, .board-choice-actions) {
+    display: none;
+  }
+  .board-choice {
+    max-width: 200px;
+    padding: 8px 10px;
+  }
+  .board-choice .effect-frame {
+    font-size: 0.75rem;
+  }
+}
 
 /* Effect played (chosen mode, ability) framed in blue under the card shown. */
 .effect-frame {

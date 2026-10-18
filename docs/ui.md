@@ -26,6 +26,7 @@ The game screen follows MTG Arena, as phase-rs does, but stays light: no image t
   - a duel plays in portrait: your avatar and the main button share a line, the hand has a line of its own under them, the phases scroll on one line, the banner wraps under them;
   - the fan of the hand is flatter in a narrow hand (spread `3 × width / card width` degrees, 24 at most), so its end cards stay on the screen;
   - 3 or 4 players ask to turn the device to landscape (`.game.multi`): side by side, three opponents would be unreadable;
+  - a choice made on the board (`.board-choice`, targets of a trigger, permanents to choose) takes the place of the hand, compact (prompt, selection, suggestion; no source card), since on the left it covered the options; the main button confirms ("Confirm (n)"); in landscape on a short screen (under 500 px high), the panel stays on the left without the source card, clear of your avatar; `tools/board-choice-phone.ts` checks that it covers no option, no avatar and not the main button (iPhone, Pixel, iPhone in landscape, desktop);
   - `mobile-smoke` checks iPhone and Pixel in portrait.
 
 ## Cards
