@@ -7,6 +7,8 @@ import {
   CARDS,
   canBeCommander,
   canJoinCommander,
+  copiesAllowed,
+  DECK_RULES,
   DEFAULT_FORMAT,
   type DeckEntries,
   type DeckEntry,
@@ -97,8 +99,6 @@ function colorRank(c: CardDef): number {
   if (c.colors.length > 1) return 5;
   return COLORS.indexOf(c.colors[0] as (typeof COLORS)[number]);
 }
-
-const isBasic = (c: CardDef | undefined) => !!c?.supertypes.includes("Basic");
 
 /** Short tag of a card illegal in the format ("banned", "not in Standard"); read on the message id, not the card name. */
 function legalityTag(c: CardDef, format: Format, lang: Lang): string | undefined {
@@ -707,10 +707,11 @@ export function DeckBuilder() {
       (deck.main.find((e) => e[1] === name)?.[0] ?? 0) +
       (deck.sideboard?.find((e) => e[1] === name)?.[0] ?? 0) +
       (deck.commander?.find((e) => e[1] === name)?.[0] ?? 0);
-    // Commander: one copy of each card (except basic lands).
-    const max = isCommander ? 1 : 4;
-    if (delta > 0 && !isBasic(c) && total >= max) {
-      notify(isCommander ? t("{name}: only one copy in Commander.", { name }) : t("{name}: 4 copies at most.", { name }));
+    // Commander: one copy of each card; basic lands, "any number" and "up to N" as `validateDeck` counts them.
+    const base = isCommander ? 1 : DECK_RULES.maxCopies;
+    const max = c ? copiesAllowed(c, base) : base;
+    if (delta > 0 && total >= max) {
+      notify(max === 1 ? t("{name}: only one copy in Commander.", { name }) : t("{name}: {max} copies at most.", { name, max }));
       return;
     }
     if (shownTab === "commander") {

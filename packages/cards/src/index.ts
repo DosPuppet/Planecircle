@@ -17,6 +17,7 @@ export {
   canBeCommander,
   canJoinCommander,
   canPair,
+  copiesAllowed,
   DECK_RULES,
   DEFAULT_FORMAT,
   type DeckEntries,

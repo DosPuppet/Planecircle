@@ -358,7 +358,7 @@ const UP_TO = /A deck can have up to (\w+) cards named/;
 const NUMBER_WORDS: Record<string, number> = { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9 };
 
 /** Copies allowed of a card: `max` by default, all for a basic land or "any number". */
-function copiesAllowed(c: CardDef, max: number): number {
+export function copiesAllowed(c: CardDef, max: number): number {
   if (c.supertypes.includes("Basic") || ANY_NUMBER.test(c.text ?? "")) return Number.POSITIVE_INFINITY;
   const upTo = UP_TO.exec(c.text ?? "");
   return upTo ? (NUMBER_WORDS[upTo[1] as string] ?? max) : max;
