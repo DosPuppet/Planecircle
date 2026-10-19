@@ -598,7 +598,7 @@
  "Sound effects volume": "Volume des effets sonores",
  "Sounds of the game": "Sons du jeu",
  "Space": "Espace",
- "Space = main button · Enter = pass the turn · Esc = cancel · M = mute. Drag a card to the battlefield (or onto its target) to play it. The small dots under the phase bar set your stops.": "Espace = bouton principal · Entrée = passer le tour · Échap = annuler · M = couper le son. Glissez une carte vers le champ de bataille (ou sur sa cible) pour la jouer. Les petits points sous la barre des phases règlent vos arrêts.",
+ "Space = main button · Enter = pass the turn · Esc = cancel · M = mute. Drag a card to the battlefield to play it. The small dots under the phase bar set your stops.": "Espace = bouton principal · Entrée = passer le tour · Échap = annuler · M = couper le son. Glissez une carte vers le champ de bataille pour la jouer. Les petits points sous la barre des phases règlent vos arrêts.",
  "Spanish": "espagnol",
  "Speed {speed}/4: \"Max speed\" abilities are not active yet": "Vitesse {speed}/4 : les capacités « Vitesse maximale » ne sont pas encore actives",
  "Spells and targets": "Sorts et cibles",

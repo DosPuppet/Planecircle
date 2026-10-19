@@ -431,7 +431,7 @@ export function Lobby() {
         <div className="lobby-help">
           <strong>{t("Shortcuts:")}</strong>{" "}
           {t(
-            "Space = main button · Enter = pass the turn · Esc = cancel · M = mute. Drag a card to the battlefield (or onto its target) to play it. The small dots under the phase bar set your stops.",
+            "Space = main button · Enter = pass the turn · Esc = cancel · M = mute. Drag a card to the battlefield to play it. The small dots under the phase bar set your stops.",
           )}
         </div>
         <footer className="lobby-foot">

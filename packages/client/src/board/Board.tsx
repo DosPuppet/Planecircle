@@ -1035,7 +1035,6 @@ const ZONE_TAG: Record<string, string> = {
 function Hand() {
   const view = useGame((s) => s.view) as GameView;
   const clickHandCard = useGame((s) => s.clickHandCard);
-  const dropHandCard = useGame((s) => s.dropHandCard);
   const setHover = useGame((s) => s.setHover);
   const selection = useGame((s) => s.selection);
   const casting = useGame((s) => s.casting);
@@ -1129,11 +1128,9 @@ function Hand() {
             onDragEnd={(_, info) => {
               const handTop = handRef.current?.getBoundingClientRect().top ?? window.innerHeight;
               if (info.point.y - window.scrollY > handTop - 20) return;
-              const target = document
-                .elementsFromPoint(info.point.x - window.scrollX, info.point.y - window.scrollY)
-                .map((el) => (el as HTMLElement).closest?.("[data-oid]") as HTMLElement | null)
-                .find((el) => el && el.dataset.oid !== c.id);
-              dropHandCard(c.id, target?.dataset.oid ?? null);
+              // Dropped anywhere above the hand: played as by a click, targets always asked (a card brushing a creature
+              // on a quick drop must not target it).
+              clickHandCard(c.id);
             }}
           >
             <Card

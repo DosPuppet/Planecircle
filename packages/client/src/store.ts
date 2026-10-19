@@ -177,8 +177,6 @@ export interface Casting {
   spec: TargetOption | null;
   /** Targets already chosen for `spec` when it accepts several. */
   picked?: string[];
-  /** Target chosen by drag and drop, used for the first compatible target. */
-  preset?: string;
 }
 
 /** Short-lived visual effect: damage/heal number, silhouette of a dying creature. */
@@ -389,12 +387,11 @@ interface Store {
   /** Decision for which the floating mana warning was already given. */
   floatWarned: string | null;
   clickHandCard(id: string): void;
-  dropHandCard(id: string, targetId: string | null): void;
   clickPermanent(id: string): void;
   clickPlayer(id: string): void;
-  beginCasting(option: PlayableOption, sourceId: string, preset?: string): void;
+  beginCasting(option: PlayableOption, sourceId: string): void;
   /** Casting a legendary of which you already control a copy: waiting for confirmation. */
-  legendConfirm: { option: PlayableOption; sourceId: string; preset?: string; name: string } | null;
+  legendConfirm: { option: PlayableOption; sourceId: string; name: string } | null;
   /** Land played with an "as it enters, choose…" question (Cavern of Souls): the expected answer. */
   landChoice: Extract<ActionOption, { type: "playLand" }> | null;
   /** Plays a land (the "as it enters" question is asked first, if it has one). */
@@ -1025,11 +1022,6 @@ export const useGame = create<Store>((set, get) => {
         ? { ...spec1, legal: spec1.legal.filter((id) => (c.targets[of.id] ?? []).includes(of.holders[id] ?? "")) }
         : spec1;
       if (c.targets[spec.id] !== undefined) continue;
-      if (c.preset && spec.legal.includes(c.preset)) {
-        c.targets[spec.id] = [c.preset];
-        c.preset = undefined;
-        continue;
-      }
       // Optional target without any legal option: nothing to ask.
       if (spec.optional && spec.legal.length === 0) {
         c.targets[spec.id] = [];
@@ -1798,12 +1790,6 @@ export const useGame = create<Store>((set, get) => {
       }
     },
 
-    dropHandCard(id, targetId) {
-      const cast = myActions(get().view).find((a): a is CastOption => a.type === "cast" && a.card === id);
-      if (cast && targetId) return get().beginCasting(cast, id, targetId);
-      get().clickHandCard(id);
-    },
-
     clickPermanent(id) {
       const { view, casting } = get();
       if (!view) return;
@@ -1892,12 +1878,12 @@ export const useGame = create<Store>((set, get) => {
       }
     },
 
-    beginCasting(option, sourceId, preset) {
+    beginCasting(option, sourceId) {
       set({ abilityMenu: null });
       // Legend rule (704.5j): warn before casting a duplicate (it cannot be undone afterwards).
       const dup = legendDuplicate(get().view, option, sourceId);
       if (dup && get().legendConfirm?.sourceId !== sourceId) {
-        return set({ legendConfirm: { option, sourceId, preset, name: dup } });
+        return set({ legendConfirm: { option, sourceId, name: dup } });
       }
       set({ legendConfirm: null });
       continueCasting({
@@ -1916,7 +1902,6 @@ export const useGame = create<Store>((set, get) => {
         targets: {},
         stage: "mode",
         spec: null,
-        preset,
       });
     },
 
@@ -1954,7 +1939,7 @@ export const useGame = create<Store>((set, get) => {
 
     confirmLegend() {
       const c = get().legendConfirm;
-      if (c) get().beginCasting(c.option, c.sourceId, c.preset);
+      if (c) get().beginCasting(c.option, c.sourceId);
     },
 
     cancelLegend() {
