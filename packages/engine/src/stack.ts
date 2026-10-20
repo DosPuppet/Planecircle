@@ -4315,6 +4315,8 @@ export function activateAbility(s: GameState, player: PlayerId, source: ObjectId
   // Craft: the materials chosen by the player, otherwise the default ones (graveyard cards first).
   const materials = ab.cost.craft ? chosenCraftMaterials(s, player, source, ab, choices.materials) : [];
   if (!materials) throw new RulesError(msg("Not enough craft materials"));
+  // Collect evidence: chosen before the mana, which must not exile them (Cryptex collects its own evidence as it pays).
+  const evidence = ab.cost.collectEvidence ? pickNow(s, player, source, ab, x, "evidence", choices) : [];
   // Types of the mana spent on the cost (Jeweled Amulet: "note the type of mana spent to pay this activation cost").
   const manaSpent: Partial<Record<ManaType, number>> = {};
   if (ab.cost.mana) {
@@ -4323,6 +4325,7 @@ export function activateAbility(s: GameState, player: PlayerId, source: ObjectId
       ...tapXChosen,
       ...crew,
       ...materials,
+      ...evidence,
       ...(ab.cost.tap || ab.cost.craft ? [source] : []),
       ...(ab.cost.grantor && grantor ? [grantor] : []),
     ]);
@@ -4430,7 +4433,7 @@ export function activateAbility(s: GameState, player: PlayerId, source: ObjectId
   }
   // Collect evidence N as a cost (Forensic Researcher, Polygraph Orb).
   if (ab.cost.collectEvidence) {
-    const exiled = collectEvidence(s, player, pick("evidence"));
+    const exiled = collectEvidence(s, player, evidence);
     if (ab.cost.linkEvidence) o.linked = [...(o.linked ?? []), ...exiled];
   }
   // "Tap X untapped artifacts": X chosen on activation (permanents chosen before the mana payment).

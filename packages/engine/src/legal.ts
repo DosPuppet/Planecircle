@@ -618,6 +618,17 @@ export function legalActions(s: GameState, player: PlayerId): ActionOption[] {
     // Teamwork: the creatures tapped for the kicker don't pay the mana.
     const kickerPay = d.kicker?.pay;
     const kickerCrew = kickerPay?.tapPower !== undefined ? suggestedCrew(s, player, card, kickerPay.tapPower, "teamwork") : [];
+    // Bargain and the other kickers paid with a permanent: the one sacrificed or returned by default doesn't pay the
+    // mana with an ability that sacrifices it (a bargained Treasure), as in `castSpell`.
+    const kickerPermanent =
+      kickerPay &&
+      kickerPay.tapPower === undefined &&
+      kickerPay.collectEvidence === undefined &&
+      kickerPay.life === undefined &&
+      kickerPay.exileGraveyard === undefined
+        ? kickerCostPermanent(s, player, card, d)
+        : undefined;
+    const kickerPurpose = purposeFor(true, 0);
     // Replicate (702.56), squad (702.157): the cost is paid X times (X chosen as for an X spell), not as a kicker.
     const replicate = kickerPaidTimes(d);
     const kickerAffordable =
@@ -634,13 +645,18 @@ export function legalActions(s: GameState, player: PlayerId): ActionOption[] {
               ? payableLife(s, player) >= kickerPay.life
               : kickerPay.exileGraveyard !== undefined
                 ? !!graveyardToExile(s, player, card, kickerPay.exileGraveyard)
-                : !!kickerCostPermanent(s, player, card, d))) &&
+                : !!kickerPermanent)) &&
       canPay(
         s,
         player,
         withExtra(spellCost(s, player, d, { ...base, kicked: true, free: terms.free })),
         kickerCrew.length ? new Set([...(exclude ?? []), ...kickerCrew]) : undefined,
-        purposeFor(true, 0),
+        kickerPermanent
+          ? {
+              ...kickerPurpose,
+              sacrificedForCost: new Set([...(kickerPurpose.sacrificedForCost ?? []), kickerPermanent]),
+            }
+          : kickerPurpose,
       );
     // Overload, cleave: the modes with their own cost form a separate option (`variant` "modeCost"), payable, without
     // free casting or other alternative cost (118.9a); the ordinary option has only the other modes.
@@ -870,12 +886,15 @@ export function legalActions(s: GameState, player: PlayerId): ActionOption[] {
       const fc = fixedCost(ab.cost);
       const xc = xCosts(ab.cost);
       if (ab.sorcerySpeed && !instantLoyalty(s, player, id, ab) && !sorceryTiming(s, player)) return;
-      // Craft: the source and the exiled materials don't pay the mana.
-      const exclude = ab.cost.craft
-        ? new Set([id, ...(craftMaterials(s, player, id, ab) ?? [])])
-        : ab.cost.tap
-          ? new Set([id])
-          : undefined;
+      // Craft: the source and the exiled materials don't pay the mana; nor does the evidence collected (Cryptex can't
+      // exile it as its own evidence).
+      const evidence = ab.cost.collectEvidence ? (evidenceCards(s, player, id, ab.cost.collectEvidence) ?? []) : [];
+      const excluded = [
+        ...(ab.cost.craft || ab.cost.tap ? [id] : []),
+        ...(ab.cost.craft ? (craftMaterials(s, player, id, ab) ?? []) : []),
+        ...evidence,
+      ];
+      const exclude = excluded.length ? new Set(excluded) : undefined;
       // Warrior's Blades, Dragonfire Blade: at best, the most favorable target.
       if (ab.cost.exileGraveyardSymbols && !symbolCards(s, player, ab.cost.exileGraveyardSymbols)) return;
       const abCost = abilityManaCost(s, player, id, ab, "best");

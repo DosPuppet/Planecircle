@@ -298,8 +298,10 @@ export function checkOffers(state: GameState, player: string, where: string): vo
     if (!d0) continue;
     // Objects paid as a cost: another choice than the suggestion (the last options) must be accepted too. Except for
     // the additional costs that tap, return, exile or sacrifice permanents: they can take a mana source the spell needs
-    // (such a choice is rightly refused), the suggestion is kept (conspire, casualty: none).
+    // (such a choice is rightly refused), the suggestion is kept (conspire, casualty: none). Likewise the evidence of an
+    // ability: the whole graveyard leaves Cryptex nothing to collect for its mana.
     const keepSuggestion = new Set(["costTap", "costBounce", "costExile", "conspire", "casualty"]);
+    if (a.type === "activate") keepSuggestion.add("evidence");
     const picks =
       (a.type === "cast" || a.type === "activate") && a.picks
         ? Object.fromEntries(

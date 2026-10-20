@@ -406,6 +406,50 @@ describe("offered options, accepted decisions", () => {
     expect(after.players.p1?.hand).toHaveLength(2);
   });
 
+  it("bargain (Johann's Stopgap): the Treasure sacrificed to bargain doesn't pay the bargained cost (strict fuzz, WOE seed 411)", () => {
+    const TREASURE = customCard({
+      name: "Test Treasure",
+      types: ["Artifact"],
+      typeLine: "Artifact — Treasure",
+      subtypes: ["Treasure"],
+      abilities: [manaAbility(["W", "U", "B", "R", "G"], 1, { sacrifice: true })],
+    });
+    // Bargained, {1}{U}: the Island and the Treasure, but the Treasure is the bargain itself.
+    const s = scenario({
+      p1: { battlefield: ["Island", TREASURE], hand: ["Johann's Stopgap"] },
+      p2: { battlefield: [bear("Ours")] },
+    });
+    expect(castOption(s, "p1", idOf(s, "p1", "hand", "Johann's Stopgap"))?.kickerAffordable ?? false).toBe(false);
+    // With a second Island, the bargained cast is offered and accepted.
+    const t = scenario({
+      p1: { battlefield: [...lands("Island", 2), TREASURE], hand: ["Johann's Stopgap"] },
+      p2: { battlefield: [bear("Ours")] },
+    });
+    const stopgap = idOf(t, "p1", "hand", "Johann's Stopgap");
+    expect(castOption(t, "p1", stopgap)?.kickerAffordable).toBe(true);
+    const target = idOf(t, "p2", "battlefield", "Ours");
+    const after = settle(act(t, "p1", { type: "cast", card: stopgap, mode: 0, targets: { t: [target] }, kicked: true } as never));
+    expect(idsOf(after, "p2", "battlefield", "Ours")).toHaveLength(0);
+    expect(idsOf(after, "p1", "battlefield", "Test Treasure")).toHaveLength(0);
+  });
+
+  it("collect evidence and Cryptex: the evidence chosen for the ability is not Cryptex's (strict fuzz, MKM seed 512)", () => {
+    const evidence = (name: string, n: number) =>
+      customCard({ name, manaCost: { generic: n, colored: {}, x: 0 }, manaCostText: `{${n}}` });
+    let s = scenario({
+      p1: {
+        battlefield: ["Tenth District Hero", "Cryptex", "Plains"],
+        graveyard: [evidence("Evidence One", 1), evidence("Evidence Two", 2), evidence("Evidence Three", 3)],
+      },
+    });
+    // {1}{W}, collect evidence 2 with the mana value 3 card: Cryptex's {1} collects the two others (1 + 2 = 3).
+    const hero = idOf(s, "p1", "battlefield", "Tenth District Hero");
+    const three = idOf(s, "p1", "graveyard", "Evidence Three");
+    s = act(s, "p1", { type: "activate", source: hero, ability: 0, targets: {}, picks: { evidence: [three] } } as never);
+    expect(s.players.p1?.graveyard).toHaveLength(0);
+    expect(s.stack).toHaveLength(1);
+  });
+
   it("a source that costs life is activated before a drawback (Hall of the Bandit Lord at 3 life, then Ancient Tomb; Commander strict fuzz seed 250)", () => {
     // {3}: Ancient Tomb's {C}{C} (2 damage, a drawback after the payment) and Hall's {C} (pay 3 life). At 3 life, the
     // player pays the 3 life first, then takes the 2 damage (119.4, 605.3b).
