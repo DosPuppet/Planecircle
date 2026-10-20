@@ -6,7 +6,12 @@
  * Requires: `npm run dev` running (restarted after an engine change).
  */
 import { mkdirSync } from "node:fs";
+import type { GameView, ObjectView } from "@mtgx/engine";
 import { chromium, type Page } from "playwright";
+import { type GlowState, permanentGlow } from "../packages/client/src/board/glows";
+import { battlefieldModel, fitBattlefield } from "../packages/client/src/board/layout";
+import { placeBattlefield } from "../packages/client/src/board3d/placement";
+import { boardPick } from "../packages/client/src/prompts/boardChoice";
 
 const OUT = "test-results/battlefield";
 mkdirSync(OUT, { recursive: true });
@@ -201,10 +206,88 @@ async function audit(page: Page, label: string) {
   return r;
 }
 
+/**
+ * The 3D board's placement (PLAN-W, board3d/placement.ts) against the DOM: for each battlefield, the center of every
+ * card, computed from the same view and zone size, within 2 px of its `.card-slot` in layout coordinates (offsets, which
+ * ignore the tilt).
+ */
+async function matchesPlacement(page: Page, label: string) {
+  const dom = await page.evaluate(() => {
+    const s = (window as unknown as { __mtgx: { getState(): Record<string, unknown> } }).__mtgx.getState();
+    const zones = [...document.querySelectorAll(".battlefield")].map((bf) => {
+      const centers: Record<string, [number, number]> = {};
+      for (const el of bf.querySelectorAll<HTMLElement>(".card-slot[data-oid]")) {
+        let x = el.offsetWidth / 2;
+        let y = el.offsetHeight / 2;
+        for (let e: HTMLElement | null = el; e && e !== bf; e = e.offsetParent as HTMLElement | null) {
+          x += e.offsetLeft;
+          y += e.offsetTop;
+        }
+        centers[el.dataset.oid as string] = [x, y];
+      }
+      return { mine: bf.classList.contains("me"), w: bf.clientWidth, h: bf.clientHeight, centers };
+    });
+    const pick = [
+      "view",
+      "casting",
+      "attackers",
+      "blocks",
+      "selectedBlocker",
+      "aimingAttacker",
+      "selection",
+      "resolving",
+      "attackTargets",
+    ];
+    return { zones, state: JSON.parse(JSON.stringify(Object.fromEntries(pick.map((k) => [k, s[k]])))) };
+  });
+  const st = dom.state as Pick<GlowState, "casting" | "attackers" | "blocks" | "selectedBlocker" | "selection" | "resolving"> & {
+    view: GameView;
+    aimingAttacker: string | null;
+    attackTargets: Record<string, string>;
+  };
+  const view = st.view;
+  const acts = view.pending?.kind === "priority" && view.pending.player === view.viewer ? (view.pending.actions ?? []) : [];
+  const glow = permanentGlow({
+    view,
+    acts,
+    pick: boardPick(view),
+    casting: st.casting,
+    attackers: st.attackers,
+    blocks: st.blocks,
+    selectedBlocker: st.selectedBlocker,
+    aiming: st.aimingAttacker,
+    selection: st.selection,
+    resolving: st.resolving,
+  });
+  const blocked = new Set(Object.values(st.blocks));
+  const uiKey = (o: ObjectView) => `${glow(o) ?? ""}|${blocked.has(o.id) ? "b" : ""}|${st.attackTargets[o.id] ?? ""}`;
+  const players = [view.viewer, ...view.opponents];
+  const off: string[] = [];
+  let compared = 0;
+  for (const zone of dom.zones) {
+    const player = zone.mine ? view.viewer : (players.find((p) => p !== view.viewer) as string);
+    const m = battlefieldModel(view, player, uiKey);
+    const fit = fitBattlefield(zone.w, zone.h, m.front, m.back, m.walkers, m.depth);
+    for (const p of placeBattlefield(m, fit, zone, zone.mine, (o) => o.attacking || st.attackers.includes(o.id))) {
+      const c = zone.centers[p.id];
+      if (!c || p.kind === "shadow") continue;
+      compared++;
+      if (Math.abs(c[0] - p.x) > 2 || Math.abs(c[1] - p.y) > 2)
+        off.push(`${p.obj.name} (${p.kind}): DOM ${c.map(Math.round)} 3D ${[p.x, p.y].map(Math.round)}`);
+    }
+  }
+  check(
+    compared > 10 && off.length === 0,
+    `${label}: the 3D placement matches the DOM within 2 px (${compared} cards)`,
+    off.slice(0, 6),
+  );
+}
+
 // 1. Crowded duel, 1600×900: piles, rows, second line for the opponent.
 let page = await open({ width: 1600, height: 900 }, { p1: ME, p2: CROWDED });
 await page.screenshot({ path: `${OUT}/1-duel-1600.png` });
 let r = await audit(page, "duel 1600");
+await matchesPlacement(page, "duel 1600");
 check(r.stacks.includes("×12") && r.stacks.includes("×5"), "identical tokens grouped (×12, ×5)", r.stacks);
 check(!r.stacks.includes("×3"), "3 identical tokens are not grouped", r.stacks);
 check(r.supportInBack === 1, "artifacts and enchantments in the back row, apart from the lands", r.supportInBack);
