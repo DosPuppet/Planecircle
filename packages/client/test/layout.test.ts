@@ -2,12 +2,15 @@ import { readFileSync } from "node:fs";
 import type { ObjectView } from "@mtgx/engine";
 import { describe, expect, it } from "vitest";
 import {
+  battlefieldModel,
   battlefieldRows,
   battlefieldSlots,
+  fanSpread,
   fitBattlefield,
   fitHand,
   HAND_MIN_STEP,
   HAND_STEP,
+  handFan,
   MIN_W,
   PERM_RATIO,
   type Slot,
@@ -240,5 +243,60 @@ describe("hand (it tightens instead of overflowing)", () => {
   });
   it("does not go below the minimal spacing", () => {
     expect(fitHand(200, 100, 30)).toBe(100 * HAND_MIN_STEP);
+  });
+});
+
+describe("battlefield model (shared by the DOM and 3D boards, PLAN-W)", () => {
+  it("Auras and Equipment go under their host, whoever controls them; exiled cards under their exiler's host", () => {
+    const host = creature();
+    const aura = obj({ types: ["Enchantment"], attachedTo: host.id, controller: "p2" });
+    const shelter = obj({ types: ["Enchantment"], attachedTo: host.id });
+    const exiledCard = obj({ types: ["Creature"], zone: "exile", controller: "p2" });
+    const land = obj({ types: ["Land"] });
+    const theirs = creature({ controller: "p2" });
+    const view = {
+      battlefield: [host, aura, shelter, land, theirs],
+      exile: [exiledCard],
+      exiledWith: { [shelter.id]: [exiledCard.id] },
+    };
+    const m = battlefieldModel(view, "p1", () => "");
+    expect(m.attachments.get(host.id)).toEqual([aura, shelter]);
+    expect(m.exiled.get(host.id)).toEqual([exiledCard]);
+    expect(m.front.map((sl) => sl.objs)).toEqual([[host]]);
+    expect(m.back.map((sl) => sl.objs)).toEqual([[land]]);
+    expect(m.depth).toBe(3);
+    // The opponent's battlefield: their creature, not the Aura they control on my creature.
+    const theirsModel = battlefieldModel(view, "p2", () => "");
+    expect(theirsModel.front.map((sl) => sl.objs)).toEqual([[theirs]]);
+    expect(theirsModel.back).toEqual([]);
+  });
+
+  it("the signature changes when a card taps, not when a glow does; tokens in different interface states stay apart", () => {
+    const tokens = n(5, () => token("Goblin"));
+    const view = { battlefield: tokens, exile: [], exiledWith: {} };
+    const plain = battlefieldModel(view, "p1", () => "");
+    expect(plain.front.map((sl) => sl.kind)).toEqual(["tokens"]);
+    const lit = battlefieldModel(view, "p1", (o) => (o.id === tokens[0]?.id ? "target" : ""));
+    expect(lit.front.map((sl) => sl.objs.length)).toEqual([1, 4]);
+    const tapped = battlefieldModel(
+      { battlefield: tokens.map((o) => ({ ...o, tapped: o === tokens[0] })), exile: [], exiledWith: {} },
+      "p1",
+      () => "",
+    );
+    expect(tapped.signature).not.toBe(plain.signature);
+    expect(battlefieldModel(view, "p1", () => "glow").signature).toBe(plain.signature);
+  });
+});
+
+describe("hand fan", () => {
+  it("symmetric angles and lifts, flatter in a narrow hand", () => {
+    expect(handFan(0, 1, 24)).toEqual({ angle: 0, lift: 0 });
+    const fan = [0, 1, 2, 3, 4].map((i) => handFan(i, 5, 24));
+    expect(fan.map((f) => f.angle)).toEqual([-8, -4, 0, 4, 8]);
+    expect(fan[0]?.lift).toBe(fan[4]?.lift);
+    expect(fan[2]?.lift).toBe(0);
+    expect(fanSpread(1200, 100)).toBe(24);
+    expect(fanSpread(300, 100)).toBe(9);
+    expect(fanSpread(300, 0)).toBe(24);
   });
 });

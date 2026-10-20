@@ -8,20 +8,9 @@ import { detectBlockedScryfall, useCustomBack, useRelayActive } from "../images"
 import { useLocalize, useT } from "../localize";
 import { useGame } from "../store";
 import { useLongPress } from "../touch";
+import type { Glow } from "./glows";
 import { KeywordBadges } from "./Keywords";
 import { PERM_RATIO, TAP_DEG, TAP_W } from "./layout";
-
-export type Glow =
-  | "playable"
-  | "target"
-  | "selectable"
-  | "selected"
-  /** Picked among the highlighted options (target, choice on the board): green check mark. */
-  | "picked"
-  | "attacking"
-  | "blocking"
-  | "activatable"
-  | null;
 
 const SPRING = { type: "spring", stiffness: 420, damping: 38 } as const;
 
@@ -209,7 +198,6 @@ const CardView = memo(function CardView({
   const setHover = useGame((s) => s.setHover);
   const setPeek = useGame((s) => s.setPeek);
   const t = useT();
-  const loc = useLocalize();
   // Touch screen: a long press replaces hovering (overlaid preview).
   const longPress = useLongPress(hoverable ? () => setPeek({ face, obj }) : undefined);
   useRelayActive(); // new URL when the image relay turns on
@@ -232,11 +220,6 @@ const CardView = memo(function CardView({
         <CardBack width={width} ratio={ratio} custom={obj ? customBackOf(obj.owner) : false} />
       </div>
     );
-
-  const power = obj?.power;
-  const toughness = obj?.toughness;
-  const buffed = power !== undefined && (power > (face.basePower ?? 0) || (toughness ?? 0) > (face.baseToughness ?? 0));
-  const debuffed = power !== undefined && (power < (face.basePower ?? 0) || (toughness ?? 0) < (face.baseToughness ?? 0));
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: a role "button" when the card can be used; otherwise, hovering only shows its preview
@@ -295,62 +278,76 @@ const CardView = memo(function CardView({
             <ManaCost cost={obj.castCost.text} size={15} />
           </div>
         )}
-        {showStats && obj && (
-          <>
-            {power !== undefined && (
-              <div
-                className={`pt-badge ${buffed ? "buffed" : ""} ${debuffed ? "debuffed" : ""}`}
-                title={obj.damage > 0 ? t("{n} damage marked", { n: obj.damage }) : undefined}
-              >
-                {power}/<span className={obj.damage > 0 ? "damaged" : undefined}>{(toughness ?? 0) - obj.damage}</span>
-              </div>
-            )}
-            {obj.chosen?.manaType && (
-              <div className="chosen-badge" title={t("Noted type of mana")}>
-                <ManaCost cost={`{${obj.chosen.manaType}}`} size={15} />
-              </div>
-            )}
-            {obj.chosen && !obj.chosen.manaType && (
-              <div className="chosen-badge" title={t("Choice made as it entered")}>
-                {obj.chosen.creatureType ??
-                  obj.chosen.mode ??
-                  (obj.chosen.number !== undefined ? String(obj.chosen.number) : undefined) ??
-                  loc(COLOR_NAME[obj.chosen.color ?? ""] ?? "")}
-              </div>
-            )}
-            {obj.types.includes("Planeswalker") && (
-              <div className="loyalty-badge" title={t("Loyalty")}>
-                {obj.counters.loyalty ?? 0}
-              </div>
-            )}
-            <CounterBadges counters={obj.counters} />
-            {obj.zone === "battlefield" && <KeywordBadges obj={obj} />}
-            {obj.prepared && (
-              <div className="prepared-badge" title={t("Prepared: its spell can be cast (at the end of your hand)")}>
-                {t("Prepared")}
-              </div>
-            )}
-            {obj.suspected && (
-              <div className="suspected-badge" title={t("Suspected: it has menace and can't block")}>
-                {t("Suspected")}
-              </div>
-            )}
-            {obj.monstrous && (
-              <div className="monstrous-badge" title={t("Monstrous: its monstrosity ability no longer does anything")}>
-                {t("Monstrous")}
-              </div>
-            )}
-            {obj.sick && obj.types.includes("Creature") && (
-              <div className="sick-badge" title={t("Summoning sickness")}>
-                z
-              </div>
-            )}
-          </>
-        )}
+        {showStats && obj && <CardBadges face={face} obj={obj} />}
       </motion.div>
     </div>
   );
 }, sameCard);
+
+/**
+ * What a permanent shows on its card: P/T (damage in red), chosen mana type or choice, loyalty, counters, keywords and
+ * states. The DOM board draws them on the card, the 3D board in screen space at the corner of its proxy (PLAN-W).
+ */
+export function CardBadges({ face, obj }: { face: CardFace; obj: ObjectView }) {
+  const t = useT();
+  const loc = useLocalize();
+  const power = obj.power;
+  const toughness = obj.toughness;
+  const buffed = power !== undefined && (power > (face.basePower ?? 0) || (toughness ?? 0) > (face.baseToughness ?? 0));
+  const debuffed = power !== undefined && (power < (face.basePower ?? 0) || (toughness ?? 0) < (face.baseToughness ?? 0));
+  return (
+    <>
+      {power !== undefined && (
+        <div
+          className={`pt-badge ${buffed ? "buffed" : ""} ${debuffed ? "debuffed" : ""}`}
+          title={obj.damage > 0 ? t("{n} damage marked", { n: obj.damage }) : undefined}
+        >
+          {power}/<span className={obj.damage > 0 ? "damaged" : undefined}>{(toughness ?? 0) - obj.damage}</span>
+        </div>
+      )}
+      {obj.chosen?.manaType && (
+        <div className="chosen-badge" title={t("Noted type of mana")}>
+          <ManaCost cost={`{${obj.chosen.manaType}}`} size={15} />
+        </div>
+      )}
+      {obj.chosen && !obj.chosen.manaType && (
+        <div className="chosen-badge" title={t("Choice made as it entered")}>
+          {obj.chosen.creatureType ??
+            obj.chosen.mode ??
+            (obj.chosen.number !== undefined ? String(obj.chosen.number) : undefined) ??
+            loc(COLOR_NAME[obj.chosen.color ?? ""] ?? "")}
+        </div>
+      )}
+      {obj.types.includes("Planeswalker") && (
+        <div className="loyalty-badge" title={t("Loyalty")}>
+          {obj.counters.loyalty ?? 0}
+        </div>
+      )}
+      <CounterBadges counters={obj.counters} />
+      {obj.zone === "battlefield" && <KeywordBadges obj={obj} />}
+      {obj.prepared && (
+        <div className="prepared-badge" title={t("Prepared: its spell can be cast (at the end of your hand)")}>
+          {t("Prepared")}
+        </div>
+      )}
+      {obj.suspected && (
+        <div className="suspected-badge" title={t("Suspected: it has menace and can't block")}>
+          {t("Suspected")}
+        </div>
+      )}
+      {obj.monstrous && (
+        <div className="monstrous-badge" title={t("Monstrous: its monstrosity ability no longer does anything")}>
+          {t("Monstrous")}
+        </div>
+      )}
+      {obj.sick && obj.types.includes("Creature") && (
+        <div className="sick-badge" title={t("Summoning sickness")}>
+          z
+        </div>
+      )}
+    </>
+  );
+}
 
 const COLOR_NAME: Record<string, string> = {
   W: msg("White"),

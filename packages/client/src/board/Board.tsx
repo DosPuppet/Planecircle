@@ -10,16 +10,19 @@ import { myActions, useGame } from "../store";
 import { isTouch, justLongPressed } from "../touch";
 import { Arrows } from "./Arrows";
 import { Backdrop } from "./Backdrop";
-import { Card, CardBack, type Glow, ManaCost } from "./Card";
+import { Card, CardBack, ManaCost } from "./Card";
 import { combatPreview } from "./combatPreview";
 import { Effects } from "./Effects";
+import { type Glow, handGlow, permanentGlow, playableCards, stackGlow } from "./glows";
+import { dropPlays, handTap } from "./handInput";
 import {
   type BattlefieldFit,
-  battlefieldRows,
-  battlefieldSlots,
+  battlefieldModel,
   CARD_RATIO,
+  fanSpread,
   fitBattlefield,
   fitHand,
+  handFan,
   LAND_SCALE,
   PERM_RATIO,
   type Slot,
@@ -321,44 +324,19 @@ function usePermanentGlow(): (o: ObjectView) => Glow {
   const selectedBlocker = useGame((s) => s.selectedBlocker);
   const aiming = useGame((s) => s.aimingAttacker);
   const selection = useGame((s) => s.selection);
-  const acts = myActions(view);
-  const p = view.pending;
-  const mine = p?.player === view.viewer;
-  const pick = boardPick(view);
   const resolving = useGame((s) => s.resolving);
-  return (o) => {
-    // Resolution shown: its targets are highlighted.
-    if (resolving) return resolving.item.targets.includes(o.id) ? "target" : null;
-    if (casting?.stage === "target") {
-      if (casting.picked?.includes(o.id)) return "picked";
-      return casting.spec?.legal.includes(o.id) ? "target" : null;
-    }
-    // Choice on the board: options highlighted, selection in gold, the rest dimmed.
-    if (pick) {
-      if (selection.includes(o.id)) return "picked";
-      return pick.options.includes(o.id) ? "target" : null;
-    }
-    // Attackable planeswalker: highlighted when an attacker is being aimed.
-    if (mine && p?.kind === "declareAttackers" && p.defenders?.includes(o.id)) {
-      return aiming && (p.allowed?.[aiming] ?? p.defenders).includes(o.id) ? "target" : null;
-    }
-    if (mine && p?.kind === "declareAttackers") {
-      if (aiming === o.id) return "selected";
-      if (attackers.includes(o.id)) return "attacking";
-      return p.candidates?.includes(o.id) ? "selectable" : null;
-    }
-    if (mine && p?.kind === "declareBlockers") {
-      if (selectedBlocker === o.id) return "selected";
-      if (blocks[o.id]) return "blocking";
-      const cand = p.candidates?.find((c) => c.blocker === selectedBlocker);
-      if (cand?.attackers.includes(o.id)) return "target";
-      return p.candidates?.some((c) => c.blocker === o.id) ? "selectable" : null;
-    }
-    if (o.attacking) return "attacking";
-    if (o.blocking) return "blocking";
-    if (acts.some((a) => a.type === "activate" && a.source === o.id)) return "activatable";
-    return null;
-  };
+  return permanentGlow({
+    view,
+    acts: myActions(view),
+    pick: boardPick(view),
+    casting,
+    attackers,
+    blocks,
+    selectedBlocker,
+    aiming,
+    selection,
+    resolving,
+  });
 }
 
 /**
@@ -521,37 +499,10 @@ function Battlefield({ player, isMe }: { player: string; isMe: boolean }) {
   const attackTargets = useGame((s) => s.attackTargets);
   const ref = useRef<HTMLDivElement>(null);
   const [fit, setFit] = useState<BattlefieldFit>({ cardW: 0, frontLines: 1, backLines: 1, walkerStep: 0 });
-  // Auras and Equipment are shown under their host (whoever controls them).
-  const onField = new Set(view.battlefield.map((o) => o.id));
-  const isAttached = (o: ObjectView) => !!o.attachedTo && onField.has(o.attachedTo);
-  const attachments = new Map<string, ObjectView[]>();
-  for (const o of view.battlefield) {
-    if (isAttached(o)) attachments.set(o.attachedTo as string, [...(attachments.get(o.attachedTo as string) ?? []), o]);
-  }
-  // Cards exiled by a permanent: shown under it.
-  const exileById = new Map(view.exile.map((o) => [o.id, o]));
-  const exiled = new Map<string, ObjectView[]>();
-  const byId = new Map(view.battlefield.map((o) => [o.id, o]));
-  for (const [source, ids] of Object.entries(view.exiledWith ?? {})) {
-    const objs = ids.map((id) => exileById.get(id)).filter((o): o is ObjectView => !!o);
-    // An Aura or Equipment (Sheltered by Ghosts) is drawn with its host: its exiled cards go under the host.
-    const src = byId.get(source);
-    const holder = src && isAttached(src) ? (src.attachedTo as string) : source;
-    if (objs.length) exiled.set(holder, [...(exiled.get(holder) ?? []), ...objs]);
-  }
-  const perms = view.battlefield.filter((o) => o.controller === player && !isAttached(o));
   // Tokens whose interface state differs (glow, blocked attacker, attacked player) are not grouped.
   const blocked = new Set(Object.values(blocks));
   const uiKey = (o: ObjectView) => `${glow(o) ?? ""}|${blocked.has(o.id) ? "b" : ""}|${attackTargets[o.id] ?? ""}`;
-  const { front, back, walkers } = battlefieldSlots(
-    battlefieldRows(perms),
-    new Set([...attachments.keys(), ...exiled.keys()]),
-    uiKey,
-  );
-  const depth = Math.max(0, ...perms.map((o) => (attachments.get(o.id)?.length ?? 0) + (exiled.get(o.id)?.length ?? 0)));
-  const layoutKey = (slots: Slot[]) =>
-    slots.map((s) => `${s.kind}:${s.objs.map((o) => `${o.id}${o.tapped ? "t" : ""}`).join("+")}`);
-  const signature = `${layoutKey(front).join(",")}|${layoutKey(back).join(",")}|${layoutKey(walkers).join(",")}|${depth}`;
+  const { attachments, exiled, front, back, walkers, depth, signature } = battlefieldModel(view, player, uiKey);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: recomputed when the permanents change (signature)
   useLayoutEffect(() => {
@@ -766,17 +717,7 @@ function StackView() {
               width="var(--stack-w)"
               layoutId={item.kind === "spell" ? item.uid : undefined}
               oid={item.id}
-              glow={
-                targeting
-                  ? casting?.picked?.includes(item.id)
-                    ? "selected"
-                    : targeting.legal.includes(item.id)
-                      ? "target"
-                      : null
-                  : i === view.stack.length - 1
-                    ? "selected"
-                    : null
-              }
+              glow={stackGlow(item.id, i === view.stack.length - 1, casting)}
               onClick={
                 targeting
                   ? () => (targeting.legal.includes(item.id) ? pickTarget(item.id) : notify(t("Invalid target.")))
@@ -1044,10 +985,7 @@ function Hand() {
   const dragged = useRef(false);
   // Touch screen: card lifted by a first tap (no hover), played by the second.
   const [lifted, setLifted] = useState<string | null>(null);
-  const acts = myActions(view);
-  const playable = new Set(
-    acts.flatMap((a) => (a.type === "cast" || a.type === "playLand" ? [a.card] : a.type === "activate" ? [a.source] : [])),
-  );
+  const playable = playableCards(myActions(view));
   // Cards playable from another zone (exile, graveyard, top of the library): at the end of the hand, tagged.
   const cards = [...view.hand, ...view.playableElsewhere];
   const elsewhere = new Map(view.playableElsewhere.map((c) => [c.id, c.zone]));
@@ -1074,8 +1012,7 @@ function Hand() {
     return () => ro.disconnect();
   }, [n]);
   const step = box.cardW ? fitHand(box.width, box.cardW, n) : null;
-  // Spread of the fan (degrees): flatter in a narrow hand (phone in portrait), where tilted cards would leave the screen.
-  const spread = box.cardW ? Math.min(24, (3 * box.width) / box.cardW) : 24;
+  const spread = fanSpread(box.width, box.cardW);
   const margin = step === null ? undefined : `0 ${-(box.cardW - step) / 2}px`;
   const selecting =
     view.pending?.player === view.viewer && (view.pending.kind === "discard" || view.pending.kind === "bottomCards");
@@ -1093,8 +1030,7 @@ function Hand() {
   return (
     <div className="hand" data-tuto="hand" ref={handRef}>
       {cards.map((c, i) => {
-        const angle = n > 1 ? (i - (n - 1) / 2) * Math.min(4, spread / n) : 0;
-        const lift = Math.abs(i - (n - 1) / 2) * Math.min(6, 30 / n);
+        const { angle, lift } = handFan(i, n, spread);
         const up = liftedId === c.id;
         return (
           <motion.div
@@ -1116,8 +1052,8 @@ function Hand() {
             }}
             onTap={(e) => {
               if (dragged.current || justLongPressed()) return;
-              // By finger: the first tap lifts the card (and shows it in the preview), the second plays it.
-              if ((e as PointerEvent).pointerType !== "mouse" && isTouch() && !selecting && !up) {
+              const mouse = (e as PointerEvent).pointerType === "mouse";
+              if (handTap({ mouse, touch: isTouch(), selecting, lifted: up }) === "lift") {
                 setLifted(c.id);
                 setHover({ face: c, obj: c });
                 return;
@@ -1127,10 +1063,7 @@ function Hand() {
             }}
             onDragEnd={(_, info) => {
               const handTop = handRef.current?.getBoundingClientRect().top ?? window.innerHeight;
-              if (info.point.y - window.scrollY > handTop - 20) return;
-              // Dropped anywhere above the hand: played as by a click, targets always asked (a card brushing a creature
-              // on a quick drop must not target it).
-              clickHandCard(c.id);
+              if (dropPlays(info.point.y - window.scrollY, handTop)) clickHandCard(c.id);
             }}
           >
             <Card
@@ -1138,15 +1071,7 @@ function Hand() {
               obj={c}
               width="var(--hand-w)"
               layoutId={c.uid}
-              glow={
-                selection.includes(c.id)
-                  ? "selected"
-                  : casting?.sourceId === c.id
-                    ? "selected"
-                    : playable.has(c.id)
-                      ? "playable"
-                      : null
-              }
+              glow={handGlow(c.id, selection, casting, playable)}
               oid={c.id}
             />
             {elsewhere.has(c.id) && <span className="zone-tag">{loc(ZONE_TAG[elsewhere.get(c.id) ?? ""] ?? "")}</span>}

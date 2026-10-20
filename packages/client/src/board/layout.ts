@@ -7,7 +7,7 @@
  * - a row wraps onto 2 lines (or more in narrow zones) when that allows larger cards,
  *   then the cards shrink.
  */
-import type { ObjectView } from "@mtgx/engine";
+import type { GameView, ObjectView } from "@mtgx/engine";
 
 /** Full card (hand, stack, dialogs): height / width (styles.css --card-ratio). */
 export const CARD_RATIO = 1.395;
@@ -166,6 +166,59 @@ export function battlefieldSlots(
   return { front, back, walkers };
 }
 
+/** A player's battlefield as it is drawn (by the DOM board and the 3D board alike). */
+export interface BattlefieldModel {
+  /** Auras and Equipment, by host permanent (whoever controls them). */
+  attachments: Map<string, ObjectView[]>;
+  /** Cards exiled by a permanent, by the permanent they are drawn under. */
+  exiled: Map<string, ObjectView[]>;
+  front: Slot[];
+  back: Slot[];
+  walkers: Slot[];
+  /** Most cards stacked under one permanent (attachments and exiled cards). */
+  depth: number;
+  /** Changes when the slots, their tapped cards or the depth change: the sizes must be computed again. */
+  signature: string;
+}
+
+/**
+ * The battlefield of `player`: its slots, with the Auras and Equipment under their host and the cards a permanent
+ * exiled under it. `uiKey`: the interface state of a token (glow, blocked, attacked player); tokens in different states
+ * are not grouped.
+ */
+export function battlefieldModel(
+  view: Pick<GameView, "battlefield" | "exile" | "exiledWith">,
+  player: string,
+  uiKey: (o: ObjectView) => string,
+): BattlefieldModel {
+  const onField = new Set(view.battlefield.map((o) => o.id));
+  const isAttached = (o: ObjectView) => !!o.attachedTo && onField.has(o.attachedTo);
+  const attachments = new Map<string, ObjectView[]>();
+  for (const o of view.battlefield) {
+    if (isAttached(o)) attachments.set(o.attachedTo as string, [...(attachments.get(o.attachedTo as string) ?? []), o]);
+  }
+  const exileById = new Map(view.exile.map((o) => [o.id, o]));
+  const exiled = new Map<string, ObjectView[]>();
+  const byId = new Map(view.battlefield.map((o) => [o.id, o]));
+  for (const [source, ids] of Object.entries(view.exiledWith ?? {})) {
+    const objs = ids.map((id) => exileById.get(id)).filter((o): o is ObjectView => !!o);
+    // An Aura or Equipment (Sheltered by Ghosts) is drawn with its host: its exiled cards go under the host.
+    const src = byId.get(source);
+    const holder = src && isAttached(src) ? (src.attachedTo as string) : source;
+    if (objs.length) exiled.set(holder, [...(exiled.get(holder) ?? []), ...objs]);
+  }
+  const perms = view.battlefield.filter((o) => o.controller === player && !isAttached(o));
+  const { front, back, walkers } = battlefieldSlots(
+    battlefieldRows(perms),
+    new Set([...attachments.keys(), ...exiled.keys()]),
+    uiKey,
+  );
+  const depth = Math.max(0, ...perms.map((o) => (attachments.get(o.id)?.length ?? 0) + (exiled.get(o.id)?.length ?? 0)));
+  const key = (slots: Slot[]) =>
+    slots.map((sl) => `${sl.kind}:${sl.objs.map((o) => `${o.id}${o.tapped ? "t" : ""}`).join("+")}`).join(",");
+  return { attachments, exiled, front, back, walkers, depth, signature: `${key(front)}|${key(back)}|${key(walkers)}|${depth}` };
+}
+
 /** Width of a slot, in card widths (a tapped card takes up the width of its leaning box). */
 export function slotUnits(s: Slot): number {
   const first = s.objs[0];
@@ -298,6 +351,17 @@ export function fitHand(width: number, cardW: number, n: number): number {
   // Margin for the fan: the tilted cards at both ends stick out by about a third of a card.
   const avail = width - cardW * 1.35;
   return Math.max(cardW * HAND_MIN_STEP, Math.min(cardW * HAND_STEP, avail / (n - 1)));
+}
+
+/** Spread of the hand's fan (degrees): flatter in a narrow hand (phone in portrait), where tilted cards would leave the screen. */
+export function fanSpread(width: number, cardW: number): number {
+  return cardW ? Math.min(24, (3 * width) / cardW) : 24;
+}
+
+/** The `i`th of `n` cards of the hand: its angle (degrees) and how far it sits lower (px), towards the ends of the fan. */
+export function handFan(i: number, n: number, spread: number): { angle: number; lift: number } {
+  const mid = (n - 1) / 2;
+  return { angle: n > 1 ? (i - mid) * Math.min(4, spread / n) : 0, lift: Math.abs(i - mid) * Math.min(6, 30 / n) };
 }
 
 /** Board element that stands for an object (a single card, or the token pile that contains it). */
