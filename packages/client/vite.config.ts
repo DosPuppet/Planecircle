@@ -48,12 +48,18 @@ export default defineConfig({
             { name: "cards", test: /packages[\\/]cards[\\/]data[\\/](?!printings|edh\.json)/ },
             // QR code reader (jsQR, 250 KB): only when the camera scanner has no native detector (Safari).
             { name: "qrscan", test: /node_modules[\\/]jsqr[\\/]/ },
+            // 3D board (PLAN-W): three.js and the board's own code, loaded only when the player chooses 3D. Names without
+            // a hyphen: the service worker tells the versions of a chunk apart by the part before the first one.
+            { name: "three", test: /node_modules[\\/]three[\\/]/ },
+            { name: "board3d", test: /packages[\\/]client[\\/]src[\\/]board3d[\\/]/ },
             { name: "vendor", test: /node_modules/ },
           ],
         },
       },
     },
   },
+  // three.js and its addons prebundled at start-up: discovered later, they would reload the page in the middle of a test.
+  optimizeDeps: { include: ["three"] },
   server: {
     port: 5173,
     proxy: {

@@ -62,11 +62,30 @@ for (const [ext, budget] of [
     if (size > max) errors.push(`${name}: ${Math.round(size / KB)} KB, budget ${Math.round(max / KB)} KB`);
   }
 }
+// Lazy chunks: neither loaded by the page (script, modulepreload) nor reached by a static import from it, otherwise they
+// would weigh on every first load (three.js for the 3D board, PLAN-W, is about 700 KB).
+const LAZY = ["backdrop", "synth", "qrscan", "printings", "three", "board3d"];
+const html = readFileSync(new URL("../index.html", dir), "utf8");
+const eager = new Set<string>();
+const queue = [...html.matchAll(/(?:src|href)="\/assets\/([\w.-]+\.js)"/g)].map((m) => m[1] as string);
+while (queue.length) {
+  const file = queue.pop() as string;
+  if (eager.has(file) || !all.includes(file)) continue;
+  eager.add(file);
+  // Static imports only (`import{…}from"./x.js"`, `import"./x.js"`, `export…from`); `import("./x.js")` is lazy.
+  const code = readFileSync(new URL(file, dir), "utf8");
+  for (const m of code.matchAll(/(?:^|[;}\n])\s*(?:import|export)\s*(?:[^;"'`()]*?from\s*)?["']\.\/([\w.-]+\.js)["']/g))
+    queue.push(m[1] as string);
+}
+for (const file of eager)
+  if (LAZY.some((prefix) => file.startsWith(`${prefix}-`))) errors.push(`${file} is loaded with the page: it must stay lazy`);
 // A scripted card in the worker means that it imports @mtgx/cards (CLAUDE.md rule, "Bundle").
 const worker = all.find((f) => f.startsWith("game.worker-"));
 if (worker && readFileSync(new URL(worker, dir), "utf8").includes("Luminous Rebuke"))
   errors.push("the worker embeds the cards (@mtgx/cards imported)");
-console.log(`bundle: ${sizes.join(", ")}`);
+console.log(
+  `bundle: ${sizes.join(", ")}; loaded with the page: ${[...eager].map((f) => f.replace(/-[\w-]{8}\.js$/, "")).join(", ")}`,
+);
 if (errors.length) {
   console.error(errors.join("\n"));
   process.exit(1);
