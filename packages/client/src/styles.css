@@ -27,6 +27,8 @@
   --activatable: #8cf0a0;
   --me: #62c48a;
   --opp: #e0795b;
+  /* Glossary words in a rules text (glossary/Term.tsx). */
+  --term: #c7b2ff;
 
   /* Card shapes (layout.ts CARD_RATIO, PERM_RATIO): full cards (hand, stack, dialogs), art cards (battlefield). */
   --card-ratio: 1.395;
@@ -2600,6 +2602,10 @@ button.emblem-chip.activatable {
     text-align: center;
     white-space: nowrap;
   }
+  /* An odd number of places: the last one takes the whole line. */
+  .lobby-nav > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
   .lobby-sides {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -3878,6 +3884,106 @@ button.emblem-chip.activatable {
 }
 .kw-tip strong {
   color: #f3e3b0;
+}
+
+/* Glossary words in a rules text (glossary/Term.tsx): definition on hover or long press, the glossary on a click. */
+.kw-term {
+  color: var(--term);
+  text-decoration: underline dotted;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  cursor: help;
+  -webkit-touch-callout: none;
+}
+@media (hover: none), (pointer: coarse) {
+  .kw-term {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+/* Under the word, centered on it (above it when the word is low on the screen). */
+.kw-tip.term {
+  translate: -50% 0;
+}
+.kw-tip.term.above {
+  translate: -50% -100%;
+}
+
+/* Definitions next to the floating preview, as MTG Arena shows them (Sidebar.tsx, PreviewTerms). */
+.preview-terms {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 220px;
+  max-height: min(62dvh, 520px);
+  overflow: hidden;
+}
+.preview-term {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 10px;
+  border-radius: var(--r-2);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-1);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+.preview-term strong {
+  color: var(--term);
+}
+/* Not enough room beside the card and its text: the words stay hoverable elsewhere (deck editor, glossary). */
+@media (max-width: 1000px) {
+  .preview-terms {
+    display: none;
+  }
+}
+
+/* Glossary window (glossary/GlossaryDialog.tsx). */
+.modal.glossary {
+  width: min(94vw, 760px);
+}
+.glossary .choice-search {
+  margin-bottom: 0;
+}
+.glossary-list {
+  max-height: 62dvh;
+  overflow-y: auto;
+  margin-top: 10px;
+  padding-right: 6px;
+}
+.glossary-list h3 {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0;
+  padding: 10px 0 6px;
+  background: var(--surface);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--gold);
+}
+.glossary-list dl {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 6px;
+}
+.glossary-entry {
+  padding: 6px 8px;
+  border-radius: var(--r-1);
+}
+.glossary-entry dt {
+  font-weight: 600;
+}
+.glossary-entry dd {
+  margin: 2px 0 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+.glossary-entry.focus {
+  background: rgba(199, 178, 255, 0.12);
+  outline: 1px solid rgba(199, 178, 255, 0.5);
 }
 
 /* Opponent's spell or ability shown to the player with no possible response (board/StackReveal.tsx). */

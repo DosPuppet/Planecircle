@@ -11,7 +11,7 @@ import { faceName } from "../i18n";
 import { useLocalize, useT } from "../localize";
 import { myActions, useGame } from "../store";
 import { useTutorialHold } from "../tutorial/store";
-import { Card } from "./Card";
+import { Card, RulesText } from "./Card";
 
 /** Display time before passing automatically (an instant in the fast test mode). */
 export const REVEAL_MS = fastMode() ? 300 : 5000;
@@ -110,7 +110,7 @@ export function EffectFrame({ text, ability }: { text: string; ability?: boolean
   return (
     <div className="effect-frame">
       <span className="effect-frame-kind">{ability ? t("Ability") : t("Chosen mode")}</span>
-      {loc(text)}
+      <RulesText text={loc(text)} />
     </div>
   );
 }

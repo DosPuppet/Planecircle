@@ -7,6 +7,7 @@ import { ManaCost } from "../board/Card";
 import { resolveBoardTheme } from "../boardThemes";
 import { Dialog } from "../Dialog";
 import { deckCover, deckDescription, deckName, useAllDecks } from "../decks/store";
+import { useGlossary } from "../glossary/store";
 import { CustomArtToggle, ImageRelayToggle } from "../ImageRelayToggle";
 import { useRelayActive } from "../images";
 import { LangToggle } from "../LangToggle";
@@ -284,6 +285,7 @@ export function Lobby() {
   const openDeckBuilder = useGame((s) => s.openDeckBuilder);
   const openOnline = useGame((s) => s.openOnline);
   const openTutorial = useGame((s) => s.openTutorial);
+  const openGlossary = useGlossary((s) => s.openGlossary);
   const lang = useGame((s) => s.lang);
   const t = useT();
   // New player (no lesson started): the tutorial is put forward.
@@ -350,6 +352,9 @@ export function Lobby() {
           </button>
           <button type="button" className={`btn ${newcomer ? "learn" : ""}`} onClick={openTutorial}>
             {t("Learn to play")}
+          </button>
+          <button type="button" className="btn" onClick={() => openGlossary()}>
+            {t("Glossary")}
           </button>
           <ReplayOpener />
         </nav>

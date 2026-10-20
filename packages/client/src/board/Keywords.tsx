@@ -1,40 +1,18 @@
 /**
  * Badges for a permanent's active abilities (flying, reach, first strike, ward…), MTGA style:
- * one icon per keyword (printed or granted), and the details on hover.
+ * one icon per keyword (printed or granted), and the details on hover (their definition: the glossary).
  */
 import type { Keyword, ObjectView } from "@mtgx/engine";
-import { msg, RESTRICTIONS } from "@mtgx/engine";
+import { RESTRICTIONS } from "@mtgx/engine";
 import { type ReactNode, useState } from "react";
 import { createPortal } from "react-dom";
+import { glossaryForKeyword } from "../glossary/entries";
 import { faceName, faceText, KEYWORD_LABEL } from "../i18n";
 import { useLocalize, useT } from "../localize";
 import { useGame } from "../store";
 
 /** Keywords of no interest on the battlefield (or already shown elsewhere). */
 const HIDDEN: ReadonlySet<Keyword> = new Set<Keyword>(["flash", "convoke", "startYourEngines"]);
-
-/** Reminder text shown in the tooltip. */
-const HELP: Partial<Record<Keyword, string>> = {
-  flying: msg("Can't be blocked except by creatures with flying or reach."),
-  reach: msg("Can block creatures with flying."),
-  firstStrike: msg("Deals combat damage before creatures without first strike."),
-  doubleStrike: msg("Deals combat damage before the others, then again at the same time as them."),
-  deathtouch: msg("Any amount of damage it deals to a creature is enough to destroy it."),
-  lifelink: msg("Damage dealt by it also causes its controller to gain that much life."),
-  trample: msg("Combat damage in excess of what its blockers need is dealt to the attacked player or planeswalker."),
-  vigilance: msg("Attacking doesn't cause it to tap."),
-  haste: msg("Can attack and {T} as soon as it enters."),
-  menace: msg("Can't be blocked except by two or more creatures."),
-  defender: msg("Can't attack."),
-  hexproof: msg("Can't be the target of spells or abilities your opponents control."),
-  indestructible: msg('Damage and effects that say "destroy" don\'t destroy it.'),
-  prowess: msg("Whenever its controller casts a noncreature spell, it gets +1/+1 until end of turn."),
-  ward: msg(
-    "Whenever it becomes the target of a spell or ability an opponent controls, counter it unless that player pays the ward cost.",
-  ),
-  changeling: msg("It is every creature type."),
-  wither: msg("It deals damage to creatures in the form of −1/−1 counters."),
-};
 
 const stroke = {
   fill: "none",
@@ -323,7 +301,7 @@ export function KeywordBadges({ obj }: { obj: ObjectView }) {
               aria-label={title}
               onMouseEnter={(ev) => {
                 const r = ev.currentTarget.getBoundingClientRect();
-                const help = HELP[k];
+                const help = glossaryForKeyword(k)?.help;
                 setTip({ x: r.right + 6, y: r.top + r.height / 2, title, help: help === undefined ? undefined : loc(help) });
               }}
               onMouseLeave={() => setTip(null)}

@@ -1,6 +1,8 @@
 import { type CardFace, counterLabel, HIDDEN_CARD_ID, msg, type ObjectView } from "@mtgx/engine";
 import { motion } from "motion/react";
-import { type CSSProperties, memo, useCallback, useRef, useState } from "react";
+import { type CSSProperties, Fragment, memo, useCallback, useRef, useState } from "react";
+import { splitTerms } from "../glossary/match";
+import { Term } from "../glossary/Term";
 import { faceArt, faceImage, faceName, faceText, faceType } from "../i18n";
 import { detectBlockedScryfall, useCustomBack, useRelayActive } from "../images";
 import { useLocalize, useT } from "../localize";
@@ -99,9 +101,30 @@ export function ManaCost({ cost, size = 16 }: { cost: string; size?: number }) {
   );
 }
 
-/** Rules text whose symbols ("{T}", "{2}{R}") are pips, as on the printed card. */
-export function RulesText({ text, size = 13 }: { text: string; size?: number }) {
-  return <>{text.split(/((?:\{[^}]+\})+)/).map((part, i) => (i % 2 ? <ManaCost key={i} cost={part} size={size} /> : part))}</>;
+/**
+ * Rules text whose symbols ("{T}", "{2}{R}") are pips, as on the printed card, and whose glossary words are explained
+ * on hover (`self`: the glossary entry whose definition this is, not marked).
+ */
+export function RulesText({ text, size = 13, self }: { text: string; size?: number; self?: string }) {
+  const lang = useGame((s) => s.lang);
+  // Words first, on the whole text: a form may look at the cost after it ("Équipement {2}"). i18n-ignore: French card text
+  return (
+    <>
+      {splitTerms(text, lang).map((part, i) =>
+        typeof part !== "string" && part.entry.id !== self ? (
+          <Term key={i} entry={part.entry}>
+            {part.text}
+          </Term>
+        ) : (
+          <Fragment key={i}>
+            {(typeof part === "string" ? part : part.text)
+              .split(/((?:\{[^}]+\})+)/)
+              .map((piece, j) => (j % 2 ? <ManaCost key={j} cost={piece} size={size} /> : piece))}
+          </Fragment>
+        ),
+      )}
+    </>
+  );
 }
 
 /** Text frame: the fallback when the image does not load, and the look of tokens. */

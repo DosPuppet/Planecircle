@@ -1,6 +1,11 @@
+import type { CardFace, ObjectView } from "@mtgx/engine";
 import { useEffect, useRef, useState } from "react";
 import { SoundControl } from "../audio/SoundControl";
 import { BOARD_THEMES } from "../boardThemes";
+import { glossaryForKeyword } from "../glossary/entries";
+import { termsIn } from "../glossary/match";
+import { useGlossary } from "../glossary/store";
+import { Term } from "../glossary/Term";
 import { CustomArtToggle, ImageRelayToggle } from "../ImageRelayToggle";
 import { faceImage, faceName, faceText, faceType, KEYWORD_LABEL, type LogLine } from "../i18n";
 import { customImage, imageUrl, useRelayActive } from "../images";
@@ -8,6 +13,7 @@ import { LangToggle } from "../LangToggle";
 import { useLocalize, useT } from "../localize";
 import { PACES, useGame } from "../store";
 import { isTouch, justLongPressed } from "../touch";
+import { textIn } from "../translate";
 import { ManaCost, RulesText } from "./Card";
 
 /** A "Max speed —" ability (702.179) in the card's text (English or French). */
@@ -28,7 +34,11 @@ function MaxSpeedNote({ speed }: { speed: number | undefined }) {
   );
 }
 
-export function Preview() {
+/**
+ * The enlarged card: image, then its texts and state. `terms`: the definitions of its glossary words next to it (the
+ * floating preview, which the mouse can't reach: MTGA style); elsewhere the words are hovered or long-pressed.
+ */
+export function Preview({ terms = false }: { terms?: boolean }) {
   const hover = useGame((s) => s.hover);
   const players = useGame((s) => s.view?.players);
   useRelayActive(); // new URL when the image relay turns on
@@ -70,7 +80,9 @@ export function Preview() {
         <div className={`preview-img token frame-${obj?.colors[0] ?? "C"}`}>
           <div className="token-name">{faceName(face, lang)}</div>
           <div className="token-type">{loc(faceType(face, lang))}</div>
-          <div className="token-text">{faceText(face, lang)}</div>
+          <div className="token-text">
+            <RulesText text={faceText(face, lang)} />
+          </div>
           {obj?.power !== undefined && (
             <div className="token-pt">
               {obj.power}/{obj.toughness}
@@ -165,16 +177,53 @@ export function Preview() {
         )}
         {baseKw.size > 0 && (
           <div className="preview-kw">
-            {[...baseKw].map((k) => (
-              <span key={k} className="kw">
-                {loc(KEYWORD_LABEL[k])}
-              </span>
-            ))}
+            {[...baseKw].map((k) => {
+              const entry = glossaryForKeyword(k);
+              return (
+                <span key={k} className="kw">
+                  {entry ? <Term entry={entry}>{loc(KEYWORD_LABEL[k])}</Term> : loc(KEYWORD_LABEL[k])}
+                </span>
+              );
+            })}
           </div>
         )}
         {obj?.sick && obj.types.includes("Creature") && <div className="preview-note">{t("Summoning sickness")}</div>}
         {!face.implemented && <div className="preview-warn">{t("Not yet supported by the engine")}</div>}
       </div>
+      {terms && <PreviewTerms face={face} obj={obj} />}
+    </div>
+  );
+}
+
+/** At most this many definitions next to the floating preview (a card rarely has more words to explain). */
+const MAX_TERMS = 6;
+
+/**
+ * Definitions of the glossary words of the previewed card, as MTG Arena shows them next to the enlarged card: the
+ * words of its texts in order, then the keywords it has without them being written (granted by another permanent).
+ */
+function PreviewTerms({ face, obj }: { face: CardFace; obj?: ObjectView }) {
+  const lang = useGame((s) => s.lang);
+  const shown = obj?.textBox ?? face;
+  const texts = [
+    faceText(shown, lang),
+    ...(face.otherFaces ?? []).map((f) => (f ? (lang === "fr" && f.fr?.text) || f.text : "")),
+    face.prepareFace ? (lang === "fr" && face.prepareFace.fr?.text) || face.prepareFace.text : "",
+  ];
+  const entries = new Set(texts.flatMap((text) => (text ? termsIn(text, lang) : [])));
+  for (const k of obj?.keywords ?? []) {
+    const entry = glossaryForKeyword(k);
+    if (entry) entries.add(entry);
+  }
+  if (entries.size === 0) return null;
+  return (
+    <div className="preview-terms">
+      {[...entries].slice(0, MAX_TERMS).map((e) => (
+        <div key={e.id} className="preview-term" data-term={e.id}>
+          <strong>{textIn(lang, e.name)}</strong>
+          <span>{textIn(lang, e.help)}</span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -364,6 +413,7 @@ function Settings() {
   const tutorial = useGame((s) => s.tutorialGame);
   const replay = useGame((s) => !!s.replay);
   const exportGame = useGame((s) => s.exportGame);
+  const openGlossary = useGlossary((s) => s.openGlossary);
   const t = useT();
   return (
     <div className="settings">
@@ -392,6 +442,9 @@ function Settings() {
       <BoardThemeControl />
       <ImageRelayToggle />
       <CustomArtToggle />
+      <button type="button" className="btn small ghost" onClick={() => openGlossary()}>
+        {t("Glossary")}
+      </button>
       {!over && !replay && <ConcedeButton onConcede={() => decide({ type: "concede" })} />}
       {/* Game record (replay, bug report); online, only once the game is over. */}
       {!tutorial && !replay && (!online || over) && (
@@ -455,7 +508,7 @@ export function TouchPreview() {
 
 /** What shows a card's preview when hovered: cards (board, hand, stack, dialogs), names in the log, commanders. */
 const HOVER_SOURCES = ".card-slot, .log-card, .commander-chip";
-/** Width taken by the floating preview, for the side switch (image and info column). */
+/** Width taken by the floating preview before it is measured, for the side switch (image and info column). */
 const FLOAT_ROOM = 640;
 
 /**
@@ -468,6 +521,7 @@ export function PreviewFloat() {
   const live = useGame((s) => s.hoverLive);
   const hold = useGame((s) => s.previewHold);
   const [right, setRight] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (isTouch()) return;
     let timer = 0;
@@ -475,7 +529,8 @@ export function PreviewFloat() {
     const onOver = (e: PointerEvent) => {
       window.clearTimeout(timer);
       if (e.pointerType !== "mouse") return;
-      setRight(e.clientX < FLOAT_ROOM);
+      // Its width with the definitions next to the card, when it is shown.
+      setRight(e.clientX < (ref.current?.offsetWidth ?? FLOAT_ROOM - 24) + 24);
       if (!(e.target as Element | null)?.closest?.(HOVER_SOURCES))
         timer = window.setTimeout(() => useGame.getState().endHover(), 80);
     };
@@ -490,8 +545,8 @@ export function PreviewFloat() {
   }, []);
   if (isTouch() || !(hold || (live && hover))) return null;
   return (
-    <div className={`preview-float ${right && !hold ? "right" : ""}`} data-tuto="preview">
-      <Preview />
+    <div ref={ref} className={`preview-float ${right && !hold ? "right" : ""}`} data-tuto="preview">
+      <Preview terms />
     </div>
   );
 }

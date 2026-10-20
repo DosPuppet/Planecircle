@@ -61,14 +61,22 @@ The game screen follows MTG Arena, as phase-rs does, but stays light: no image t
 ## Home screen
 
 - **Layout:**
-  - a top bar with the places of the game (My decks, Against a player, Learn to play, Replay) and the settings (sound, language; image options behind ⚙);
+  - a top bar with the places of the game (My decks, Against a player, Learn to play, Glossary, Replay) and the settings (sound, language; image options behind ⚙);
   - your side and the AI side in two panels, with VS between them;
   - the "Play against the AI" button fixed at the bottom right (full width on a phone).
 - **Decks:**
   - a chosen deck shows as a summary (`DeckSelect`: art, name, colors, cards, format), framed in gold;
   - a click opens the picker window (`DeckChoice`: categories, tiles, a check mark on the chosen one);
   - the online lobby uses the same summary.
-- **Phone:** the panels stack, the four places sit in a 2 × 2 grid under the logo.
+- **Phone:** the panels stack, the places sit in a two-column grid under the logo (the fifth on a line of its own).
+
+## Glossary
+
+- **Entries** (`glossary/entries.ts`): keyword abilities, keyword actions, ability words, tokens and counters, game terms. Each has an English name and definition (`msg`, French in `client/locales/fr.json`) and, except the game terms, the forms that find it in a rules text: `en` and `fr` regular expressions, matched case-insensitively between word boundaries; a French text without a French printing is in English, so French texts are also searched with the English forms. An ability word is only found before its dash. The first entry that matches at a position wins: a longer form ("double strike") comes before the one it contains. A name whose French elsewhere is a label in the imperative (the "Investigate" mode button) has the `ctx:glossary|` prefix.
+- **Words in a text** (`glossary/match.ts`, `Term.tsx`): `RulesText` (preview, other faces, prepared spell, token text, prompts) and the effect of the spotlight (`EffectFrame`) underline them in `--term`; hover with a mouse or long press with a finger shows the definition (`.kw-tip.term`, under the word or above it near the bottom of the screen); a click opens the glossary at that entry. The terms are matched on the whole text before the mana symbols are drawn, since a form may look at the cost after it (in French, Equip shares its word with the Equipment card type and is told apart by the cost that follows).
+- **Floating preview:** the mouse can't reach it, so its definitions are listed next to the card, MTGA style (`PreviewTerms`, at most six: the words of its texts, then the keywords it has without them being written); hidden under 1,000 px wide. The side switch measures the preview's width with this column.
+- **Glossary window** (`GlossaryDialog`, above every screen): opened from the home screen, the game's drawer, or a word clicked; sections sorted in the interface language, the other language's name in grey, search without accents. The badges of a permanent (`Keywords.tsx`) take their definitions from the same entries.
+- **Tests:** `client/test/glossary.test.ts` (forms, boundaries, ability words; every English and French form finds a text of the catalog); `tools/glossary-smoke.ts` (window, floating preview, long press on a phone; screenshots in `test-results/glossary/`).
 
 ## Tokens and budgets
 

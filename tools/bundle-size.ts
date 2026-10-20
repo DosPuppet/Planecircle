@@ -11,8 +11,9 @@ const KB = 1024;
 /** Maximum size of each chunk (name prefix → bytes). */
 const BUDGET: Record<string, number> = {
   "game.worker": 600 * KB,
-  // Engine and card scripts: 2299 KB after PLAN-M M8b, 2303 KB after M9a (2026-10-11).
-  index: 2350 * KB,
+  // Engine and card scripts: 2299 KB after PLAN-M M8b, 2303 KB after M9a (2026-10-11); 2390 KB with the glossary
+  // (2026-10-20: entries and their forms, needed by any rules text shown, so not worth a lazy chunk).
+  index: 2450 * KB,
   cards: 6500 * KB,
   // Cards of the Commander decks (EDH pseudo-set, PLAN-E): 551 KB with nine precons (07/10/2026), 841 KB with fifteen
   // (2026-10-09); beyond about 1 MB, load them on demand (PLAN-E, principle 1).

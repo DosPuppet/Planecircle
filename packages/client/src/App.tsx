@@ -3,6 +3,7 @@ import { Board, useMainAction } from "./board/Board";
 import { ReplayBar } from "./board/ReplayBar";
 import { DrawerToggle, PreviewFloat, Sidebar, TouchPreview } from "./board/Sidebar";
 import { DeckBuilder } from "./decks/DeckBuilder";
+import { GlossaryDialog } from "./glossary/GlossaryDialog";
 import { Lobby } from "./lobby/Lobby";
 import { Online } from "./lobby/Online";
 import { useLocalize, useT } from "./localize";
@@ -120,6 +121,7 @@ export function App() {
       ) : (
         <GameScreen />
       )}
+      <GlossaryDialog />
       <Toast />
       <Notice />
     </>
