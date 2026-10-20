@@ -48,10 +48,11 @@ export default defineConfig({
             { name: "cards", test: /packages[\\/]cards[\\/]data[\\/](?!printings|edh\.json)/ },
             // QR code reader (jsQR, 250 KB): only when the camera scanner has no native detector (Safari).
             { name: "qrscan", test: /node_modules[\\/]jsqr[\\/]/ },
-            // 3D board (PLAN-W): three.js and the board's own code, loaded only when the player chooses 3D. Names without
-            // a hyphen: the service worker tells the versions of a chunk apart by the part before the first one.
+            // 3D board (PLAN-W): three.js, a file of its own (it changes less often than the board), loaded with the board's
+            // lazy chunk (Board3D, from its dynamic import). No group for the board's code: a group takes the
+            // dependencies of its modules with it (the whole application). A name without a hyphen: the service worker
+            // tells the versions of a chunk apart by the part before the first one.
             { name: "three", test: /node_modules[\\/]three[\\/]/ },
-            { name: "board3d", test: /packages[\\/]client[\\/]src[\\/]board3d[\\/]/ },
             { name: "vendor", test: /node_modules/ },
           ],
         },

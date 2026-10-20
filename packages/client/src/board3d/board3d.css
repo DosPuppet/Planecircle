@@ -1,0 +1,61 @@
+/* 3D board (PLAN-W, Board3D.tsx): the table is a canvas; the DOM HUD lies over it, placed from the projection. Loaded
+   with the board3d chunk, outside the budget of index.css. */
+.board.board3d {
+  display: block;
+}
+.board3d-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.board3d > .opp-bars {
+  position: absolute;
+  top: env(safe-area-inset-top);
+  left: 0;
+  right: 0;
+  z-index: 3;
+}
+/* The center strip on the middle line of the table, wherever the camera shows it. */
+.board3d > .center3d {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 4;
+}
+.board3d > .bottom-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+}
+/* Battlefields: transparent zones over their projection, holding the card proxies (no mat, no scroll and no CSS tilt:
+   the table itself is in 3D). */
+.game .board.board3d .battlefield.bf3d {
+  position: absolute;
+  z-index: 2;
+  padding: 0;
+  overflow: visible;
+  background: none;
+  box-shadow: none;
+  border-radius: 0;
+  transform: none;
+  pointer-events: none;
+}
+/* A proxy: its matrix3d lays it exactly over its mesh (project.ts). */
+.bf3d .p3 {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  pointer-events: auto;
+}
+.bf3d .card.ghost {
+  background: transparent;
+  border-color: transparent;
+}
+.bf3d .card.ghost:not([class*="glow-"]) {
+  box-shadow: none;
+}

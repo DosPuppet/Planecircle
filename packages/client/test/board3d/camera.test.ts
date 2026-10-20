@@ -1,6 +1,6 @@
 /** 3D board (PLAN-W W2): the camera shows the whole table, as close as it can, whatever the screen's shape. */
 import { describe, expect, it } from "vitest";
-import { frameTable, viewProjection } from "../../src/board3d/camera";
+import { frameSeats, frameTable, viewProjection } from "../../src/board3d/camera";
 import { transform } from "../../src/board3d/project";
 import { seatTable, tableBounds } from "../../src/board3d/seats";
 
@@ -46,4 +46,26 @@ describe("3D board camera", () => {
         expect(f.eye[1]).toBeGreaterThan(0);
         expect(f.eye[2]).toBeGreaterThan(f.target[2]);
       });
+});
+
+describe("3D board seats and camera together", () => {
+  for (const [w, h] of [
+    [1600, 900],
+    [1280, 720],
+    [2560, 1080],
+  ] as const)
+    it(`${w}×${h}: the battlefields deepen until the table fills the band in height and width`, () => {
+      const { table, framing, depth } = frameSeats({ w, h }, ["p1", "p2"], INSETS);
+      const vp = viewProjection(framing, w / h);
+      const b = tableBounds(table);
+      const ndc = (x: number, z: number) => {
+        const [nx, ny, , nw] = transform(vp, [x, 0, z]);
+        return { x: nx / nw, y: ny / nw };
+      };
+      const band = 2 - (2 * (INSETS.top + INSETS.bottom)) / h;
+      expect((ndc(0, b.z0).y - ndc(0, b.z1).y) / band).toBeGreaterThan(0.995);
+      expect(ndc(b.x1, b.z1).x - ndc(b.x0, b.z1).x).toBeGreaterThan(2 * 0.98 * 0.995);
+      expect(depth).toBeGreaterThanOrEqual(1);
+      expect(table.seats[0]?.zone.h).toBeCloseTo(((h - INSETS.top - INSETS.center - INSETS.bottom) / 2) * depth, 6);
+    });
 });

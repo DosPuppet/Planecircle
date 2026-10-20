@@ -95,7 +95,7 @@ function LifeTotal({ life }: { life: number }) {
   );
 }
 
-function PlayerBar({ player, isMe }: { player: PlayerView; isMe: boolean }) {
+export function PlayerBar({ player, isMe }: { player: PlayerView; isMe: boolean }) {
   const view = useGame((s) => s.view) as GameView;
   const casting = useGame((s) => s.casting);
   const clickPlayer = useGame((s) => s.clickPlayer);
@@ -316,7 +316,7 @@ function SpeedGauge({ player, speed }: { player: string; speed: number }) {
 // Battlefield
 // ---------------------------------------------------------------------------
 
-function usePermanentGlow(): (o: ObjectView) => Glow {
+export function usePermanentGlow(): (o: ObjectView) => Glow {
   const view = useGame((s) => s.view) as GameView;
   const casting = useGame((s) => s.casting);
   const attackers = useGame((s) => s.attackers);
@@ -947,7 +947,7 @@ function NetBanner() {
   );
 }
 
-function CenterStrip() {
+export function CenterStrip() {
   return (
     <div className="center-strip">
       <PhaseBar />
@@ -973,7 +973,7 @@ const ZONE_TAG: Record<string, string> = {
   command: msg("ctx:card|Commander"),
 };
 
-function Hand() {
+export function Hand() {
   const view = useGame((s) => s.view) as GameView;
   const clickHandCard = useGame((s) => s.clickHandCard);
   const setHover = useGame((s) => s.setHover);
@@ -1083,7 +1083,7 @@ function Hand() {
 }
 
 /** An opponent's hand: card backs fanned at the top edge of the screen, as on MTGA. */
-function OpponentHand({ count, custom }: { count: number; custom?: boolean | string }) {
+export function OpponentHand({ count, custom }: { count: number; custom?: boolean | string }) {
   return (
     <div className="opp-hand" style={{ "--n": count } as CSSProperties}>
       {Array.from({ length: count }, (_, i) => (
@@ -1217,7 +1217,7 @@ function CombatPreviewLine() {
   );
 }
 
-function ActionPanel() {
+export function ActionPanel() {
   const view = useGame((s) => s.view) as GameView;
   const endTurn = useGame((s) => s.endTurn);
   const decide = useGame((s) => s.decide);
@@ -1299,16 +1299,20 @@ function ActionPanel() {
 // Full board
 // ---------------------------------------------------------------------------
 
-export function Board() {
-  const view = useGame((s) => s.view);
+/** The table texture of this game: the chosen one, or for "random" one drawn for each game (new session), then kept. */
+export function useBoardTheme(): string {
   const choice = useGame((s) => s.boardTheme);
   const session = useGame((s) => s.session);
-  const resuming = useGame((s) => s.resuming);
-  const t = useT();
-  // "Random": a texture drawn for each game (new session), then kept until it ends.
   // biome-ignore lint/correctness/useExhaustiveDependencies: a new draw on each new session.
   const roll = useMemo(() => Math.random(), [session]);
-  const theme = resolveBoardTheme(choice, roll);
+  return resolveBoardTheme(choice, roll);
+}
+
+export function Board() {
+  const view = useGame((s) => s.view);
+  const resuming = useGame((s) => s.resuming);
+  const t = useT();
+  const theme = useBoardTheme();
   if (!view)
     return (
       <div className="board loading" data-board={theme}>

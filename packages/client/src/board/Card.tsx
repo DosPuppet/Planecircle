@@ -154,6 +154,11 @@ interface CardProps {
   onClick?: () => void;
   hoverable?: boolean;
   oid?: string;
+  /**
+   * DOM proxy of a card drawn by the 3D board (PLAN-W): the same slot, glow, badges and handlers, no image and no flight
+   * (the mesh under it shows the card).
+   */
+  ghost?: boolean;
 }
 
 /**
@@ -193,6 +198,7 @@ const CardView = memo(function CardView({
   onClick,
   hoverable = true,
   oid,
+  ghost = false,
 }: CardProps) {
   const lang = useGame((s) => s.lang);
   const setHover = useGame((s) => s.setHover);
@@ -244,16 +250,16 @@ const CardView = memo(function CardView({
       {...longPress}
     >
       <motion.div
-        layoutId={layoutId}
-        layout
+        layoutId={ghost ? undefined : layoutId}
+        layout={!ghost}
         transition={SPRING}
-        className={`card ${art ? `art-card c-${frameOf(obj)}` : ""} ${glow ? `glow-${glow}` : ""} ${dim ? "dim" : ""} ${onClick ? "clickable" : ""}`}
+        className={`card ${art ? `art-card c-${frameOf(obj)}` : ""} ${ghost ? "ghost" : ""} ${glow ? `glow-${glow}` : ""} ${dim ? "dim" : ""} ${onClick ? "clickable" : ""}`}
         style={{ width, height }}
         animate={{ rotate: tapped ? (art ? TAP_DEG : 90) : 0 }}
         onClick={onClick}
       >
-        <TextFrame face={face} obj={obj} />
-        {src && !failed && (
+        {!ghost && <TextFrame face={face} obj={obj} />}
+        {!ghost && src && !failed && (
           <img
             src={src}
             className={fullArt ? "full" : undefined}
@@ -269,7 +275,7 @@ const CardView = memo(function CardView({
             decoding="async"
           />
         )}
-        {art && src && !failed && <div className="art-name">{faceName(face, lang)}</div>}
+        {!ghost && art && src && !failed && <div className="art-name">{faceName(face, lang)}</div>}
         {obj?.castCost && obj.zone !== "battlefield" && obj.zone !== "stack" && (
           <div
             className={`cost-badge ${obj.castCost.delta < 0 ? "cheaper" : obj.castCost.delta > 0 ? "dearer" : ""}`}
@@ -375,7 +381,7 @@ function CounterBadges({ counters }: { counters: Record<string, number> }) {
 }
 
 /** Frame color of an art card: land, colorless, multicolored (gold) or its color. */
-function frameOf(obj: ObjectView | undefined): string {
+export function frameOf(obj: ObjectView | undefined): string {
   if (!obj) return "C";
   if (obj.types.includes("Land")) return "L";
   if (obj.colors.length > 1) return "M";

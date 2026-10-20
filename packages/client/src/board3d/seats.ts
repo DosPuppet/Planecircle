@@ -35,15 +35,17 @@ export interface Table {
 
 /**
  * Seats for `players` (the viewer first, then the opponents from left to right) on a table the size of the viewport;
- * `insets`: heights kept for the DOM HUD (opponents' bars at the top, center strip, your bar and hand at the bottom).
+ * `insets`: heights kept for the DOM HUD (opponents' bars at the top, center strip, your bar and hand at the bottom);
+ * `depth`: the battlefields made deeper than the screen leaves them (seen at an angle, the table looks shallower).
  */
 export function seatTable(
   viewport: { w: number; h: number },
   players: string[],
   insets: { top: number; center: number; bottom: number },
+  depth = 1,
 ): Table {
   const { w, h } = viewport;
-  const fieldH = Math.max(0, (h - insets.top - insets.center - insets.bottom) / 2);
+  const fieldH = Math.max(0, ((h - insets.top - insets.center - insets.bottom) / 2) * depth);
   const pileW = Math.round(Math.min(110, Math.max(56, w * 0.06)));
   const seat = (player: string, mine: boolean, x: number, y: number, width: number): Seat => ({
     player,

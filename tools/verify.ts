@@ -249,6 +249,7 @@ if (!ci && !flag("no-ui") && (full || flag("ui") || uiTouched)) {
       chain([
         { name: "deck-smoke", cmd: "npx tsx tools/deck-smoke.ts", show: /^ok: game started.*$/ },
         { name: "battlefield-smoke", cmd: "npx tsx tools/battlefield-smoke.ts", show: /^ok: no page error$/ },
+        { name: "board3d-smoke", cmd: "npx tsx tools/board3d-smoke.ts", show: /^ok: no page error$/ },
         { name: "proxy-smoke", cmd: "npx tsx tools/proxy-smoke.ts", show: /^ok: no page error$/ },
         { name: "replay-smoke", cmd: "npx tsx tools/replay-smoke.ts", show: /^ok: replay .*$/ },
         { name: "bo3-smoke", cmd: "npx tsx tools/bo3-smoke.ts", show: /^ok: BO3 .*$/ },

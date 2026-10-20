@@ -1,9 +1,10 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Board, useMainAction } from "./board/Board";
 import { ReplayBar } from "./board/ReplayBar";
 import { DrawerToggle, PreviewFloat, Sidebar, TouchPreview } from "./board/Sidebar";
 import { DeckBuilder } from "./decks/DeckBuilder";
 import { GlossaryDialog } from "./glossary/GlossaryDialog";
+import { forced3d, probe3d } from "./graphics";
 import { Lobby } from "./lobby/Lobby";
 import { Online } from "./lobby/Online";
 import { useLocalize, useT } from "./localize";
@@ -75,6 +76,21 @@ function useShortcuts() {
   }, [action, endTurn, cancel]);
 }
 
+/** The 3D board (PLAN-W): its own chunks, with three.js, loaded only when it is drawn. */
+const Board3D = lazy(() => import("./board3d/Board3D"));
+
+/** The DOM board, or the 3D board (dev: `?board3d=force`) when the device can draw it; a WebGL failure falls back. */
+function GameBoard() {
+  const hasView = useGame((s) => !!s.view);
+  const [failed, setFailed] = useState(false);
+  if (failed || !hasView || !forced3d() || !probe3d().ok) return <Board />;
+  return (
+    <Suspense fallback={<Board />}>
+      <Board3D onFail={() => setFailed(true)} />
+    </Suspense>
+  );
+}
+
 function GameScreen() {
   useShortcuts();
   const drawerOpen = useGame((s) => s.drawerOpen);
@@ -90,7 +106,7 @@ function GameScreen() {
       // Long press with a finger: no browser context menu (the card preview replaces it).
       onContextMenu={(e) => isTouch() && e.preventDefault()}
     >
-      <Board />
+      <GameBoard />
       <Sidebar />
       <ReplayBar />
       <DrawerToggle />

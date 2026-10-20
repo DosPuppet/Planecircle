@@ -25,6 +25,9 @@ const BUDGET: Record<string, number> = {
   printings: 600 * KB,
   // Animated table (PLAN-V, raw WebGL), loaded on demand: a missing chunk means it was merged into the application.
   backdrop: 12 * KB,
+  // 3D board (PLAN-W), loaded only when it is drawn: three.js (557 KB, 2026-10-21) and the board's code (18 KB in W3).
+  three: 620 * KB,
+  Board3D: 120 * KB,
   // Synthesized sound cues (audio/synth.ts), loaded on demand.
   synth: 12 * KB,
   // QR code reader (jsQR, 127 KB), loaded only by the camera scanner without a native detector (Safari).
@@ -64,7 +67,7 @@ for (const [ext, budget] of [
 }
 // Lazy chunks: neither loaded by the page (script, modulepreload) nor reached by a static import from it, otherwise they
 // would weigh on every first load (three.js for the 3D board, PLAN-W, is about 700 KB).
-const LAZY = ["backdrop", "synth", "qrscan", "printings", "three", "board3d"];
+const LAZY = ["backdrop", "synth", "qrscan", "printings", "three", "Board3D"];
 const html = readFileSync(new URL("../index.html", dir), "utf8");
 const eager = new Set<string>();
 const queue = [...html.matchAll(/(?:src|href)="\/assets\/([\w.-]+\.js)"/g)].map((m) => m[1] as string);

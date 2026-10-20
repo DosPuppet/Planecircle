@@ -3,6 +3,7 @@
  * smaller), from as close as the whole table still fits in the screen, inside the bands the DOM HUD keeps. Pure.
  */
 import { lookAt, type Mat4, multiply, perspective, transform, type Vec3 } from "./project";
+import { seatTable, type Table, tableBounds } from "./seats";
 
 export interface Framing {
   eye: Vec3;
@@ -82,4 +83,39 @@ export function frameTable(o: {
     else lo = d;
   }
   return centered(hi);
+}
+
+/**
+ * The seats and the camera together: seen at an angle the table looks shallower than the screen, so the battlefields are
+ * made deeper (larger cards) until the table fills the band the HUD leaves in height as well as in width.
+ */
+export function frameSeats(
+  viewport: { w: number; h: number },
+  players: string[],
+  insets: { top: number; center: number; bottom: number },
+): { table: Table; framing: Framing; depth: number } {
+  const aspect = viewport.w / Math.max(1, viewport.h);
+  const margin = { top: insets.top / Math.max(1, viewport.h), bottom: insets.bottom / Math.max(1, viewport.h), side: 0.01 };
+  const at = (depth: number) => {
+    const table = seatTable(viewport, players, insets, depth);
+    const bounds = tableBounds(table);
+    const framing = frameTable({ aspect, bounds, margin });
+    const vp = viewProjection(framing, aspect);
+    const y = (z: number) => {
+      const [, cy, , w] = transform(vp, [0, 0, z]);
+      return cy / w;
+    };
+    const fill = (y(bounds.z0) - y(bounds.z1)) / (2 - 2 * margin.top - 2 * margin.bottom);
+    return { table, framing, depth, fill };
+  };
+  const flat = at(1);
+  if (!(flat.fill < 0.999)) return flat;
+  let lo = 1;
+  let hi = 4;
+  for (let i = 0; i < 30; i++) {
+    const mid = (lo + hi) / 2;
+    if (at(mid).fill < 0.999) lo = mid;
+    else hi = mid;
+  }
+  return at(hi);
 }
