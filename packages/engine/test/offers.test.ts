@@ -28,6 +28,20 @@ const activations = (s: GameState, player: string, source: string) =>
   );
 
 describe("offered options, accepted decisions", () => {
+  it("Molten Exhale cast at any time by an effect from a graveyard: no Dragon to behold needed (strict fuzz, SOS)", () => {
+    // "You may cast it" during a resolution, for free (Improvisation Capstone): the timing is the effect's, so the
+    // flash bought by beholding a Dragon is not needed, on the opponent's turn with no Dragon.
+    let s = scenario({ p1: { graveyard: ["Molten Exhale"] }, p2: { battlefield: [bear("Ours")] } });
+    s = advanceUntil(s, (x) => x.turn.active === "p2" && x.pending?.kind === "priority" && x.pending.player === "p1");
+    const exhale = idOf(s, "p1", "graveyard", "Molten Exhale");
+    s.playPermissions = [{ card: exhale, player: "p1", until: s.turn.number, free: true, anyTime: true }];
+    const option = castOption(s, "p1", exhale);
+    expect(option).toBeDefined();
+    const target = idOf(s, "p2", "battlefield", "Ours");
+    s = settle(act(s, "p1", { type: "cast", card: exhale, mode: 0, targets: { t: [target] } } as never));
+    expect(idsOf(s, "p2", "battlefield", "Ours")).toHaveLength(0);
+  });
+
   it("Guardian of the Great Door and Springleaf Drum: creatures tapped for the cost no longer serve the Drum (strict fuzz)", () => {
     // {W}{W} and four permanents to tap: the only solution taps the two Islands and two creatures, and pays with the
     // Plains and the Drum (which taps the third creature).

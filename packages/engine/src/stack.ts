@@ -2475,8 +2475,10 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
   // "… if you controlled a Faerie as you cast this spell": evaluated now (601.2), before the payment.
   const whenCast = cardRule(d, "whenCast");
   const metWhenCast = whenCast ? checkCondition(s, whenCast, player, card) : undefined;
-  // Molten Exhale: "as though it had flash if you behold": cast that way, it must behold.
+  // Molten Exhale: "as though it had flash if you behold": cast that way, it must behold. Not when an effect lets it be
+  // cast at any time anyway (cast from a graveyard on resolution).
   if (
+    !terms.anyTime &&
     d.additionalCost?.behold &&
     cardRule(d, "flashIf") &&
     !beheldId &&

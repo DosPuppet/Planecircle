@@ -657,8 +657,10 @@ export const RECORD_VERSION = 1;
  * - 209: the sideboard is the zone outside the game (400.11b, `PlayerState.sideboard`, `PlayerSetup.sideboard`):
  *   North Wind Avatar may put a card from it into its owner's hand; Turtles Forever searches it with the library;
  *   Extrapolate the Impossible reveals two of its cards (it did nothing).
+ * - 210: Molten Exhale cast at any time by an effect (a free cast from a graveyard during a resolution) no longer has to
+ *   behold a Dragon: only its own flash asks for it (strict fuzz, SOS, seed 412).
  */
-export const RULES_VERSION = 209;
+export const RULES_VERSION = 210;
 
 /** One checkpoint every N decisions (plus the last one of the game). */
 export const CHECKPOINT_EVERY = 25;
