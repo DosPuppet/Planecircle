@@ -7,6 +7,8 @@
  * - the Graphics setting offers 3D, refused (with its reason) on a software renderer without the flag;
  * - without the flag, the DOM board, and three.js is not even loaded;
  * - a lost WebGL context brings back the DOM board;
+ * - four players: the three opponents side by side, proxies still on their cards; a phone in portrait keeps the DOM
+ *   board, turned to landscape it draws the 3D board;
  * - the arena (data/arena/, `npm run arena-assets`) dresses the table when it was built; without it (an empty manifest),
  *   the plain table, without errors.
  * Screenshots in test-results/board3d/.
@@ -14,7 +16,7 @@
  * Requires: `npm run dev` running (restarted after an engine change).
  */
 import { existsSync, mkdirSync } from "node:fs";
-import { type Browser, chromium, type Page } from "playwright";
+import { type Browser, chromium, devices, type Page } from "playwright";
 
 const OUT = "test-results/board3d";
 mkdirSync(OUT, { recursive: true });
@@ -325,6 +327,34 @@ if (built) {
     return (w.__board3d?.renders() ?? 0) - before;
   });
   check(fire > 0 && fire <= 45, "the fireplace's fire wavers at 20 frames a second at most", fire);
+  await ctx.close();
+}
+
+// 3e. Four players (W8): the three opponents side by side on the far half, every proxy on its card.
+g = await open({ width: 1600, height: 900 }, true, { p1: ME, p2: OPP, p3: OPP, p4: OPP }, 3, true);
+check((await g.page.locator(".bf3d.opp").count()) === 3, "four players: three opposing battlefields on the table");
+await aligned(g.page, "4 players");
+await g.page.screenshot({ path: `${OUT}/6-four-players.png` });
+await g.close();
+
+// 3f. A phone (W8): in portrait the DOM board and its portrait layout, in landscape the 3D board.
+for (const [name, device, want3d] of [
+  ["iphone-portrait", devices["iPhone 13"], false],
+  ["iphone-landscape", devices["iPhone 13 landscape"], true],
+] as const) {
+  const ctx = await browser.newContext(device);
+  const phone = await ctx.newPage();
+  await phone.route("**/arena/manifest.json", (r) => r.fulfill({ json: { version: 0 } }));
+  await phone.goto("http://localhost:5173/?fast&board3d=force&quality=low", { timeout: 120_000 });
+  await phone.evaluate(([deck, sb]) => (window as unknown as DevWindow).__mtgx.getState().startGame(deck, [deck], sb), [
+    DECK,
+    { p1: ME, p2: OPP },
+  ] as const);
+  await phone.getByRole("button", { name: "Garder" }).click({ timeout: 30_000 });
+  await phone.waitForTimeout(2000);
+  const drawn = (await phone.locator(".board3d").count()) > 0;
+  check(drawn === want3d, `${name}: ${want3d ? "the 3D board" : "the DOM board (portrait layout)"}`, { drawn });
+  await phone.screenshot({ path: `${OUT}/7-${name}.png` });
   await ctx.close();
 }
 

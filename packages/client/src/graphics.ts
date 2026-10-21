@@ -4,6 +4,8 @@
  * In dev mode, `?board3d=force` accepts a software renderer (headless interface tests, SwiftShader).
  */
 
+import { useSyncExternalStore } from "react";
+
 /** The answer of the probe: why 3D is refused, and the renderer as the browser names it. */
 export type Support3d = { ok: true; renderer: string } | { ok: false; reason: "webgl2" | "software"; renderer?: string };
 
@@ -15,6 +17,25 @@ export function isSoftwareRenderer(renderer: string): boolean {
 /** Dev mode: `?board3d=force` draws the 3D board even on a software renderer. */
 export function forced3d(): boolean {
   return !!import.meta.env?.DEV && new URLSearchParams(globalThis.location?.search).get("board3d") === "force";
+}
+
+/**
+ * A phone in portrait (the width under which the DOM board lays a duel out in portrait, styles.css): the 3D board is not
+ * drawn there, the DOM board's portrait layout plays instead.
+ */
+export const PORTRAIT_PHONE = "(max-width: 600px) and (orientation: portrait)";
+
+/** Does the screen match `query` now, following its changes (a device turned)? */
+export function useMedia(query: string): boolean {
+  return useSyncExternalStore(
+    (changed) => {
+      const m = window.matchMedia?.(query);
+      m?.addEventListener("change", changed);
+      return () => m?.removeEventListener("change", changed);
+    },
+    () => !!window.matchMedia?.(query).matches,
+    () => false,
+  );
 }
 
 /** A canvas, or what the probe needs of it (tests). */
