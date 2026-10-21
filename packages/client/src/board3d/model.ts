@@ -27,6 +27,8 @@ export interface CardNode {
   pile?: string[];
   /** A pile of the seat: how many cards it holds (its thickness). */
   count?: number;
+  /** Its glow (`glows.ts`: "target", "playable"…), for the rim of its mesh (W6). */
+  glow?: string | null;
 }
 
 /**

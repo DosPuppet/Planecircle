@@ -22,7 +22,7 @@ const DEBUG = args.includes("--debug");
 const BOARD3D = args.includes("--3d");
 const OUT = args.find((a) => !a.startsWith("--")) ?? (BOARD3D ? "test-results/tutorial-3d" : "test-results/tutorial");
 mkdirSync(OUT, { recursive: true });
-const URL = `http://localhost:5173/?fast${BOARD3D ? "&board3d=force" : ""}`;
+const URL = `http://localhost:5173/?fast${BOARD3D ? "&board3d=force&quality=low" : ""}`;
 const browser = await chromium.launch(
   BOARD3D ? { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] } : {},
 );

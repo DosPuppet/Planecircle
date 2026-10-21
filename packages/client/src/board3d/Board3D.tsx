@@ -30,6 +30,7 @@ import {
   toScreen,
   type Vec3,
 } from "./project";
+import type { Quality } from "./quality";
 import { type HandPose, TableScene } from "./scene";
 import { type Rect, type Table, toWorld } from "./seats";
 
@@ -108,9 +109,12 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
     // Cards fly faster in the fast test mode, and jump with reduced motion.
     const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     const speed = reduced ? Number.POSITIVE_INFINITY : fastMode() ? 5 : 1;
+    // Dev mode: `&quality=low|medium|high` starts at that quality (the interface tests draw in software).
+    const asked = import.meta.env.DEV ? new URLSearchParams(location.search).get("quality") : null;
+    const quality: Quality = asked === "low" || asked === "medium" ? asked : "high";
     let scene: TableScene;
     try {
-      scene = new TableScene(canvas, onFail, speed);
+      scene = new TableScene(canvas, onFail, speed, quality);
       sceneRef.current = scene;
     } catch {
       onFail();
@@ -146,12 +150,16 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
   const blocked = new Set(Object.values(blocks));
   const uiKey = (o: ObjectView) => `${glow(o) ?? ""}|${blocked.has(o.id) ? "b" : ""}|${attackTargets[o.id] ?? ""}`;
   const attacking = (o: ObjectView) => o.attacking || attackers.includes(o.id);
-  const nodes = view && m.w ? tableNodes(view, table, uiKey, attacking).nodes : [];
+  // Each card with its glow: the proxy's CSS ring and the mesh's rim (W6) show the same state.
+  const nodes = (view && m.w ? tableNodes(view, table, uiKey, attacking).nodes : []).map((n) => ({
+    ...n,
+    glow: n.kind === "permanent" || n.kind === "attachment" ? glow(n.obj) : null,
+  }));
   const piles = view && m.w ? pileNodes(view, table) : [];
   const signature = [...nodes, ...piles]
     .map(
       (n) =>
-        `${n.uid}:${n.obj.defId}:${n.kind}:${n.count ?? ""}:${n.pose.x.toFixed(4)},${n.pose.z.toFixed(4)},${n.pose.w.toFixed(4)},${n.pose.rot}`,
+        `${n.uid}:${n.obj.defId}:${n.kind}:${n.count ?? ""}:${n.glow ?? ""}:${n.pose.x.toFixed(4)},${n.pose.z.toFixed(4)},${n.pose.w.toFixed(4)},${n.pose.rot}`,
     )
     .join("|");
   const hand = view ? [...view.hand, ...view.playableElsewhere] : [];
@@ -228,6 +236,18 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
       mid: css.getPropertyValue("--bd-1").trim() || "#1b2433",
       pool: css.getPropertyValue("--bd-pool").trim() || "#6f8fb8",
     });
+    // The glows' colors (styles.css): the rims of the meshes take the colors of the proxies' rings.
+    const color = (v: string) => css.getPropertyValue(v).trim() || "#ffffff";
+    scene.setGlowColors({
+      playable: color("--playable"),
+      target: color("--target"),
+      selectable: "#ffffff",
+      selected: color("--gold"),
+      picked: color("--picked"),
+      attacking: color("--attack"),
+      blocking: color("--block"),
+      activatable: color("--activatable"),
+    });
   }, [theme]);
   useEffect(() => {
     if (!m.w || !m.h) return;
@@ -273,6 +293,7 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
       drawing: () => sceneRef.current?.drawing ?? false,
       handShown: () => sceneRef.current?.handShown ?? 0,
       arenaShown: () => sceneRef.current?.arenaShown ?? false,
+      quality: () => sceneRef.current?.quality,
       projectedRect(id: string) {
         const { nodes: ns, vp: m4, size: sz } = latest.current;
         const n = ns.find((x) => x.id === id && x.kind !== "shadow");

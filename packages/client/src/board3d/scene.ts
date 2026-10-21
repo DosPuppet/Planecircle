@@ -7,6 +7,7 @@
 import type { CardFace, ObjectView } from "@mtgx/engine";
 import {
   ACESFilmicToneMapping,
+  AdditiveBlending,
   AmbientLight,
   Box3,
   BoxGeometry,
@@ -16,9 +17,11 @@ import {
   ExtrudeGeometry,
   Group,
   HemisphereLight,
+  type Material,
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
+  PCFSoftShadowMap,
   PerspectiveCamera,
   PlaneGeometry,
   PointLight,
@@ -39,7 +42,9 @@ import type { Arena, ArenaMaterial } from "./assets";
 import type { Framing } from "./camera";
 import type { CardNode } from "./model";
 import { Springs } from "./motion";
+import { Post } from "./post";
 import type { CardPose } from "./project";
+import { Governor, PRESETS, type Quality } from "./quality";
 import { type Rect, type Table, toWorld } from "./seats";
 import { CardTextures, textureKey } from "./textures";
 
@@ -49,6 +54,11 @@ export interface Palette {
   mid: string;
   pool: string;
 }
+
+/** Width of a card's glow rim, in card widths. */
+const RIM = 0.045;
+/** A glow rim shines above the bloom's threshold (its color times this). */
+const RIM_GLOW = 1.3;
 
 /** Render order of the hand: after everything on the table. */
 const HAND_ORDER = 1_000_000;
@@ -105,7 +115,11 @@ function cardGeometries(ratio: number) {
   body.rotateX(-Math.PI / 2);
   // Just under the face (not level with it: the two would flicker).
   body.translate(0, -CARD_THICKNESS - 0.001, 0);
-  return { face, body };
+  // The glow rim: a slightly larger card under the face, showing only around it (W6).
+  const rim = new ShapeGeometry(roundedRect(1 + 2 * RIM, ratio + 2 * RIM, 0.06 + RIM), 6);
+  rim.rotateX(-Math.PI / 2);
+  rim.translate(0, -0.0005, 0);
+  return { face, body, rim };
 }
 
 /** Fine grain for the ground and the mats (a tiled noise canvas). */
@@ -150,16 +164,26 @@ export class TableScene {
   private propGroup = new Group();
   private rim: Bounds | null = null;
   private cardGroup = new Group();
-  private cards = new Map<string, { group: Group; face: Mesh; body: Mesh; key: string }>();
+  private cards = new Map<string, { group: Group; face: Mesh; body: Mesh; rim: Mesh | null; key: string }>();
   private geometries = new Map<number, ReturnType<typeof cardGeometries>>();
   private springs: Springs;
   private target = new Vector3();
   /** The hand: whole cards facing the camera, where the DOM hand lays them (`handSource`, read each frame). */
   private handGroup = new Group();
+  /** The hand has a scene of its own, drawn after the post-processing: its cards keep their colors (no tone mapping). */
+  private handScene = new Scene();
   private hand = new Map<string, { mesh: Mesh; key: string }>();
   private handFace: ShapeGeometry;
   private handSource: () => HandPose[] = () => [];
   private viewport = { w: 1, h: 1 };
+  /** Light, shadows and bloom (W6): the key light casts the shadows; the governor steps the quality down. */
+  private key = new DirectionalLight("#fff4e6", 1.5);
+  private post: Post | null = null;
+  private governor: Governor;
+  private continued = false;
+  private glowColors: Record<string, string> = {};
+  private rimMaterials = new Map<string, MeshBasicMaterial>();
+  private flames: PointLight[] = [];
   /** Animated until then (ms, performance clock): the DOM hand's own springs. */
   private liveUntil = 0;
   private frame = 0;
@@ -171,13 +195,16 @@ export class TableScene {
     private onLost: () => void,
     /** 1 normally, faster in the fast test mode, Infinity with reduced motion (cards jump). */
     speed = 1,
+    quality: Quality = "high",
   ) {
     this.springs = new Springs(speed);
     this.handFace = new ShapeGeometry(roundedRect(1, CARD_RATIO, 0.045), 6);
     cardUvs(this.handFace, CARD_RATIO);
     this.renderer = new WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     this.renderer.toneMapping = ACESFilmicToneMapping;
+    // Shadows drawn again only when something moves (`needsUpdate`), soft.
+    this.renderer.shadowMap.type = PCFSoftShadowMap;
+    this.renderer.shadowMap.autoUpdate = false;
     const anisotropy = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
     this.textures = new CardTextures(TEXTURE_BUDGET, anisotropy, () => this.requestRender());
     this.ground.map = this.grain;
@@ -186,12 +213,17 @@ export class TableScene {
     ground.rotateX(-Math.PI / 2);
     ground.position.y = -0.02;
     this.ground.userData.size = 80;
-    this.scene.add(ground, this.tableGroup, this.propGroup, this.cardGroup, this.handGroup);
+    this.scene.add(ground, this.tableGroup, this.propGroup, this.cardGroup);
+    this.handScene.add(this.handGroup);
     // Light: a key light from the viewer's left, a soft fill from the sky, a pool of the texture's light over the middle.
-    const key = new DirectionalLight("#fff4e6", 1.5);
-    key.position.set(-6, 14, 9);
-    this.scene.add(key, new AmbientLight("#ffffff", 0.18), this.hemi, this.pool);
+    this.key.position.set(-6, 14, 9);
+    this.key.shadow.bias = -0.0004;
+    this.key.shadow.normalBias = 0.02;
+    this.scene.add(this.key, this.key.target, new AmbientLight("#ffffff", 0.18), this.hemi, this.pool);
+    ground.receiveShadow = true;
     canvas.addEventListener("webglcontextlost", this.onContextLost);
+    this.governor = new Governor(quality, (q) => this.applyQuality(q));
+    this.applyQuality(quality);
   }
 
   private onContextLost = (e: Event) => {
@@ -221,6 +253,57 @@ export class TableScene {
     return !!this.arena && this.propGroup.children.length > 0;
   }
 
+  /** The quality drawn now (dev checks). */
+  get quality(): Quality {
+    return this.governor.level;
+  }
+
+  /**
+   * A quality preset: pixel ratio, shadows (materials recompiled when they appear or go), bloom and multisampling (the
+   * composer made again).
+   */
+  private applyQuality(q: Quality) {
+    const p = PRESETS[q];
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, p.dpr));
+    this.renderer.setSize(this.viewport.w, this.viewport.h, false);
+    const shadows = p.shadows > 0;
+    if (this.renderer.shadowMap.enabled !== shadows) {
+      this.renderer.shadowMap.enabled = shadows;
+      this.scene.traverse((o) => {
+        for (const m of ([] as Material[]).concat((o as Mesh).material ?? [])) m.needsUpdate = true;
+      });
+    }
+    this.key.castShadow = shadows;
+    if (shadows && this.key.shadow.mapSize.x !== p.shadows) {
+      this.key.shadow.mapSize.set(p.shadows, p.shadows);
+      this.key.shadow.map?.dispose();
+      this.key.shadow.map = null;
+    }
+    this.post?.dispose();
+    this.post = p.bloom ? new Post(this.renderer, this.scene, this.camera, p.samples) : null;
+    this.post?.setSize(this.viewport.w, this.viewport.h, this.renderer.getPixelRatio());
+    this.renderer.shadowMap.needsUpdate = true;
+    this.requestRender();
+  }
+
+  /** Colors of the glows (CSS variables of the board: --playable, --target…), for the rims of the cards. */
+  setGlowColors(colors: Record<string, string>): void {
+    this.glowColors = colors;
+    for (const [glow, m] of this.rimMaterials) m.color.set(colors[glow] ?? "#ffffff").multiplyScalar(RIM_GLOW);
+    this.requestRender();
+  }
+
+  private rimMaterial(glow: string): MeshBasicMaterial {
+    let m = this.rimMaterials.get(glow);
+    if (!m) {
+      m = new MeshBasicMaterial({ transparent: true, opacity: 0.9, blending: AdditiveBlending, depthWrite: false });
+      m.toneMapped = false;
+      m.color.set(this.glowColors[glow] ?? "#ffffff").multiplyScalar(RIM_GLOW);
+      this.rimMaterials.set(glow, m);
+    }
+    return m;
+  }
+
   /** Cards of the hand shown (dev checks). */
   get handShown(): number {
     return [...this.hand.values()].filter((c) => c.mesh.visible).length;
@@ -234,17 +317,38 @@ export class TableScene {
 
   private tick = (now: number) => {
     this.frame = 0;
-    const dt = Math.min(0.05, Math.max(0, (now - this.last) / 1000));
+    const ms = Math.max(0, now - this.last);
+    this.governor.frame(ms, this.continued);
+    const dt = Math.min(0.05, ms / 1000);
     this.last = now;
     const moving = this.springs.step(dt);
     for (const [uid, card] of this.cards) {
       const p = this.springs.pose(uid);
       if (p) this.place(card, p);
     }
+    // A card in flight moves its shadow; still, the shadow map stays as it is.
+    if (moving) this.renderer.shadowMap.needsUpdate = true;
     this.syncHand();
-    this.renderer.render(this.scene, this.camera);
-    if (moving || now < this.liveUntil) this.frame = requestAnimationFrame(this.tick);
+    this.flicker(now);
+    if (this.post) this.post.render();
+    else this.renderer.render(this.scene, this.camera);
+    if (this.hand.size) {
+      this.renderer.autoClear = false;
+      this.renderer.render(this.handScene, this.camera);
+      this.renderer.autoClear = true;
+    }
+    this.continued = moving || now < this.liveUntil;
+    if (this.continued) this.frame = requestAnimationFrame(this.tick);
   };
+
+  /** The flames waver while the board is drawing anyway (an idle board stays still: no endless animation). */
+  private flicker(now: number) {
+    const t = now / 1000;
+    this.flames.forEach((f, i) => {
+      const n = 0.5 * Math.sin(t * 13.1 + i * 1.7) + 0.3 * Math.sin(t * 7.3 + i * 4.1) + 0.2 * Math.sin(t * 23.7 + i);
+      f.intensity = (f.userData.base as number) * (0.88 + 0.12 * n);
+    });
+  }
 
   private place(card: { group: Group }, p: CardPose) {
     card.group.position.set(p.x, p.y, p.z);
@@ -281,6 +385,8 @@ export class TableScene {
     this.camera.updateProjectionMatrix();
     this.camera.updateMatrixWorld();
     this.viewport = { w: width, h: height };
+    this.post?.setSize(width, height, this.renderer.getPixelRatio());
+    this.renderer.shadowMap.needsUpdate = true;
     this.live(400);
   }
 
@@ -323,6 +429,18 @@ export class TableScene {
       this.tableGroup.add(m);
     }
     this.rim = { x0: outer.x - outer.w / 2, x1: outer.x + outer.w / 2, z0: outer.z - outer.h / 2, z1: outer.z + outer.h / 2 };
+    // The key light's shadows cover the table and its props.
+    const reach = Math.max(outer.w, outer.h) / 2 + 6;
+    const cam = this.key.shadow.camera;
+    cam.left = -reach;
+    cam.right = reach;
+    cam.top = reach;
+    cam.bottom = -reach;
+    cam.near = 1;
+    cam.far = 80;
+    cam.updateProjectionMatrix();
+    for (const child of this.tableGroup.children) child.receiveShadow = true;
+    this.renderer.shadowMap.needsUpdate = true;
     this.placeProps();
     // The pool's light falls off with the square of its height: the same light on the table whatever its size.
     const lift = Math.max(outer.w, outer.h) * 0.45;
@@ -376,6 +494,7 @@ export class TableScene {
    */
   private placeProps() {
     this.propGroup.clear();
+    this.flames = [];
     const arena = this.arena;
     const rim = this.rim;
     if (!arena || !rim) return;
@@ -406,11 +525,17 @@ export class TableScene {
       if (p.light) {
         const flame = new PointLight("#ffb265", 2.5, 0, 2);
         flame.position.set((box.min.x + box.max.x) / 2, box.max.y + 0.15, (box.min.z + box.max.z) / 2);
-        flame.userData.flame = true;
+        flame.userData.base = flame.intensity;
+        this.flames.push(flame);
         this.propGroup.add(flame);
       }
+      prop.traverse((o) => {
+        o.castShadow = true;
+        o.receiveShadow = true;
+      });
       this.propGroup.add(prop);
     }
+    this.renderer.shadowMap.needsUpdate = true;
   }
 
   private geometry(ratio: number) {
@@ -436,10 +561,13 @@ export class TableScene {
         const g = this.geometry(n.pose.h / n.pose.w);
         const face = new Mesh(g.face, new MeshStandardMaterial({ roughness: 0.55, metalness: 0 }));
         const body = new Mesh(g.body, this.edgeMat);
+        face.castShadow = true;
+        face.receiveShadow = true;
+        body.castShadow = true;
         const group = new Group();
         group.add(face, body);
         this.cardGroup.add(group);
-        card = { group, face, body, key: "" };
+        card = { group, face, body, rim: null, key: "" };
         this.cards.set(n.uid, card);
       }
       if (card.key !== key) {
@@ -452,7 +580,17 @@ export class TableScene {
       (card.face.material as MeshStandardMaterial).color.setScalar(n.kind === "shadow" ? 0.7 : 1);
       // A pile is as thick as it is full: its body reaches down to the table.
       card.body.scale.y = n.count ? Math.max(1, n.pose.y / (CARD_THICKNESS + 0.001)) : 1;
+      // Its glow (W6): a rim of the glow's color around it, which the bloom makes shine.
+      if (n.glow && !card.rim) {
+        card.rim = new Mesh(this.geometry(n.pose.h / n.pose.w).rim, this.rimMaterial(n.glow));
+        card.group.add(card.rim);
+      }
+      if (card.rim) {
+        card.rim.visible = !!n.glow;
+        if (n.glow) card.rim.material = this.rimMaterial(n.glow);
+      }
     }
+    this.renderer.shadowMap.needsUpdate = true;
     const targets = new Map(nodes.map((n) => [n.uid, n.pose]));
     for (const [uid, card] of this.cards) {
       if (targets.has(uid)) continue;
@@ -534,12 +672,15 @@ export class TableScene {
     cancelAnimationFrame(this.frame);
     this.propGroup.clear();
     this.canvas.removeEventListener("webglcontextlost", this.onContextLost);
+    this.post?.dispose();
+    for (const m of this.rimMaterials.values()) m.dispose();
     this.textures.dispose();
     this.grain.dispose();
     this.handFace.dispose();
     for (const g of this.geometries.values()) {
       g.face.dispose();
       g.body.dispose();
+      g.rim.dispose();
     }
     this.renderer.dispose();
   }

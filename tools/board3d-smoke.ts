@@ -32,6 +32,7 @@ type DevWindow = {
     drawing(): boolean;
     handShown(): number;
     arenaShown(): boolean;
+    quality(): string;
   };
 };
 
@@ -81,6 +82,7 @@ async function open(
   sandbox: Record<string, Side>,
   ais = 1,
   noArena = false,
+  quality = "low",
 ) {
   const ctx = await browser.newContext({ viewport });
   if (noArena) await ctx.route("**/arena/manifest.json", (r) => r.fulfill({ json: { version: 0 } }));
@@ -90,7 +92,8 @@ async function open(
   page.on("request", (r) => {
     if (/deps\/three|\/three-|board3d/.test(r.url())) three.push(r.url());
   });
-  await page.goto(`http://localhost:5173/?fast${flag ? "&board3d=force" : ""}`, { timeout: 120_000 });
+  // Low quality by default: SwiftShader draws shadows and bloom far too slowly for the interactions.
+  await page.goto(`http://localhost:5173/?fast${flag ? `&board3d=force&quality=${quality}` : ""}`, { timeout: 120_000 });
   await page.evaluate(
     ([deck, sb, n]) => (window as unknown as DevWindow).__mtgx.getState().startGame(deck, Array(n).fill(deck), sb),
     [DECK, sandbox, ais] as const,
@@ -272,6 +275,17 @@ check(
   "without the arena, the plain table",
 );
 await g.page.screenshot({ path: `${OUT}/4-plain-table.png` });
+await g.close();
+
+// 3c. High quality (W6): shadows, glow rims and bloom drawn, the board idle again once settled.
+g = await open({ width: 1600, height: 900 }, true, { p1: ME, p2: OPP }, 1, false, "high");
+const high = await g.page.evaluate(async () => {
+  const w = window as unknown as DevWindow;
+  for (let i = 0; i < 300 && w.__board3d?.drawing(); i++) await new Promise((r) => setTimeout(r, 100));
+  return { quality: w.__board3d?.quality(), idle: !w.__board3d?.drawing() };
+});
+check(high.quality === "high" && high.idle, "high quality (shadows, rims, bloom) draws, then rests", high);
+await g.page.screenshot({ path: `${OUT}/5-high-quality.png` });
 await g.close();
 
 // 4. Without the flag: the DOM board, and no three.js.

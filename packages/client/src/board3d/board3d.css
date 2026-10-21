@@ -59,6 +59,11 @@
 .bf3d .card.ghost:not([class*="glow-"]) {
   box-shadow: none;
 }
+/* A glow keeps its thin ring on the proxy (and its shapes: dotted outline, check mark); the mesh's rim and the bloom
+   make the halo. */
+.bf3d .card.ghost[class*="glow-"] {
+  box-shadow: 0 0 0 2px var(--g);
+}
 /* The hand: the DOM cards keep their gestures (fan, hover, drag), the meshes under them show the cards. */
 .board3d .hand .card.ghost {
   background: transparent;
