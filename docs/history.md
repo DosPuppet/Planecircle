@@ -415,6 +415,7 @@ Rules 95 -> 102 (96: Cryptex; 97 to 102: S2, S3, S4, S6c, S6d-e, S8b); every no-
 - **X3:** the seasons: trees grown in code (Poly Haven's are scans of millions of triangles), bamboo, grass, shrubs, falling petals, leaves or snow, snow on what faces the sky.
 - **X4:** koi, fireflies, moths, the yokai (hitodama, kitsune-bi, chōchin-obake, kodama) after the user's rule (walking ones never on the mats, flying ones rarely over the cards), and the veil of mist over the battlefield the user asked for.
 - **X5:** documentation, full verification.
+- **X6** (asked for after X5): the light moving, as the tavern's fireplace does: a kagaribi lighting the scene's fire light (flickering, shadows), clouds over the moon, fireworks above the far corners.
 
 **Fixed on the way (reported by the user from the production server).** The 3D board froze at a third of its loading: three.js's basis transcoder builds functions with `new Function`, blocked by the CSP in the KTX2 workers, silently; `tools/basis-transcoder.ts` rewrites them as closures, and `loadArena` gives up after 20 s without a file. The models' textures were blocked too (`blob:` fetches): `connect-src` and `img-src` allow `blob:`. Vite sends no CSP, so the interface tests saw neither: `tools/csp-smoke.ts` now plays on the production build served by the game server. In development, StrictMode had replaced the interface tests' `?quality=` by the automatic quality (they drew in High).
 

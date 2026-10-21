@@ -37,6 +37,7 @@ uniform vec3 uZenith;
 uniform vec3 uHorizon;
 uniform vec3 uGlow;
 uniform float uStars;
+uniform float uMoonShare;
 varying vec3 vDir;
 
 float hash(vec3 p) {
@@ -76,14 +77,26 @@ void main() {
   }
   // The moon: a bright disc, its halo, a wider glow.
   float a = acos(clamp(dot(d, uMoon), -1.0, 1.0));
-  col += vec3(1.0, 0.96, 0.86) * 14.0 * smoothstep(0.034, 0.028, a);
-  col += vec3(0.55, 0.62, 0.8) * (0.9 * exp(-a * 22.0) + 0.18 * exp(-a * 5.0));
+  col += vec3(1.0, 0.96, 0.86) * 14.0 * uMoonShare * uMoonShare * smoothstep(0.034, 0.028, a);
+  col += vec3(0.55, 0.62, 0.8) * (0.9 * exp(-a * 22.0) + 0.18 * exp(-a * 5.0)) * uMoonShare;
   gl_FragColor = vec4(col, 1.0);
 }`;
+
+/**
+ * Clouds passing over the moon (X6): the moonlight's share at a time, from 1 (clear) down to about 0.45 (a cloud over
+ * it), slow swells of a minute or two.
+ */
+export function moonlight(t: number): number {
+  const n = 0.5 + 0.3 * Math.sin(t * 0.05 + 1.3) + 0.2 * Math.sin(t * 0.09 + 0.4) + 0.1 * Math.sin(t * 0.17);
+  const cover = Math.min(1, Math.max(0, (n - 0.4) / 0.5));
+  return 1 - 0.55 * cover * cover * (3 - 2 * cover);
+}
 
 export interface Sky {
   /** The dome, for the planar reflection (on its reflected layer). */
   dome: Mesh;
+  /** The moon's brightness in the dome (a cloud over it), for the planar reflection. */
+  setMoon(share: number): void;
   /** The dome baked for reflections (prefiltered): the water's environment. */
   environment: Texture;
   dispose(): void;
@@ -99,6 +112,7 @@ export function createSky(renderer: WebGLRenderer, o: { zenith: string; horizon:
       uHorizon: { value: new Color(o.horizon) },
       uGlow: { value: new Color(o.glow) },
       uStars: { value: o.stars },
+      uMoonShare: { value: 1 },
     },
     side: BackSide,
     depthWrite: false,
@@ -115,6 +129,9 @@ export function createSky(renderer: WebGLRenderer, o: { zenith: string; horizon:
   pmrem.dispose();
   return {
     dome,
+    setMoon(share: number) {
+      (material.uniforms.uMoonShare as { value: number }).value = share;
+    },
     environment: target.texture,
     dispose: () => {
       target.dispose();

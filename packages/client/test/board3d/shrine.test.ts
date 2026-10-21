@@ -1,10 +1,13 @@
 /** 3D board (PLAN-X): the shrine's plan keeps the stage over open water, the banks, the torii and the islet around it. */
 import { describe, expect, it } from "vitest";
 import { OVER_TABLE } from "../../src/board3d/shrine/fall";
+import { kagaribiSpot } from "../../src/board3d/shrine/fire";
+import { DRAG, showBursts } from "../../src/board3d/shrine/fireworks";
 import { KOI_RING } from "../../src/board3d/shrine/life";
 import { loop } from "../../src/board3d/shrine/paths";
 import { shrinePlan, WALK } from "../../src/board3d/shrine/plan";
 import { SEASONS } from "../../src/board3d/shrine/season";
+import { moonlight } from "../../src/board3d/shrine/sky";
 import { BRIDGE_HALF, railPosts, railRuns } from "../../src/board3d/shrine/stage";
 import { growTree } from "../../src/board3d/shrine/trees";
 import { tideAt } from "../../src/board3d/shrine/water";
@@ -151,6 +154,40 @@ describe("the shrine's plan", () => {
       const legs = plan.stage.x0 - (plan.torii.x + 0.42);
       expect(KOI_RING[1] + 0.14).toBeLessThan(legs);
       expect(KOI_RING[0] - 0.14).toBeGreaterThan(0.2);
+    }
+  });
+
+  it("the light moving (X6): the fire basket in the water by the far left corner, clear of the koi and the torii", () => {
+    for (const rim of RIMS) {
+      const plan = shrinePlan(rim);
+      const { x, z } = kagaribiSpot(plan);
+      // Its stone (0.26 across) beyond the koi's ring, in the water, short of the beach.
+      expect(plan.stage.x0 - x - 0.26).toBeGreaterThan(KOI_RING[1] + 0.14);
+      expect(plan.height(x, z)).toBeLessThan(plan.level - 0.3);
+      expect(x).toBeGreaterThan(plan.shore(-1, z) + 0.2);
+      // Clear of the torii's far pillar and its legs.
+      expect(Math.abs(z - (plan.torii.z - 1.3))).toBeGreaterThan(0.6);
+    }
+  });
+
+  it("clouds over the moon: the moonlight between a clear sky and a cloud over it, slowly", () => {
+    const samples = Array.from({ length: 2000 }, (_, i) => moonlight(i * 0.5));
+    expect(Math.max(...samples)).toBeLessThanOrEqual(1);
+    expect(Math.max(...samples)).toBeGreaterThan(0.98);
+    expect(Math.min(...samples)).toBeGreaterThanOrEqual(0.44);
+    expect(Math.min(...samples)).toBeLessThan(0.6);
+    for (let i = 1; i < samples.length; i++)
+      expect(Math.abs((samples[i] as number) - (samples[i - 1] as number))).toBeLessThan(0.05);
+  });
+
+  it("the fireworks burst beside and beyond the stage, never over the battlefields", () => {
+    for (const rim of RIMS) {
+      const plan = shrinePlan(rim);
+      for (const b of showBursts(plan, 32)) {
+        const reach = Math.max(...b.dirs.map((d) => d.length())) / DRAG;
+        const outside = Math.max(rim.x0 - (b.center.x + reach), b.center.x - reach - rim.x1, rim.z0 - (b.center.z + reach));
+        expect(outside, JSON.stringify(b.center)).toBeGreaterThan(0);
+      }
     }
   });
 });

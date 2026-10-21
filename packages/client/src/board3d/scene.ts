@@ -388,17 +388,21 @@ export class TableScene {
         for (const m of ([] as Material[]).concat((o as Mesh).material ?? [])) m.needsUpdate = true;
       });
     }
-    // The fire casts the shadows when it burns (the arena), else the key light.
-    const caster = this.fireBase > 0 ? this.fire : this.key;
-    this.key.castShadow = shadows && caster === this.key;
-    this.fire.castShadow = shadows && caster === this.fire;
+    // The fire casts the shadows when it burns (the tavern's fireplace, a diorama's fire), else the key light; with a
+    // diorama's fire, the moon casts them too at the highest quality.
+    const fireLit = this.fireBase > 0 || !!this.diorama?.fireLit;
+    this.fire.castShadow = shadows && fireLit;
+    this.key.castShadow = shadows && (!fireLit || (!!this.diorama && q === "high"));
     // A point light's shadows are six maps: half the size of the preset's.
-    const size = caster === this.fire ? p.shadows / 2 : p.shadows;
-    if (shadows && caster.shadow.mapSize.x !== size) {
-      caster.shadow.mapSize.set(size, size);
-      caster.shadow.map?.dispose();
-      caster.shadow.map = null;
-    }
+    for (const [light, size] of [
+      [this.fire, p.shadows / 2],
+      [this.key, p.shadows],
+    ] as const)
+      if (light.castShadow && light.shadow.mapSize.x !== size) {
+        light.shadow.mapSize.set(size, size);
+        light.shadow.map?.dispose();
+        light.shadow.map = null;
+      }
     this.onQuality(q);
     this.flameShadows();
     this.diorama?.setQuality(q);
@@ -892,6 +896,7 @@ export class TableScene {
       camera: this.camera,
       key: this.key,
       hemi: this.hemi,
+      fire: this.fire,
       mats: this.mat,
       arena,
       quality: this.governor.level,

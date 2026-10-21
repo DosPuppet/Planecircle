@@ -9,6 +9,7 @@ import type {
   MeshStandardMaterial,
   Object3D,
   PerspectiveCamera,
+  PointLight,
   Scene,
   WebGLRenderer,
 } from "three";
@@ -45,6 +46,12 @@ export interface DioramaContext {
   /** The light from above (the moon, at night) and the sky's fill. */
   key: DirectionalLight;
   hemi: HemisphereLight;
+  /**
+   * The scene's fire light (the tavern's fireplace): off unless the diorama lights it (`fireLit`), then placed and
+   * driven by it; a point light, its shadows all around. Kept in place: its shadow maps are drawn again only when
+   * something moves.
+   */
+  fire: PointLight;
   /** The battlefields' material (the diorama dresses them). */
   mats: MeshStandardMaterial;
   arena: Arena;
@@ -54,6 +61,8 @@ export interface DioramaContext {
 
 export interface Diorama {
   readonly group: Object3D;
+  /** It lights the scene's fire (which then casts the shadows; with the moon's at the highest quality). */
+  readonly fireLit: boolean;
   /** Frames a second it animates at, at a quality (0: still). */
   fps(q: Quality): number;
   /** Lays it out around the table's rim (world units), again when the screen changes shape. */

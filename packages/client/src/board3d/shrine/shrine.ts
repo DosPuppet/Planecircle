@@ -8,7 +8,9 @@
  * in the water and the hall behind it (the far left corner), the pagoda on its islet and the bridge to it (the far
  * right), the lanterns, tatami on the battlefields. X3, the season (`season.ts`, from the real date): the trees, the
  * bamboo, the grass, the shrubs (`trees.ts`), what falls (`fall.ts`), the snow in winter. X4, life: koi, fireflies and
- * moths (`life.ts`), the yokai (`yokai.ts`: walking ones never on the mats, flying ones rarely over the cards). Built again when the table changes shape; animated by `update`
+ * moths (`life.ts`), the yokai (`yokai.ts`: walking ones never on the mats, flying ones rarely over the cards). X6, the
+ * light moving (the user's wish): the kagaribi off the left side lights the scene's fire (`fire.ts`), clouds pass over
+ * the moon (`moonlight`), fireworks burst over the bay (`fireworks.ts`). Built again when the table changes shape; animated by `update`
  * (water, tide, mist, lanterns) at the quality's rate.
  */
 import { Color, FogExp2, Group, type Light, type Object3D, type Scene, Vector3 } from "three";
@@ -17,19 +19,25 @@ import type { Diorama, DioramaContext } from "../diorama";
 import type { Quality } from "../quality";
 import { bridge, buildingMaterials, hall, pagoda } from "./buildings";
 import { createFall, type Fall } from "./fall";
+import { createKagaribi, type Kagaribi } from "./fire";
+import { createFireworks, type Fireworks, flashSky } from "./fireworks";
 import { createGround, type Ground } from "./ground";
 import { createLanterns, type Lanterns, lanternLight } from "./lanterns";
 import { createLife, type Life } from "./life";
 import { createMist, createVeil, type Mist } from "./mist";
 import { type ShrinePlan, shrinePlan } from "./plan";
 import { SEASONS, snowCover } from "./season";
-import { createSky, MOON_DIR } from "./sky";
+import { createSky, MOON_DIR, moonlight } from "./sky";
 import { createStage, lacquer, type Stage } from "./stage";
 import { dressMats, tatami } from "./tatami";
 import { createTorii } from "./torii";
 import { createVegetation, type Vegetation } from "./trees";
 import { createWater, DEEP, REFLECT, reflected, type Water } from "./water";
 import { createYokai, type Yokai } from "./yokai";
+
+/** The moonlight's strength in a clear sky, and the sky's fill. */
+const MOON = 1.2;
+const SKY = 0.5;
 
 /** Grid cells per world unit of the terrain, and of the water's grid, at each quality. */
 const DETAIL: Record<Quality, { ground: number; water: number; sheets: number; veil: number; plants: number; falling: number }> =
@@ -59,6 +67,8 @@ interface Parts {
   fall: Fall | null;
   life: Life;
   yokai: Yokai;
+  kagaribi: Kagaribi;
+  fireworks: Fireworks;
   /** The buildings (their geometry is theirs, their materials shared). */
   buildings: Object3D[];
   disposeTorii(): void;
@@ -71,11 +81,13 @@ export function createShrine(ctx: DioramaContext): Diorama {
   ctx.scene.fog = new FogExp2(night, 0.016);
   // Moonlight: cold, from high over the far left (the shadows fall towards you); the sky's fill, deep blue.
   ctx.key.color.set("#b4c6ea");
-  ctx.key.intensity = 1.2;
+  ctx.key.intensity = MOON;
   ctx.key.position.copy(MOON_DIR).multiplyScalar(30);
   ctx.hemi.color.set("#36507e");
   ctx.hemi.groundColor.set("#06090f");
-  ctx.hemi.intensity = 0.5;
+  ctx.hemi.intensity = SKY;
+  // The sky's light at rest (the fireworks' flashes go over it).
+  const skyRest = { color: ctx.hemi.color.clone(), intensity: SKY };
   // The two lantern lights, for good (a light added later compiles every material again).
   const lights: [ReturnType<typeof lanternLight>, ReturnType<typeof lanternLight>] = [lanternLight(), lanternLight()];
   group.add(...lights);
@@ -110,6 +122,8 @@ export function createShrine(ctx: DioramaContext): Diorama {
       parts.vegetation.group,
       parts.life.group,
       parts.yokai.group,
+      parts.kagaribi.group,
+      parts.fireworks.mesh,
       ...(parts.fall ? [parts.fall.mesh] : []),
       ...parts.buildings,
     );
@@ -123,6 +137,8 @@ export function createShrine(ctx: DioramaContext): Diorama {
     parts.fall?.dispose();
     parts.life.dispose();
     parts.yokai.dispose();
+    parts.kagaribi.dispose();
+    parts.fireworks.dispose();
     parts.disposeTorii();
     for (const b of parts.buildings)
       b.traverse((o) => {
@@ -165,6 +181,15 @@ export function createShrine(ctx: DioramaContext): Diorama {
       deep: new Color(DEEP),
     });
     const yokai = createYokai({ plan, camera: ctx.camera });
+    // X6, the light moving: the fire basket off the left side (the scene's fire light), fireworks over the bay.
+    const kagaribi = createKagaribi({
+      plan,
+      materials: ctx.arena.materials,
+      camera: ctx.camera,
+      fire: ctx.fire,
+      amount: detail.plants,
+    });
+    const fireworks = createFireworks({ plan, camera: ctx.camera, amount: detail.plants });
     lanterns.setAnimated(quality !== "low");
 
     // The torii in the water, its beams along the stage's side.
@@ -189,7 +214,17 @@ export function createShrine(ctx: DioramaContext): Diorama {
       plan.height(plan.stage.x1 + 0.6, plan.bridge),
     );
     const buildings = [torii.group, hallGroup, pagodaGroup, bridgeGroup];
-    for (const o of [ground.group, stage.group, lanterns.group, vegetation.group, yokai.group, ...buildings]) reflected(o);
+    for (const o of [
+      ground.group,
+      stage.group,
+      lanterns.group,
+      vegetation.group,
+      yokai.group,
+      kagaribi.group,
+      fireworks.mesh,
+      ...buildings,
+    ])
+      reflected(o);
     group.add(
       ground.group,
       water.mesh,
@@ -200,6 +235,8 @@ export function createShrine(ctx: DioramaContext): Diorama {
       vegetation.group,
       life.group,
       yokai.group,
+      kagaribi.group,
+      fireworks.mesh,
       ...buildings,
     );
     if (fall) group.add(fall.mesh);
@@ -215,6 +252,8 @@ export function createShrine(ctx: DioramaContext): Diorama {
       fall,
       life,
       yokai,
+      kagaribi,
+      fireworks,
       buildings,
       disposeTorii: torii.dispose,
     };
@@ -236,10 +275,19 @@ export function createShrine(ctx: DioramaContext): Diorama {
     parts.fall?.update(time);
     parts.life.update(time, waterY);
     parts.yokai.update(time, waterY);
+    parts.kagaribi.update(time, waterY);
+    // Clouds pass over the moon; the fireworks flash the sky's light.
+    const moon = moonlight(time);
+    ctx.key.intensity = MOON * moon;
+    sky.setMoon(moon);
+    skyRest.intensity = SKY * (0.75 + 0.25 * moon);
+    const { flash, color } = parts.fireworks.update(time, waterY);
+    flashSky(ctx.hemi, skyRest, flash, color);
   };
 
   return {
     group,
+    fireLit: true,
     fps: (q: Quality) => (q === "high" ? 60 : q === "medium" ? 30 : 0),
     layout(r: Bounds) {
       rim = r;
