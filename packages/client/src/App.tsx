@@ -6,7 +6,7 @@ import { DrawerToggle, PreviewFloat, Sidebar, TouchPreview } from "./board/Sideb
 import { domEffects } from "./boardThemes";
 import { DeckBuilder } from "./decks/DeckBuilder";
 import { GlossaryDialog } from "./glossary/GlossaryDialog";
-import { forced3d, PORTRAIT_PHONE, probe3d, useMedia } from "./graphics";
+import { canTry3d, forced3d, PORTRAIT_PHONE, probe3d, useMedia } from "./graphics";
 import { Lobby } from "./lobby/Lobby";
 import { Online } from "./lobby/Online";
 import { useLocalize, useT } from "./localize";
@@ -92,7 +92,7 @@ function GameBoard() {
   const fail = useGame((s) => s.failBoard3d);
   // A phone in portrait keeps the DOM board (its portrait layout); turned to landscape, the 3D board comes back.
   const portrait = useMedia(PORTRAIT_PHONE);
-  if (failed || !hasView || !wants3d || portrait || !probe3d().ok) return <Board />;
+  if (failed || !hasView || !wants3d || portrait || !canTry3d(probe3d())) return <Board />;
   return (
     <Suspense fallback={<Loading3DBoard />}>
       <Board3D onFail={fail} />

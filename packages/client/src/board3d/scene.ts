@@ -264,6 +264,8 @@ export class TableScene {
     quality: Quality = "high",
     /** The quality drawn, at the start and whenever the governor steps it down (shown in the Graphics setting). */
     private onQuality: (q: Quality) => void = () => {},
+    /** Automatic quality: the governor steps it down on slow frames; chosen by hand, it stays. */
+    private auto = true,
   ) {
     this.springs = new Springs(speed);
     this.speed = speed;
@@ -343,6 +345,14 @@ export class TableScene {
   /** Particles alive (dev checks). */
   get particlesAlive(): number {
     return this.particles.count;
+  }
+
+  /** A quality chosen in the Graphics setting: a level by hand (it stays), or automatic from `level`. */
+  setQuality(level: Quality, auto: boolean): void {
+    this.auto = auto;
+    if (this.governor.level === level) return;
+    this.governor.level = level;
+    this.applyQuality(level);
   }
 
   /** The quality drawn now (dev checks). */
@@ -436,7 +446,7 @@ export class TableScene {
   private tick = (now: number) => {
     this.frame = 0;
     const ms = Math.max(0, now - this.last);
-    this.governor.frame(ms, this.continued);
+    if (this.auto) this.governor.frame(ms, this.continued);
     const dt = Math.min(0.05, ms / 1000);
     this.last = now;
     const moving = this.springs.step(dt);

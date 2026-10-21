@@ -15,6 +15,7 @@ import { handGlow, playableCards } from "../board/glows";
 import { Loading3D } from "../board/Loading3D";
 import { StackReveal } from "../board/StackReveal";
 import { fastMode } from "../fast";
+import { probe3d } from "../graphics";
 import { useT } from "../localize";
 import { myActions, subscribeUpdates, useGame } from "../store";
 import { type Arena, loadArena } from "./assets";
@@ -36,6 +37,9 @@ import {
 import type { Quality } from "./quality";
 import { type HandPose, TableScene } from "./scene";
 import { type Rect, type Table, toWorld } from "./seats";
+
+/** Where automatic quality starts: high with a graphics card, low on a software renderer (the player tries anyway). */
+const autoQuality = (): Quality => (probe3d().ok ? "high" : "low");
 
 interface Measures {
   w: number;
@@ -121,10 +125,12 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
     const speed = reduced ? Number.POSITIVE_INFINITY : fastMode() ? 5 : 1;
     // Dev mode: `&quality=low|medium|high` starts at that quality (the interface tests draw in software).
     const asked = import.meta.env.DEV ? new URLSearchParams(location.search).get("quality") : null;
-    const quality: Quality = asked === "low" || asked === "medium" ? asked : "high";
+    const choice = useGame.getState().quality3d;
+    const quality: Quality =
+      asked === "low" || asked === "medium" || asked === "high" ? asked : choice !== "auto" ? choice : autoQuality();
     let scene: TableScene;
     try {
-      scene = new TableScene(canvas, onFail, speed, quality, useGame.getState().setBoard3dQuality);
+      scene = new TableScene(canvas, onFail, speed, quality, useGame.getState().setBoard3dQuality, !asked && choice === "auto");
       sceneRef.current = scene;
     } catch {
       onFail();
@@ -286,6 +292,16 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
       handSource,
     );
   }, [handKey, lang, handSource]);
+  // The quality chosen in Graphics, changed while the board is drawn.
+  const quality3d = useGame((s) => s.quality3d);
+  const firstQuality = useRef(true);
+  useEffect(() => {
+    if (firstQuality.current) {
+      firstQuality.current = false;
+      return;
+    }
+    sceneRef.current?.setQuality(quality3d === "auto" ? autoQuality() : quality3d, quality3d === "auto");
+  }, [quality3d]);
   // The DOM hand moves by its own springs (hover, drag, a card coming in): the meshes follow while it does.
   useEffect(() => {
     const row = bottomRef.current;

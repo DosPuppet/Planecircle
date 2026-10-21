@@ -1,6 +1,6 @@
 /** 3D board (PLAN-W): the probe refuses a browser without WebGL2 or with a software renderer only. */
 import { describe, expect, it } from "vitest";
-import { detect3d, isSoftwareRenderer } from "../src/graphics";
+import { canTry3d, detect3d, isSoftwareRenderer } from "../src/graphics";
 
 const UNMASKED = 0x9246;
 const RENDERER = 0x1f01;
@@ -59,6 +59,12 @@ describe("3D board probe", () => {
       reason: "software",
       renderer: "llvmpipe (LLVM 15.0.7, 256 bits)",
     });
+  });
+
+  it("the 3D board can be tried on a software renderer (slow, the player's choice), never without WebGL2", () => {
+    expect(canTry3d({ ok: true, renderer: "Apple M2" })).toBe(true);
+    expect(canTry3d({ ok: false, reason: "software", renderer: "llvmpipe" })).toBe(true);
+    expect(canTry3d({ ok: false, reason: "webgl2" })).toBe(false);
   });
 
   it("without the unmasked name, reads the plain renderer", () => {

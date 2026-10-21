@@ -44,7 +44,17 @@ import { create } from "zustand";
 import { soundsFor } from "./audio/eventSounds";
 import { playSound, preloadSounds } from "./audio/sfx";
 import { findObjectEl } from "./board/layout";
-import { type BoardThemeChoice, type Effects, loadBoardTheme, loadEffects, saveBoardTheme, saveEffects } from "./boardThemes";
+import {
+  type BoardThemeChoice,
+  type Effects,
+  loadBoardTheme,
+  loadEffects,
+  loadQuality3d,
+  type Quality3d,
+  saveBoardTheme,
+  saveEffects,
+  saveQuality3d,
+} from "./boardThemes";
 import { fastMode } from "./fast";
 import { describeEvents, type Lang, type LogLine, literal, localizeText } from "./i18n";
 import { boardPick, togglePick } from "./prompts/boardChoice";
@@ -308,6 +318,9 @@ interface Store {
   /** The 3D board failed (WebGL context lost): the DOM board for the rest of the session (PLAN-W). */
   board3dFailed: boolean;
   failBoard3d(): void;
+  /** The 3D board's quality: automatic (the governor) or chosen by hand (`boardThemes.ts`). */
+  quality3d: Quality3d;
+  setQuality3d(q: Quality3d): void;
   /** The quality the 3D board draws at (shown in the Graphics setting; the governor may step it down). */
   board3dQuality: "high" | "medium" | "low" | null;
   setBoard3dQuality(q: "high" | "medium" | "low" | null): void;
@@ -1208,6 +1221,11 @@ export const useGame = create<Store>((set, get) => {
       // Choosing 3D again tries it again.
       set({ effects, board3dFailed: false });
       saveEffects(effects);
+    },
+    quality3d: loadQuality3d(),
+    setQuality3d(quality3d) {
+      set({ quality3d });
+      saveQuality3d(quality3d);
     },
     board3dQuality: null,
     setBoard3dQuality(board3dQuality) {

@@ -392,12 +392,29 @@ check(
 check(g.three.length === 0, "without the 3D board, three.js is not loaded", g.three.slice(0, 3));
 await g.page.locator(".drawer-toggle").click();
 await g.page.waitForTimeout(500);
-const refused = g.page.locator(".pace-control button", { hasText: /^3D$/ });
+const button = g.page.locator(".pace-control button", { hasText: /^3D$/ });
 check(
-  (await refused.isDisabled()) && /indisponible/.test((await refused.getAttribute("title")) ?? ""),
-  "on a software renderer without the flag, 3D is refused and says why",
-  await refused.getAttribute("title"),
+  !(await button.isDisabled()) && /lent/.test((await button.getAttribute("title")) ?? ""),
+  "on a software renderer, 3D can still be tried, with a warning",
+  await button.getAttribute("title"),
 );
+// Tried: the 3D board draws (at low quality), and its quality can be chosen by hand.
+await button.click();
+await g.page.locator(".drawer-close").click();
+await g.page.locator(".board3d canvas").waitFor({ timeout: 120_000 });
+await g.page.locator(".board3d-loading").waitFor({ state: "detached", timeout: 120_000 });
+const quality = () => g.page.evaluate(() => (window as unknown as DevWindow).__board3d?.quality());
+check((await quality()) === "low", "tried on a software renderer, it starts at low quality", await quality());
+await g.page.locator(".drawer-toggle").click();
+await g.page.locator(".pace-control button", { hasText: /^Haute$/ }).click();
+await g.page.waitForTimeout(500);
+const chosen = await quality();
+await g.page.locator(".pace-control button", { hasText: /^Basse$/ }).click();
+await g.page.waitForTimeout(500);
+check(chosen === "high" && (await quality()) === "low", "the 3D quality chosen by hand applies at once", {
+  chosen,
+  after: await quality(),
+});
 await g.close();
 
 await browser.close();

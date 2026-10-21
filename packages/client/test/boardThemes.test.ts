@@ -5,9 +5,11 @@ import {
   domEffects,
   loadBoardTheme,
   loadEffects,
+  loadQuality3d,
   resolveBoardTheme,
   saveBoardTheme,
   saveEffects,
+  saveQuality3d,
 } from "../src/boardThemes";
 
 describe("board textures", () => {
@@ -72,6 +74,12 @@ describe("board textures", () => {
     expect([domEffects("3d"), domEffects("full"), domEffects("light")]).toEqual(["full", "full", "light"]);
     store.delete("planecircle.effects");
     expect(loadEffects()).toBe("light");
+    // The 3D quality: automatic by default, a level chosen by hand remembered.
+    expect(loadQuality3d()).toBe("auto");
+    saveQuality3d("low");
+    expect(loadQuality3d()).toBe("low");
+    store.set("planecircle.quality3d", "ultra");
+    expect(loadQuality3d()).toBe("auto");
     vi.stubGlobal("localStorage", {
       getItem: () => {
         throw new Error("unavailable");

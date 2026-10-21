@@ -89,6 +89,31 @@ export function saveEffects(effects: Effects): void {
   }
 }
 
+/**
+ * Quality of the 3D board (PLAN-W): "auto" starts high (low on a software renderer) and lets the governor step down on
+ * slow frames; a level chosen by hand stays, whatever the frames. Kept in `localStorage`.
+ */
+export type Quality3d = "auto" | "high" | "medium" | "low";
+
+const QUALITY_KEY = "planecircle.quality3d";
+
+export function loadQuality3d(): Quality3d {
+  try {
+    const v = localStorage.getItem(QUALITY_KEY);
+    return v === "high" || v === "medium" || v === "low" ? v : "auto";
+  } catch {
+    return "auto";
+  }
+}
+
+export function saveQuality3d(q: Quality3d): void {
+  try {
+    localStorage.setItem(QUALITY_KEY, q);
+  } catch {
+    // storage unavailable: setting not kept
+  }
+}
+
 /** The texture displayed: the chosen one, or, for "random", a texture drawn from `roll` (a number in [0, 1)). */
 export function resolveBoardTheme(choice: BoardThemeChoice, roll: number): BoardTheme {
   if (choice !== "random") return choice;

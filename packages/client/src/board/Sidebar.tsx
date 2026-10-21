@@ -6,7 +6,7 @@ import { glossaryForKeyword } from "../glossary/entries";
 import { termsIn } from "../glossary/match";
 import { useGlossary } from "../glossary/store";
 import { Term } from "../glossary/Term";
-import { probe3d } from "../graphics";
+import { canTry3d, probe3d } from "../graphics";
 import { CustomArtToggle, ImageRelayToggle } from "../ImageRelayToggle";
 import { faceImage, faceName, faceText, faceType, KEYWORD_LABEL, type LogLine } from "../i18n";
 import { customImage, imageUrl, useRelayActive } from "../images";
@@ -357,12 +357,43 @@ const QUALITY_LABEL = {
   low: msg("ctx:quality|low"),
 };
 
+/** The 3D board's quality: automatic (stepped down on slow frames) or chosen by hand, even beyond the device's means. */
+function Quality3dControl() {
+  const quality = useGame((s) => s.quality3d);
+  const setQuality = useGame((s) => s.setQuality3d);
+  const t = useT();
+  const loc = useLocalize();
+  const choices = [
+    ["auto", msg("ctx:quality|Auto"), msg("Starts high and steps down by itself when the frames are slow")],
+    ["high", msg("ctx:quality|High"), msg("Shadows of every light, bloom, sharp image (a recent graphics card)")],
+    ["medium", msg("ctx:quality|Medium"), msg("Shadows of the fireplace, bloom")],
+    ["low", msg("ctx:quality|Low"), msg("No shadows nor bloom, the fire steady: for a modest device")],
+  ] as const;
+  return (
+    <div className="seg">
+      {choices.map(([q, label, title]) => (
+        <button
+          key={q}
+          type="button"
+          className={quality === q ? "on" : ""}
+          aria-pressed={quality === q}
+          title={`${t("3D quality")}: ${loc(title)}`}
+          onClick={() => setQuality(q)}
+        >
+          {loc(label)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function GraphicsControl() {
   const effects = useGame((s) => s.effects);
   const setEffects = useGame((s) => s.setEffects);
   const t = useT();
-  // The 3D board (PLAN-W): offered where the browser has WebGL2 on a real GPU.
+  // The 3D board (PLAN-W): offered where the browser has WebGL2 (with a warning on a software renderer).
   const support = probe3d();
+  const drawn3d = useGame((s) => s.board3dQuality !== null);
   return (
     <div className="pace-control">
       <span>{t("Graphics")}</span>
@@ -370,13 +401,13 @@ function GraphicsControl() {
         <button
           type="button"
           className={effects === "3d" ? "on" : ""}
-          disabled={!support.ok}
+          disabled={!canTry3d(support)}
           title={
             support.ok
               ? t("3D table with lights, seen at an angle (needs a graphics card)")
               : support.reason === "webgl2"
                 ? t("3D board unavailable: this browser has no WebGL2")
-                : t("3D board unavailable: no graphics card in use (software rendering would be too slow)")
+                : t("No graphics card in use: the 3D board may be very slow (it starts at low quality); try it anyway")
           }
           onClick={() => setEffects("3d")}
         >
@@ -399,7 +430,8 @@ function GraphicsControl() {
           {t("ctx:graphics|Light")}
         </button>
       </div>
-      {effects === "3d" && support.ok && <Board3dNote renderer={support.renderer} />}
+      {drawn3d && <Quality3dControl />}
+      {drawn3d && <Board3dNote renderer={support.renderer ?? t("unknown")} />}
     </div>
   );
 }

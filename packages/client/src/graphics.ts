@@ -64,6 +64,14 @@ export function detect3d(newCanvas: () => ProbeCanvas, force = false): Support3d
   return { ok: true, renderer };
 }
 
+/**
+ * Can the 3D board be tried here? With a graphics card, yes; on a software renderer too, if the player chooses it
+ * (slow: it starts at low quality); without WebGL2, nothing can draw it.
+ */
+export function canTry3d(s: Support3d): boolean {
+  return s.ok || s.reason === "software";
+}
+
 let probed: Support3d | undefined;
 
 /** The probe of this page, done once (a WebGL context is not free). */
