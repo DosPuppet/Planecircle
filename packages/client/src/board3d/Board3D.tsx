@@ -193,11 +193,14 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
     const box = board.getBoundingClientRect();
     const uidOf = new Map([...v.hand, ...v.playableElsewhere].map((c) => [c.id, c.uid]));
     const out: HandPose[] = [];
+    let index = 0;
     for (const el of board.querySelectorAll<HTMLElement>(".hand .hand-card")) {
+      index++;
       const slot = el.querySelector<HTMLElement>(".card-slot[data-oid]");
       const uid = slot && uidOf.get(slot.dataset.oid as string);
       if (!slot || !uid) continue;
-      const tm = new DOMMatrix(getComputedStyle(el).transform);
+      const style = getComputedStyle(el);
+      const tm = new DOMMatrix(style.transform);
       const scale = Math.hypot(tm.a, tm.b) || 1;
       const r = slot.getBoundingClientRect();
       out.push({
@@ -207,6 +210,8 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
         w: slot.offsetWidth * scale,
         h: slot.offsetHeight * scale,
         angle: Math.atan2(tm.b, tm.a),
+        // As the DOM paints them: by z-index (the hovered or dragged card on top), then in the order of the hand.
+        order: (Number.parseInt(style.zIndex, 10) || 0) * 1000 + index,
       });
     }
     return out;

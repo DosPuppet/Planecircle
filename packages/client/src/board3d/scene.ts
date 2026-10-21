@@ -50,6 +50,9 @@ export interface Palette {
   pool: string;
 }
 
+/** Render order of the hand: after everything on the table. */
+const HAND_ORDER = 1_000_000;
+
 /** Thickness of a card (world units): a sliver of edge under the face. */
 const CARD_THICKNESS = 0.012;
 /** Texture cache: about 100 card faces. */
@@ -80,6 +83,8 @@ export interface HandPose {
   w: number;
   h: number;
   angle: number;
+  /** Stacking order on the screen, as the DOM paints the hand (the hovered or dragged card in front). */
+  order: number;
 }
 
 /** UVs over the whole card for a shape in the XY plane. */
@@ -473,7 +478,9 @@ export class TableScene {
       const key = textureKey(c.face, c.obj, lang, "full");
       let card = this.hand.get(c.uid);
       if (!card) {
-        const material = new MeshBasicMaterial({ transparent: true });
+        // The hand lies on one plane in front of the table: drawn without depth, in the DOM's order (overlapping cards
+        // at the same depth would flicker, and transparent ones at the same distance swap places from frame to frame).
+        const material = new MeshBasicMaterial({ transparent: true, depthTest: false, depthWrite: false });
         material.toneMapped = false;
         card = { mesh: new Mesh(this.handFace, material), key: "" };
         card.mesh.visible = false;
@@ -517,6 +524,7 @@ export class TableScene {
       card.mesh.position.copy(at);
       card.mesh.quaternion.copy(this.camera.quaternion).multiply(spin.setFromAxisAngle(forward, -p.angle));
       card.mesh.scale.setScalar(p.w * unit);
+      card.mesh.renderOrder = HAND_ORDER + p.order;
       card.mesh.visible = true;
       this.springs.remember(p.uid, { x: at.x, y: at.y, z: at.z, w: p.w * unit, h: p.h * unit, rot: 0 });
     }
