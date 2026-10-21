@@ -54,3 +54,18 @@ describe("3D board motion", () => {
     expect(instant.pose("a")?.x).toBe(5);
   });
 });
+
+describe("3D board jolts", () => {
+  it("a card hit is thrown off its place, then springs back; reduced motion keeps it still", () => {
+    const springs = new Springs();
+    springs.setTargets(new Map([["a", pose(1, 2)]]), () => undefined);
+    springs.kick("a", 0.2, () => 0);
+    expect(springs.pose("a")).toMatchObject({ x: 1.2, z: 2 });
+    expect(run(springs, 3)).toBe(false);
+    expect(springs.pose("a")).toEqual(pose(1, 2));
+    const still = new Springs(Number.POSITIVE_INFINITY);
+    still.setTargets(new Map([["a", pose(1, 2)]]), () => undefined);
+    still.kick("a", 0.2, () => 0);
+    expect(still.pose("a")).toEqual(pose(1, 2));
+  });
+});

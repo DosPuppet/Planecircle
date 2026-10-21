@@ -33,6 +33,7 @@ type DevWindow = {
     handShown(): number;
     arenaShown(): boolean;
     quality(): string;
+    particles(): number;
   };
 };
 
@@ -165,8 +166,9 @@ async function until(page: Page, want: (p: string) => boolean, tries = 80) {
   return want(await pending(page));
 }
 
-// 1. The 3D board, 1600×900: proxies, then a land and an attack through them.
-let g = await open({ width: 1600, height: 900 }, true, { p1: ME, p2: OPP });
+// 1. The 3D board, 1600×900: proxies, then a land and an attack through them (without the arena: SwiftShader draws it
+// at a frame or two a second; it has its own check below).
+let g = await open({ width: 1600, height: 900 }, true, { p1: ME, p2: OPP }, 1, true);
 let page = g.page;
 check(await page.locator(".board3d canvas").isVisible(), "the 3D board is drawn (?board3d=force)");
 check(g.three.length > 0, "three.js loaded with the 3D board", g.three.length);
@@ -174,8 +176,8 @@ await page.screenshot({ path: `${OUT}/1-board-1600.png` });
 await aligned(page, "1600×900");
 const idle = () =>
   page.evaluate(async () => {
-    // An idle board: no frame coming, once the cards and the hand have settled.
-    for (let i = 0; i < 40; i++) {
+    // An idle board: no frame coming, once the cards, the hand and the effects have settled (slowly in software).
+    for (let i = 0; i < 100; i++) {
       if (!(window as unknown as DevWindow).__board3d?.drawing()) return true;
       await new Promise((r) => setTimeout(r, 100));
     }
@@ -207,6 +209,16 @@ check(await until(page, (p) => p.startsWith("priority|true|true|main1")), "your 
 const lands = () => page.locator(".bf3d.me .card-slot[data-oid]").count();
 const before = await lands();
 await page.locator(".hand [data-oid]").first().click();
+// The land lands in a puff of dust (W7): particles while it settles.
+const dust = await page.evaluate(async () => {
+  let most = 0;
+  for (let i = 0; i < 30; i++) {
+    most = Math.max(most, (window as unknown as DevWindow).__board3d?.particles() ?? 0);
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  return most;
+});
+check(dust > 0, "a land played raises dust (particles)", dust);
 await page.waitForTimeout(1500);
 check((await lands()) === before + 1, "a land played from the hand lies on the 3D table", { before, after: await lands() });
 check(await idle(), "the land settles: the board stops drawing");
@@ -228,6 +240,10 @@ check(
   "an attacker chosen by clicking its card on the 3D table",
 );
 await page.screenshot({ path: `${OUT}/2-attack.png` });
+// The attack goes on: blockers, damage (sparks, jolts), deaths (embers).
+await page.locator(".main-button").click();
+await page.waitForTimeout(700);
+await page.screenshot({ path: `${OUT}/2b-combat.png` });
 await aligned(page, "attack");
 
 // 2. A lost WebGL context: back to the DOM board.

@@ -14,9 +14,10 @@ import { Effects } from "../board/Effects";
 import { StackReveal } from "../board/StackReveal";
 import { fastMode } from "../fast";
 import { useT } from "../localize";
-import { useGame } from "../store";
+import { subscribeUpdates, useGame } from "../store";
 import { type Arena, loadArena } from "./assets";
 import { frameSeats, viewProjection } from "./camera";
+import { fxFor } from "./fxmap";
 import { type CardNode, pileNodes, tableNodes } from "./model";
 import {
   type CardPose,
@@ -120,6 +121,8 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
       onFail();
       return;
     }
+    // The effects (W7): each update played on the table, before the store changes (the cards still where they were).
+    const unsubscribe = subscribeUpdates((u) => scene.play(fxFor(u.events, u.view, u.prev, u.faces)));
     // The arena (W5), when it was built: the board plays on the plain table until it has loaded.
     let alive = true;
     let arena: Arena | null = null;
@@ -130,6 +133,7 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
     });
     return () => {
       alive = false;
+      unsubscribe();
       scene.dispose();
       arena?.dispose();
       sceneRef.current = null;
@@ -294,6 +298,8 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
       handShown: () => sceneRef.current?.handShown ?? 0,
       arenaShown: () => sceneRef.current?.arenaShown ?? false,
       quality: () => sceneRef.current?.quality,
+      particles: () => sceneRef.current?.particlesAlive ?? 0,
+      debugScene: () => sceneRef.current,
       projectedRect(id: string) {
         const { nodes: ns, vp: m4, size: sz } = latest.current;
         const n = ns.find((x) => x.id === id && x.kind !== "shadow");

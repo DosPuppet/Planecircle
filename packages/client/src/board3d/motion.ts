@@ -85,4 +85,19 @@ export class Springs {
   pose(uid: string): CardPose | undefined {
     return this.springs.get(uid)?.pose;
   }
+
+  /** A jolt (a card hit): thrown off its place by up to `amount` in a random direction, it springs back. */
+  kick(uid: string, amount: number, random = Math.random): void {
+    const s = this.springs.get(uid);
+    if (!s || this.speed === Number.POSITIVE_INFINITY) return;
+    const a = random() * Math.PI * 2;
+    s.pose.x += Math.cos(a) * amount;
+    s.pose.z += Math.sin(a) * amount;
+    s.pose.y += amount * 0.6;
+  }
+
+  /** Is this card moving (flying or springing back)? */
+  has(uid: string): boolean {
+    return this.springs.has(uid);
+  }
 }

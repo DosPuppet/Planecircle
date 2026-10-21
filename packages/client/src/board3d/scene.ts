@@ -40,8 +40,10 @@ import type { Lang } from "../translate";
 import { type Bounds, clearOfRim, propPose } from "./arena";
 import type { Arena, ArenaMaterial } from "./assets";
 import type { Framing } from "./camera";
+import type { Fx3d } from "./fxmap";
 import type { CardNode } from "./model";
 import { Springs } from "./motion";
+import { FX_COLORS, Particles } from "./particles";
 import { Post } from "./post";
 import type { CardPose } from "./project";
 import { Governor, PRESETS, type Quality } from "./quality";
@@ -184,6 +186,13 @@ export class TableScene {
   private glowColors: Record<string, string> = {};
   private rimMaterials = new Map<string, MeshBasicMaterial>();
   private flames: PointLight[] = [];
+  /** Effects (W7): particles, the effects waiting for their time, the light of a turn's sweep. */
+  private particles = new Particles();
+  private fxQueue: { at: number; fx: Fx3d; where?: Vector3 }[] = [];
+  private seats = new Map<string, { x: number; z: number; w: number; mine: boolean }>();
+  private sweepLight = new PointLight("#ffd9a0", 0, 0, 2);
+  private sweep: { start: number; from: number; to: number; z: number } | null = null;
+  private speed: number;
   /** Animated until then (ms, performance clock): the DOM hand's own springs. */
   private liveUntil = 0;
   private frame = 0;
@@ -198,6 +207,7 @@ export class TableScene {
     quality: Quality = "high",
   ) {
     this.springs = new Springs(speed);
+    this.speed = speed;
     this.handFace = new ShapeGeometry(roundedRect(1, CARD_RATIO, 0.045), 6);
     cardUvs(this.handFace, CARD_RATIO);
     this.renderer = new WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
@@ -213,7 +223,7 @@ export class TableScene {
     ground.rotateX(-Math.PI / 2);
     ground.position.y = -0.02;
     this.ground.userData.size = 80;
-    this.scene.add(ground, this.tableGroup, this.propGroup, this.cardGroup);
+    this.scene.add(ground, this.tableGroup, this.propGroup, this.cardGroup, this.particles.mesh, this.sweepLight);
     this.handScene.add(this.handGroup);
     // Light: a key light from the viewer's left, a soft fill from the sky, a pool of the texture's light over the middle.
     this.key.position.set(-6, 14, 9);
@@ -251,6 +261,11 @@ export class TableScene {
   /** The arena is drawn (dev checks). */
   get arenaShown(): boolean {
     return !!this.arena && this.propGroup.children.length > 0;
+  }
+
+  /** Particles alive (dev checks). */
+  get particlesAlive(): number {
+    return this.particles.count;
   }
 
   /** The quality drawn now (dev checks). */
@@ -328,6 +343,8 @@ export class TableScene {
     }
     // A card in flight moves its shadow; still, the shadow map stays as it is.
     if (moving) this.renderer.shadowMap.needsUpdate = true;
+    // Particles go by the real time (a slow device must not make them last longer), within reason.
+    const effects = this.runEffects(now, Math.min(0.25, ms / 1000));
     this.syncHand();
     this.flicker(now);
     if (this.post) this.post.render();
@@ -337,9 +354,173 @@ export class TableScene {
       this.renderer.render(this.handScene, this.camera);
       this.renderer.autoClear = true;
     }
-    this.continued = moving || now < this.liveUntil;
+    this.continued = moving || effects || now < this.liveUntil;
     if (this.continued) this.frame = requestAnimationFrame(this.tick);
   };
+
+  /**
+   * The effects (W7), each at its time, on its card (its current place) or its player's side (the seat's middle):
+   * particles, a jolt, a light sweeping the table. True while one is still going.
+   */
+  play(list: Fx3d[]): void {
+    // Reduced motion: no effect (the DOM's numbers stay).
+    if (this.speed === Number.POSITIVE_INFINITY) return;
+    const now = performance.now();
+    for (const fx of list) {
+      // A card that is leaving (a creature dying, one hit and destroyed) is found now, where it still lies.
+      const p = fx.uid ? this.springs.pose(fx.uid) : undefined;
+      const where = p ? new Vector3(p.x, p.y + 0.05, p.z) : undefined;
+      this.fxQueue.push({ at: now + (fx.delay * 1000) / this.speed, fx, where });
+    }
+    this.requestRender();
+  }
+
+  private runEffects(now: number, dt: number): boolean {
+    const due = this.fxQueue.filter((q) => q.at <= now);
+    this.fxQueue = this.fxQueue.filter((q) => q.at > now && now - q.at < 3000);
+    for (const q of due) this.emit(q.fx, q.where);
+    let sweeping = false;
+    if (this.sweep) {
+      const t = (now - this.sweep.start) / (1100 / this.speed);
+      if (t >= 1) {
+        this.sweep = null;
+        this.sweepLight.intensity = 0;
+      } else {
+        sweeping = true;
+        this.sweepLight.position.set(this.sweep.from + (this.sweep.to - this.sweep.from) * t, 1.4, this.sweep.z);
+        this.sweepLight.intensity = 9 * Math.sin(Math.PI * t);
+      }
+    }
+    return this.particles.step(dt) || this.fxQueue.length > 0 || sweeping;
+  }
+
+  /** One effect: where it happens (the card now, else its place when it was asked, else its player's side). */
+  private emit(fx: Fx3d, asked?: Vector3) {
+    const pose = fx.uid ? this.springs.pose(fx.uid) : undefined;
+    const card = asked ?? (pose ? new Vector3(pose.x, pose.y + 0.05, pose.z) : undefined);
+    const seat = fx.player ? this.seats.get(fx.player) : undefined;
+    const side = seat ? new Vector3(seat.x, 0.1, seat.z) : undefined;
+    const colors = (keys: string[]) => keys.map((k) => FX_COLORS[k] ?? (FX_COLORS.C as Color));
+    const amount = Math.min(10, fx.amount ?? 1);
+    switch (fx.kind) {
+      case "burst":
+        if (!card) return;
+        this.particles.emit({
+          at: card,
+          count: 24 + amount * 6,
+          colors: colors(["damage", "R", "clash"]),
+          speed: [1.5, 3.5],
+          up: 0.55,
+          life: [0.35, 0.7],
+          size: [0.1, 0.24],
+          gravity: 6,
+        });
+        if (fx.uid) this.springs.kick(fx.uid, 0.12 + 0.02 * amount);
+        return;
+      case "heal":
+        if (!side) return;
+        this.particles.emit({
+          at: side,
+          count: 30 + amount * 4,
+          colors: colors(["heal", "G"]),
+          speed: [0.2, 0.6],
+          up: 0.95,
+          life: [0.9, 1.5],
+          size: [0.1, 0.2],
+          gravity: -1.2,
+          ring: Math.min(2.5, (seat?.w ?? 4) * 0.15),
+        });
+        return;
+      case "embers":
+        if (!card) return;
+        this.particles.emit({
+          at: card,
+          count: 50,
+          colors: colors(["embers", "R"]),
+          speed: [0.4, 1.4],
+          up: 0.8,
+          life: [0.8, 1.4],
+          size: [0.08, 0.18],
+          gravity: -1,
+        });
+        return;
+      case "cast":
+        if (!side) return;
+        this.particles.emit({
+          at: side,
+          count: 60,
+          colors: colors(fx.colors ?? ["C"]),
+          speed: [1.5, 2.2],
+          up: 0.25,
+          life: [0.7, 1.1],
+          size: [0.1, 0.2],
+          gravity: -0.4,
+          ring: 1.2,
+          swirl: true,
+        });
+        return;
+      case "spawn":
+        if (!card) return;
+        this.particles.emit({
+          at: card,
+          count: 36,
+          colors: colors(fx.colors ?? ["C"]),
+          speed: [1, 1.6],
+          up: 0.2,
+          life: [0.4, 0.7],
+          size: [0.1, 0.2],
+          gravity: 0,
+          ring: 0.6,
+        });
+        return;
+      case "dust":
+        if (!card) return;
+        this.particles.emit({
+          at: card,
+          count: 26,
+          colors: colors(["dust"]),
+          speed: [0.6, 1.2],
+          up: 0.15,
+          life: [0.4, 0.8],
+          size: [0.15, 0.3],
+          gravity: 0.5,
+          ring: 0.4,
+        });
+        return;
+      case "clash":
+        if (!card) return;
+        this.particles.emit({
+          at: card,
+          count: 40,
+          colors: colors(["clash", "W"]),
+          speed: [2, 4],
+          up: 0.4,
+          life: [0.25, 0.5],
+          size: [0.06, 0.14],
+          gravity: 4,
+        });
+        return;
+      case "sparkle":
+        if (!card) return;
+        this.particles.emit({
+          at: card,
+          count: 14 + amount * 6,
+          colors: colors(["counters", "G"]),
+          speed: [0.3, 0.8],
+          up: 0.9,
+          life: [0.6, 1],
+          size: [0.08, 0.16],
+          gravity: -0.5,
+        });
+        return;
+      case "sweep":
+        if (!seat) return;
+        // From the side the player sits on, across their half of the table.
+        this.sweepLight.color.set(seat.mine ? "#ffd9a0" : "#ffb0a0");
+        this.sweep = { start: performance.now(), from: seat.x - seat.w / 2, to: seat.x + seat.w / 2, z: seat.z };
+        return;
+    }
+  }
 
   /** The flames waver while the board is drawing anyway (an idle board stays still: no endless animation). */
   private flicker(now: number) {
@@ -401,8 +582,10 @@ export class TableScene {
       const b = toWorld(table, r.x + r.w - inset, r.y + r.h - inset);
       return { x: (a.x + b.x) / 2, z: (a.z + b.z) / 2, w: b.x - a.x, h: b.z - a.z };
     };
+    this.seats.clear();
     for (const seat of table.seats) {
       const z = box(seat.zone, 6);
+      this.seats.set(seat.player, { x: z.x, z: z.z, w: z.w, mine: seat.mine });
       if (z.w <= 0 || z.h <= 0) continue;
       const mat = new Mesh(new ExtrudeGeometry(roundedRect(z.w, z.h, 0.18), { depth: 0.015, bevelEnabled: false }), this.mat);
       mat.rotateX(-Math.PI / 2);
@@ -673,6 +856,7 @@ export class TableScene {
     this.propGroup.clear();
     this.canvas.removeEventListener("webglcontextlost", this.onContextLost);
     this.post?.dispose();
+    this.particles.dispose();
     for (const m of this.rimMaterials.values()) m.dispose();
     this.textures.dispose();
     this.grain.dispose();

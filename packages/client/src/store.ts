@@ -472,6 +472,23 @@ function legendDuplicate(view: GameView | null, option: PlayableOption, sourceId
   return mine ? name : null;
 }
 
+/** An update as it is applied: its events, with the views before and after (the 3D board's effects, PLAN-W). */
+export interface AppliedUpdate {
+  events: Extract<FromWorker, { type: "update" }>["events"];
+  view: GameView;
+  prev: GameView | null;
+  faces: Extract<FromWorker, { type: "update" }>["faces"];
+}
+const updateListeners = new Set<(u: AppliedUpdate) => void>();
+
+/** Called at each update, before the store changes (the cards still where they were); returns the unsubscription. */
+export function subscribeUpdates(listener: (u: AppliedUpdate) => void): () => void {
+  updateListeners.add(listener);
+  return () => {
+    updateListeners.delete(listener);
+  };
+}
+
 export function myActions(view: GameView | null): ActionOption[] {
   const p = view?.pending;
   return p?.kind === "priority" && p.player === view?.viewer ? (p.actions ?? []) : [];
@@ -1615,6 +1632,7 @@ export const useGame = create<Store>((set, get) => {
       const lines = describeEvents(events, view, faces, get().lang, get().view);
       for (const cue of soundsFor(events, view, get().view, faces)) playSound(cue.key, cue);
       playEffects(view, events, faces);
+      for (const listener of updateListeners) listener({ events, view, prev: get().view, faces });
       const changed = pendingKey(get().view) !== pendingKey(view);
       // Soft pass: an opponent's spell or ability hands back control; the pass until the end of the turn stops there.
       const st = get().settings;
