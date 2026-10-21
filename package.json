@@ -22,6 +22,7 @@
     "import-tokens": "tsx tools/import-tokens.ts",
     "import-printings": "tsx tools/import-printings.ts",
     "custom-art": "tsx tools/custom-art.ts",
+    "arena-assets": "tsx tools/arena-assets.ts",
     "ui-smoke": "tsx tools/ui-smoke.ts",
     "bench": "tsx tools/bench.ts",
     "coverage": "tsx tools/card-coverage.ts",
@@ -39,9 +40,14 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.14",
+    "@gltf-transform/core": "4.5.1",
+    "@gltf-transform/extensions": "4.5.1",
+    "@gltf-transform/functions": "4.5.1",
     "@types/node": "^26.6.2",
     "esbuild": "^0.28.2",
+    "ktx2-encoder": "0.6.0",
     "playwright": "^1.63.0",
+    "sharp": "0.35.5",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vitest": "^5.0.1"

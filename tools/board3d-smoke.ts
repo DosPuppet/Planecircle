@@ -6,12 +6,14 @@
  * - a land played from the hand appears on the 3D table, an attacker is chosen by clicking its card;
  * - the Graphics setting offers 3D, refused (with its reason) on a software renderer without the flag;
  * - without the flag, the DOM board, and three.js is not even loaded;
- * - a lost WebGL context brings back the DOM board.
+ * - a lost WebGL context brings back the DOM board;
+ * - the arena (data/arena/, `npm run arena-assets`) dresses the table when it was built; without it (an empty manifest),
+ *   the plain table, without errors.
  * Screenshots in test-results/board3d/.
  *
  * Requires: `npm run dev` running (restarted after an engine change).
  */
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { type Browser, chromium, type Page } from "playwright";
 
 const OUT = "test-results/board3d";
@@ -29,6 +31,7 @@ type DevWindow = {
     projectedRect(id: string): { left: number; top: number; right: number; bottom: number } | null;
     drawing(): boolean;
     handShown(): number;
+    arenaShown(): boolean;
   };
 };
 
@@ -68,9 +71,19 @@ const browser: Browser = await chromium.launch({
   args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
 });
 
-/** A game in the sandbox; `flag`: the 3D board forced. Requests for three.js are counted. */
-async function open(viewport: { width: number; height: number }, flag: boolean, sandbox: Record<string, Side>, ais = 1) {
+/**
+ * A game in the sandbox; `flag`: the 3D board forced; `noArena`: as if the arena had not been built. Requests for
+ * three.js are counted.
+ */
+async function open(
+  viewport: { width: number; height: number },
+  flag: boolean,
+  sandbox: Record<string, Side>,
+  ais = 1,
+  noArena = false,
+) {
   const ctx = await browser.newContext({ viewport });
+  if (noArena) await ctx.route("**/arena/manifest.json", (r) => r.fulfill({ json: { version: 0 } }));
   const page = await ctx.newPage();
   const three: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -235,11 +248,30 @@ check(
 );
 await g.close();
 
-// 3. Another screen shape.
+// 3. Another screen shape; the arena, when it was built.
+const built = existsSync("data/arena/manifest.json");
 g = await open({ width: 1280, height: 720 }, true, { p1: ME, p2: OPP });
 page = g.page;
+if (built) {
+  const shown = await page
+    .waitForFunction(() => (window as unknown as DevWindow).__board3d?.arenaShown(), null, { timeout: 60_000 })
+    .then(() => true)
+    .catch(() => false);
+  check(shown, "the arena (props, wood, light) dresses the table");
+} else console.log("(arena not built: npm run arena-assets)");
 await page.screenshot({ path: `${OUT}/3-board-1280.png` });
 await aligned(page, "1280×720");
+await g.close();
+
+// 3b. Without the arena: the plain table, without errors.
+g = await open({ width: 1280, height: 720 }, true, { p1: ME, p2: OPP }, 1, true);
+await g.page.waitForTimeout(1500);
+check(
+  (await g.page.locator(".board3d canvas").isVisible()) &&
+    !(await g.page.evaluate(() => (window as unknown as DevWindow).__board3d?.arenaShown())),
+  "without the arena, the plain table",
+);
+await g.page.screenshot({ path: `${OUT}/4-plain-table.png` });
 await g.close();
 
 // 4. Without the flag: the DOM board, and no three.js.

@@ -15,6 +15,7 @@ import { StackReveal } from "../board/StackReveal";
 import { fastMode } from "../fast";
 import { useT } from "../localize";
 import { useGame } from "../store";
+import { type Arena, loadArena } from "./assets";
 import { frameSeats, viewProjection } from "./camera";
 import { type CardNode, pileNodes, tableNodes } from "./model";
 import {
@@ -107,14 +108,26 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
     // Cards fly faster in the fast test mode, and jump with reduced motion.
     const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     const speed = reduced ? Number.POSITIVE_INFINITY : fastMode() ? 5 : 1;
+    let scene: TableScene;
     try {
-      sceneRef.current = new TableScene(canvas, onFail, speed);
+      scene = new TableScene(canvas, onFail, speed);
+      sceneRef.current = scene;
     } catch {
       onFail();
       return;
     }
+    // The arena (W5), when it was built: the board plays on the plain table until it has loaded.
+    let alive = true;
+    let arena: Arena | null = null;
+    void loadArena(scene.webgl).then((a) => {
+      if (!alive) return a?.dispose();
+      arena = a;
+      scene.setArena(a);
+    });
     return () => {
-      sceneRef.current?.dispose();
+      alive = false;
+      scene.dispose();
+      arena?.dispose();
       sceneRef.current = null;
     };
   }, []);
@@ -254,6 +267,7 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
     w.__board3d = {
       drawing: () => sceneRef.current?.drawing ?? false,
       handShown: () => sceneRef.current?.handShown ?? 0,
+      arenaShown: () => sceneRef.current?.arenaShown ?? false,
       projectedRect(id: string) {
         const { nodes: ns, vp: m4, size: sz } = latest.current;
         const n = ns.find((x) => x.id === id && x.kind !== "shadow");

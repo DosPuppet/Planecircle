@@ -28,15 +28,17 @@ function get(port: number, path: string, encoding?: string): Promise<{ headers: 
 }
 
 describe("client files", () => {
-  it("content security policy (CSP): own-site scripts only, Scryfall images, no framing", async () => {
+  it("content security policy (CSP): own-site scripts only (WebAssembly, never eval), Scryfall images, no framing", async () => {
     dir = mkdtempSync(join(tmpdir(), "mtgx-dist-"));
     writeFileSync(join(dir, "index.html"), "<!doctype html><title>Planecircle</title>");
     srv = await startServer({ port: 0, host: "127.0.0.1", staticDir: dir });
     const csp = String((await get(srv.port, "/")).headers["content-security-policy"]);
-    expect(csp).toContain("script-src 'self'");
+    expect(csp).toContain("script-src 'self' 'wasm-unsafe-eval'");
+    expect(csp).toContain("worker-src 'self' blob:");
     expect(csp).toContain("img-src 'self' data: https://cards.scryfall.io");
     expect(csp).toContain("frame-ancestors 'none'");
-    expect(csp).not.toContain("unsafe-eval");
+    // The 3D board's decoders compile WebAssembly; JavaScript eval stays forbidden.
+    expect(csp).not.toMatch(/'unsafe-eval'/);
   });
 
   it("compressed (brotli, else gzip), cached for one year under /assets/, never for index.html", async () => {

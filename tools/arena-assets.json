@@ -1,0 +1,168 @@
+{
+  "about": "Arena of the 3D board (PLAN-W W5): CC0 assets from Poly Haven (polyhaven.com, CC0-1.0), downloaded and optimized by tools/arena-assets.ts into data/arena/ (outside Git). md5: the main file's, pinned by --pin; a different file upstream stops the build. Props: an anchor on the table's rim, an offset and a size in world units (a card is about 1.1 wide; size: the prop's largest dimension), a turn in degrees; `lie`: laid on its side; `light`: a flame at its top.",
+  "budgetBytes": 26214400,
+  "hdri": {
+    "id": "warm_restaurant_night",
+    "res": "1k",
+    "md5": "484f0fe0ce07ae50b9374e0481c617ca"
+  },
+  "materials": [
+    {
+      "slot": "tabletop",
+      "id": "wood_table_worn",
+      "res": "2k",
+      "tile": 14,
+      "maps": ["diff", "nor_gl", "arm"],
+      "md5": "44d2440f1581401e0ea65133c0e11d79"
+    },
+    {
+      "slot": "rim",
+      "id": "dark_wood",
+      "res": "1k",
+      "tile": 4,
+      "maps": ["diff", "nor_gl", "arm"],
+      "md5": "47fa883f1bb33acc5711245f64b75975"
+    },
+    {
+      "slot": "mat",
+      "id": "fabric_leather_02",
+      "res": "1k",
+      "tile": 3,
+      "maps": ["nor_gl", "arm"],
+      "md5": "1600b3fed674702eaa350cd627278a0f"
+    }
+  ],
+  "models": [
+    {
+      "id": "wooden_candlestick",
+      "res": "1k",
+      "simplify": 0.25,
+      "md5": "26894e96c7c914a995c3a5151c875a4e"
+    },
+    {
+      "id": "vintage_oil_lamp",
+      "res": "1k",
+      "md5": "95aefcb2ccfad1f5e10dd69522ec09ed"
+    },
+    {
+      "id": "wooden_lantern_01",
+      "res": "1k",
+      "md5": "e31edca6461023e076183cb74721b0b9"
+    },
+    {
+      "id": "brass_goblets",
+      "res": "1k",
+      "md5": "9e76131d099b3dcdadb82c1d2d8bd536"
+    },
+    {
+      "id": "treasure_chest",
+      "res": "1k",
+      "simplify": 0.2,
+      "md5": "7bfc4b335cff3e2641c8b9e55dbee0a2"
+    },
+    {
+      "id": "book_encyclopedia_set_01",
+      "res": "1k",
+      "simplify": 0.3,
+      "md5": "d0a77d421a6ea2c9d82bcaaa64e8479b"
+    },
+    {
+      "id": "kite_shield",
+      "res": "1k",
+      "md5": "bba20187ab75fefa531830097ba8e014"
+    },
+    {
+      "id": "antique_estoc",
+      "res": "1k",
+      "md5": "ea69fd266eaa44c0b283b02b69674488"
+    },
+    {
+      "id": "wine_bottles_01",
+      "res": "1k",
+      "simplify": 0.4,
+      "md5": "56ed090c274714cccafefe08f5b9c1a8"
+    },
+    {
+      "id": "jug_01",
+      "res": "1k",
+      "md5": "b8b3c0c9faf48e2370485a04288da9c4"
+    }
+  ],
+  "props": [
+    {
+      "model": "wooden_candlestick",
+      "anchor": "far-left",
+      "at": [-0.7, -0.7],
+      "size": 2.4,
+      "turn": 20,
+      "light": true
+    },
+    {
+      "model": "book_encyclopedia_set_01",
+      "anchor": "far-left",
+      "at": [-2.4, -1.2],
+      "size": 2.6,
+      "turn": -15
+    },
+    {
+      "model": "treasure_chest",
+      "anchor": "far-left",
+      "at": [-3.4, 1.2],
+      "size": 3.2,
+      "turn": 35
+    },
+    {
+      "model": "jug_01",
+      "anchor": "far-left",
+      "at": [-1.6, 1.8],
+      "size": 1.5,
+      "turn": 0
+    },
+    {
+      "model": "antique_estoc",
+      "anchor": "far",
+      "at": [0.0, -0.8],
+      "size": 7.0,
+      "turn": 0,
+      "lie": true
+    },
+    {
+      "model": "vintage_oil_lamp",
+      "anchor": "far-right",
+      "at": [0.7, -0.7],
+      "size": 2.2,
+      "turn": 0,
+      "light": true
+    },
+    {
+      "model": "brass_goblets",
+      "anchor": "far-right",
+      "at": [2.2, -1.1],
+      "size": 1.4,
+      "turn": 10
+    },
+    {
+      "model": "wine_bottles_01",
+      "anchor": "far-right",
+      "at": [3.4, 0.6],
+      "size": 2.4,
+      "turn": 60
+    },
+    {
+      "model": "wooden_lantern_01",
+      "anchor": "far-right",
+      "at": [1.6, 1.9],
+      "size": 2.2,
+      "turn": 15,
+      "light": true
+    },
+    {
+      "model": "kite_shield",
+      "anchor": "right",
+      "at": [2.6, -0.6],
+      "size": 3.0,
+      "turn": -20,
+      "lie": true
+    }
+  ]
+}

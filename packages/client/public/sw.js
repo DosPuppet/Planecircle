@@ -4,7 +4,8 @@
  *   replaces the old one (same name prefix);
  * - the page: network first, cache when offline (a game against the AI without network; the Scryfall images stay
  *   with the browser).
- * Neither online play (/ws), nor the image relay (/scry/), nor /healthz go through the cache.
+ * Neither online play (/ws), nor the image relay (/scry/), nor /healthz go through the cache; nor the arena of the 3D board
+ * (/arena/, about 12 MB, downloaded only with it): the browser's HTTP cache keeps its hashed files for a year.
  */
 const CACHE = "planecircle-v1";
 

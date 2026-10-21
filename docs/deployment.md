@@ -133,6 +133,15 @@ Local images (proxies, alternate versions) can replace Scryfall's for the cards,
 3. The server serves them on `/art/`, without a restart. Every player on the server then sees the "Illustrations personnelles" ("Custom art") checkbox, ticked by default, on the home screen and in the game settings.
 4. They replace the Scryfall image only in a deck that chooses them: The Vision precon for all its cards, or a card of your choice in the deck editor ("Illustration" menu, "Illustration personnelle"). The tokens and card backs of a player whose deck uses them take their own too.
 
+### Arena of the 3D board
+
+The 3D board (Graphics: 3D, PLAN-W) plays on a wooden table dressed with CC0 models and materials from Poly Haven (candles, lamp, lantern, chest, books, goblets, sword, shield; an HDRI for the light). They are never in Git.
+
+1. `deploy/update.sh` builds them (`npm run arena-assets`): the first time, it downloads the assets listed in `tools/arena-assets.json` (each checked against its pinned md5), compresses them (KTX2 textures, meshopt geometry) into `data/arena/` (about 12 MB, budget 25 MB), with `CREDITS.md`; afterwards, only when the manifest changes. `MTGX_ARENA=0` skips it; another location is given by `MTGX_ARENA_DIR`. A failure (no network) does not stop the update: the 3D board keeps its plain table.
+2. The server serves them on `/arena/` (hashed files cached for a year); without the folder, an empty manifest.
+3. Their decoders compile WebAssembly: the CSP allows `'wasm-unsafe-eval'` (never JavaScript `eval`) and workers made from blobs.
+4. An asset changed upstream stops the build with a message: check it, then `npm run arena-assets -- --pin` writes its new md5 into the manifest.
+
 ## 7. Check
 
 - `https://mtg.mydomain.example/healthz` displays "ok";

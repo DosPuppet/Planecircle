@@ -8,6 +8,7 @@ import type { CardFace, ObjectView } from "@mtgx/engine";
 import {
   ACESFilmicToneMapping,
   AmbientLight,
+  Box3,
   BoxGeometry,
   CanvasTexture,
   Color,
@@ -27,11 +28,14 @@ import {
   Shape,
   ShapeGeometry,
   SRGBColorSpace,
+  type Texture,
   Vector3,
   WebGLRenderer,
 } from "three";
 import { CARD_RATIO } from "../board/layout";
 import type { Lang } from "../translate";
+import { type Bounds, clearOfRim, propPose } from "./arena";
+import type { Arena, ArenaMaterial } from "./assets";
 import type { Framing } from "./camera";
 import type { CardNode } from "./model";
 import { Springs } from "./motion";
@@ -136,6 +140,10 @@ export class TableScene {
   private hemi = new HemisphereLight("#ffffff", "#000000", 0.55);
   private pool = new PointLight("#ffffff", 1, 0, 2);
   private tableGroup = new Group();
+  /** The arena (W5): its props, their flames, the rim they stand around. */
+  private arena: Arena | null = null;
+  private propGroup = new Group();
+  private rim: Bounds | null = null;
   private cardGroup = new Group();
   private cards = new Map<string, { group: Group; face: Mesh; body: Mesh; key: string }>();
   private geometries = new Map<number, ReturnType<typeof cardGeometries>>();
@@ -172,7 +180,8 @@ export class TableScene {
     const ground = new Mesh(new PlaneGeometry(80, 80), this.ground);
     ground.rotateX(-Math.PI / 2);
     ground.position.y = -0.02;
-    this.scene.add(ground, this.tableGroup, this.cardGroup, this.handGroup);
+    this.ground.userData.size = 80;
+    this.scene.add(ground, this.tableGroup, this.propGroup, this.cardGroup, this.handGroup);
     // Light: a key light from the viewer's left, a soft fill from the sky, a pool of the texture's light over the middle.
     const key = new DirectionalLight("#fff4e6", 1.5);
     key.position.set(-6, 14, 9);
@@ -200,6 +209,11 @@ export class TableScene {
   /** Is a frame coming (a card flying, the hand moving)? An idle board draws nothing. */
   get drawing(): boolean {
     return this.frame !== 0;
+  }
+
+  /** The arena is drawn (dev checks). */
+  get arenaShown(): boolean {
+    return !!this.arena && this.propGroup.children.length > 0;
   }
 
   /** Cards of the hand shown (dev checks). */
@@ -233,11 +247,16 @@ export class TableScene {
     card.group.scale.set(p.w, 1, p.w);
   }
 
+  get webgl(): WebGLRenderer {
+    return this.renderer;
+  }
+
   setPalette(p: Palette): void {
     this.scene.background = new Color(p.deep);
-    this.ground.color.set(p.mid).multiplyScalar(0.55);
-    this.mat.color.set(p.mid).multiplyScalar(0.8);
-    this.rimMat.color.set(p.pool).multiplyScalar(0.35);
+    // With the arena, the table is wood and the rim carved: only the mats keep the texture's color.
+    if (!this.arena?.materials.tabletop) this.ground.color.set(p.mid).multiplyScalar(0.55);
+    this.mat.color.set(p.mid).multiplyScalar(this.arena ? 1.1 : 0.8);
+    if (!this.arena?.materials.rim) this.rimMat.color.set(p.pool).multiplyScalar(0.35);
     this.hemi.color.set(p.pool);
     this.hemi.groundColor.set(p.deep);
     this.pool.color.set(p.pool);
@@ -298,11 +317,95 @@ export class TableScene {
       m.position.set(x, height / 2 - 0.02, z);
       this.tableGroup.add(m);
     }
+    this.rim = { x0: outer.x - outer.w / 2, x1: outer.x + outer.w / 2, z0: outer.z - outer.h / 2, z1: outer.z + outer.h / 2 };
+    this.placeProps();
     // The pool's light falls off with the square of its height: the same light on the table whatever its size.
     const lift = Math.max(outer.w, outer.h) * 0.45;
     this.pool.position.set(0, lift, 0);
     this.pool.intensity = 1.1 * lift * lift;
     this.requestRender();
+  }
+
+  /**
+   * The arena (null: the plain table): its HDRI lights the scene and shows in reflections, its wood covers the table,
+   * its leather and carved wood the mats and the rim, its props stand around the rim.
+   */
+  setArena(arena: Arena | null): void {
+    this.arena = arena;
+    this.scene.environment = arena?.environment ?? null;
+    this.scene.environmentIntensity = 0.55;
+    const apply = (target: MeshStandardMaterial, m: ArenaMaterial | undefined, repeat: number, colored: boolean) => {
+      if (!m) return;
+      const tiled = (t: Texture | undefined) => {
+        if (!t) return null;
+        const c = t.clone();
+        c.repeat.set(repeat, repeat);
+        c.channel = 0;
+        return c;
+      };
+      target.map = colored ? tiled(m.map) : target.map;
+      target.normalMap = tiled(m.normalMap);
+      const arm = tiled(m.arm);
+      target.aoMap = arm;
+      target.roughnessMap = arm;
+      target.metalnessMap = arm;
+      target.roughness = 1;
+      target.metalness = 1;
+      if (colored) target.color.set("#ffffff");
+      target.needsUpdate = true;
+    };
+    if (arena) {
+      const size = this.ground.userData.size as number;
+      apply(this.ground, arena.materials.tabletop, size / (arena.materials.tabletop?.tile ?? size), true);
+      // The mats and the rim have UVs in world units (extruded shapes): one tile every `tile`.
+      apply(this.mat, arena.materials.mat, 1 / (arena.materials.mat?.tile ?? 1), false);
+      apply(this.rimMat, arena.materials.rim, 1 / (arena.materials.rim?.tile ?? 1), true);
+    }
+    this.placeProps();
+    this.requestRender();
+  }
+
+  /**
+   * The props around the rim: each sized by its largest dimension, set down on the table, turned; a flame lights its
+   * top. One whose footprint would reach inside the rim (a narrow screen) is left out: never on a battlefield.
+   */
+  private placeProps() {
+    this.propGroup.clear();
+    const arena = this.arena;
+    const rim = this.rim;
+    if (!arena || !rim) return;
+    const box = new Box3();
+    const dims = new Vector3();
+    for (const p of arena.manifest.props ?? []) {
+      const model = arena.models.get(p.model);
+      if (!model) continue;
+      const pose = propPose(p, rim);
+      const body = model.clone(true);
+      // Laid on its side: its longest side (y, standing) along the table.
+      if (p.lie) body.rotation.z = Math.PI / 2;
+      const prop = new Group();
+      prop.add(body);
+      prop.rotation.y = pose.turn;
+      box.setFromObject(prop).getSize(dims);
+      prop.scale.setScalar(p.size / Math.max(dims.x, dims.y, dims.z, 1e-6));
+      prop.position.set(pose.x, 0, pose.z);
+      prop.updateMatrixWorld(true);
+      box.setFromObject(prop);
+      // Its base on the table, its middle where the manifest says.
+      prop.position.x += pose.x - (box.min.x + box.max.x) / 2;
+      prop.position.z += pose.z - (box.min.z + box.max.z) / 2;
+      prop.position.y += -0.02 - box.min.y;
+      prop.updateMatrixWorld(true);
+      box.setFromObject(prop);
+      if (!clearOfRim({ x0: box.min.x, x1: box.max.x, z0: box.min.z, z1: box.max.z }, rim)) continue;
+      if (p.light) {
+        const flame = new PointLight("#ffb265", 2.5, 0, 2);
+        flame.position.set((box.min.x + box.max.x) / 2, box.max.y + 0.15, (box.min.z + box.max.z) / 2);
+        flame.userData.flame = true;
+        this.propGroup.add(flame);
+      }
+      this.propGroup.add(prop);
+    }
   }
 
   private geometry(ratio: number) {
@@ -421,6 +524,7 @@ export class TableScene {
 
   dispose(): void {
     cancelAnimationFrame(this.frame);
+    this.propGroup.clear();
     this.canvas.removeEventListener("webglcontextlost", this.onContextLost);
     this.textures.dispose();
     this.grain.dispose();

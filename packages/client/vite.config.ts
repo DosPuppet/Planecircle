@@ -28,8 +28,40 @@ function customArt(): Plugin {
   };
 }
 
+/**
+ * Arena of the 3D board (PLAN-W, tools/arena-assets.ts): /arena/ served from `MTGX_ARENA_DIR` or data/arena/ at the
+ * repository root, as the game server does in production; without it, an empty manifest (the plain table).
+ */
+function arena(): Plugin {
+  const dir = process.env.MTGX_ARENA_DIR || fileURLToPath(new URL("../../data/arena", import.meta.url));
+  const TYPES: Record<string, string> = {
+    glb: "model/gltf-binary",
+    ktx2: "image/ktx2",
+    hdr: "image/vnd.radiance",
+    json: "application/json",
+    js: "text/javascript",
+    wasm: "application/wasm",
+  };
+  return {
+    name: "mtgx-arena",
+    configureServer(server) {
+      server.middlewares.use("/arena", (req, res, next) => {
+        const m = req.url?.match(/^\/((?:basis\/)?[a-z0-9_-]+(?:\.[a-z_]+)?(?:\.[a-f0-9]{8})?\.(glb|ktx2|hdr|json|js|wasm))$/);
+        if (!m?.[1] || !m[2]) return next();
+        const file = join(dir, m[1]);
+        res.setHeader("Content-Type", TYPES[m[2]] ?? "application/octet-stream");
+        res.setHeader("Cache-Control", "no-cache");
+        if (existsSync(file)) return res.end(readFileSync(file));
+        if (m[1] === "manifest.json") return res.end('{"version":0}\n');
+        res.statusCode = 404;
+        res.end();
+      });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), customArt()],
+  plugins: [react(), customArt(), arena()],
   worker: { format: "es" },
   build: {
     // Card data (6 MB, 1 MB compressed) is a file of its own: a code update does not force a new download of it, and it

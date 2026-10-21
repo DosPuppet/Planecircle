@@ -20,6 +20,11 @@ git pull --ff-only
 npm ci
 npm run build
 npm run build:server
+# Arena of the 3D board (PLAN-W): downloaded from Poly Haven and built the first time, then only when its manifest
+# changes (MTGX_ARENA=0: never). A failure leaves the 3D board on its plain table, the update goes on.
+if [ "${MTGX_ARENA:-1}" != "0" ]; then
+  npm run arena-assets -- --quiet || echo "Warning: arena of the 3D board not built (the 3D board keeps its plain table)."
+fi
 
 # 3. Games in progress replayed with the new engine (on a copy): how many will be interrupted.
 npx tsx tools/rooms-check.ts "$DATA" || echo "Warning: some games in progress will be interrupted (see above)."

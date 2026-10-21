@@ -39,6 +39,11 @@ export interface ServerOptions {
    * default). Absent: no custom art.
    */
   artDir?: string;
+  /**
+   * Arena of the 3D board (PLAN-W, `tools/arena-assets.ts`), served on /arena/: directory prepared outside Git
+   * (MTGX_ARENA_DIR, data/arena by default). Absent: an empty manifest, and the 3D board draws its plain table.
+   */
+  arenaDir?: string;
   /** Fetch of a Scryfall image for the /scry/ relay (replaceable in the tests). */
   fetchImage?: (url: string) => Promise<Response>;
   config?: Partial<RoomConfig>;
@@ -92,14 +97,17 @@ export function originAllowed(req: IncomingMessage, allowed: readonly string[] =
 }
 
 /**
- * Content policy of the application: scripts, worker and data of the site only; inline styles (React) and Google Fonts
- * fonts; images of the site, as `data:` (textures) and from Scryfall; no page can frame it.
+ * Content policy of the application: scripts, worker and data of the site only (with WebAssembly, and workers made from
+ * blobs, for the 3D board's decoders; never JavaScript eval); inline styles (React) and Google Fonts fonts; images of the
+ * site, as `data:` (textures) and from Scryfall; no page can frame it.
  * HSTS is set by nginx (the server itself only speaks HTTP, locally).
  */
 export const CSP = [
   "default-src 'self'",
-  "script-src 'self'",
-  "worker-src 'self'",
+  // WebAssembly (not JavaScript eval): the decoders of the 3D board's compressed models and textures (PLAN-W).
+  "script-src 'self' 'wasm-unsafe-eval'",
+  // The KTX2 loader of the 3D board runs its transcoder in workers made from blobs.
+  "worker-src 'self' blob:",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   "img-src 'self' data: https://cards.scryfall.io",
@@ -265,29 +273,74 @@ async function relayImage(
 }
 
 /**
- * Custom art: /art/<file>.webp and /art/manifest.json, from the directory prepared by `tools/custom-art.ts`. Strict
- * file names (no subdirectory, no other extension). The images carry a hash of their source in their name: long cache;
- * the manifest is never cached.
+ * Files of a directory prepared outside Git, served under a prefix: strict names (a given pattern, no other
+ * subdirectory, no other extension), a long cache for the files whose name carries a hash of their content, none for the
+ * manifest. `empty`: what a missing manifest answers (the client must not see an error when the directory was not
+ * built).
+ */
+interface ServedDir {
+  path: RegExp;
+  types: Record<string, string>;
+  /** Files named by their content: cached for a year. */
+  immutable: RegExp;
+  empty?: string;
+}
+
+/**
+ * Custom art: /art/<file>.webp and /art/manifest.json, from the directory prepared by `tools/custom-art.ts`. The images
+ * carry a hash of their source in their name.
  */
 export const ART_PREFIX = "/art/";
-const ART_PATH = /^\/art\/([a-z0-9-]+\.(webp|json))$/;
+const ART: ServedDir = {
+  path: /^\/art\/([a-z0-9-]+\.(webp|json))$/,
+  types: { webp: "image/webp", json: "application/json" },
+  immutable: /\.webp$/,
+};
 
-function serveArt(dir: string | undefined, req: IncomingMessage, res: ServerResponse): void {
+/**
+ * Arena of the 3D board (PLAN-W): /arena/<id>.<hash>.(glb|ktx2|hdr), /arena/manifest.json and the basis transcoder
+ * (/arena/basis/basis_transcoder.js|wasm), from the directory built by `tools/arena-assets.ts`.
+ */
+export const ARENA_PREFIX = "/arena/";
+const ARENA: ServedDir = {
+  // <asset>[.<map>][.<hash>].<type>: "jug_01.0123abcd.glb", "tabletop.nor_gl.89abcdef.ktx2", "basis/basis_transcoder.js".
+  path: /^\/arena\/((?:basis\/)?[a-z0-9_-]+(?:\.[a-z_]+)?(?:\.[a-f0-9]{8})?\.(glb|ktx2|hdr|json|js|wasm))$/,
+  types: {
+    glb: "model/gltf-binary",
+    ktx2: "image/ktx2",
+    hdr: "image/vnd.radiance",
+    json: "application/json",
+    js: "text/javascript",
+    wasm: "application/wasm",
+  },
+  immutable: /\.[a-f0-9]{8}\.(glb|ktx2|hdr)$/,
+  empty: '{"version":0}\n',
+};
+
+function serveDir(spec: ServedDir, dir: string | undefined, req: IncomingMessage, res: ServerResponse): void {
   if (req.method !== "GET" && req.method !== "HEAD") {
     res.writeHead(405).end();
     return;
   }
-  const m = new URL(req.url ?? "/", "http://x").pathname.match(ART_PATH);
-  const file = dir && m?.[1] ? join(dir, m[1]) : undefined;
-  if (!file || !existsSync(file)) {
+  const m = new URL(req.url ?? "/", "http://x").pathname.match(spec.path);
+  const name = m?.[1];
+  const file = dir && name ? join(dir, name) : undefined;
+  const type = spec.types[m?.[2] ?? ""];
+  if (!name || !type) {
     res.writeHead(404).end();
     return;
   }
-  const json = m?.[2] === "json";
+  if (!file || !existsSync(file)) {
+    if (spec.empty !== undefined && name === "manifest.json") {
+      res.writeHead(200, { ...SECURITY_HEADERS, "Content-Type": type, "Cache-Control": "no-cache" });
+      res.end(req.method === "HEAD" ? undefined : spec.empty);
+    } else res.writeHead(404).end();
+    return;
+  }
   res.writeHead(200, {
     ...SECURITY_HEADERS,
-    "Content-Type": json ? "application/json" : "image/webp",
-    "Cache-Control": json ? "no-cache" : "public, max-age=31536000, immutable",
+    "Content-Type": type,
+    "Cache-Control": spec.immutable.test(name) ? "public, max-age=31536000, immutable" : "no-cache",
     "Content-Length": statSync(file).size,
   });
   if (req.method === "HEAD") res.end();
@@ -338,6 +391,7 @@ export function startServer(opts: ServerOptions = {}): Promise<RunningServer> {
   const rooms = new RoomManager({ ...DEFAULT_CONFIG, ...(aiPool ? { aiPool } : {}), ...opts.config });
   const root = opts.staticDir && existsSync(opts.staticDir) ? resolve(opts.staticDir) : undefined;
   const artDir = opts.artDir && existsSync(opts.artDir) ? resolve(opts.artDir) : undefined;
+  const arenaDir = opts.arenaDir && existsSync(opts.arenaDir) ? resolve(opts.arenaDir) : undefined;
   const http = createHttpServer((req, res) => {
     try {
       handle(req, res);
@@ -358,7 +412,11 @@ export function startServer(opts: ServerOptions = {}): Promise<RunningServer> {
       return;
     }
     if (req.url?.startsWith(ART_PREFIX)) {
-      serveArt(artDir, req, res);
+      serveDir(ART, artDir, req, res);
+      return;
+    }
+    if (req.url?.startsWith(ARENA_PREFIX)) {
+      serveDir(ARENA, arenaDir, req, res);
       return;
     }
     serveStatic(root, req, res);

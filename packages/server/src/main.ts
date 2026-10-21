@@ -7,6 +7,7 @@
  * created, 384), MTGX_AI_WORKERS (workers of the AI seats, at most 2 by default; 0: no online AI), MTGX_MAX_AI_ROOMS
  * (most open rooms with AI, 12), MTGX_MAX_RSS_MB (process memory beyond which no room with AI is created, 640),
  * MTGX_ART_DIR (custom art served on /art/, prepared by `npm run custom-art`; `data/art` by default).
+ * MTGX_ARENA_DIR (arena of the 3D board served on /arena/, built by `tools/arena-assets.ts`; `data/arena` by default).
  */
 import { networkInterfaces } from "node:os";
 import { dirname, join } from "node:path";
@@ -22,6 +23,7 @@ const server = await startServer({
   host,
   staticDir,
   artDir: process.env.MTGX_ART_DIR || join(process.cwd(), "data", "art"),
+  arenaDir: process.env.MTGX_ARENA_DIR || join(process.cwd(), "data", "arena"),
   ...(num(process.env.MTGX_AI_WORKERS) !== undefined ? { aiWorkers: num(process.env.MTGX_AI_WORKERS) } : {}),
   allowedOrigins: (process.env.MTGX_ORIGINS ?? "")
     .split(",")

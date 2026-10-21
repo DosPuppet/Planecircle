@@ -25,8 +25,9 @@ const BUDGET: Record<string, number> = {
   printings: 600 * KB,
   // Animated table (PLAN-V, raw WebGL), loaded on demand: a missing chunk means it was merged into the application.
   backdrop: 12 * KB,
-  // 3D board (PLAN-W), loaded only when it is drawn: three.js (557 KB, 2026-10-21) and the board's code (18 KB in W3).
-  three: 620 * KB,
+  // 3D board (PLAN-W), loaded only when it is drawn: three.js (557 KB, 2026-10-21; 714 KB with the arena's loaders in
+  // W5: glTF, KTX2, HDR and the meshopt decoder) and the board's code (18 KB in W3, 31 KB in W5).
+  three: 780 * KB,
   Board3D: 120 * KB,
   // Synthesized sound cues (audio/synth.ts), loaded on demand.
   synth: 12 * KB,
