@@ -12,6 +12,7 @@ A platform for playing Magic: The Gathering against one or more AIs (head-to-hea
 - AI at three selectable levels (beginner, medium, high), from heuristic play to ISMCTS search in duels (see docs/ai.md);
 - browsable exile: a button next to the graveyard, and cards exiled by a permanent shown under it (hover to see them);
 - an MTG Arena-style table: battlefield art cards that lean when tapped, a tilted table with an optional animated background (a few kilobytes of WebGL, off in "light" graphics), the card preview floating at the left, settings and log in a ☰ drawer (see docs/ui.md);
+- an optional 3D board ("3D" in Graphics, on a device with a graphics card): the cards on a tavern table seen at an angle, a fireplace and candles casting shadows, cards flying between zones, runes and particles for spells and combat (three.js and the arena loaded only for those who choose it);
 - decks shared by a QR code: the export window draws a code of a Planecircle link that carries the deck; any phone camera opens it, and Planecircle offers to import the deck. In the installed app (on an iPhone, a camera opens Safari, whose storage is not the app's), the import window scans the code itself, or takes the link pasted;
 - playable on tablets and on phones in landscape (see "Tablet and phone");
 - card images relayed by the server when the player's network blocks Scryfall (see "Images blocked by the network");
@@ -143,7 +144,7 @@ The interface adapts to the screen: tablet in landscape or portrait, phone in la
   - a first tap raises a card in hand and enlarges it, a second plays it; you can also drag it to the battlefield;
   - a long press on any card shows it large, and a tap closes it.
 - **Settings and log** are in a drawer opened by the ☰ button, at every screen width.
-- **Graphics:** "light" by default on a small touch screen (flat battlefield, still table), "full" otherwise; to change in the drawer.
+- **Graphics:** "light" by default on a small touch screen (flat battlefield, still table), "full" otherwise; "3D" by choice where the browser has WebGL2 on a graphics card (the drawer then shows the card in use and the quality drawn); to change in the drawer.
 - **Install as an app (PWA):** "Add to Home Screen" (Safari) or "Install" (Chrome) gives Planecircle its icon and a full-screen window; games against the AI work offline. The icon is drawn in code: `npx tsx tools/make-icons.ts` renders `packages/client/public/icons/`.
 - **Trying on a real device:** `npm run dev -- --host`, then open the displayed "Network" address from the tablet (same Wi-Fi network).
 

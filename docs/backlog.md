@@ -86,6 +86,14 @@ Per card, in `docs/approximations.md`. Cards the plans left explicitly documente
 - **Kept by decision:** payment details automatic outside full control (Relic of Legends, Gene Pollinator, Kíli's {0}, delve, convoke and waterbend sources, Haunted Screen); the rules deferred until a card requires them; the large approximations listed in `docs/plans/PLAN-M.md` ("Out of scope").
 - **Official rulings:** Scryfall answered 403 to the agents; the lots followed the Comprehensive Rules and the Oracle texts. Rulings tests to recheck when the API is reachable.
 
+## PLAN-W: not done (2026-10-21)
+
+- 3D board: the opponents' hands (backs in their bars) and the stack panel stay DOM; a 3D stack, cards flying to it.
+- 3D board on a phone in portrait (the DOM board plays there), curved seating for 3 and 4 players, WebGPU.
+- Tuning on real GPUs (lights, fire, bloom, runes): only judged by the user on a laptop RTX 4080 and in SwiftShader screenshots; Safari and Firefox not tried.
+- The fire wavers between moves (an exception to "no endless animation", at most 20 frames a second): to reconsider if a battery measure shows its cost.
+- Interface tests on a machine without `data/art/`: ui, tutorial and commander smokes fail on the 404 of `/art/manifest.json` (the server could answer an empty manifest, as `/arena/` does); `server/test/ai-seats.test.ts` (a room closing after a concession, 3 players) fails now and then under the load of `verify`.
+
 ## AI
 
 - Multiplayer: ISMCTS is for duels only; Commander at two uses it (kept after a 40-game measure); in 3 to 4 players the heuristic level plays. The 1.5 to 4 s per medium decision on large boards (PLAN-C C17) no longer holds: on 2026-10-09 the bench's Commander line (four precons) measured 5.7 ms on average on boards of 50 to 62 permanents, 308 ms at worst.

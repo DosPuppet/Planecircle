@@ -385,3 +385,21 @@ Rules 95 -> 102 (96: Cryptex; 97 to 102: S2, S3, S4, S6c, S6d-e, S8b); every no-
 
 **Bilan.** Final `npm run verify -- --full`: every step passed but the bench's absolute target (random, 2 players, 4,779 dec/s for 5,000; 4,711 at the close of PLAN-M; no engine change). Bundle: `index` 2,329 -> 2,332 KB, `index.css` 57 -> 59 KB (budget 60), `backdrop` 3 KB (lazy). Tests: layout (+2), board themes (+1), battlefield-smoke (art crops, 17° lean, tilt, planeswalker column in layout coordinates); proxy, always-answer and lang smokes read the drawer. Not done, with their reason: the art-crop prefetch of permanents on the stack (battlefield images are no longer lazy-loaded, which was enough on screenshots), a graveyard tile with the top card's art (the pill keeps its name), the rope next to the main button (it stays on the center line).
 
+
+## 18. PLAN-W: optional 3D arena board (2026-10-21)
+
+**Context and goal.** The user asked whether the app could test the device and, when it is able, play on a modern 3D table, as on MTG Arena: a built battlefield, lights, particles. PLAN-V had excluded any 3D library; the user lifted that for an option. User decisions: everything in 3D (cards as meshes), three.js loaded only on demand, CC0 3D models (Poly Haven) for the arena, a manual choice in Graphics refused without WebGL2 or on a software renderer, KTX2 textures with the CSP change their decoders need. Plan: `docs/plans/PLAN-W.md`; conventions: `docs/ui.md` ("3D board").
+
+**Lots (2026-10-21, one commit each; no rules change).**
+- **W0:** three.js (exact version), chunk groups, a laziness check in `tools/bundle-size.ts`, the WebGL2 probe.
+- **W1:** glows, battlefield model and hand input made pure and shared (DOM board unchanged).
+- **W2:** pure geometry: placement (the battlefield CSS ported, within 2 px of the DOM), seats for 2 to 4 players, camera, projection (matrices as three.js computes them).
+- **W3:** the static 3D board behind `?board3d=force`: scene, art-card textures, DOM proxies laid over the meshes by `matrix3d`, the DOM HUD over the canvas; `tools/board3d-smoke.ts`.
+- **W4:** "3D" in Graphics, springs between zones by uid, hand and piles in 3D.
+- **W5:** the arena (wood, leather, rim, props, HDRI) built by `tools/arena-assets.ts` into `data/arena/`, served on `/arena/`; CSP `'wasm-unsafe-eval'` and blob workers.
+- **W6:** shadows, glow rims, bloom, quality presets and a governor.
+- **W7:** particles and event effects; then, from the user's look at it on a real GPU: a fireplace casting the shadows, props at one real-world scale (brass candelabras instead of a jug; chest, shield and sword removed), runes with their own light for spells, summonings and abilities, contact shadows under the cards, the hand's glow as a halo behind each card, softer glows, the graphics card and the quality shown in Graphics; the hand no longer flickers (drawn without depth, in the DOM's order).
+- **W8:** 4 players checked; a phone in portrait keeps the DOM board. **W8b** (asked for by the user): a loading screen with a progress bar, the 3D quality chosen by hand (Auto, High, Medium, Low), 3D tried on a software renderer with a warning, brighter hand halos, a light budget.
+- **W9:** documentation.
+
+**Bilan.** Bundle: `index` 2,392 KB (no growth to speak of), `index.css` 68 KB, lazy `three` 734 KB and `Board3D` 50 KB; the arena about 11 MB outside Git. Tests: 13 unit test files in `client/test/board3d/`, server routes and CSP, board3d-smoke (30 checks), `tutorial-smoke --3d`. Each lot passed `npm run verify -- --set FDN --ui` except tests failing for this machine (`/art/manifest.json` 404 without `data/art/`; load timeouts of two parallel interface chains) and the `server/test/ai-seats.test.ts` flake under load (passes alone). Kept in the DOM, by choice: the opponents' hands (backs in their bars) and the stack panel. Not done: see `docs/backlog.md` ("PLAN-W: not done").
