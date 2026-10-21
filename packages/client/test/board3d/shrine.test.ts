@@ -1,10 +1,14 @@
 /** 3D board (PLAN-X): the shrine's plan keeps the stage over open water, the banks, the torii and the islet around it. */
 import { describe, expect, it } from "vitest";
+import { OVER_TABLE } from "../../src/board3d/shrine/fall";
+import { KOI_RING } from "../../src/board3d/shrine/life";
+import { loop } from "../../src/board3d/shrine/paths";
 import { shrinePlan, WALK } from "../../src/board3d/shrine/plan";
 import { SEASONS } from "../../src/board3d/shrine/season";
 import { BRIDGE_HALF, railPosts, railRuns } from "../../src/board3d/shrine/stage";
 import { growTree } from "../../src/board3d/shrine/trees";
 import { tideAt } from "../../src/board3d/shrine/water";
+import { CROSS_EVERY, CROSS_FOR, obakeAt, walkwayLoop } from "../../src/board3d/shrine/yokai";
 
 const RIMS = [
   { x0: -8, x1: 8, z0: -5.5, z1: 5.5 },
@@ -94,5 +98,59 @@ describe("the shrine's plan", () => {
       return Math.max(...xs) / (Math.max(...ys) - Math.min(...ys) + 0.01);
     };
     expect(spread("pine")).toBeGreaterThan(spread("sakura"));
+  });
+
+  it("a loop around a rectangle: closed, its length its perimeter, its heading along the way", () => {
+    const l = loop({ x0: -2, x1: 2, z0: -1, z1: 1 }, 0.5, 0.4);
+    // The rectangle grown by 0.5, corners of radius 0.4: straight runs and four quarter circles.
+    expect(l.length).toBeCloseTo(2 * (5 - 0.8) + 2 * (3 - 0.8) + 2 * Math.PI * 0.4, 6);
+    const a = l.at(0);
+    const b = l.at(l.length);
+    expect([b.x, b.z]).toEqual([a.x, a.z]);
+    for (let s = 0; s < l.length; s += 0.05) {
+      const p = l.at(s);
+      const q = l.at(s + 0.01);
+      // Moving along the heading (0: +x, π/2: -z).
+      expect((q.x - p.x) * Math.cos(p.heading) - (q.z - p.z) * Math.sin(p.heading)).toBeGreaterThan(0.009);
+    }
+  });
+
+  it("the lantern ghost walks the walkway, never on the mats; it hops, then stops to look around", () => {
+    for (const rim of RIMS) {
+      const plan = shrinePlan(rim);
+      const walk = walkwayLoop(plan);
+      for (let s = 0; s < walk.length; s += 0.05) {
+        const { x, z } = walk.at(s);
+        // Outside the rim (the mats and piles are inside it) by more than the ghost's half width, on the deck.
+        const outside = Math.max(rim.x0 - x, x - rim.x1, rim.z0 - z, z - rim.z1);
+        const inside = Math.min(x - plan.stage.x0, plan.stage.x1 - x, z - plan.stage.z0, plan.stage.z1 - z);
+        expect(outside, `${x}, ${z}`).toBeGreaterThan(0.25);
+        expect(inside, `${x}, ${z}`).toBeGreaterThan(0.25);
+      }
+      let last = obakeAt(0, walk.length).s;
+      let pauses = 0;
+      for (let t = 0.02; t < 30; t += 0.02) {
+        const step = obakeAt(t, walk.length);
+        expect(Math.abs(step.s - last) < 0.1 || Math.abs(step.s - last) > walk.length - 0.1).toBe(true);
+        if (step.pause) pauses++;
+        last = step.s;
+      }
+      expect(pauses).toBeGreaterThan(0);
+    }
+  });
+
+  it("flying things over the cards: rarely and briefly (the user's rule)", () => {
+    expect(CROSS_FOR / CROSS_EVERY).toBeLessThan(0.15);
+    expect(OVER_TABLE).toBeLessThanOrEqual(0.15);
+  });
+
+  it("the koi swim clear of the torii's legs and between the bridge's pillars", () => {
+    for (const rim of RIMS) {
+      const plan = shrinePlan(rim);
+      // The torii's legs stand 0.42 on each side of its line; a koi is 0.27 long.
+      const legs = plan.stage.x0 - (plan.torii.x + 0.42);
+      expect(KOI_RING[1] + 0.14).toBeLessThan(legs);
+      expect(KOI_RING[0] - 0.14).toBeGreaterThan(0.2);
+    }
   });
 });

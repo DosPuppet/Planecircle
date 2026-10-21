@@ -7,7 +7,8 @@
  * terrain, the water (waves, tide, reflections), the stage, the mist and the moonlight. X2, the architecture: the torii
  * in the water and the hall behind it (the far left corner), the pagoda on its islet and the bridge to it (the far
  * right), the lanterns, tatami on the battlefields. X3, the season (`season.ts`, from the real date): the trees, the
- * bamboo, the grass, the shrubs (`trees.ts`), what falls (`fall.ts`), the snow in winter. Built again when the table changes shape; animated by `update`
+ * bamboo, the grass, the shrubs (`trees.ts`), what falls (`fall.ts`), the snow in winter. X4, life: koi, fireflies and
+ * moths (`life.ts`), the yokai (`yokai.ts`: walking ones never on the mats, flying ones rarely over the cards). Built again when the table changes shape; animated by `update`
  * (water, tide, mist, lanterns) at the quality's rate.
  */
 import { Color, FogExp2, Group, type Light, type Object3D, type Scene, Vector3 } from "three";
@@ -18,7 +19,8 @@ import { bridge, buildingMaterials, hall, pagoda } from "./buildings";
 import { createFall, type Fall } from "./fall";
 import { createGround, type Ground } from "./ground";
 import { createLanterns, type Lanterns, lanternLight } from "./lanterns";
-import { createMist, type Mist } from "./mist";
+import { createLife, type Life } from "./life";
+import { createMist, createVeil, type Mist } from "./mist";
 import { type ShrinePlan, shrinePlan } from "./plan";
 import { SEASONS, snowCover } from "./season";
 import { createSky, MOON_DIR } from "./sky";
@@ -26,14 +28,16 @@ import { createStage, lacquer, type Stage } from "./stage";
 import { dressMats, tatami } from "./tatami";
 import { createTorii } from "./torii";
 import { createVegetation, type Vegetation } from "./trees";
-import { createWater, REFLECT, reflected, type Water } from "./water";
+import { createWater, DEEP, REFLECT, reflected, type Water } from "./water";
+import { createYokai, type Yokai } from "./yokai";
 
 /** Grid cells per world unit of the terrain, and of the water's grid, at each quality. */
-const DETAIL: Record<Quality, { ground: number; water: number; sheets: number; plants: number; falling: number }> = {
-  high: { ground: 4, water: 360, sheets: 3, plants: 1, falling: 280 },
-  medium: { ground: 3, water: 240, sheets: 2, plants: 0.7, falling: 150 },
-  low: { ground: 2, water: 140, sheets: 1, plants: 0.45, falling: 0 },
-};
+const DETAIL: Record<Quality, { ground: number; water: number; sheets: number; veil: number; plants: number; falling: number }> =
+  {
+    high: { ground: 4, water: 360, sheets: 3, veil: 2, plants: 1, falling: 280 },
+    medium: { ground: 3, water: 240, sheets: 2, veil: 1, plants: 0.7, falling: 150 },
+    low: { ground: 2, water: 140, sheets: 1, veil: 1, plants: 0.45, falling: 0 },
+  };
 
 /** The lights of the scene are drawn in the planar reflection too (the same lights: no shader compiled for it). */
 function lightsReflected(scene: Scene) {
@@ -48,9 +52,13 @@ interface Parts {
   water: Water;
   stage: Stage;
   mist: Mist;
+  /** The veil over the battlefield. */
+  veil: Mist;
   lanterns: Lanterns;
   vegetation: Vegetation;
   fall: Fall | null;
+  life: Life;
+  yokai: Yokai;
   /** The buildings (their geometry is theirs, their materials shared). */
   buildings: Object3D[];
   disposeTorii(): void;
@@ -97,8 +105,11 @@ export function createShrine(ctx: DioramaContext): Diorama {
       parts.water.mesh,
       parts.stage.group,
       parts.mist.group,
+      parts.veil.group,
       parts.lanterns.group,
       parts.vegetation.group,
+      parts.life.group,
+      parts.yokai.group,
       ...(parts.fall ? [parts.fall.mesh] : []),
       ...parts.buildings,
     );
@@ -106,9 +117,12 @@ export function createShrine(ctx: DioramaContext): Diorama {
     parts.water.dispose();
     parts.stage.dispose();
     parts.mist.dispose();
+    parts.veil.dispose();
     parts.lanterns.dispose();
     parts.vegetation.dispose();
     parts.fall?.dispose();
+    parts.life.dispose();
+    parts.yokai.dispose();
     parts.disposeTorii();
     for (const b of parts.buildings)
       b.traverse((o) => {
@@ -138,9 +152,19 @@ export function createShrine(ctx: DioramaContext): Diorama {
     const mist = createMist(plan, "#a4b6d2");
     mist.setSheets(detail.sheets);
     const lanterns = createLanterns(plan, ctx.arena.materials, lights, look.snow);
+    const veil = createVeil(plan, lanterns.lights, detail.veil);
     const vegetation = createVegetation(plan, ctx.arena.materials, ctx.arena.models, look, detail.plants);
     const falling = look.falling && detail.falling ? Math.round(detail.falling * look.falling.share) : 0;
     const fall = look.falling && falling ? createFall(plan, look.falling, falling) : null;
+    const life = createLife({
+      plan,
+      season: ctx.season,
+      camera: ctx.camera,
+      lights: lanterns.lights,
+      amount: detail.plants,
+      deep: new Color(DEEP),
+    });
+    const yokai = createYokai({ plan, camera: ctx.camera });
     lanterns.setAnimated(quality !== "low");
 
     // The torii in the water, its beams along the stage's side.
@@ -165,22 +189,53 @@ export function createShrine(ctx: DioramaContext): Diorama {
       plan.height(plan.stage.x1 + 0.6, plan.bridge),
     );
     const buildings = [torii.group, hallGroup, pagodaGroup, bridgeGroup];
-    for (const o of [ground.group, stage.group, lanterns.group, vegetation.group, ...buildings]) reflected(o);
-    group.add(ground.group, water.mesh, stage.group, mist.group, lanterns.group, vegetation.group, ...buildings);
+    for (const o of [ground.group, stage.group, lanterns.group, vegetation.group, yokai.group, ...buildings]) reflected(o);
+    group.add(
+      ground.group,
+      water.mesh,
+      stage.group,
+      mist.group,
+      veil.group,
+      lanterns.group,
+      vegetation.group,
+      life.group,
+      yokai.group,
+      ...buildings,
+    );
     if (fall) group.add(fall.mesh);
-    parts = { plan, ground, water, stage, mist, lanterns, vegetation, fall, buildings, disposeTorii: torii.dispose };
+    parts = {
+      plan,
+      ground,
+      water,
+      stage,
+      mist,
+      veil,
+      lanterns,
+      vegetation,
+      fall,
+      life,
+      yokai,
+      buildings,
+      disposeTorii: torii.dispose,
+    };
     step(clock);
   };
 
   let clock = 0;
-  const step = (time: number) => {
+  // Development: `?shrineTime=` pins the diorama's clock (screenshots of a given moment: a crossing, a procession).
+  const pinned = import.meta.env.DEV ? Number(new URLSearchParams(location.search).get("shrineTime") ?? Number.NaN) : Number.NaN;
+  const step = (now: number) => {
     if (!parts) return;
+    const time = Number.isNaN(pinned) ? now : pinned;
     parts.water.update(time);
     const waterY = parts.plan.level + parts.water.tide;
     parts.ground.setWater(waterY);
     parts.mist.update(time);
+    parts.veil.update(time);
     parts.lanterns.update(time, waterY);
     parts.fall?.update(time);
+    parts.life.update(time, waterY);
+    parts.yokai.update(time, waterY);
   };
 
   return {

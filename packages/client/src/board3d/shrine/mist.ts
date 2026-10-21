@@ -13,10 +13,13 @@ import {
   HalfFloatType,
   LinearFilter,
   Mesh,
+  MeshLambertMaterial,
   PlaneGeometry,
   RedFormat,
   ShaderMaterial,
+  Vector3,
   Vector4,
+  type WebGLProgramParametersWithUniforms,
 } from "three";
 import type { ShrinePlan } from "./plan";
 
@@ -170,4 +173,123 @@ export function createMist(plan: ShrinePlan, color: string): Mist {
       for (const m of materials) m.dispose();
     },
   };
+}
+
+/** Paper lanterns the veil glows near, at most. */
+const VEIL_LANTERNS = 32;
+
+/**
+ * A light veil of mist over the battlefield (the user's wish, X4): one or two thin sheets just above the cards, broken
+ * and drifting. A lit material: the moon, the lantern lights, the runes and the spells' flashes show in it; and warm
+ * near each paper lantern. Thin enough that the cards stay readable (a tenth of the light at most).
+ */
+export function createVeil(plan: ShrinePlan, lanterns: Vector3[], sheets: number): Mist {
+  const group = new Group();
+  const { x0, x1, z0, z1 } = plan.stage;
+  const geometry = new PlaneGeometry(x1 - x0 + 1.5, z1 - z0 + 1.5);
+  geometry.rotateX(-Math.PI / 2);
+  const spots = lanterns.slice(0, VEIL_LANTERNS);
+  const time = { value: 0 };
+  const layers = [
+    { lift: 0.16, strength: 0.13, seed: 3.1, drift: [0.03, 0.012] },
+    { lift: 0.5, strength: 0.08, seed: 8.7, drift: [-0.022, 0.018] },
+  ];
+  const materials = layers.map((layer) => {
+    const m = new MeshLambertMaterial({ color: "#c3cfe2", transparent: true, depthWrite: false });
+    m.onBeforeCompile = (shader: WebGLProgramParametersWithUniforms) => {
+      Object.assign(shader.uniforms, {
+        uTime: time,
+        uSeed: { value: layer.seed },
+        uDrift: { value: layer.drift },
+        uStrength: { value: layer.strength },
+        uStage: { value: new Vector4(x0, z0, x1, z1) },
+        // The array at its full length (the unused ones far below, never counted).
+        uLanterns: { value: Array.from({ length: VEIL_LANTERNS }, (_, i) => spots[i] ?? new Vector3(0, -100, 0)) },
+        uLanternCount: { value: spots.length },
+        uWarm: { value: new Color("#ffad5c") },
+      });
+      shader.vertexShader = `varying vec3 vVeilPos;\n${shader.vertexShader.replace(
+        "#include <begin_vertex>",
+        "#include <begin_vertex>\nvVeilPos = (modelMatrix * vec4(transformed, 1.0)).xyz;",
+      )}`;
+      shader.fragmentShader = `uniform float uTime;
+uniform float uSeed;
+uniform vec2 uDrift;
+uniform float uStrength;
+uniform vec4 uStage;
+uniform vec3 uLanterns[${VEIL_LANTERNS}];
+uniform int uLanternCount;
+uniform vec3 uWarm;
+varying vec3 vVeilPos;
+float vHash(vec2 p) {
+  p = fract(p * vec2(234.34, 435.345));
+  p += dot(p, p + 34.23);
+  return fract(p.x * p.y);
+}
+float vNoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(vHash(i), vHash(i + vec2(1.0, 0.0)), u.x), mix(vHash(i + vec2(0.0, 1.0)), vHash(i + vec2(1.0, 1.0)), u.x), u.y);
+}
+float vFbm(vec2 p) {
+  float v = 0.0;
+  float a = 0.5;
+  for (int i = 0; i < 4; i++) {
+    v += a * vNoise(p);
+    p = p * 2.07 + vec2(3.1, 7.7);
+    a *= 0.5;
+  }
+  return v;
+}
+${shader.fragmentShader
+  .replace(
+    "#include <color_fragment>",
+    `#include <color_fragment>
+  vec2 vp = vVeilPos.xz;
+  float vn = vFbm(vp * 0.3 + uDrift * uTime + uSeed) * 0.7 + vFbm(vp * 0.7 - uDrift.yx * uTime * 1.6) * 0.3;
+  // Broken: clear in places, a wisp in others; fading out past the stage's edges.
+  vec2 vOut = max(vec2(uStage.x - vp.x, uStage.y - vp.y), vec2(vp.x - uStage.z, vp.y - uStage.w));
+  diffuseColor.a = smoothstep(0.38, 0.78, vn) * uStrength * (1.0 - smoothstep(-0.2, 0.7, max(vOut.x, vOut.y)));`,
+  )
+  .replace(
+    "#include <opaque_fragment>",
+    `// Each paper lantern warms the wisps near it.
+  vec3 vWarm = vec3(0.0);
+  for (int i = 0; i < ${VEIL_LANTERNS}; i++) {
+    if (i >= uLanternCount) break;
+    vec3 d = vVeilPos - uLanterns[i];
+    vWarm += uWarm / (1.0 + dot(d, d) * 9.0);
+  }
+  outgoingLight += vWarm * 1.6;
+  #include <opaque_fragment>`,
+  )}`;
+    };
+    return m;
+  });
+  const meshes = layers.map((layer, i) => {
+    const mesh = new Mesh(geometry, materials[i]);
+    mesh.position.set((x0 + x1) / 2, plan.deck + layer.lift, (z0 + z1) / 2);
+    // Over the cards and the water's glints, under the lanterns' glows.
+    mesh.renderOrder = 2;
+    return mesh;
+  });
+  group.add(...meshes);
+  const veil: Mist = {
+    group,
+    update(t: number) {
+      time.value = t;
+    },
+    setSheets(n: number) {
+      meshes.forEach((m, i) => {
+        m.visible = i < n;
+      });
+    },
+    dispose() {
+      geometry.dispose();
+      for (const m of materials) m.dispose();
+    },
+  };
+  veil.setSheets(sheets);
+  return veil;
 }

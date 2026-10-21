@@ -37,6 +37,7 @@ type DevWindow = {
     handShown(): number;
     arenaShown(): boolean;
     diorama(): string | null;
+    ambient(): number;
     quality(): string;
     particles(): number;
     renders(): number;
@@ -374,27 +375,26 @@ if (existsSync("data/arena/shrine/manifest.json"))
     ] as const);
     await sp.getByRole("button", { name: "Garder" }).click({ timeout: 30_000 });
     await sp.locator(".board3d-loading").waitFor({ state: "detached", timeout: 120_000 });
-    // Medium: it keeps drawing between moves (SwiftShader draws it slowly: a few frames a second); Low: it comes to
-    // rest once the board has settled (card images arriving), then draws nothing.
+    // Medium: it keeps drawing between moves at 30 frames a second (SwiftShader manages about one in two seconds: a
+    // new frame within four is enough); Low: once the board has settled (card images arriving), nothing.
     const shrine = await sp.evaluate(async () => {
       const w = window as unknown as DevWindow;
       await new Promise((r) => setTimeout(r, 3000));
       for (let i = 0; i < 100 && w.__board3d?.drawing() && !location.search.includes("medium"); i++)
         await new Promise((r) => setTimeout(r, 100));
-      // Frames held to the quality's rate come from a timer: counted by half-seconds, each with at least one.
       const before = w.__board3d?.renders() ?? 0;
-      let busy = 0;
-      for (let i = 0, last = before; i < 4; i++) {
-        await new Promise((r) => setTimeout(r, 500));
-        const now = w.__board3d?.renders() ?? 0;
-        if (now > last) busy++;
-        last = now;
-      }
-      return { diorama: w.__board3d?.diorama(), frames: (w.__board3d?.renders() ?? 0) - before, busy };
+      await new Promise((r) => setTimeout(r, 4000));
+      return { diorama: w.__board3d?.diorama(), rate: w.__board3d?.ambient(), frames: (w.__board3d?.renders() ?? 0) - before };
     });
-    await sp.screenshot({ path: `${OUT}/5b-shrine-${quality}.png` });
-    if (quality === "low") check(shrine.diorama === "shrine" && shrine.frames === 0, "the shrine in Low: still", shrine);
-    else check(shrine.diorama === "shrine" && shrine.busy >= 3, "the shrine in Medium: animated between moves", shrine);
+    await sp.screenshot({ path: `${OUT}/5b-shrine-${quality}.png`, timeout: 120_000 });
+    if (quality === "low")
+      check(shrine.diorama === "shrine" && shrine.rate === 0 && shrine.frames === 0, "the shrine in Low: still", shrine);
+    else
+      check(
+        shrine.diorama === "shrine" && shrine.rate === 30 && shrine.frames >= 1,
+        "the shrine in Medium: animated between moves (30 frames a second)",
+        shrine,
+      );
     await ctx.close();
   }
 else console.log("(shrine not built: npm run arena-assets)");

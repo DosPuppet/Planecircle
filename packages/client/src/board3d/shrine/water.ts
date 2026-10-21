@@ -24,6 +24,9 @@ import {
   WebGLRenderTarget,
 } from "three";
 
+/** The deep water's color (what lies under it is tinted towards it). */
+export const DEEP = "#06141f";
+
 /** The layer of what the planar reflection draws (the diorama, its sky, the lights). */
 export const REFLECT = 5;
 const UP = new Vector3(0, 1, 0);
@@ -167,14 +170,15 @@ export function createWater(o: WaterOptions): Water {
     envMap: o.sky,
     envMapIntensity: 1,
     transparent: true,
-    depthWrite: true,
+    // Without depth: the koi, drawn after it, show through (the deck and the banks still hide them).
+    depthWrite: false,
   });
   const uniforms = {
     uTime: { value: 0 },
     uTide: { value: 0 },
     uRipple: { value: 0.12 },
     uOpacity: { value: 0.9 },
-    uDeep: { value: new Color("#06141f") },
+    uDeep: { value: new Color(DEEP) },
     uShallow: { value: new Color("#1d4a52") },
     uFoam: { value: new Color("#b8c8d8") },
     uWave: {

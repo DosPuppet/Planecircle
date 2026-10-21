@@ -70,6 +70,8 @@ function glowing(color: string, emissive: Color, intensity: number): MeshStandar
 
 export interface Lanterns {
   group: Group;
+  /** Where the lanterns glow (the paper ones at rest, the stone ones' windows): the moths circle them. */
+  lights: Vector3[];
   update(time: number, waterY: number): void;
   setAnimated(on: boolean): void;
   dispose(): void;
@@ -350,6 +352,10 @@ export function createLanterns(
   update(0, plan.level);
   return {
     group,
+    lights: [
+      ...hanging.map((h) => new Vector3(h.x, h.y, h.z)),
+      ...stones.map(([x, z]) => new Vector3(x, plan.height(x, z) + 0.52, z)),
+    ],
     update,
     setAnimated(on: boolean) {
       animated = on;

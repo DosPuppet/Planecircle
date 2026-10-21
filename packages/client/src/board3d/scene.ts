@@ -340,6 +340,11 @@ export class TableScene {
     return !!this.arena && (!!this.diorama || this.propGroup.children.length > 0);
   }
 
+  /** Frames a second the board keeps drawing between moves (dev checks). */
+  get ambientRate(): number {
+    return this.ambientFps();
+  }
+
   /** The diorama drawn, by name (dev checks). */
   get dioramaShown(): string | null {
     return this.diorama ? (this.arena?.manifest.diorama ?? null) : null;

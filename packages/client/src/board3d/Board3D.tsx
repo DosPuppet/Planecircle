@@ -338,6 +338,7 @@ export default function Board3D({ arena: arenaId, onFail }: { arena: string; onF
       handShown: () => sceneRef.current?.handShown ?? 0,
       arenaShown: () => sceneRef.current?.arenaShown ?? false,
       diorama: () => sceneRef.current?.dioramaShown ?? null,
+      ambient: () => sceneRef.current?.ambientRate ?? 0,
       quality: () => sceneRef.current?.quality,
       particles: () => sceneRef.current?.particlesAlive ?? 0,
       renders: () => sceneRef.current?.renders ?? 0,
