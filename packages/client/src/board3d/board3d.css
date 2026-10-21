@@ -59,3 +59,47 @@
 .bf3d .card.ghost:not([class*="glow-"]) {
   box-shadow: none;
 }
+/* The hand: the DOM cards keep their gestures (fan, hover, drag), the meshes under them show the cards. */
+.board3d .hand .card.ghost {
+  background: transparent;
+}
+.board3d .hand .card.ghost:not([class*="glow-"]) {
+  box-shadow: none;
+}
+/* Piles (library, graveyard, exile) at the left of each seat: their proxies over the meshes. */
+.board3d > .piles3d {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+}
+.piles3d .pile3d {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  pointer-events: auto;
+}
+.piles3d button.pile3d {
+  cursor: pointer;
+}
+.piles3d button.pile3d:hover,
+.piles3d button.pile3d:focus-visible {
+  box-shadow: 0 0 0 2px var(--gold);
+}
+.pile3d-count {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  min-width: 24px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: rgba(10, 12, 18, 0.85);
+  color: var(--text);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+}

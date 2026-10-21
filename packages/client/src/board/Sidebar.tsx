@@ -6,6 +6,7 @@ import { glossaryForKeyword } from "../glossary/entries";
 import { termsIn } from "../glossary/match";
 import { useGlossary } from "../glossary/store";
 import { Term } from "../glossary/Term";
+import { probe3d } from "../graphics";
 import { CustomArtToggle, ImageRelayToggle } from "../ImageRelayToggle";
 import { faceImage, faceName, faceText, faceType, KEYWORD_LABEL, type LogLine } from "../i18n";
 import { customImage, imageUrl, useRelayActive } from "../images";
@@ -338,10 +339,27 @@ function GraphicsControl() {
   const effects = useGame((s) => s.effects);
   const setEffects = useGame((s) => s.setEffects);
   const t = useT();
+  // The 3D board (PLAN-W): offered where the browser has WebGL2 on a real GPU.
+  const support = probe3d();
   return (
     <div className="pace-control">
       <span>{t("Graphics")}</span>
       <div className="seg">
+        <button
+          type="button"
+          className={effects === "3d" ? "on" : ""}
+          disabled={!support.ok}
+          title={
+            support.ok
+              ? t("3D table with lights, seen at an angle (needs a graphics card)")
+              : support.reason === "webgl2"
+                ? t("3D board unavailable: this browser has no WebGL2")
+                : t("3D board unavailable: no graphics card in use (software rendering would be too slow)")
+          }
+          onClick={() => setEffects("3d")}
+        >
+          {t("ctx:graphics|3D")}
+        </button>
         <button
           type="button"
           className={effects === "full" ? "on" : ""}

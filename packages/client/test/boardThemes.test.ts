@@ -1,6 +1,14 @@
 /** Board textures: the choice is remembered, and the "random" draw always gives a real texture. */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { BOARD_THEMES, loadBoardTheme, loadEffects, resolveBoardTheme, saveBoardTheme, saveEffects } from "../src/boardThemes";
+import {
+  BOARD_THEMES,
+  domEffects,
+  loadBoardTheme,
+  loadEffects,
+  resolveBoardTheme,
+  saveBoardTheme,
+  saveEffects,
+} from "../src/boardThemes";
 
 describe("board textures", () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -57,6 +65,12 @@ describe("board textures", () => {
     saveEffects("full");
     expect(loadEffects()).toBe("full");
     store.set("planecircle.effects", "unknown");
+    expect(loadEffects()).toBe("light");
+    // The 3D board (PLAN-W): remembered when chosen, never a default; the DOM board then shows "full".
+    saveEffects("3d");
+    expect(loadEffects()).toBe("3d");
+    expect([domEffects("3d"), domEffects("full"), domEffects("light")]).toEqual(["full", "full", "light"]);
+    store.delete("planecircle.effects");
     expect(loadEffects()).toBe("light");
     vi.stubGlobal("localStorage", {
       getItem: () => {

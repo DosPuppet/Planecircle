@@ -302,9 +302,12 @@ interface Store {
   /** Board texture (`boardThemes.ts`), kept in `localStorage`. */
   boardTheme: BoardThemeChoice;
   setBoardTheme(choice: BoardThemeChoice): void;
-  /** Graphics (`boardThemes.ts`): animated table and tilted battlefield, or light. */
+  /** Graphics (`boardThemes.ts`): 3D board, animated table and tilted battlefield, or light. */
   effects: Effects;
   setEffects(effects: Effects): void;
+  /** The 3D board failed (WebGL context lost): the DOM board for the rest of the session (PLAN-W). */
+  board3dFailed: boolean;
+  failBoard3d(): void;
 
   startGame(
     playerDeck: DeckEntries,
@@ -1182,8 +1185,15 @@ export const useGame = create<Store>((set, get) => {
     },
     effects: loadEffects(),
     setEffects(effects) {
-      set({ effects });
+      // Choosing 3D again tries it again.
+      set({ effects, board3dFailed: false });
       saveEffects(effects);
+    },
+    board3dFailed: false,
+    failBoard3d() {
+      if (get().board3dFailed) return;
+      set({ board3dFailed: true });
+      get().notify(msg("The 3D board stopped (graphics lost): back to the flat board."));
     },
     pace: loadPace(),
     setPace(pace) {

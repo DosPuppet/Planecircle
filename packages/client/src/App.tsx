@@ -1,7 +1,8 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Board, useMainAction } from "./board/Board";
 import { ReplayBar } from "./board/ReplayBar";
 import { DrawerToggle, PreviewFloat, Sidebar, TouchPreview } from "./board/Sidebar";
+import { domEffects } from "./boardThemes";
 import { DeckBuilder } from "./decks/DeckBuilder";
 import { GlossaryDialog } from "./glossary/GlossaryDialog";
 import { forced3d, probe3d } from "./graphics";
@@ -79,14 +80,19 @@ function useShortcuts() {
 /** The 3D board (PLAN-W): its own chunks, with three.js, loaded only when it is drawn. */
 const Board3D = lazy(() => import("./board3d/Board3D"));
 
-/** The DOM board, or the 3D board (dev: `?board3d=force`) when the device can draw it; a WebGL failure falls back. */
+/**
+ * The DOM board, or the 3D board when the player chose it (Graphics) and the device can draw it (dev: `?board3d=force`
+ * draws it on any renderer). A WebGL failure falls back to the DOM board for the rest of the session, with a word.
+ */
 function GameBoard() {
   const hasView = useGame((s) => !!s.view);
-  const [failed, setFailed] = useState(false);
-  if (failed || !hasView || !forced3d() || !probe3d().ok) return <Board />;
+  const wants3d = useGame((s) => s.effects === "3d") || forced3d();
+  const failed = useGame((s) => s.board3dFailed);
+  const fail = useGame((s) => s.failBoard3d);
+  if (failed || !hasView || !wants3d || !probe3d().ok) return <Board />;
   return (
     <Suspense fallback={<Board />}>
-      <Board3D onFail={() => setFailed(true)} />
+      <Board3D onFail={fail} />
     </Suspense>
   );
 }
@@ -94,7 +100,7 @@ function GameBoard() {
 function GameScreen() {
   useShortcuts();
   const drawerOpen = useGame((s) => s.drawerOpen);
-  const effects = useGame((s) => s.effects);
+  const effects = useGame((s) => domEffects(s.effects));
   // 3 or 4 players: too narrow for a phone in portrait (the rotate prompt stays); a duel plays in portrait too.
   const multi = useGame((s) => (s.view?.opponents.length ?? 1) > 1);
   const t = useT();

@@ -2,7 +2,9 @@
  * End-to-end test of the 3D board (PLAN-W): Chromium with SwiftShader (software WebGL, accepted by `?board3d=force` in
  * dev mode), a full board put into play by the dev-mode sandbox, then:
  * - every DOM proxy lies on its card as the camera projects it (within 1.5 px), and a click at its center reaches it;
+ * - the hand's meshes follow the DOM hand, the piles show their counts, an idle board draws nothing;
  * - a land played from the hand appears on the 3D table, an attacker is chosen by clicking its card;
+ * - the Graphics setting offers 3D, refused (with its reason) on a software renderer without the flag;
  * - without the flag, the DOM board, and three.js is not even loaded;
  * - a lost WebGL context brings back the DOM board.
  * Screenshots in test-results/board3d/.
@@ -23,7 +25,11 @@ type DevWindow = {
       view: { viewer: string; pending: { kind: string; player: string } | null; turn: { active: string; step: string } } | null;
     };
   };
-  __board3d?: { projectedRect(id: string): { left: number; top: number; right: number; bottom: number } | null };
+  __board3d?: {
+    projectedRect(id: string): { left: number; top: number; right: number; bottom: number } | null;
+    drawing(): boolean;
+    handShown(): number;
+  };
 };
 
 const DECK: [number, string][] = [[60, "Forest"]];
@@ -150,6 +156,36 @@ check(await page.locator(".board3d canvas").isVisible(), "the 3D board is drawn 
 check(g.three.length > 0, "three.js loaded with the 3D board", g.three.length);
 await page.screenshot({ path: `${OUT}/1-board-1600.png` });
 await aligned(page, "1600×900");
+const idle = () =>
+  page.evaluate(async () => {
+    // An idle board: no frame coming, once the cards and the hand have settled.
+    for (let i = 0; i < 40; i++) {
+      if (!(window as unknown as DevWindow).__board3d?.drawing()) return true;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    return false;
+  });
+check(await idle(), "an idle 3D board draws nothing (no endless animation)");
+const handCards = await page.locator(".hand [data-oid]").count();
+const shown = await page.evaluate(() => (window as unknown as DevWindow).__board3d?.handShown() ?? 0);
+check(handCards > 0 && shown === handCards, "every card of the hand has its mesh", { handCards, shown });
+const libraries = await page.evaluate(() => {
+  const v = (
+    window as unknown as {
+      __mtgx: { getState(): { view: { viewer: string; players: Record<string, { libraryCount: number }> } } };
+    }
+  ).__mtgx.getState().view;
+  return {
+    shown: document.querySelector(".piles3d.me .pile3d.library .pile3d-count")?.textContent,
+    count: String(v.players[v.viewer]?.libraryCount),
+    piles: document.querySelectorAll(".piles3d .pile3d.library").length,
+  };
+});
+check(
+  libraries.shown === libraries.count && libraries.piles === 2,
+  "each seat's library lies on the table with its count",
+  libraries,
+);
 
 check(await until(page, (p) => p.startsWith("priority|true|true|main1")), "your first main phase reached", await pending(page));
 const lands = () => page.locator(".bf3d.me .card-slot[data-oid]").count();
@@ -157,6 +193,13 @@ const before = await lands();
 await page.locator(".hand [data-oid]").first().click();
 await page.waitForTimeout(1500);
 check((await lands()) === before + 1, "a land played from the hand lies on the 3D table", { before, after: await lands() });
+check(await idle(), "the land settles: the board stops drawing");
+await page.locator(".drawer-toggle").click();
+await page.waitForTimeout(500);
+const button3d = page.locator(".pace-control button", { hasText: /^3D$/ });
+check(!(await button3d.isDisabled()), "with the flag, Graphics offers 3D");
+await page.locator(".drawer-close").click();
+await page.waitForTimeout(300);
 
 check(await until(page, (p) => p.startsWith("declareAttackers|true")), "declare attackers reached", await pending(page));
 await page.locator(".bf3d.me .card.glow-selectable").first().click();
@@ -176,10 +219,19 @@ await page.evaluate(() => {
   const canvas = document.querySelector(".board3d canvas") as HTMLCanvasElement;
   canvas.getContext("webgl2")?.getExtension("WEBGL_lose_context")?.loseContext();
 });
-await page.waitForTimeout(1500);
+await page.waitForTimeout(800);
 check(
   (await page.locator(".board3d").count()) === 0 && (await page.locator(".board .battlefield.me").count()) === 1,
   "a lost WebGL context brings back the DOM board",
+);
+check(
+  /plateau 3D/.test(
+    (await page
+      .locator(".toast")
+      .textContent()
+      .catch(() => "")) ?? "",
+  ),
+  "and says so",
 );
 await g.close();
 
@@ -197,6 +249,14 @@ check(
   "without the flag, the DOM board",
 );
 check(g.three.length === 0, "without the 3D board, three.js is not loaded", g.three.slice(0, 3));
+await g.page.locator(".drawer-toggle").click();
+await g.page.waitForTimeout(500);
+const refused = g.page.locator(".pace-control button", { hasText: /^3D$/ });
+check(
+  (await refused.isDisabled()) && /indisponible/.test((await refused.getAttribute("title")) ?? ""),
+  "on a software renderer without the flag, 3D is refused and says why",
+  await refused.getAttribute("title"),
+);
 await g.close();
 
 await browser.close();

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { domEffects } from "../boardThemes";
 import { fastMode } from "../fast";
 import { useGame } from "../store";
 import type { BackdropHandle } from "./backdrop";
@@ -12,7 +13,7 @@ const forced = () => import.meta.env.DEV && new URLSearchParams(location.search)
  * background of the texture shows.
  */
 export function Backdrop({ theme }: { theme: string }) {
-  const effects = useGame((s) => s.effects);
+  const effects = useGame((s) => domEffects(s.effects));
   const ref = useRef<HTMLCanvasElement>(null);
   const handle = useRef<BackdropHandle | null>(null);
   const [failed, setFailed] = useState(false);

@@ -973,7 +973,8 @@ const ZONE_TAG: Record<string, string> = {
   command: msg("ctx:card|Commander"),
 };
 
-export function Hand() {
+/** The hand; `ghost` (3D board, PLAN-W): the same cards and gestures, drawn by the meshes under them. */
+export function Hand({ ghost = false }: { ghost?: boolean }) {
   const view = useGame((s) => s.view) as GameView;
   const clickHandCard = useGame((s) => s.clickHandCard);
   const setHover = useGame((s) => s.setHover);
@@ -1071,6 +1072,7 @@ export function Hand() {
               obj={c}
               width="var(--hand-w)"
               layoutId={c.uid}
+              ghost={ghost}
               glow={handGlow(c.id, selection, casting, playable)}
               oid={c.id}
             />

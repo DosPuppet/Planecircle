@@ -51,9 +51,15 @@ export function saveBoardTheme(choice: BoardThemeChoice): void {
 
 /**
  * Graphics (PLAN-V): "full", the animated table and the tilted battlefield; "light", a still table and a flat
- * battlefield, for less powerful devices. Kept in `localStorage`.
+ * battlefield, for less powerful devices; "3d" (PLAN-W), the 3D board, only by choice and where the device can draw it
+ * (`graphics.ts`), "full" otherwise. Kept in `localStorage`.
  */
-export type Effects = "full" | "light";
+export type Effects = "3d" | "full" | "light";
+
+/** What the DOM board shows for a setting: "3d" falls back to "full" (3D refused, failed, or not drawn here). */
+export function domEffects(effects: Effects): "full" | "light" {
+  return effects === "light" ? "light" : "full";
+}
 
 const EFFECTS_KEY = "planecircle.effects";
 
@@ -69,7 +75,7 @@ export function defaultEffects(): Effects {
 export function loadEffects(): Effects {
   try {
     const v = localStorage.getItem(EFFECTS_KEY);
-    return v === "full" || v === "light" ? v : defaultEffects();
+    return v === "3d" || v === "full" || v === "light" ? v : defaultEffects();
   } catch {
     return defaultEffects();
   }

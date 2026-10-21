@@ -244,6 +244,8 @@ if (!ci && !flag("no-ui") && (full || flag("ui") || uiTouched)) {
         { name: "ui-smoke", cmd: "npx tsx tools/ui-smoke.ts", show: /^No page error\.$/ },
         { name: "mobile-smoke", cmd: "npx tsx tools/mobile-smoke.ts", show: /^ok: no page error$/ },
         { name: "tutorial-smoke", cmd: "npx tsx tools/tutorial-smoke.ts", show: /^ok: tutorial followed end to end$/ },
+        // The first lesson on the 3D board (PLAN-W): the guide finds its cards through the proxies.
+        { name: "tutorial-3d", cmd: "npx tsx tools/tutorial-smoke.ts --3d --only 1", show: /^ok: lesson 1 .*$/ },
         { name: "commander-smoke", cmd: "npx tsx tools/commander-smoke.ts", show: /^ok: no page error$/ },
       ]),
       chain([

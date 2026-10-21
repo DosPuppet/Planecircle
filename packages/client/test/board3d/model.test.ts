@@ -2,7 +2,7 @@
 import type { ObjectView } from "@mtgx/engine";
 import { describe, expect, it } from "vitest";
 import { PERM_RATIO } from "../../src/board/layout";
-import { tableNodes } from "../../src/board3d/model";
+import { pileNodes, tableNodes } from "../../src/board3d/model";
 import { PX, seatTable } from "../../src/board3d/seats";
 
 const card = (id: string, controller: string, types: ObjectView["types"], over: Partial<ObjectView> = {}) =>
@@ -70,5 +70,36 @@ describe("3D board model", () => {
     expect(aura?.player).toBe("me");
     expect(aura?.pose.y).toBeLessThan(host?.pose.y as number);
     expect(aura?.pose.z).toBeLessThan(host?.pose.z as number);
+  });
+});
+
+describe("3D board piles", () => {
+  it("library, graveyard and exile in the seat's column, the library nearest its player, thick as it is full", () => {
+    const table = seatTable({ w: 1600, h: 900 }, ["me", "them"], { top: 70, center: 64, bottom: 150 });
+    const dead = card("dead", "me", ["Creature"], { zone: "graveyard" });
+    const gone = card("gone", "me", ["Creature"], { zone: "exile" });
+    const held = card("held", "them", ["Creature"], { zone: "exile" });
+    const view = {
+      players: {
+        me: { libraryCount: 40, graveyard: [card("old", "me", ["Land"]), dead] },
+        them: { libraryCount: 10, graveyard: [] },
+      },
+      exile: [gone, held],
+      exiledWith: { x: ["held"] },
+    } as unknown as Parameters<typeof pileNodes>[0];
+    const piles = pileNodes(view, table);
+    const of = (player: string, kind: string) => piles.find((n) => n.player === player && n.kind === kind);
+    // Your library at the bottom of your column, then the graveyard and exile towards the middle.
+    expect(of("me", "library")?.pose.z).toBeGreaterThan(of("me", "graveyard")?.pose.z as number);
+    expect(of("me", "graveyard")?.pose.z).toBeGreaterThan(of("me", "exile")?.pose.z as number);
+    // The graveyard shows its last card (a card put there flies by its uid); the library, a thickness.
+    expect(of("me", "graveyard")?.uid).toBe("udead");
+    expect(of("me", "graveyard")?.count).toBe(2);
+    expect(of("me", "library")?.pose.y).toBeGreaterThan(of("them", "library")?.pose.y as number);
+    // Empty piles are not drawn; a card held under its exiler is not on the exile pile.
+    expect(of("them", "graveyard")).toBeUndefined();
+    expect(of("them", "exile")).toBeUndefined();
+    expect(of("them", "library")?.pose.z).toBeLessThan(0);
+    expect(of("me", "exile")?.uid).toBe("ugone");
   });
 });

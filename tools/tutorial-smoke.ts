@@ -18,9 +18,14 @@ const onlyAt = args.indexOf("--only");
 /** `--only 2,3`: only these lessons (without the menu checks). */
 const ONLY = onlyAt >= 0 ? (args.splice(onlyAt, 2)[1] ?? "").split(",").map(Number) : null;
 const DEBUG = args.includes("--debug");
-const OUT = args.find((a) => !a.startsWith("--")) ?? "test-results/tutorial";
+/** `--3d`: on the 3D board (PLAN-W), forced on SwiftShader; the lessons must be followed the same way. */
+const BOARD3D = args.includes("--3d");
+const OUT = args.find((a) => !a.startsWith("--")) ?? (BOARD3D ? "test-results/tutorial-3d" : "test-results/tutorial");
 mkdirSync(OUT, { recursive: true });
-const browser = await chromium.launch();
+const URL = `http://localhost:5173/?fast${BOARD3D ? "&board3d=force" : ""}`;
+const browser = await chromium.launch(
+  BOARD3D ? { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] } : {},
+);
 const page = await browser.newPage({ viewport: { width: 1500, height: 880 } });
 const errors: string[] = [];
 page.on("pageerror", (e) => errors.push(e.message));
@@ -219,7 +224,7 @@ async function refusalAndResume(): Promise<void> {
 }
 
 try {
-  await page.goto("http://localhost:5173/?fast");
+  await page.goto(URL);
   await page.evaluate(() => localStorage.clear());
   await page.reload();
   await page.getByRole("button", { name: "Apprendre à jouer" }).click();
@@ -231,7 +236,7 @@ try {
     const lesson = LESSONS[i];
     if (!lesson || (ONLY !== null && !ONLY.includes(i + 1))) continue;
     if ((await page.locator(".tutorial-menu").count()) === 0) {
-      await page.goto("http://localhost:5173/?fast");
+      await page.goto(URL);
       await page.getByRole("button", { name: "Apprendre à jouer" }).click();
     }
     await page.locator(".lesson-tile").nth(i).click();

@@ -6,17 +6,30 @@
  */
 import "./board3d.css";
 import type { ObjectView, PlayerView } from "@mtgx/engine";
-import { type CSSProperties, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Arrows } from "../board/Arrows";
 import { ActionPanel, CenterStrip, Hand, OpponentHand, PlayerBar, useBoardTheme, usePermanentGlow } from "../board/Board";
 import { Card } from "../board/Card";
 import { Effects } from "../board/Effects";
 import { StackReveal } from "../board/StackReveal";
+import { fastMode } from "../fast";
+import { useT } from "../localize";
 import { useGame } from "../store";
 import { frameSeats, viewProjection } from "./camera";
-import { type CardNode, tableNodes } from "./model";
-import { cardMatrix3d, cssMatrix, type Mat4, multiply, screenRect, toScreen, type Vec3 } from "./project";
-import { TableScene } from "./scene";
+import { type CardNode, pileNodes, tableNodes } from "./model";
+import {
+  type CardPose,
+  cardMatrix3d,
+  cssMatrix,
+  invert,
+  type Mat4,
+  multiply,
+  pointerToTable,
+  screenRect,
+  toScreen,
+  type Vec3,
+} from "./project";
+import { type HandPose, TableScene } from "./scene";
 import { type Rect, type Table, toWorld } from "./seats";
 
 interface Measures {
@@ -53,6 +66,9 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
   const blocks = useGame((s) => s.blocks);
   const attackTargets = useGame((s) => s.attackTargets);
   const clickPermanent = useGame((s) => s.clickPermanent);
+  const openGraveyard = useGame((s) => s.openGraveyard);
+  const openExile = useGame((s) => s.openExile);
+  const t = useT();
   const theme = useBoardTheme();
   const glow = usePermanentGlow();
   const boardRef = useRef<HTMLDivElement>(null);
@@ -88,8 +104,11 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    // Cards fly faster in the fast test mode, and jump with reduced motion.
+    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const speed = reduced ? Number.POSITIVE_INFINITY : fastMode() ? 5 : 1;
     try {
-      sceneRef.current = new TableScene(canvas, onFail);
+      sceneRef.current = new TableScene(canvas, onFail, speed);
     } catch {
       onFail();
       return;
@@ -115,12 +134,70 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
   const uiKey = (o: ObjectView) => `${glow(o) ?? ""}|${blocked.has(o.id) ? "b" : ""}|${attackTargets[o.id] ?? ""}`;
   const attacking = (o: ObjectView) => o.attacking || attackers.includes(o.id);
   const nodes = view && m.w ? tableNodes(view, table, uiKey, attacking).nodes : [];
-  const signature = nodes
+  const piles = view && m.w ? pileNodes(view, table) : [];
+  const signature = [...nodes, ...piles]
     .map(
       (n) =>
-        `${n.uid}:${n.obj.defId}:${n.kind}:${n.pose.x.toFixed(4)},${n.pose.z.toFixed(4)},${n.pose.w.toFixed(4)},${n.pose.rot}`,
+        `${n.uid}:${n.obj.defId}:${n.kind}:${n.count ?? ""}:${n.pose.x.toFixed(4)},${n.pose.z.toFixed(4)},${n.pose.w.toFixed(4)},${n.pose.rot}`,
     )
     .join("|");
+  const hand = view ? [...view.hand, ...view.playableElsewhere] : [];
+  const handKey = hand.map((c) => `${c.uid}:${c.defId}`).join(" ");
+
+  // Where the stack's cards lie over the table: a spell resolving flies from there to its place.
+  const stackSeen = useRef(new Map<string, { x: number; z: number }>());
+  useLayoutEffect(() => {
+    const board = boardRef.current;
+    const inv = invert(vp);
+    if (!board || !view || !inv || !m.w) return;
+    const box = board.getBoundingClientRect();
+    for (const item of view.stack) {
+      const el = board.querySelector(`.stack [data-oid="${CSS.escape(item.id)}"]`);
+      if (!el) continue;
+      const r = el.getBoundingClientRect();
+      const p = pointerToTable(inv, { w: m.w, h: m.h }, (r.left + r.right) / 2 - box.left, (r.top + r.bottom) / 2 - box.top);
+      if (p) stackSeen.current.set(item.uid, p);
+    }
+  });
+  // A card seen nowhere before: from the stack, a token from above, any other card dropping onto the table; none at the
+  // first drawing (the board appears as it is).
+  const drawn = useRef(false);
+  const tokens = new Set(nodes.filter((n) => n.obj.isToken).map((n) => n.uid));
+  const start = (uid: string, target: CardPose): CardPose | undefined => {
+    if (!drawn.current) return undefined;
+    const s = stackSeen.current.get(uid);
+    if (s) return { ...target, x: s.x, z: s.z, y: target.y + 0.8 };
+    return { ...target, y: target.y + (tokens.has(uid) ? 1.6 : 0.5) };
+  };
+
+  // The hand: where the DOM lays each card (read each frame while it moves), for the meshes to follow.
+  const viewRef = useRef(view);
+  viewRef.current = view;
+  const handSource = useCallback((): HandPose[] => {
+    const board = boardRef.current;
+    const v = viewRef.current;
+    if (!board || !v) return [];
+    const box = board.getBoundingClientRect();
+    const uidOf = new Map([...v.hand, ...v.playableElsewhere].map((c) => [c.id, c.uid]));
+    const out: HandPose[] = [];
+    for (const el of board.querySelectorAll<HTMLElement>(".hand .hand-card")) {
+      const slot = el.querySelector<HTMLElement>(".card-slot[data-oid]");
+      const uid = slot && uidOf.get(slot.dataset.oid as string);
+      if (!slot || !uid) continue;
+      const tm = new DOMMatrix(getComputedStyle(el).transform);
+      const scale = Math.hypot(tm.a, tm.b) || 1;
+      const r = slot.getBoundingClientRect();
+      out.push({
+        uid,
+        cx: (r.left + r.right) / 2 - box.left,
+        cy: (r.top + r.bottom) / 2 - box.top,
+        w: slot.offsetWidth * scale,
+        h: slot.offsetHeight * scale,
+        angle: Math.atan2(tm.b, tm.a),
+      });
+    }
+    return out;
+  }, []);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: the palette is read from the texture's CSS variables
   useEffect(() => {
@@ -141,8 +218,32 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
   }, [m, framing, table]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: redrawn when the cards or their places change (signature)
   useEffect(() => {
-    sceneRef.current?.setCards(nodes, lang);
+    sceneRef.current?.setCards([...nodes, ...piles], lang, start);
+    drawn.current = true;
   }, [signature, lang]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the hand's cards are keyed by handKey
+  useEffect(() => {
+    sceneRef.current?.setHand(
+      hand.map((c) => ({ uid: c.uid, face: c, obj: c })),
+      lang,
+      handSource,
+    );
+  }, [handKey, lang, handSource]);
+  // The DOM hand moves by its own springs (hover, drag, a card coming in): the meshes follow while it does.
+  useEffect(() => {
+    const row = bottomRef.current;
+    if (!row) return;
+    const follow = () => sceneRef.current?.live(600);
+    const kinds = ["pointerover", "pointermove", "pointerdown", "pointerup", "pointerout"] as const;
+    for (const k of kinds) row.addEventListener(k, follow);
+    return () => {
+      for (const k of kinds) row.removeEventListener(k, follow);
+    };
+  }, []);
+  // Any other change (a glow, a choice): the hand may move too.
+  useEffect(() => {
+    sceneRef.current?.live(450);
+  });
 
   // Dev mode: where a card lies on the screen (board3d-smoke compares it with its proxy).
   const latest = useRef({ nodes, vp, size });
@@ -151,6 +252,8 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
     if (!import.meta.env.DEV) return;
     const w = window as unknown as { __board3d?: unknown };
     w.__board3d = {
+      drawing: () => sceneRef.current?.drawing ?? false,
+      handShown: () => sceneRef.current?.handShown ?? 0,
       projectedRect(id: string) {
         const { nodes: ns, vp: m4, size: sz } = latest.current;
         const n = ns.find((x) => x.id === id && x.kind !== "shadow");
@@ -196,6 +299,37 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
     );
   };
 
+  /** A pile's proxy: the graveyard and the exile open their list, as the bar's buttons do; the library shows its count. */
+  const pileProxy = (n: CardNode, zone: { left: number; top: number }) => {
+    const matrix = multiply(translate(-zone.left, -zone.top), cardMatrix3d(vp, size, n.pose, n.px));
+    const style: CSSProperties = { transform: cssMatrix(matrix), width: n.px.w, height: n.px.h };
+    const count = n.count ?? 0;
+    if (n.kind === "library")
+      return (
+        <div key={n.uid} className="pile3d library" style={style} title={t("Library: {n} cards", { n: count })}>
+          <span className="pile3d-count">{count}</span>
+        </div>
+      );
+    const open = n.kind === "graveyard" ? () => openGraveyard(n.player) : () => openExile(n.player);
+    const label =
+      n.kind === "graveyard"
+        ? t("Graveyard: {n} cards (click to view)", { n: count })
+        : t("Exile: {n} cards (click to view)", { n: count });
+    return (
+      <button
+        key={n.uid}
+        type="button"
+        className={`pile3d ${n.kind}`}
+        style={style}
+        title={label}
+        aria-label={label}
+        onClick={open}
+      >
+        <span className="pile3d-count">{count}</span>
+      </button>
+    );
+  };
+
   return (
     <div className="board board3d" id="board" data-board={theme} ref={boardRef}>
       <canvas className="board3d-canvas" ref={canvasRef} />
@@ -214,6 +348,19 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
             </div>
           );
         })}
+      {m.w > 0 &&
+        table.seats.map((seat) => {
+          const r = projectRect(vp, size, table, seat.piles);
+          return (
+            <div
+              key={seat.player}
+              className={`piles3d ${seat.mine ? "me" : "opp"}`}
+              style={{ left: r.left, top: r.top, width: r.width, height: r.height }}
+            >
+              {piles.filter((n) => n.player === seat.player).map((n) => pileProxy(n, r))}
+            </div>
+          );
+        })}
       <div className={`opp-bars n${opponents.length}`} ref={topRef}>
         {opponents.map((opp) => (
           <div key={opp.id} className={`top-row ${opp.lost ? "eliminated" : ""}`}>
@@ -227,7 +374,7 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
       </div>
       <div className="bottom-row" ref={bottomRef}>
         <PlayerBar player={me} isMe={true} />
-        <Hand />
+        <Hand ghost />
         <ActionPanel />
       </div>
       <Arrows />
