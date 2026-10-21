@@ -788,6 +788,9 @@ export class TableScene {
 
   setArena(arena: Arena | null): void {
     this.arena = arena;
+    // The fireplace lights the arena: the pool over the middle goes (once, while the loading screen still covers the
+    // board: the materials are compiled again for one light less, and every light costs on every pixel).
+    this.pool.visible = !arena;
     // A room lit by its fire: the light from above only fills.
     this.key.intensity = arena ? 0.8 : 1.5;
     this.scene.environment = arena?.environment ?? null;

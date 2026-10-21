@@ -18,8 +18,8 @@ import {
   type Vector3,
 } from "three";
 
-/** Lights shared by the runes shown at once (a fourth rune shines without its own light). */
-const LIGHTS = 3;
+/** Lights shared by the runes shown at once (a third rune shines without its own light): each light costs on every pixel. */
+const LIGHTS = 2;
 const SIZE = 512;
 
 /** A deterministic random (the textures are the same from one game to the next). */
