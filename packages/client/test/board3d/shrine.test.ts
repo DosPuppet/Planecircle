@@ -1,6 +1,7 @@
-/** 3D board (PLAN-X): the shrine's plan keeps the stage over open water, the banks and the torii around it. */
+/** 3D board (PLAN-X): the shrine's plan keeps the stage over open water, the banks, the torii and the islet around it. */
 import { describe, expect, it } from "vitest";
 import { shrinePlan, WALK } from "../../src/board3d/shrine/plan";
+import { BRIDGE_HALF, railPosts, railRuns } from "../../src/board3d/shrine/stage";
 import { tideAt } from "../../src/board3d/shrine/water";
 
 const RIMS = [
@@ -28,9 +29,16 @@ describe("the shrine's plan", () => {
           expect(side * (shore - (side < 0 ? plan.stage.x0 : plan.stage.x1))).toBeGreaterThan(1.2);
           expect(plan.height(shore + side * 4, z)).toBeGreaterThan(plan.level + 0.3);
         }
-      // The torii in the water beyond the far side.
-      expect(plan.torii.z).toBeLessThan(plan.stage.z0 - 1);
-      expect(plan.height(plan.torii.x, plan.torii.z)).toBeLessThan(plan.level - 0.5);
+      // The torii in the water between the stage's left side and the beach, the hall on dry land behind it.
+      const { torii, hall, islet } = plan;
+      expect(torii.x).toBeLessThan(plan.stage.x0 - 0.9);
+      expect(torii.x).toBeGreaterThan(plan.shore(-1, torii.z) + 0.3);
+      for (const dz of [-1.3, 0, 1.3]) expect(plan.height(torii.x, torii.z + dz)).toBeLessThan(plan.level - 0.3);
+      expect(plan.height(hall.x, hall.z)).toBeGreaterThan(plan.level + 0.1);
+      // The islet out of the water off the right side, clear of the stage; the bridge aimed at it.
+      expect(plan.height(islet.x, islet.z)).toBeGreaterThan(plan.level + 0.05);
+      expect(islet.x - islet.r - plan.stage.x1).toBeGreaterThan(0.6);
+      expect(Math.abs(plan.bridge - islet.z)).toBeLessThan(islet.r / 2);
       // The same banks every time.
       expect(shrinePlan(rim).height(3.3, -20.1)).toBe(plan.height(3.3, -20.1));
     });
@@ -40,5 +48,20 @@ describe("the shrine's plan", () => {
     expect(Math.max(...samples)).toBeCloseTo(0.09, 3);
     expect(Math.min(...samples)).toBeCloseTo(-0.09, 3);
     expect(tideAt(0)).toBeCloseTo(tideAt(120), 9);
+  });
+
+  it("the railings: none on the near side (they would rise into your battlefield), an opening for the bridge", () => {
+    const plan = shrinePlan(RIMS[0] as (typeof RIMS)[number]);
+    const runs = railRuns(plan);
+    for (const [, az, , bz] of runs) expect(Math.max(az, bz)).toBeLessThan(plan.stage.z1 - 0.4);
+    // On the right side, nothing within the opening; the posts once each.
+    const right = runs.filter(([ax, , bx]) => ax > plan.stage.x1 - 0.5 && bx > plan.stage.x1 - 0.5);
+    expect(right).toHaveLength(2);
+    for (const [, az, , bz] of right)
+      expect(Math.min(az, bz) >= plan.bridge + BRIDGE_HALF - 1e-9 || Math.max(az, bz) <= plan.bridge - BRIDGE_HALF + 1e-9).toBe(
+        true,
+      );
+    const posts = railPosts(plan);
+    for (const [i, [x, z]] of posts.entries()) expect(posts.findIndex(([a, b]) => Math.hypot(a - x, b - z) < 0.01)).toBe(i);
   });
 });

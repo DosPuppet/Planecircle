@@ -165,6 +165,12 @@ export function createGround(
         const x = plan.shore(side, z) + side * (noise(z * 2, side) - 0.3) * 0.9;
         spots.push([x, z, 0.9 + noise(z, side * 5) * 1.1 + Math.max(0, plan.stage.z0 - z) * 0.08]);
       }
+    // The islet's rim of rocks, the pagoda's side left open towards the bridge.
+    const { islet } = plan;
+    for (let i = 0; i < 7; i++) {
+      const a = Math.PI * (0.35 + (1.3 * i) / 6) + noise(i, 4) * 0.3;
+      spots.push([islet.x + Math.cos(a) * islet.r * 0.95, islet.z + Math.sin(a) * islet.r * 0.95, 0.45 + noise(i, 8) * 0.4]);
+    }
     spots.forEach(([x, z, size], i) => {
       const model = models.get(rocks[i % rocks.length] as string) as Object3D;
       const rock = placed(model, size, (i * 2.399) % (2 * Math.PI));

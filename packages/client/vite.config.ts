@@ -92,7 +92,8 @@ export default defineConfig({
     },
   },
   // three.js and its addons prebundled at start-up: discovered later, they would reload the page in the middle of a test.
-  optimizeDeps: { include: ["three"] },
+  // three and the addons the lazy chunks import (a dependency found during a test reloads the page).
+  optimizeDeps: { include: ["three", "three/examples/jsm/utils/BufferGeometryUtils.js"] },
   server: {
     port: 5173,
     proxy: {

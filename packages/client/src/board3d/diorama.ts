@@ -3,7 +3,15 @@
  * quality allows. The scene builds it once the arena's assets have loaded (behind the loading screen), lays it out
  * around the table's rim, and steps it each frame. Pure parts here (the season); the dioramas in their own lazy chunks.
  */
-import type { DirectionalLight, HemisphereLight, Object3D, PerspectiveCamera, Scene, WebGLRenderer } from "three";
+import type {
+  DirectionalLight,
+  HemisphereLight,
+  MeshStandardMaterial,
+  Object3D,
+  PerspectiveCamera,
+  Scene,
+  WebGLRenderer,
+} from "three";
 import type { Bounds } from "./arena";
 import type { Arena } from "./assets";
 import type { Room } from "./camera";
@@ -31,6 +39,8 @@ export interface DioramaContext {
   /** The light from above (the moon, at night) and the sky's fill. */
   key: DirectionalLight;
   hemi: HemisphereLight;
+  /** The battlefields' material (the diorama dresses them). */
+  mats: MeshStandardMaterial;
   arena: Arena;
   quality: Quality;
   season: Season;

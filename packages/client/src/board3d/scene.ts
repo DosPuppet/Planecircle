@@ -705,6 +705,11 @@ export class TableScene {
   }
 
   setPalette(p: Palette): void {
+    // A diorama has its own sky, light and mats.
+    if (this.diorama) {
+      this.requestRender();
+      return;
+    }
     this.scene.background = new Color(p.deep);
     // With the arena, the table is wood and the rim carved: only the mats keep the texture's color.
     if (!this.arena?.materials.tabletop) this.ground.color.set(p.mid).multiplyScalar(0.55);
@@ -882,6 +887,7 @@ export class TableScene {
       camera: this.camera,
       key: this.key,
       hemi: this.hemi,
+      mats: this.mat,
       arena,
       quality: this.governor.level,
       season: seasonOf(new Date()),

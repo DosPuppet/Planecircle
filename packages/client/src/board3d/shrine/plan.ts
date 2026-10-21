@@ -20,7 +20,13 @@ export interface ShrinePlan {
   height(x: number, z: number): number;
   /** Where the shore is (the ground at the water's level) beyond each side of the stage, at a depth z. */
   shore(side: -1 | 1, z: number): number;
+  /** The torii in the water beside the stage's left side, towards the far corner (its beams along z). */
   torii: { x: number; z: number };
+  /** The hall on the left beach behind the torii, facing it. */
+  hall: { x: number; z: number };
+  /** The rocky islet off the right side, the pagoda on it, the bridge to it from the stage (its middle at `bridge`). */
+  islet: { x: number; z: number; r: number };
+  bridge: number;
 }
 
 /** The walkway around the battlefields. */
@@ -66,7 +72,9 @@ export function shrinePlan(rim: Bounds): ShrinePlan {
     0.5 * (noise(z * 0.35, side * 9) - 0.5) +
     Math.max(0, stage.z0 - z) * 0.5 -
     Math.max(0, z - stage.z1) * 0.35;
-  const height = (x: number, z: number) => {
+  const islet = { x: stage.x1 + 1.85, z: stage.z0 + 1.0, r: 0.75 };
+  /** The banks and the seabed, without the islet. */
+  const banks = (x: number, z: number) => {
     const side = x < cx ? -1 : 1;
     const s = Math.abs(x - cx) - hw - gap(side, z);
     const land = smooth(-1.8, 2.2, s);
@@ -76,13 +84,18 @@ export function shrinePlan(rim: Bounds): ShrinePlan {
     const bed = seabed + 0.08 * (noise(x * 0.9, z * 0.9) - 0.5) - 0.25 * smooth(0, 10, stage.z0 - z);
     return bed + (top - bed) * land;
   };
+  // The islet: a mound rising out of the water, flat on top for the pagoda.
+  const height = (x: number, z: number) => {
+    const d = Math.hypot(x - islet.x, z - islet.z) / islet.r;
+    return Math.max(banks(x, z), level + 0.12 - 1.9 * smooth(0.55, 1.35, d) - 0.05 * noise(x * 3, z * 3));
+  };
   const shore = (side: -1 | 1, z: number) => {
     // The beach crosses the level near s = 0.45 (where the land's share brings the ground up to it): searched.
     let lo = 0;
     let hi = 12;
     for (let i = 0; i < 30; i++) {
       const mid = (lo + hi) / 2;
-      if (height(cx + side * (hw + mid), z) < level) lo = mid;
+      if (banks(cx + side * (hw + mid), z) < level) lo = mid;
       else hi = mid;
     }
     return cx + side * (hw + (lo + hi) / 2);
@@ -94,6 +107,9 @@ export function shrinePlan(rim: Bounds): ShrinePlan {
     level,
     height,
     shore,
-    torii: { x: cx, z: stage.z0 - 3.2 },
+    torii: { x: stage.x0 - 1.35, z: stage.z0 + 2.7 },
+    hall: { x: stage.x0 - 3.1, z: stage.z0 + 0.4 },
+    islet,
+    bridge: stage.z0 + 1.0,
   };
 }

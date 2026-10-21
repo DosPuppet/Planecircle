@@ -37,7 +37,37 @@ export interface Stage {
 }
 
 const POST = 0.075;
-const RAIL_H = 0.36;
+export const RAIL_H = 0.36;
+const INSET = 0.12;
+/** Half the opening in the right railing where the bridge to the islet starts. */
+export const BRIDGE_HALF = 0.32;
+
+/**
+ * The railings' runs (from, to; x, z): the left side, the far side, the right side cut by the bridge's opening; none on
+ * the near side.
+ */
+export function railRuns(plan: ShrinePlan): [number, number, number, number][] {
+  const { x0, x1, z0, z1 } = plan.stage;
+  return [
+    [x0 + INSET, z1 - 0.5, x0 + INSET, z0 + INSET],
+    [x0 + INSET, z0 + INSET, x1 - INSET, z0 + INSET],
+    [x1 - INSET, z0 + INSET, x1 - INSET, plan.bridge - BRIDGE_HALF],
+    [x1 - INSET, plan.bridge + BRIDGE_HALF, x1 - INSET, z1 - 0.5],
+  ];
+}
+
+/** The railings' posts, about a unit apart, each run's ends included (once each). */
+export function railPosts(plan: ShrinePlan): [number, number][] {
+  const posts: [number, number][] = [];
+  for (const [ax, az, bx, bz] of railRuns(plan)) {
+    const n = Math.max(1, Math.round(Math.hypot(bx - ax, bz - az) / 1.05));
+    for (let i = 0; i <= n; i++) {
+      const p: [number, number] = [ax + ((bx - ax) * i) / n, az + ((bz - az) * i) / n];
+      if (!posts.some(([x, z]) => Math.hypot(x - p[0], z - p[1]) < 0.01)) posts.push(p);
+    }
+  }
+  return posts;
+}
 
 export function createStage(plan: ShrinePlan, materials: Record<string, ArenaMaterial>): Stage {
   const group = new Group();
@@ -78,11 +108,10 @@ export function createStage(plan: ShrinePlan, materials: Record<string, ArenaMat
     const n = Math.max(1, Math.round(Math.hypot(bx - ax, bz - az) / step));
     for (let i = 0; i < n; i++) spots.push([ax + ((bx - ax) * i) / n, az + ((bz - az) * i) / n]);
   };
-  const inset = 0.12;
-  along(x0 + inset, z1 - inset, x0 + inset, z0 + inset, 1.5);
-  along(x0 + inset, z0 + inset, x1 - inset, z0 + inset, 1.5);
-  along(x1 - inset, z0 + inset, x1 - inset, z1 - inset, 1.5);
-  along(x1 - inset, z1 - inset, x0 + inset, z1 - inset, 1.5);
+  along(x0 + INSET, z1 - INSET, x0 + INSET, z0 + INSET, 1.5);
+  along(x0 + INSET, z0 + INSET, x1 - INSET, z0 + INSET, 1.5);
+  along(x1 - INSET, z0 + INSET, x1 - INSET, z1 - INSET, 1.5);
+  along(x1 - INSET, z1 - INSET, x0 + INSET, z1 - INSET, 1.5);
   const pillars = new InstancedMesh(pillar, red, spots.length);
   const m = new Matrix4();
   spots.forEach(([x, z], i) => {
@@ -93,19 +122,11 @@ export function createStage(plan: ShrinePlan, materials: Record<string, ArenaMat
   group.add(pillars);
 
   // The railings: posts, a top rail and a middle one, on three sides.
-  const sides: [number, number, number, number][] = [
-    [x0 + inset, z1 - 0.5, x0 + inset, z0 + inset],
-    [x0 + inset, z0 + inset, x1 - inset, z0 + inset],
-    [x1 - inset, z0 + inset, x1 - inset, z1 - 0.5],
-  ];
-  const posts: [number, number][] = [];
   const rails: Mesh[] = [];
   const railTop = own(new BoxGeometry(1, 0.045, 0.1));
   const railMid = own(new BoxGeometry(1, 0.035, 0.055));
-  for (const [ax, az, bx, bz] of sides) {
+  for (const [ax, az, bx, bz] of railRuns(plan)) {
     const len = Math.hypot(bx - ax, bz - az);
-    const n = Math.max(1, Math.round(len / 1.05));
-    for (let i = 0; i <= n; i++) posts.push([ax + ((bx - ax) * i) / n, az + ((bz - az) * i) / n]);
     const turn = Math.atan2(-(bz - az), bx - ax);
     for (const [geometry, y] of [
       [railTop, RAIL_H],
@@ -120,7 +141,7 @@ export function createStage(plan: ShrinePlan, materials: Record<string, ArenaMat
     }
   }
   const post = own(new BoxGeometry(POST, RAIL_H, POST));
-  const unique = posts.filter(([x, z], i) => posts.findIndex(([a, b]) => Math.hypot(a - x, b - z) < 0.01) === i);
+  const unique = railPosts(plan);
   const postMesh = new InstancedMesh(post, red, unique.length);
   unique.forEach(([x, z], i) => {
     postMesh.setMatrixAt(i, m.makeTranslation(x, plan.deck + RAIL_H / 2, z));
@@ -143,12 +164,10 @@ export function createStage(plan: ShrinePlan, materials: Record<string, ArenaMat
   ].map(([x, y]) => new Vector2(x, y));
   const finial = own(new LatheGeometry(profile, 14));
   const bronze = own(new MeshStandardMaterial({ color: "#7a6232", roughness: 0.35, metalness: 0.85 }));
-  const ends: [number, number][] = [
-    [x0 + inset, z0 + inset],
-    [x1 - inset, z0 + inset],
-    [x0 + inset, z1 - 0.5],
-    [x1 - inset, z1 - 0.5],
-  ];
+  const ends = railRuns(plan).flatMap(([ax, az, bx, bz]): [number, number][] => [
+    [ax, az],
+    [bx, bz],
+  ]);
   for (const [x, z] of ends) {
     const f = new Mesh(finial, bronze);
     f.position.set(x, plan.deck + RAIL_H + 0.02, z);
