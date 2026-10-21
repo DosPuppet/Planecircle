@@ -13,6 +13,7 @@
  *   --force  rebuilds even when nothing changed
  * Environment: MTGX_ARENA_DIR (default data/arena).
  */
+import { execSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -53,6 +54,7 @@ interface Model {
 }
 interface Manifest {
   budgetBytes: number;
+  metersToWorld: number;
   hdri: { id: string; res: string; md5: string };
   materials: Material[];
   models: Model[];
@@ -66,9 +68,12 @@ interface PolyFile {
 }
 
 const manifest = JSON.parse(readFileSync(MANIFEST, "utf8")) as Manifest;
-/** The manifest's own fingerprint: data/arena/ built from it records it, an unchanged manifest rebuilds nothing. */
+/**
+ * The manifest's own fingerprint (its content, not its formatting) with this tool's: data/arena/ built from it records
+ * it, an unchanged manifest rebuilds nothing.
+ */
 const source = createHash("sha256")
-  .update(readFileSync(MANIFEST))
+  .update(JSON.stringify(manifest))
   .update(readFileSync(fileURLToPath(import.meta.url)))
   .digest("hex");
 const md5 = (b: Uint8Array) => createHash("md5").update(b).digest("hex");
@@ -141,7 +146,7 @@ async function credit(id: string, kind: string) {
 
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(join(OUT, "basis"), { recursive: true });
-const out: Record<string, unknown> = { version: 1, source, props: manifest.props };
+const out: Record<string, unknown> = { version: 1, source, metersToWorld: manifest.metersToWorld, props: manifest.props };
 
 // HDRI: as it is (prefiltered by the client).
 {
@@ -229,7 +234,10 @@ writeFileSync(
   join(OUT, "CREDITS.md"),
   `# Arena of the 3D board\n\nAll assets from Poly Haven (https://polyhaven.com), CC0 1.0 (public domain).\n\n| Asset | Kind | Authors | Page |\n|---|---|---|---|\n${credits.join("\n")}\n`,
 );
-if (PIN) writeFileSync(MANIFEST, `${JSON.stringify(manifest, null, 2)}\n`);
+if (PIN) {
+  writeFileSync(MANIFEST, `${JSON.stringify(manifest, null, 2)}\n`);
+  execSync(`npx biome format --write ${MANIFEST}`, { stdio: "ignore" });
+}
 
 const total = readdirSync(OUT, { recursive: true })
   .map((f) => join(OUT, String(f)))

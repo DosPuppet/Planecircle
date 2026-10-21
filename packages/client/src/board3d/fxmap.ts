@@ -12,8 +12,11 @@ export type Fx3dKind =
   | "heal"
   /** Embers where a creature died (it then flies to its graveyard). */
   | "embers"
-  /** A swirl of the spell's colors over its caster's side. */
-  | "cast"
+  /**
+   * A circle of runes in the colors of the magic, with its own light: a spell cast (on its caster's side), a permanent
+   * entering the battlefield (under it), an ability (smaller, under its source).
+   */
+  | "rune"
   /** A token appears in a ring of light. */
   | "spawn"
   /** Dust where a land lands. */
@@ -34,6 +37,8 @@ export interface Fx3d {
   colors?: string[];
   /** Damage, life or counters: the effect grows with it. */
   amount?: number;
+  /** A rune: "spell" (on the caster's side), "summon" (under the permanent), "ability" (small, under its source). */
+  rune?: "spell" | "summon" | "ability";
   /** Seconds after the update. */
   delay: number;
 }
@@ -81,8 +86,16 @@ export function fxFor(events: GameEvent[], view: GameView, prev: GameView | null
       }
       case "cast":
       case "copy":
-        fx.push({ kind: "cast", player: e.player, colors: costColors(faces[e.defId]?.manaCost), delay: at() });
+        fx.push({ kind: "rune", rune: "spell", player: e.player, colors: costColors(faces[e.defId]?.manaCost), delay: at() });
         break;
+      case "activate":
+      case "trigger": {
+        // Under the permanent the ability comes from (an emblem, a card elsewhere: nothing on the table).
+        const source = view.stack.find((item) => item.id === e.stackId)?.sourceId;
+        const o = source ? objects.get(source) : undefined;
+        if (o) fx.push({ kind: "rune", rune: "ability", uid: o.uid, colors: o.colors.length ? o.colors : ["C"], delay: at() });
+        break;
+      }
       case "token": {
         const o = objects.get(e.objectId);
         if (!o) break;
@@ -106,9 +119,15 @@ export function fxFor(events: GameEvent[], view: GameView, prev: GameView | null
     }
   }
 
-  // Counters put on a permanent (no event of their own): what each permanent gained since the previous view.
+  // Counters put on a permanent (no event of their own): what each permanent gained since the previous view; and the
+  // permanents that entered (a land and a token have their own effect).
   if (prev) {
     const before = new Map(prev.battlefield.map((o) => [o.id, o]));
+    const lands = new Set(events.flatMap((e) => (e.type === "playLand" ? [e.objectId] : [])));
+    for (const o of view.battlefield) {
+      if (before.has(o.id) || o.isToken || lands.has(o.id) || o.types.includes("Land")) continue;
+      fx.push({ kind: "rune", rune: "summon", uid: o.uid, colors: o.colors.length ? o.colors : ["C"], delay: at() });
+    }
     for (const o of view.battlefield) {
       const was = before.get(o.id);
       if (!was) continue;

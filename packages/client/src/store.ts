@@ -308,6 +308,9 @@ interface Store {
   /** The 3D board failed (WebGL context lost): the DOM board for the rest of the session (PLAN-W). */
   board3dFailed: boolean;
   failBoard3d(): void;
+  /** The quality the 3D board draws at (shown in the Graphics setting; the governor may step it down). */
+  board3dQuality: "high" | "medium" | "low" | null;
+  setBoard3dQuality(q: "high" | "medium" | "low" | null): void;
 
   startGame(
     playerDeck: DeckEntries,
@@ -1205,6 +1208,10 @@ export const useGame = create<Store>((set, get) => {
       // Choosing 3D again tries it again.
       set({ effects, board3dFailed: false });
       saveEffects(effects);
+    },
+    board3dQuality: null,
+    setBoard3dQuality(board3dQuality) {
+      set({ board3dQuality });
     },
     board3dFailed: false,
     failBoard3d() {

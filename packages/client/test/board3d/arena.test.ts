@@ -1,7 +1,7 @@
 /** 3D board (PLAN-W W5): the arena's props stand around the table, never on a battlefield, at real size. */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { type ArenaManifest, clearOfRim, propPose } from "../../src/board3d/arena";
+import { type ArenaManifest, clearOfRim, outward, propPose } from "../../src/board3d/arena";
 import { frameSeats } from "../../src/board3d/camera";
 import { tableBounds } from "../../src/board3d/seats";
 
@@ -18,6 +18,8 @@ describe("arena of the 3D board", () => {
     for (const m of [...source.models, ...source.materials]) expect(m.md5, JSON.stringify(m)).toMatch(/^[a-f0-9]{32}$/);
     for (const p of source.props ?? []) expect(ids.has(p.model), p.model).toBe(true);
     expect(source.materials.map((m) => m.slot).sort()).toEqual(["mat", "rim", "tabletop"]);
+    // One scale for every prop (their proportions stay those of life).
+    expect(source.metersToWorld).toBeGreaterThan(5);
   });
 
   for (const [w, h] of [
@@ -39,12 +41,16 @@ describe("arena of the 3D board", () => {
 
   it("anchors on the rim, offsets in world units, turns in degrees", () => {
     const b = { x0: -8, x1: 8, z0: -5, z1: 5 };
-    expect(propPose({ model: "m", anchor: "far-left", at: [-1, -2], size: 2, turn: 90 }, b)).toEqual({
+    expect(propPose({ model: "m", anchor: "far-left", at: [-1, -2], turn: 90 }, b)).toEqual({
       x: -9,
       z: -7,
       turn: Math.PI / 2,
     });
-    expect(propPose({ model: "m", anchor: "right", at: [1, 0], size: 2, turn: 0 }, b)).toMatchObject({ x: 9, z: 0 });
+    expect(propPose({ model: "m", anchor: "right", at: [1, 0], turn: 0 }, b)).toMatchObject({ x: 9, z: 0 });
+    // Pushed away from the table: left and back from the far-left corner, right from the right side.
+    const [lx, lz] = outward("far-left");
+    expect(lx < 0 && lz < 0).toBe(true);
+    expect(outward("right")).toEqual([1, 0]);
     expect(clearOfRim({ x0: -10, x1: -8.5, z0: 0, z1: 1 }, b)).toBe(true);
     expect(clearOfRim({ x0: -10, x1: -7.5, z0: 0, z1: 1 }, b)).toBe(false);
   });

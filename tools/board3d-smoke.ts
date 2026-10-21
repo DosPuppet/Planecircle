@@ -34,6 +34,7 @@ type DevWindow = {
     arenaShown(): boolean;
     quality(): string;
     particles(): number;
+    renders(): number;
   };
 };
 
@@ -303,6 +304,29 @@ const high = await g.page.evaluate(async () => {
 check(high.quality === "high" && high.idle, "high quality (shadows, rims, bloom) draws, then rests", high);
 await g.page.screenshot({ path: `${OUT}/5-high-quality.png` });
 await g.close();
+
+// 3d. The fireplace (with the arena, at the normal pace): between two moves its fire wavers, a few frames a second,
+// never the full rate.
+if (built) {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const fp = await ctx.newPage();
+  await fp.goto("http://localhost:5173/?board3d=force&quality=medium", { timeout: 120_000 });
+  await fp.evaluate(([deck, sb]) => (window as unknown as DevWindow).__mtgx.getState().startGame(deck, [deck], sb), [
+    DECK,
+    { p1: ME, p2: OPP },
+  ] as const);
+  await fp.getByRole("button", { name: "Garder" }).click({ timeout: 30_000 });
+  await fp.waitForFunction("window.__board3d && window.__board3d.arenaShown()", null, { timeout: 60_000 }).catch(() => {});
+  const fire = await fp.evaluate(async () => {
+    const w = window as unknown as DevWindow;
+    await new Promise((r) => setTimeout(r, 1500));
+    const before = w.__board3d?.renders() ?? 0;
+    await new Promise((r) => setTimeout(r, 2000));
+    return (w.__board3d?.renders() ?? 0) - before;
+  });
+  check(fire > 0 && fire <= 45, "the fireplace's fire wavers at 20 frames a second at most", fire);
+  await ctx.close();
+}
 
 // 4. Without the flag: the DOM board, and no three.js.
 g = await open({ width: 1600, height: 900 }, false, { p1: ME, p2: OPP });

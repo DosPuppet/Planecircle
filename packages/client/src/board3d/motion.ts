@@ -96,6 +96,11 @@ export class Springs {
     s.pose.y += amount * 0.6;
   }
 
+  /** Where this card is going (a card arriving: its place on the table, not where it flies from). */
+  target(uid: string): CardPose | undefined {
+    return this.springs.get(uid)?.target;
+  }
+
   /** Is this card moving (flying or springing back)? */
   has(uid: string): boolean {
     return this.springs.has(uid);

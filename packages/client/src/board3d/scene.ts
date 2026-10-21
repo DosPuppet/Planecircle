@@ -37,7 +37,7 @@ import {
 } from "three";
 import { CARD_RATIO } from "../board/layout";
 import type { Lang } from "../translate";
-import { type Bounds, clearOfRim, propPose } from "./arena";
+import { type Bounds, clearOfRim, outward, propPose } from "./arena";
 import type { Arena, ArenaMaterial } from "./assets";
 import type { Framing } from "./camera";
 import type { Fx3d } from "./fxmap";
@@ -47,6 +47,7 @@ import { FX_COLORS, Particles } from "./particles";
 import { Post } from "./post";
 import type { CardPose } from "./project";
 import { Governor, PRESETS, type Quality } from "./quality";
+import { Runes } from "./runes";
 import { type Rect, type Table, toWorld } from "./seats";
 import { CardTextures, textureKey } from "./textures";
 
@@ -57,10 +58,49 @@ export interface Palette {
   pool: string;
 }
 
+/** A soft white rounded card, its edges fading (the glow of a card of the hand, tinted by its material). */
+function haloTexture(): CanvasTexture {
+  const w = 160;
+  const h = 206;
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  const g = c.getContext("2d") as CanvasRenderingContext2D;
+  g.shadowColor = "#fff";
+  g.shadowBlur = 12;
+  g.shadowOffsetX = w * 3;
+  g.fillStyle = "#fff";
+  // The bright part reaches the card's edge (the plane is 1.3 cards wide), the blur fades beyond it.
+  g.fillRect(-w * 3 + w * 0.12, h * 0.1, w * 0.76, h * 0.8);
+  return new CanvasTexture(c);
+}
+
+/** Margin of a card's contact shadow, in card widths. */
+const SHADE = 0.12;
+
+/** A soft dark rounded card (the contact shadow): a blurred shadow drawn off the canvas, only the shadow showing. */
+function shadeTexture(): CanvasTexture {
+  const w = 128;
+  const h = 154;
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  const g = c.getContext("2d") as CanvasRenderingContext2D;
+  g.shadowColor = "#000";
+  g.shadowBlur = 16;
+  g.shadowOffsetX = w * 3;
+  g.fillStyle = "#000";
+  g.fillRect(-w * 3 + w * 0.12, h * 0.1, w * 0.76, h * 0.8);
+  return new CanvasTexture(c);
+}
+
 /** Width of a card's glow rim, in card widths. */
 const RIM = 0.045;
 /** A glow rim shines above the bloom's threshold (its color times this). */
-const RIM_GLOW = 1.3;
+const RIM_GLOW = 0.9;
+
+/** Flames that cast shadows at the highest quality. */
+const FLAME_SHADOWS = 3;
 
 /** Render order of the hand: after everything on the table. */
 const HAND_ORDER = 1_000_000;
@@ -117,11 +157,14 @@ function cardGeometries(ratio: number) {
   body.rotateX(-Math.PI / 2);
   // Just under the face (not level with it: the two would flicker).
   body.translate(0, -CARD_THICKNESS - 0.001, 0);
+  // The contact shadow: a soft dark card on the table under it, larger (W6).
+  const shade = new PlaneGeometry(1 + 2 * SHADE, ratio + 2 * SHADE);
+  shade.rotateX(-Math.PI / 2);
   // The glow rim: a slightly larger card under the face, showing only around it (W6).
   const rim = new ShapeGeometry(roundedRect(1 + 2 * RIM, ratio + 2 * RIM, 0.06 + RIM), 6);
   rim.rotateX(-Math.PI / 2);
   rim.translate(0, -0.0005, 0);
-  return { face, body, rim };
+  return { face, body, rim, shade };
 }
 
 /** Fine grain for the ground and the mats (a tiled noise canvas). */
@@ -166,7 +209,8 @@ export class TableScene {
   private propGroup = new Group();
   private rim: Bounds | null = null;
   private cardGroup = new Group();
-  private cards = new Map<string, { group: Group; face: Mesh; body: Mesh; rim: Mesh | null; key: string }>();
+  private cards = new Map<string, { group: Group; face: Mesh; body: Mesh; rim: Mesh | null; shade: Mesh; key: string }>();
+  private shadeMap = shadeTexture();
   private geometries = new Map<number, ReturnType<typeof cardGeometries>>();
   private springs: Springs;
   private target = new Vector3();
@@ -174,7 +218,10 @@ export class TableScene {
   private handGroup = new Group();
   /** The hand has a scene of its own, drawn after the post-processing: its cards keep their colors (no tone mapping). */
   private handScene = new Scene();
-  private hand = new Map<string, { mesh: Mesh; key: string }>();
+  private hand = new Map<string, { mesh: Mesh; halo: Mesh; key: string }>();
+  /** The glow of a card of the hand (W6): a halo just behind it, in the hand's order (the next card covers it). */
+  private haloMap = haloTexture();
+  private haloFace = new PlaneGeometry(1.3, CARD_RATIO * 1.24);
   private handFace: ShapeGeometry;
   private handSource: () => HandPose[] = () => [];
   private viewport = { w: 1, h: 1 };
@@ -186,8 +233,18 @@ export class TableScene {
   private glowColors: Record<string, string> = {};
   private rimMaterials = new Map<string, MeshBasicMaterial>();
   private flames: PointLight[] = [];
+  /**
+   * The fire of a big fireplace, off the table on the left (with the arena): a warm, low light that casts the long
+   * shadows of the props and wavers. Between two moves the board draws only for it, at most 20 frames a second.
+   */
+  private fire = new PointLight("#ff8a3c", 0, 0, 2);
+  private fireBase = 0;
+  private ambientTimer = 0;
+  /** Frames drawn (dev checks). */
+  renders = 0;
   /** Effects (W7): particles, the effects waiting for their time, the light of a turn's sweep. */
   private particles = new Particles();
+  private runes = new Runes();
   private fxQueue: { at: number; fx: Fx3d; where?: Vector3 }[] = [];
   private seats = new Map<string, { x: number; z: number; w: number; mine: boolean }>();
   private sweepLight = new PointLight("#ffd9a0", 0, 0, 2);
@@ -205,6 +262,8 @@ export class TableScene {
     /** 1 normally, faster in the fast test mode, Infinity with reduced motion (cards jump). */
     speed = 1,
     quality: Quality = "high",
+    /** The quality drawn, at the start and whenever the governor steps it down (shown in the Graphics setting). */
+    private onQuality: (q: Quality) => void = () => {},
   ) {
     this.springs = new Springs(speed);
     this.speed = speed;
@@ -223,13 +282,26 @@ export class TableScene {
     ground.rotateX(-Math.PI / 2);
     ground.position.y = -0.02;
     this.ground.userData.size = 80;
-    this.scene.add(ground, this.tableGroup, this.propGroup, this.cardGroup, this.particles.mesh, this.sweepLight);
+    this.scene.add(
+      ground,
+      this.tableGroup,
+      this.propGroup,
+      this.cardGroup,
+      this.particles.mesh,
+      this.runes.group,
+      this.sweepLight,
+    );
     this.handScene.add(this.handGroup);
     // Light: a key light from the viewer's left, a soft fill from the sky, a pool of the texture's light over the middle.
     this.key.position.set(-6, 14, 9);
     this.key.shadow.bias = -0.0004;
     this.key.shadow.normalBias = 0.02;
-    this.scene.add(this.key, this.key.target, new AmbientLight("#ffffff", 0.18), this.hemi, this.pool);
+    // A point light: its shadows fall all around it (six directions), on the props in the corners as on the cards.
+    this.fire.shadow.bias = -0.002;
+    this.fire.shadow.normalBias = 0.03;
+    this.fire.shadow.camera.near = 0.5;
+    this.fire.shadow.camera.far = 70;
+    this.scene.add(this.key, this.key.target, this.fire, new AmbientLight("#ffffff", 0.18), this.hemi, this.pool);
     ground.receiveShadow = true;
     canvas.addEventListener("webglcontextlost", this.onContextLost);
     this.governor = new Governor(quality, (q) => this.applyQuality(q));
@@ -288,17 +360,43 @@ export class TableScene {
         for (const m of ([] as Material[]).concat((o as Mesh).material ?? [])) m.needsUpdate = true;
       });
     }
-    this.key.castShadow = shadows;
-    if (shadows && this.key.shadow.mapSize.x !== p.shadows) {
-      this.key.shadow.mapSize.set(p.shadows, p.shadows);
-      this.key.shadow.map?.dispose();
-      this.key.shadow.map = null;
+    // The fire casts the shadows when it burns (the arena), else the key light.
+    const caster = this.fireBase > 0 ? this.fire : this.key;
+    this.key.castShadow = shadows && caster === this.key;
+    this.fire.castShadow = shadows && caster === this.fire;
+    // A point light's shadows are six maps: half the size of the preset's.
+    const size = caster === this.fire ? p.shadows / 2 : p.shadows;
+    if (shadows && caster.shadow.mapSize.x !== size) {
+      caster.shadow.mapSize.set(size, size);
+      caster.shadow.map?.dispose();
+      caster.shadow.map = null;
     }
+    this.onQuality(q);
+    this.flameShadows();
     this.post?.dispose();
     this.post = p.bloom ? new Post(this.renderer, this.scene, this.camera, p.samples) : null;
     this.post?.setSize(this.viewport.w, this.viewport.h, this.renderer.getPixelRatio());
     this.renderer.shadowMap.needsUpdate = true;
     this.requestRender();
+  }
+
+  /**
+   * At the highest quality, the largest flames cast shadows too (each in six directions: the three tallest only, on
+   * small maps): every object on the table then has the shadows of the lights around it.
+   */
+  private flameShadows() {
+    const on = this.renderer.shadowMap.enabled && this.governor.level === "high";
+    const tallest = [...this.flames].sort((a, b) => b.position.y - a.position.y).slice(0, FLAME_SHADOWS);
+    for (const f of this.flames) {
+      f.castShadow = on && tallest.includes(f);
+      if (!f.castShadow) continue;
+      f.shadow.mapSize.set(512, 512);
+      f.shadow.bias = -0.003;
+      f.shadow.normalBias = 0.02;
+      f.shadow.camera.near = 0.1;
+      f.shadow.camera.far = 40;
+    }
+    this.renderer.shadowMap.needsUpdate = true;
   }
 
   /** Colors of the glows (CSS variables of the board: --playable, --target…), for the rims of the cards. */
@@ -347,6 +445,7 @@ export class TableScene {
     const effects = this.runEffects(now, Math.min(0.25, ms / 1000));
     this.syncHand();
     this.flicker(now);
+    this.renders++;
     if (this.post) this.post.render();
     else this.renderer.render(this.scene, this.camera);
     if (this.hand.size) {
@@ -354,9 +453,23 @@ export class TableScene {
       this.renderer.render(this.handScene, this.camera);
       this.renderer.autoClear = true;
     }
+    // Animation frames follow each other (the governor judges them); between them, the fire alone, slower.
     this.continued = moving || effects || now < this.liveUntil;
     if (this.continued) this.frame = requestAnimationFrame(this.tick);
+    else if (this.wavering && !this.ambientTimer)
+      this.ambientTimer = window.setTimeout(() => {
+        this.ambientTimer = 0;
+        this.requestRender();
+      }, 50);
   };
+
+  /**
+   * The fire wavers: with the arena, above the lowest quality, at the normal pace (not with reduced motion, nor in the
+   * fast test mode: the interface tests draw in software, where every frame is slow).
+   */
+  private get wavering(): boolean {
+    return this.fireBase > 0 && this.governor.level !== "low" && this.speed === 1;
+  }
 
   /**
    * The effects (W7), each at its time, on its card (its current place) or its player's side (the seat's middle):
@@ -377,8 +490,10 @@ export class TableScene {
 
   private runEffects(now: number, dt: number): boolean {
     const due = this.fxQueue.filter((q) => q.at <= now);
-    this.fxQueue = this.fxQueue.filter((q) => q.at > now && now - q.at < 3000);
-    for (const q of due) this.emit(q.fx, q.where);
+    this.fxQueue = this.fxQueue.filter((q) => q.at > now);
+    // A card that has just come (a permanent entering, a token) is on the table a frame or two after its update: its
+    // effect waits for it a little.
+    for (const q of due) if (!this.emit(q.fx, q.where) && now - q.at < 600) this.fxQueue.push(q);
     let sweeping = false;
     if (this.sweep) {
       const t = (now - this.sweep.start) / (1100 / this.speed);
@@ -391,12 +506,18 @@ export class TableScene {
         this.sweepLight.intensity = 9 * Math.sin(Math.PI * t);
       }
     }
-    return this.particles.step(dt) || this.fxQueue.length > 0 || sweeping;
+    const runes = this.runes.step(dt);
+    return this.particles.step(dt) || runes || this.fxQueue.length > 0 || sweeping;
   }
 
-  /** One effect: where it happens (the card now, else its place when it was asked, else its player's side). */
-  private emit(fx: Fx3d, asked?: Vector3) {
-    const pose = fx.uid ? this.springs.pose(fx.uid) : undefined;
+  /**
+   * One effect: where it happens (the card now, else its place when it was asked, else its player's side). False when
+   * that place is not known yet (a card not on the table yet).
+   */
+  private emit(fx: Fx3d, asked?: Vector3): boolean {
+    // A card arriving (a summoning, a token, a land) at its place on the table; any other where it is now.
+    const arriving = fx.kind === "spawn" || fx.kind === "dust" || fx.rune === "summon";
+    const pose = fx.uid ? (arriving ? this.springs.target(fx.uid) : this.springs.pose(fx.uid)) : undefined;
     const card = asked ?? (pose ? new Vector3(pose.x, pose.y + 0.05, pose.z) : undefined);
     const seat = fx.player ? this.seats.get(fx.player) : undefined;
     const side = seat ? new Vector3(seat.x, 0.1, seat.z) : undefined;
@@ -404,7 +525,7 @@ export class TableScene {
     const amount = Math.min(10, fx.amount ?? 1);
     switch (fx.kind) {
       case "burst":
-        if (!card) return;
+        if (!card) return false;
         this.particles.emit({
           at: card,
           count: 24 + amount * 6,
@@ -416,9 +537,9 @@ export class TableScene {
           gravity: 6,
         });
         if (fx.uid) this.springs.kick(fx.uid, 0.12 + 0.02 * amount);
-        return;
+        return true;
       case "heal":
-        if (!side) return;
+        if (!side) return false;
         this.particles.emit({
           at: side,
           count: 30 + amount * 4,
@@ -430,9 +551,9 @@ export class TableScene {
           gravity: -1.2,
           ring: Math.min(2.5, (seat?.w ?? 4) * 0.15),
         });
-        return;
+        return true;
       case "embers":
-        if (!card) return;
+        if (!card) return false;
         this.particles.emit({
           at: card,
           count: 50,
@@ -443,24 +564,21 @@ export class TableScene {
           size: [0.08, 0.18],
           gravity: -1,
         });
-        return;
-      case "cast":
-        if (!side) return;
-        this.particles.emit({
-          at: side,
-          count: 60,
-          colors: colors(fx.colors ?? ["C"]),
-          speed: [1.5, 2.2],
-          up: 0.25,
-          life: [0.7, 1.1],
-          size: [0.1, 0.2],
-          gravity: -0.4,
-          ring: 1.2,
-          swirl: true,
-        });
-        return;
+        return true;
+      case "rune": {
+        // The colors of the magic mixed into the circle's (and its light's) color.
+        const mix = new Color(0, 0, 0);
+        for (const c of colors(fx.colors ?? ["C"])) mix.add(c);
+        mix.multiplyScalar(1 / Math.max(1, fx.colors?.length ?? 1));
+        const w = pose ? Math.max(pose.w, pose.h) : 1.2;
+        if (fx.rune === "spell" && side) this.runes.cast(side, mix, 1.7, 1.9 / this.speed);
+        else if (fx.rune === "summon" && card) this.runes.cast(card, mix, w * 0.85, 1.6 / this.speed);
+        else if (fx.rune === "ability" && card) this.runes.cast(card, mix, w * 0.6, 1.1 / this.speed, 0.7);
+        else return false;
+        return true;
+      }
       case "spawn":
-        if (!card) return;
+        if (!card) return false;
         this.particles.emit({
           at: card,
           count: 36,
@@ -472,9 +590,9 @@ export class TableScene {
           gravity: 0,
           ring: 0.6,
         });
-        return;
+        return true;
       case "dust":
-        if (!card) return;
+        if (!card) return false;
         this.particles.emit({
           at: card,
           count: 26,
@@ -486,9 +604,9 @@ export class TableScene {
           gravity: 0.5,
           ring: 0.4,
         });
-        return;
+        return true;
       case "clash":
-        if (!card) return;
+        if (!card) return false;
         this.particles.emit({
           at: card,
           count: 40,
@@ -499,9 +617,9 @@ export class TableScene {
           size: [0.06, 0.14],
           gravity: 4,
         });
-        return;
+        return true;
       case "sparkle":
-        if (!card) return;
+        if (!card) return false;
         this.particles.emit({
           at: card,
           count: 14 + amount * 6,
@@ -512,29 +630,41 @@ export class TableScene {
           size: [0.08, 0.16],
           gravity: -0.5,
         });
-        return;
+        return true;
       case "sweep":
-        if (!seat) return;
+        if (!seat) return false;
         // From the side the player sits on, across their half of the table.
         this.sweepLight.color.set(seat.mine ? "#ffd9a0" : "#ffb0a0");
         this.sweep = { start: performance.now(), from: seat.x - seat.w / 2, to: seat.x + seat.w / 2, z: seat.z };
-        return;
+        return true;
     }
   }
 
-  /** The flames waver while the board is drawing anyway (an idle board stays still: no endless animation). */
+  /** The flames waver, and the fireplace's fire (its strength and a little its color; never its place: its shadows stay). */
   private flicker(now: number) {
     const t = now / 1000;
+    if (this.fireBase > 0) {
+      const n =
+        0.4 * Math.sin(t * 2.3) + 0.3 * Math.sin(t * 5.7 + 1.3) + 0.2 * Math.sin(t * 11.3 + 0.4) + 0.1 * Math.sin(t * 17.9);
+      const still = !this.wavering;
+      this.fire.intensity = this.fireBase * (still ? 1 : 0.82 + 0.18 * n);
+      this.fire.color.setRGB(1, still ? 0.54 : 0.5 + 0.08 * n, still ? 0.24 : 0.2 + 0.06 * n);
+    }
     this.flames.forEach((f, i) => {
       const n = 0.5 * Math.sin(t * 13.1 + i * 1.7) + 0.3 * Math.sin(t * 7.3 + i * 4.1) + 0.2 * Math.sin(t * 23.7 + i);
       f.intensity = (f.userData.base as number) * (0.88 + 0.12 * n);
     });
   }
 
-  private place(card: { group: Group }, p: CardPose) {
+  private place(card: { group: Group; shade: Mesh }, p: CardPose) {
     card.group.position.set(p.x, p.y, p.z);
     card.group.rotation.y = (-p.rot * Math.PI) / 180;
     card.group.scale.set(p.w, 1, p.w);
+    // Its shadow on the table, cast away from the fire (on the left): wider and fainter as the card rises.
+    const lift = Math.max(0, p.y);
+    card.shade.position.set((0.05 + lift * 0.35) / p.w, 0.0006 - p.y, (lift * 0.15) / p.w);
+    card.shade.scale.setScalar(1 + lift * 0.35);
+    (card.shade.material as MeshBasicMaterial).opacity = 0.5 * Math.max(0, 1 - lift / 3);
   }
 
   get webgl(): WebGLRenderer {
@@ -608,6 +738,7 @@ export class TableScene {
       [outer.x + outer.w / 2, outer.z, rail, outer.h + rail],
     ] as const) {
       const m = new Mesh(new BoxGeometry(w, height, d), this.rimMat);
+      m.castShadow = true;
       m.position.set(x, height / 2 - 0.02, z);
       this.tableGroup.add(m);
     }
@@ -623,6 +754,7 @@ export class TableScene {
     cam.far = 80;
     cam.updateProjectionMatrix();
     for (const child of this.tableGroup.children) child.receiveShadow = true;
+    this.placeFire();
     this.renderer.shadowMap.needsUpdate = true;
     this.placeProps();
     // The pool's light falls off with the square of its height: the same light on the table whatever its size.
@@ -636,8 +768,23 @@ export class TableScene {
    * The arena (null: the plain table): its HDRI lights the scene and shows in reflections, its wood covers the table,
    * its leather and carved wood the mats and the rim, its props stand around the rim.
    */
+  /** The fireplace off the table's left side, low, its light across the table (its strength grows with its distance). */
+  // (Its light is a point light: see the constructor.)
+  private placeFire() {
+    const rim = this.rim;
+    if (!rim) return;
+    const midX = (rim.x0 + rim.x1) / 2;
+    const midZ = (rim.z0 + rim.z1) / 2;
+    this.fire.position.set(rim.x0 - 7, 4.5, midZ - 2);
+    const d = this.fire.position.distanceTo(new Vector3(midX, 0, midZ));
+    this.fireBase = this.arena ? 3 * d * d : 0;
+    this.fire.intensity = this.fireBase;
+  }
+
   setArena(arena: Arena | null): void {
     this.arena = arena;
+    // A room lit by its fire: the light from above only fills.
+    this.key.intensity = arena ? 0.8 : 1.5;
     this.scene.environment = arena?.environment ?? null;
     this.scene.environmentIntensity = 0.55;
     const apply = (target: MeshStandardMaterial, m: ArenaMaterial | undefined, repeat: number, colored: boolean) => {
@@ -668,7 +815,8 @@ export class TableScene {
       apply(this.rimMat, arena.materials.rim, 1 / (arena.materials.rim?.tile ?? 1), true);
     }
     this.placeProps();
-    this.requestRender();
+    this.placeFire();
+    this.applyQuality(this.governor.level);
   }
 
   /**
@@ -682,32 +830,33 @@ export class TableScene {
     const rim = this.rim;
     if (!arena || !rim) return;
     const box = new Box3();
-    const dims = new Vector3();
+    const scale = arena.manifest.metersToWorld ?? 12;
     for (const p of arena.manifest.props ?? []) {
       const model = arena.models.get(p.model);
       if (!model) continue;
       const pose = propPose(p, rim);
-      const body = model.clone(true);
-      // Laid on its side: its longest side (y, standing) along the table.
-      if (p.lie) body.rotation.z = Math.PI / 2;
       const prop = new Group();
-      prop.add(body);
+      prop.add(model.clone(true));
       prop.rotation.y = pose.turn;
-      box.setFromObject(prop).getSize(dims);
-      prop.scale.setScalar(p.size / Math.max(dims.x, dims.y, dims.z, 1e-6));
-      prop.position.set(pose.x, 0, pose.z);
+      // One scale for every prop: their models are in meters, their proportions stay those of life.
+      prop.scale.setScalar(scale);
       prop.updateMatrixWorld(true);
       box.setFromObject(prop);
-      // Its base on the table, its middle where the manifest says.
-      prop.position.x += pose.x - (box.min.x + box.max.x) / 2;
-      prop.position.z += pose.z - (box.min.z + box.max.z) / 2;
-      prop.position.y += -0.02 - box.min.y;
-      prop.updateMatrixWorld(true);
-      box.setFromObject(prop);
-      if (!clearOfRim({ x0: box.min.x, x1: box.max.x, z0: box.min.z, z1: box.max.z }, rim)) continue;
+      // Its base on the table, its middle at its place; then pushed outward until it is clear of the battlefields.
+      prop.position.set(pose.x - (box.min.x + box.max.x) / 2, -0.02 - box.min.y, pose.z - (box.min.z + box.max.z) / 2);
+      const [ox, oz] = outward(p.anchor);
+      for (let step = 0; step < 80; step++) {
+        prop.updateMatrixWorld(true);
+        box.setFromObject(prop);
+        if (clearOfRim({ x0: box.min.x, x1: box.max.x, z0: box.min.z, z1: box.max.z }, rim)) break;
+        prop.position.x += ox * 0.25;
+        prop.position.z += oz * 0.25;
+      }
       if (p.light) {
-        const flame = new PointLight("#ffb265", 2.5, 0, 2);
-        flame.position.set((box.min.x + box.max.x) / 2, box.max.y + 0.15, (box.min.z + box.max.z) / 2);
+        // A flame at its top; the higher it stands, the stronger, to light the table as a candle does.
+        const lift = box.max.y;
+        const flame = new PointLight("#ffb265", 1.6 * Math.max(1, lift) ** 2, 0, 2);
+        flame.position.set((box.min.x + box.max.x) / 2, lift + 0.15, (box.min.z + box.max.z) / 2);
         flame.userData.base = flame.intensity;
         this.flames.push(flame);
         this.propGroup.add(flame);
@@ -718,6 +867,7 @@ export class TableScene {
       });
       this.propGroup.add(prop);
     }
+    this.flameShadows();
     this.renderer.shadowMap.needsUpdate = true;
   }
 
@@ -747,10 +897,14 @@ export class TableScene {
         face.castShadow = true;
         face.receiveShadow = true;
         body.castShadow = true;
+        const shadeMaterial = new MeshBasicMaterial({ map: this.shadeMap, transparent: true, depthWrite: false, opacity: 0.5 });
+        shadeMaterial.toneMapped = false;
+        const shade = new Mesh(g.shade, shadeMaterial);
+        shade.renderOrder = 1;
         const group = new Group();
-        group.add(face, body);
+        group.add(face, body, shade);
         this.cardGroup.add(group);
-        card = { group, face, body, rim: null, key: "" };
+        card = { group, face, body, rim: null, shade, key: "" };
         this.cards.set(n.uid, card);
       }
       if (card.key !== key) {
@@ -779,6 +933,7 @@ export class TableScene {
       if (targets.has(uid)) continue;
       this.cardGroup.remove(card.group);
       (card.face.material as MeshStandardMaterial).dispose();
+      (card.shade.material as MeshBasicMaterial).dispose();
       this.cards.delete(uid);
     }
     this.springs.setTargets(targets, start);
@@ -790,7 +945,11 @@ export class TableScene {
   }
 
   /** The cards of the hand (whole cards, unlit: their text keeps its colors); `source` says where the DOM lays them. */
-  setHand(cards: { uid: string; face: CardFace; obj?: ObjectView }[], lang: Lang, source: () => HandPose[]): void {
+  setHand(
+    cards: { uid: string; face: CardFace; obj?: ObjectView; glow?: string | null }[],
+    lang: Lang,
+    source: () => HandPose[],
+  ): void {
     this.handSource = source;
     const pinned = new Set(cards.map((c) => textureKey(c.face, c.obj, lang, "full")));
     const seen = new Set<string>();
@@ -803,11 +962,25 @@ export class TableScene {
         // at the same depth would flicker, and transparent ones at the same distance swap places from frame to frame).
         const material = new MeshBasicMaterial({ transparent: true, depthTest: false, depthWrite: false });
         material.toneMapped = false;
-        card = { mesh: new Mesh(this.handFace, material), key: "" };
+        // Blended over the table (not added to it): its color stays the glow's on the warm wood.
+        const haloMaterial = new MeshBasicMaterial({
+          map: this.haloMap,
+          alphaMap: this.haloMap,
+          transparent: true,
+          opacity: 0.9,
+          depthTest: false,
+          depthWrite: false,
+        });
+        haloMaterial.toneMapped = false;
+        card = { mesh: new Mesh(this.handFace, material), halo: new Mesh(this.haloFace, haloMaterial), key: "" };
         card.mesh.visible = false;
-        this.handGroup.add(card.mesh);
+        card.halo.visible = false;
+        this.handGroup.add(card.halo, card.mesh);
         this.hand.set(c.uid, card);
       }
+      const halo = card.halo.material as MeshBasicMaterial;
+      halo.color.set(this.glowColors[c.glow ?? ""] ?? "#000000");
+      card.halo.userData.on = !!c.glow;
       if (card.key !== key) {
         const material = card.mesh.material as MeshBasicMaterial;
         material.map = this.textures.get(c.face, c.obj, lang, pinned, "full");
@@ -817,8 +990,9 @@ export class TableScene {
     }
     for (const [uid, card] of this.hand) {
       if (seen.has(uid)) continue;
-      this.handGroup.remove(card.mesh);
+      this.handGroup.remove(card.mesh, card.halo);
       (card.mesh.material as MeshBasicMaterial).dispose();
+      (card.halo.material as MeshBasicMaterial).dispose();
       this.hand.delete(uid);
     }
     this.live(700);
@@ -845,26 +1019,38 @@ export class TableScene {
       card.mesh.position.copy(at);
       card.mesh.quaternion.copy(this.camera.quaternion).multiply(spin.setFromAxisAngle(forward, -p.angle));
       card.mesh.scale.setScalar(p.w * unit);
-      card.mesh.renderOrder = HAND_ORDER + p.order;
+      // Each card above its own halo, under the next card (and its halo).
+      card.mesh.renderOrder = HAND_ORDER + 2 * p.order;
       card.mesh.visible = true;
+      card.halo.position.copy(card.mesh.position);
+      card.halo.quaternion.copy(card.mesh.quaternion);
+      card.halo.scale.copy(card.mesh.scale);
+      card.halo.renderOrder = HAND_ORDER + 2 * p.order - 1;
+      card.halo.visible = card.halo.userData.on === true;
       this.springs.remember(p.uid, { x: at.x, y: at.y, z: at.z, w: p.w * unit, h: p.h * unit, rot: 0 });
     }
   }
 
   dispose(): void {
     cancelAnimationFrame(this.frame);
+    clearTimeout(this.ambientTimer);
     this.propGroup.clear();
     this.canvas.removeEventListener("webglcontextlost", this.onContextLost);
     this.post?.dispose();
     this.particles.dispose();
+    this.runes.dispose();
     for (const m of this.rimMaterials.values()) m.dispose();
     this.textures.dispose();
     this.grain.dispose();
+    this.shadeMap.dispose();
+    this.haloMap.dispose();
+    this.haloFace.dispose();
     this.handFace.dispose();
     for (const g of this.geometries.values()) {
       g.face.dispose();
       g.body.dispose();
       g.rim.dispose();
+      g.shade.dispose();
     }
     this.renderer.dispose();
   }

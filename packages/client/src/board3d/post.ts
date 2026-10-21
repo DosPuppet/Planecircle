@@ -10,9 +10,9 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 
 /** Only what is brighter than the lit table blooms: emissive rims and flames (linear luminance). */
-const THRESHOLD = 0.92;
-const STRENGTH = 0.38;
-const RADIUS = 0.25;
+const THRESHOLD = 1;
+const STRENGTH = 0.24;
+const RADIUS = 0.22;
 
 export class Post {
   private composer: EffectComposer;

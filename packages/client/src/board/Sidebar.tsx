@@ -1,4 +1,4 @@
-import type { CardFace, ObjectView } from "@mtgx/engine";
+import { type CardFace, msg, type ObjectView } from "@mtgx/engine";
 import { useEffect, useRef, useState } from "react";
 import { SoundControl } from "../audio/SoundControl";
 import { BOARD_THEMES } from "../boardThemes";
@@ -335,6 +335,28 @@ function PaceControl() {
 }
 
 /** Graphics: animated table and tilted battlefield, or light (less powerful devices). */
+/**
+ * The 3D board's state: the graphics card the browser draws with (on a laptop, it may be the integrated one) and the
+ * quality drawn (the governor steps it down when frames are slow).
+ */
+function Board3dNote({ renderer }: { renderer: string }) {
+  const quality = useGame((s) => s.board3dQuality);
+  const t = useT();
+  const loc = useLocalize();
+  return (
+    <div className="board3d-note">
+      <span>{t("Graphics card: {name}", { name: renderer.replace(/^ANGLE \((.*)\)$/, "$1") })}</span>
+      {quality && <span>{t("3D quality: {quality}", { quality: loc(QUALITY_LABEL[quality]) })}</span>}
+    </div>
+  );
+}
+
+const QUALITY_LABEL = {
+  high: msg("ctx:quality|high"),
+  medium: msg("ctx:quality|medium"),
+  low: msg("ctx:quality|low"),
+};
+
 function GraphicsControl() {
   const effects = useGame((s) => s.effects);
   const setEffects = useGame((s) => s.setEffects);
@@ -377,6 +399,7 @@ function GraphicsControl() {
           {t("ctx:graphics|Light")}
         </button>
       </div>
+      {effects === "3d" && support.ok && <Board3dNote renderer={support.renderer} />}
     </div>
   );
 }

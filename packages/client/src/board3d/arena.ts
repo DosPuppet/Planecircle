@@ -4,17 +4,14 @@
  */
 
 /**
- * A prop on the table, outside the battlefields: an anchor on the rim, an offset (world units), its size (its largest
- * dimension, world units: a card is about 1.1 wide), a turn (degrees).
+ * A prop on the table, outside the battlefields: an anchor on the rim, a preferred offset (world units; the board pushes
+ * it outward until it is clear of the battlefields), a turn (degrees). All at one scale (`metersToWorld`).
  */
 export interface Prop {
   model: string;
   anchor: "far-left" | "far" | "far-right" | "left" | "right" | "near-left" | "near-right";
   at: [number, number];
-  size: number;
   turn: number;
-  /** Laid on its side (a sword, a shield): its longest side along the table. */
-  lie?: boolean;
   /** A flame at its top: a warm light. */
   light?: boolean;
 }
@@ -22,6 +19,8 @@ export interface Prop {
 /** data/arena/manifest.json; version 0: nothing built (the plain table). */
 export interface ArenaManifest {
   version: number;
+  /** World units per meter, for every prop (their models are in meters). */
+  metersToWorld?: number;
   hdri?: string;
   materials?: Record<string, { tile: number; diff?: string; nor_gl?: string; arm?: string }>;
   models?: Record<string, string>;
@@ -51,6 +50,20 @@ export function propPose(p: Prop, b: Bounds): { x: number; z: number; turn: numb
   };
   const [ax, az] = anchors[p.anchor];
   return { x: ax + p.at[0], z: az + p.at[1], turn: (p.turn * Math.PI) / 180 };
+}
+
+/** Away from the table, from an anchor: the way a prop is pushed until it is clear of the battlefields. */
+export function outward(anchor: Prop["anchor"]): [number, number] {
+  const ways: Record<Prop["anchor"], [number, number]> = {
+    "far-left": [-Math.SQRT1_2, -Math.SQRT1_2],
+    far: [0, -1],
+    "far-right": [Math.SQRT1_2, -Math.SQRT1_2],
+    left: [-1, 0],
+    right: [1, 0],
+    "near-left": [-Math.SQRT1_2, Math.SQRT1_2],
+    "near-right": [Math.SQRT1_2, Math.SQRT1_2],
+  };
+  return ways[anchor];
 }
 
 /** Does a prop's footprint (its box on the table, world units) stay off the battlefields, inside the rim? */

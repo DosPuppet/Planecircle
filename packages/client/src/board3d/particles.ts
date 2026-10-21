@@ -63,7 +63,7 @@ const FRAGMENT = /* glsl */ `
   void main() {
     float d = length(vUv - 0.5) * 2.0;
     float glow = pow(max(0.0, 1.0 - d), 1.6);
-    gl_FragColor = vec4(vTint * 2.2 * glow * vAlpha, 1.0);
+    gl_FragColor = vec4(vTint * 1.5 * glow * vAlpha, 1.0);
   }
 `;
 

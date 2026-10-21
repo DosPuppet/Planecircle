@@ -11,10 +11,11 @@ import { Arrows } from "../board/Arrows";
 import { ActionPanel, CenterStrip, Hand, OpponentHand, PlayerBar, useBoardTheme, usePermanentGlow } from "../board/Board";
 import { Card } from "../board/Card";
 import { Effects } from "../board/Effects";
+import { handGlow, playableCards } from "../board/glows";
 import { StackReveal } from "../board/StackReveal";
 import { fastMode } from "../fast";
 import { useT } from "../localize";
-import { subscribeUpdates, useGame } from "../store";
+import { myActions, subscribeUpdates, useGame } from "../store";
 import { type Arena, loadArena } from "./assets";
 import { frameSeats, viewProjection } from "./camera";
 import { fxFor } from "./fxmap";
@@ -69,6 +70,8 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
   const blocks = useGame((s) => s.blocks);
   const attackTargets = useGame((s) => s.attackTargets);
   const clickPermanent = useGame((s) => s.clickPermanent);
+  const selection = useGame((s) => s.selection);
+  const casting = useGame((s) => s.casting);
   const openGraveyard = useGame((s) => s.openGraveyard);
   const openExile = useGame((s) => s.openExile);
   const t = useT();
@@ -115,7 +118,7 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
     const quality: Quality = asked === "low" || asked === "medium" ? asked : "high";
     let scene: TableScene;
     try {
-      scene = new TableScene(canvas, onFail, speed, quality);
+      scene = new TableScene(canvas, onFail, speed, quality, useGame.getState().setBoard3dQuality);
       sceneRef.current = scene;
     } catch {
       onFail();
@@ -133,6 +136,7 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
     });
     return () => {
       alive = false;
+      useGame.getState().setBoard3dQuality(null);
       unsubscribe();
       scene.dispose();
       arena?.dispose();
@@ -167,7 +171,10 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
     )
     .join("|");
   const hand = view ? [...view.hand, ...view.playableElsewhere] : [];
-  const handKey = hand.map((c) => `${c.uid}:${c.defId}`).join(" ");
+  // The glows of the hand (the same rules as the DOM hand's): the halos of its meshes.
+  const playable = playableCards(myActions(view));
+  const handGlows = hand.map((c) => handGlow(c.id, selection, casting, playable));
+  const handKey = hand.map((c, i) => `${c.uid}:${c.defId}:${handGlows[i] ?? ""}`).join(" ");
 
   // Where the stack's cards lie over the table: a spell resolving flies from there to its place.
   const stackSeen = useRef(new Map<string, { x: number; z: number }>());
@@ -266,7 +273,7 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
   // biome-ignore lint/correctness/useExhaustiveDependencies: the hand's cards are keyed by handKey
   useEffect(() => {
     sceneRef.current?.setHand(
-      hand.map((c) => ({ uid: c.uid, face: c, obj: c })),
+      hand.map((c, i) => ({ uid: c.uid, face: c, obj: c, glow: handGlows[i] })),
       lang,
       handSource,
     );
@@ -299,6 +306,7 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
       arenaShown: () => sceneRef.current?.arenaShown ?? false,
       quality: () => sceneRef.current?.quality,
       particles: () => sceneRef.current?.particlesAlive ?? 0,
+      renders: () => sceneRef.current?.renders ?? 0,
       debugScene: () => sceneRef.current,
       projectedRect(id: string) {
         const { nodes: ns, vp: m4, size: sz } = latest.current;

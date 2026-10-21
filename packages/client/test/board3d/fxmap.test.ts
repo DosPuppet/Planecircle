@@ -4,8 +4,8 @@ import { describe, expect, it } from "vitest";
 import { costColors, fxFor } from "../../src/board3d/fxmap";
 
 const perm = (id: string, over: Partial<ObjectView> = {}) =>
-  ({ id, uid: `u-${id}`, colors: [], counters: {}, ...over }) as unknown as ObjectView;
-const view = (battlefield: ObjectView[]) => ({ viewer: "me", battlefield }) as unknown as GameView;
+  ({ id, uid: `u-${id}`, colors: [], counters: {}, types: ["Creature"], isToken: false, ...over }) as unknown as ObjectView;
+const view = (battlefield: ObjectView[], stack: unknown[] = []) => ({ viewer: "me", battlefield, stack }) as unknown as GameView;
 const faces = { bolt: { manaCost: "{R}" }, growth: { manaCost: "{1}{G}{U}" } } as unknown as Record<string, CardFace>;
 
 describe("3D board effects", () => {
@@ -27,7 +27,7 @@ describe("3D board effects", () => {
     expect(fx).toEqual([{ kind: "embers", uid: "u-a", delay: 0 }]);
   });
 
-  it("a spell swirls in its colors over its caster's side; a token and a land have their own effect", () => {
+  it("a spell draws runes in its colors on its caster's side; a token and a land have their own effect", () => {
     const events: GameEvent[] = [
       { type: "cast", player: "me", stackId: "s1", defId: "growth", targets: [] },
       { type: "token", objectId: "t", defId: "goblin", controller: "me" },
@@ -36,11 +36,22 @@ describe("3D board effects", () => {
       { type: "life", player: "me", delta: -2, life: 21 },
       { type: "turnStart", turn: 2, player: "me" },
     ];
-    const fx = fxFor(events, view([perm("t", { colors: ["R"] }), perm("l")]), view([]), faces);
-    expect(fx.map((f) => f.kind)).toEqual(["cast", "spawn", "dust", "heal", "sweep"]);
-    expect(fx[0]).toMatchObject({ player: "me", colors: ["G", "U"] });
+    const after = view([perm("t", { colors: ["R"], isToken: true }), perm("l", { types: ["Land"] })]);
+    const fx = fxFor(events, after, view([]), faces);
+    expect(fx.map((f) => f.kind)).toEqual(["rune", "spawn", "dust", "heal", "sweep"]);
+    expect(fx[0]).toMatchObject({ rune: "spell", player: "me", colors: ["G", "U"] });
     expect(fx[1]).toMatchObject({ uid: "u-t", colors: ["R"] });
     expect(fx[3]).toMatchObject({ player: "me", amount: 3 });
+  });
+
+  it("a permanent entering: a sigil under it; an ability: a small circle under its source", () => {
+    const before = view([perm("src", { colors: ["B"] })]);
+    const after = view([perm("src", { colors: ["B"] }), perm("bear", { colors: ["G"] })], [{ id: "s9", sourceId: "src" }]);
+    const fx = fxFor([{ type: "activate", player: "me", stackId: "s9", defId: "x", targets: [] }], after, before, faces);
+    expect(fx).toEqual([
+      { kind: "rune", rune: "ability", uid: "u-src", colors: ["B"], delay: 0 },
+      { kind: "rune", rune: "summon", uid: "u-bear", colors: ["G"], delay: 0 },
+    ]);
   });
 
   it("blockers clash; counters gained sparkle", () => {

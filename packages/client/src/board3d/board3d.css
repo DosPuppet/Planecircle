@@ -68,7 +68,9 @@
 .board3d .hand .card.ghost {
   background: transparent;
 }
-.board3d .hand .card.ghost:not([class*="glow-"]) {
+/* No CSS ring in the hand: DOM draws over the canvas, a ring would cross the next card; the mesh's halo, behind its
+   card, shows the glow. */
+.board3d .hand .card.ghost {
   box-shadow: none;
 }
 /* Piles (library, graveyard, exile) at the left of each seat: their proxies over the meshes. */

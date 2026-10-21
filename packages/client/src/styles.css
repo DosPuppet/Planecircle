@@ -1807,9 +1807,16 @@ button.emblem-chip.activatable {
 }
 .pace-control {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   align-items: center;
   font-size: 0.75rem;
+}
+/* 3D board: the graphics card and the quality drawn, under the Graphics choice. */
+.board3d-note {
+  flex-basis: 100%;
+  display: grid;
+  color: var(--dim);
 }
 .toggle {
   display: flex;
