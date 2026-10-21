@@ -21,6 +21,7 @@ import {
 } from "three";
 import type { ArenaMaterial } from "../assets";
 import { noise, type ShrinePlan } from "./plan";
+import { snowCover } from "./season";
 
 /** A copy of a tiled map: the arena's textures are shared, each use sets its own repeat. */
 function tiled(t: Texture | undefined, repeat: number): Texture | null {
@@ -130,6 +131,8 @@ export function createGround(
   materials: Record<string, ArenaMaterial>,
   models: Map<string, Object3D>,
   detail: number,
+  /** Snow on the banks and the rocks (winter). */
+  snow = 0,
 ): Ground {
   const group = new Group();
   const cx = (plan.stage.x0 + plan.stage.x1) / 2;
@@ -151,12 +154,14 @@ export function createGround(
   geometry.setAttribute("aSplat", new BufferAttribute(splat, 1));
   geometry.computeVertexNormals();
   const { mat, uniforms } = splatMaterial(materials.sand, materials.ground, 3, 4);
+  snowCover(mat, snow);
   const terrain = new ThreeMesh(geometry, mat);
   terrain.receiveShadow = true;
   group.add(terrain);
 
   // Mossy rocks along the waterline, on both banks, larger towards the far side; a few in the water.
   const owned: { dispose(): void }[] = [geometry, mat];
+  const copies = new Map<Material, Material>();
   const rocks = ["rock_moss_set_01", "rock_moss_set_02", "rock_07", "rock_09"].filter((id) => models.has(id));
   if (rocks.length) {
     const spots: [number, number, number][] = [];
@@ -175,6 +180,10 @@ export function createGround(
       const model = models.get(rocks[i % rocks.length] as string) as Object3D;
       const rock = placed(model, size, (i * 2.399) % (2 * Math.PI));
       rock.position.set(x, plan.height(x, z) - size * 0.18, z);
+      ownMaterials(rock, copies, (m) => {
+        m.envMapIntensity = 0.6;
+        snowCover(m, snow);
+      });
       group.add(rock);
     });
   }
@@ -185,8 +194,30 @@ export function createGround(
     },
     dispose() {
       for (const o of owned) o.dispose();
+      for (const c of copies.values()) c.dispose();
     },
   };
+}
+
+/**
+ * Gives a placed model its own copies of its materials (`copies`: shared by the models placed in one build, and
+ * disposed with it), so a tint or a patch never reaches the arena's originals; `dress` changes each copy once.
+ */
+export function ownMaterials(o: Object3D, copies: Map<Material, Material>, dress: (m: MeshStandardMaterial) => void): void {
+  o.traverse((c) => {
+    const mesh = c as Mesh;
+    if (!mesh.isMesh) return;
+    const swap = (m: Material) => {
+      let copy = copies.get(m);
+      if (!copy) {
+        copy = m.clone();
+        dress(copy as MeshStandardMaterial);
+        copies.set(m, copy);
+      }
+      return copy;
+    };
+    mesh.material = Array.isArray(mesh.material) ? mesh.material.map(swap) : swap(mesh.material);
+  });
 }
 
 /** A copy of a model, its largest side `size` world units, standing on y = 0, turned; casting and taking shadows. */
@@ -205,7 +236,6 @@ export function placed(model: Object3D, size: number, turn: number): Object3D {
     if (!mesh.isMesh) return;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
-    for (const m of ([] as Material[]).concat(mesh.material)) (m as MeshStandardMaterial).envMapIntensity = 0.6;
   });
   return holder;
 }

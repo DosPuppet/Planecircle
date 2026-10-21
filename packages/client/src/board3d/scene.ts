@@ -40,7 +40,7 @@ import type { Lang } from "../translate";
 import { type Bounds, clearOfRim, outward, propPose } from "./arena";
 import type { Arena, ArenaMaterial } from "./assets";
 import type { Framing } from "./camera";
-import { type Diorama, seasonOf } from "./diorama";
+import { type Diorama, seasonNow } from "./diorama";
 import type { Fx3d } from "./fxmap";
 import type { CardNode } from "./model";
 import { Springs } from "./motion";
@@ -890,7 +890,7 @@ export class TableScene {
       mats: this.mat,
       arena,
       quality: this.governor.level,
-      season: seasonOf(new Date()),
+      season: seasonNow(),
     });
     this.scene.add(this.diorama.group);
     if (this.rim) this.diorama.layout(this.rim);

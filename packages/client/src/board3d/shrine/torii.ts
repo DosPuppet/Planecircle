@@ -6,13 +6,21 @@
  */
 import { BoxGeometry, CylinderGeometry, Group, Mesh, MeshStandardMaterial } from "three";
 import { curvedBeam, merged, placed } from "./kit";
+import { snowCover } from "./season";
 
 export interface ToriiParts {
   group: Group;
   dispose(): void;
 }
 
-export function createTorii(o: { span: number; height: number; depth: number; red: MeshStandardMaterial }): ToriiParts {
+export function createTorii(o: {
+  span: number;
+  height: number;
+  depth: number;
+  red: MeshStandardMaterial;
+  /** Snow on the lintel and the caps (winter). */
+  snow?: number;
+}): ToriiParts {
   const { span, height, depth } = o;
   const half = span / 2;
   const top = depth + height * 0.84;
@@ -44,6 +52,7 @@ export function createTorii(o: { span: number; height: number; depth: number; re
   const dark = [placed(new BoxGeometry(0.16, 0.24, 0.02), [0, plaqueY, 0.058])];
 
   const blackMat = new MeshStandardMaterial({ color: "#131210", roughness: 0.55, metalness: 0 });
+  snowCover(blackMat, o.snow ?? 0);
   const goldMat = new MeshStandardMaterial({ color: "#b08a3e", roughness: 0.3, metalness: 0.9 });
   const darkMat = new MeshStandardMaterial({ color: "#1b2236", roughness: 0.6 });
   const group = new Group();

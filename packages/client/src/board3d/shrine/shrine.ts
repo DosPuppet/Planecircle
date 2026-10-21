@@ -6,7 +6,8 @@
  * The plan (`plan.ts`) lays out the stage, the banks, the seabed and the landmarks around the rim. X1, the ground: the
  * terrain, the water (waves, tide, reflections), the stage, the mist and the moonlight. X2, the architecture: the torii
  * in the water and the hall behind it (the far left corner), the pagoda on its islet and the bridge to it (the far
- * right), the lanterns, tatami on the battlefields. Built again when the table changes shape; animated by `update`
+ * right), the lanterns, tatami on the battlefields. X3, the season (`season.ts`, from the real date): the trees, the
+ * bamboo, the grass, the shrubs (`trees.ts`), what falls (`fall.ts`), the snow in winter. Built again when the table changes shape; animated by `update`
  * (water, tide, mist, lanterns) at the quality's rate.
  */
 import { Color, FogExp2, Group, type Light, type Object3D, type Scene, Vector3 } from "three";
@@ -14,21 +15,24 @@ import type { Bounds } from "../arena";
 import type { Diorama, DioramaContext } from "../diorama";
 import type { Quality } from "../quality";
 import { bridge, buildingMaterials, hall, pagoda } from "./buildings";
+import { createFall, type Fall } from "./fall";
 import { createGround, type Ground } from "./ground";
 import { createLanterns, type Lanterns, lanternLight } from "./lanterns";
 import { createMist, type Mist } from "./mist";
 import { type ShrinePlan, shrinePlan } from "./plan";
+import { SEASONS, snowCover } from "./season";
 import { createSky, MOON_DIR } from "./sky";
 import { createStage, lacquer, type Stage } from "./stage";
 import { dressMats, tatami } from "./tatami";
 import { createTorii } from "./torii";
+import { createVegetation, type Vegetation } from "./trees";
 import { createWater, REFLECT, reflected, type Water } from "./water";
 
 /** Grid cells per world unit of the terrain, and of the water's grid, at each quality. */
-const DETAIL: Record<Quality, { ground: number; water: number; sheets: number }> = {
-  high: { ground: 4, water: 360, sheets: 3 },
-  medium: { ground: 3, water: 240, sheets: 2 },
-  low: { ground: 2, water: 140, sheets: 1 },
+const DETAIL: Record<Quality, { ground: number; water: number; sheets: number; plants: number; falling: number }> = {
+  high: { ground: 4, water: 360, sheets: 3, plants: 1, falling: 280 },
+  medium: { ground: 3, water: 240, sheets: 2, plants: 0.7, falling: 150 },
+  low: { ground: 2, water: 140, sheets: 1, plants: 0.45, falling: 0 },
 };
 
 /** The lights of the scene are drawn in the planar reflection too (the same lights: no shader compiled for it). */
@@ -45,6 +49,8 @@ interface Parts {
   stage: Stage;
   mist: Mist;
   lanterns: Lanterns;
+  vegetation: Vegetation;
+  fall: Fall | null;
   /** The buildings (their geometry is theirs, their materials shared). */
   buildings: Object3D[];
   disposeTorii(): void;
@@ -73,8 +79,10 @@ export function createShrine(ctx: DioramaContext): Diorama {
   sky.dome.layers.set(REFLECT);
   sky.dome.renderOrder = -10;
   group.add(sky.dome);
+  const look = SEASONS[ctx.season];
   const red = lacquer(ctx.arena.materials.cedar);
   const materials = buildingMaterials(ctx.arena.materials, red);
+  for (const m of [red, materials.tiles, materials.stone, materials.wood, materials.dark]) snowCover(m, look.snow);
   const mats = tatami();
   dressMats(ctx.mats, mats);
 
@@ -90,6 +98,8 @@ export function createShrine(ctx: DioramaContext): Diorama {
       parts.stage.group,
       parts.mist.group,
       parts.lanterns.group,
+      parts.vegetation.group,
+      ...(parts.fall ? [parts.fall.mesh] : []),
       ...parts.buildings,
     );
     parts.ground.dispose();
@@ -97,6 +107,8 @@ export function createShrine(ctx: DioramaContext): Diorama {
     parts.stage.dispose();
     parts.mist.dispose();
     parts.lanterns.dispose();
+    parts.vegetation.dispose();
+    parts.fall?.dispose();
     parts.disposeTorii();
     for (const b of parts.buildings)
       b.traverse((o) => {
@@ -110,7 +122,7 @@ export function createShrine(ctx: DioramaContext): Diorama {
     clear();
     const plan = shrinePlan(rim);
     const detail = DETAIL[quality];
-    const ground = createGround(plan, ctx.arena.materials, ctx.arena.models, detail.ground);
+    const ground = createGround(plan, ctx.arena.materials, ctx.arena.models, detail.ground, look.snow);
     const cx = (plan.stage.x0 + plan.stage.x1) / 2;
     const cz = (plan.stage.z0 + plan.stage.z1) / 2;
     const water = createWater({
@@ -122,15 +134,18 @@ export function createShrine(ctx: DioramaContext): Diorama {
       sky: sky.environment,
     });
     water.setPlanar(quality === "high");
-    const stage = createStage(plan, ctx.arena.materials);
+    const stage = createStage(plan, ctx.arena.materials, look.snow);
     const mist = createMist(plan, "#a4b6d2");
     mist.setSheets(detail.sheets);
-    const lanterns = createLanterns(plan, ctx.arena.materials, lights);
+    const lanterns = createLanterns(plan, ctx.arena.materials, lights, look.snow);
+    const vegetation = createVegetation(plan, ctx.arena.materials, ctx.arena.models, look, detail.plants);
+    const falling = look.falling && detail.falling ? Math.round(detail.falling * look.falling.share) : 0;
+    const fall = look.falling && falling ? createFall(plan, look.falling, falling) : null;
     lanterns.setAnimated(quality !== "low");
 
     // The torii in the water, its beams along the stage's side.
     const seabed = plan.height(plan.torii.x, plan.torii.z);
-    const torii = createTorii({ span: 2.6, height: 2.2, depth: plan.level - seabed, red });
+    const torii = createTorii({ span: 2.6, height: 2.2, depth: plan.level - seabed, red, snow: look.snow });
     torii.group.position.set(plan.torii.x, seabed, plan.torii.z);
     torii.group.rotation.y = Math.PI / 2;
     // The hall on the beach behind it, facing it.
@@ -150,9 +165,10 @@ export function createShrine(ctx: DioramaContext): Diorama {
       plan.height(plan.stage.x1 + 0.6, plan.bridge),
     );
     const buildings = [torii.group, hallGroup, pagodaGroup, bridgeGroup];
-    for (const o of [ground.group, stage.group, lanterns.group, ...buildings]) reflected(o);
-    group.add(ground.group, water.mesh, stage.group, mist.group, lanterns.group, ...buildings);
-    parts = { plan, ground, water, stage, mist, lanterns, buildings, disposeTorii: torii.dispose };
+    for (const o of [ground.group, stage.group, lanterns.group, vegetation.group, ...buildings]) reflected(o);
+    group.add(ground.group, water.mesh, stage.group, mist.group, lanterns.group, vegetation.group, ...buildings);
+    if (fall) group.add(fall.mesh);
+    parts = { plan, ground, water, stage, mist, lanterns, vegetation, fall, buildings, disposeTorii: torii.dispose };
     step(clock);
   };
 
@@ -164,6 +180,7 @@ export function createShrine(ctx: DioramaContext): Diorama {
     parts.ground.setWater(waterY);
     parts.mist.update(time);
     parts.lanterns.update(time, waterY);
+    parts.fall?.update(time);
   };
 
   return {

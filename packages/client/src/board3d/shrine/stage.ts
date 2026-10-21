@@ -19,6 +19,7 @@ import {
 import type { ArenaMaterial } from "../assets";
 import { tiledMaterial } from "./ground";
 import type { ShrinePlan } from "./plan";
+import { snowCover } from "./season";
 
 /** Shrine vermilion (shu-iro), a lacquer over wood. */
 export function lacquer(cedar: ArenaMaterial | undefined): MeshStandardMaterial {
@@ -69,7 +70,8 @@ export function railPosts(plan: ShrinePlan): [number, number][] {
   return posts;
 }
 
-export function createStage(plan: ShrinePlan, materials: Record<string, ArenaMaterial>): Stage {
+/** `snow`: on the railings and the edges in winter, never on the deck (swept for the game). */
+export function createStage(plan: ShrinePlan, materials: Record<string, ArenaMaterial>, snow = 0): Stage {
   const group = new Group();
   const { x0, x1, z0, z1 } = plan.stage;
   const w = x1 - x0;
@@ -93,6 +95,7 @@ export function createStage(plan: ShrinePlan, materials: Record<string, ArenaMat
   for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * w, uv.getY(i) * d);
   top.receiveShadow = true;
   const cedar = own(tiledMaterial(materials.cedar, 2, "#8a7a6a"));
+  snowCover(cedar, snow);
   const body = new Mesh(own(new BoxGeometry(w + 0.06, 0.18, d + 0.06)), cedar);
   body.position.set(cx, plan.deck - 0.095, cz);
   body.castShadow = true;
@@ -101,6 +104,7 @@ export function createStage(plan: ShrinePlan, materials: Record<string, ArenaMat
 
   // Pillars under the deck's edges, down to the seabed.
   const red = own(lacquer(materials.cedar));
+  snowCover(red, snow);
   const depth = plan.deck - 0.18 - plan.height(cx, cz) + 0.2;
   const pillar = own(new CylinderGeometry(0.075, 0.085, depth, 10));
   const spots: [number, number][] = [];

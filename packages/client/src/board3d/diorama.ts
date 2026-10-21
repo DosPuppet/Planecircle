@@ -31,6 +31,12 @@ export function seasonOf(date: Date): Season {
   return "winter";
 }
 
+/** The season now: the real date's; in development, the one asked for (`?season=winter`), to see each. */
+export function seasonNow(): Season {
+  const asked = import.meta.env.DEV ? new URLSearchParams(location.search).get("season") : null;
+  return asked === "spring" || asked === "summer" || asked === "autumn" || asked === "winter" ? asked : seasonOf(new Date());
+}
+
 /** What a diorama receives: the scene and its lights to set, the arena's assets, the quality, the season. */
 export interface DioramaContext {
   scene: Scene;

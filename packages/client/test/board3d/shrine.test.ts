@@ -1,7 +1,9 @@
 /** 3D board (PLAN-X): the shrine's plan keeps the stage over open water, the banks, the torii and the islet around it. */
 import { describe, expect, it } from "vitest";
 import { shrinePlan, WALK } from "../../src/board3d/shrine/plan";
+import { SEASONS } from "../../src/board3d/shrine/season";
 import { BRIDGE_HALF, railPosts, railRuns } from "../../src/board3d/shrine/stage";
+import { growTree } from "../../src/board3d/shrine/trees";
 import { tideAt } from "../../src/board3d/shrine/water";
 
 const RIMS = [
@@ -63,5 +65,34 @@ describe("the shrine's plan", () => {
       );
     const posts = railPosts(plan);
     for (const [i, [x, z]] of posts.entries()) expect(posts.findIndex(([a, b]) => Math.hypot(a - x, b - z) < 0.01)).toBe(i);
+  });
+
+  it("the seasons: sakura in bloom and petals in spring, momiji red in autumn, bare branches and snow in winter", () => {
+    expect(SEASONS.spring.sakura?.tile).toBe("blossom");
+    expect(SEASONS.spring.falling?.kind).toBe("petal");
+    expect(SEASONS.summer.falling).toBeNull();
+    expect(SEASONS.autumn.momiji?.tile).toBe("maple");
+    expect(SEASONS.autumn.falling?.kind).toBe("leaf");
+    expect(SEASONS.winter.sakura).toBeNull();
+    expect(SEASONS.winter.momiji).toBeNull();
+    expect(SEASONS.winter.falling?.kind).toBe("snow");
+    for (const [name, look] of Object.entries(SEASONS)) expect(look.snow > 0, name).toBe(name === "winter");
+  });
+
+  it("trees grow upwards from their root, the same every time, the pines wide and flat", () => {
+    for (const kind of ["sakura", "momiji", "pine"] as const) {
+      const { wood, tips } = growTree(kind, 5);
+      expect(wood.getAttribute("position").count).toBeGreaterThan(100);
+      expect(tips.length).toBeGreaterThan(4);
+      for (const t of tips) expect(t.at.y, kind).toBeGreaterThan(0.3);
+      expect(growTree(kind, 5).tips.map((t) => t.at.toArray())).toEqual(tips.map((t) => t.at.toArray()));
+    }
+    const spread = (kind: "sakura" | "pine") => {
+      const { tips } = growTree(kind, 5);
+      const ys = tips.map((t) => t.at.y);
+      const xs = tips.map((t) => Math.hypot(t.at.x, t.at.z));
+      return Math.max(...xs) / (Math.max(...ys) - Math.min(...ys) + 0.01);
+    };
+    expect(spread("pine")).toBeGreaterThan(spread("sakura"));
   });
 });

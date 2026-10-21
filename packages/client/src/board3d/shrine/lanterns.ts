@@ -32,6 +32,7 @@ import type { ArenaMaterial } from "../assets";
 import { tiledMaterial } from "./ground";
 import { merged, placed } from "./kit";
 import { noise, type ShrinePlan } from "./plan";
+import { snowCover } from "./season";
 import { RAIL_H, railPosts } from "./stage";
 
 const WARM = new Color("#ffb062");
@@ -87,6 +88,7 @@ export function createLanterns(
   plan: ShrinePlan,
   materials: Record<string, ArenaMaterial>,
   lights: [PointLight, PointLight],
+  snow = 0,
 ): Lanterns {
   const group = new Group();
   const owned: { dispose(): void }[] = [];
@@ -185,6 +187,7 @@ export function createLanterns(
 
   // Stone lanterns on both beaches, from the near side to beyond the far one.
   const stone = own(tiledMaterial(materials.stone, 0.8, "#9a968c"));
+  snowCover(stone, snow);
   const lanternGeometry = own(
     merged([
       placed(new CylinderGeometry(0.15, 0.17, 0.07, 6), [0, 0.035, 0]),
