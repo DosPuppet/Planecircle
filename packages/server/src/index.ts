@@ -99,7 +99,8 @@ export function originAllowed(req: IncomingMessage, allowed: readonly string[] =
 /**
  * Content policy of the application: scripts, worker and data of the site only (with WebAssembly, and workers made from
  * blobs, for the 3D board's decoders; never JavaScript eval); inline styles (React) and Google Fonts fonts; images of the
- * site, as `data:` (textures) and from Scryfall; no page can frame it.
+ * site, as `data:` (textures) and from Scryfall; no page can frame it. `blob:` (images and fetches) holds only what the
+ * page itself has in memory: the 3D board's models carry their textures inside them, loaded through blob URLs.
  * HSTS is set by nginx (the server itself only speaks HTTP, locally).
  */
 export const CSP = [
@@ -110,9 +111,10 @@ export const CSP = [
   "worker-src 'self' blob:",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
-  "img-src 'self' data: https://cards.scryfall.io",
+  // A model's embedded textures: fetched from a blob URL, or drawn by an <img> on older Safari and Firefox.
+  "img-src 'self' data: blob: https://cards.scryfall.io",
   "media-src 'self'",
-  "connect-src 'self'",
+  "connect-src 'self' blob:",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",

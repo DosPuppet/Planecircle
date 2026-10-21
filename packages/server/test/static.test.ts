@@ -35,7 +35,9 @@ describe("client files", () => {
     const csp = String((await get(srv.port, "/")).headers["content-security-policy"]);
     expect(csp).toContain("script-src 'self' 'wasm-unsafe-eval'");
     expect(csp).toContain("worker-src 'self' blob:");
-    expect(csp).toContain("img-src 'self' data: https://cards.scryfall.io");
+    expect(csp).toContain("img-src 'self' data: blob: https://cards.scryfall.io");
+    // The 3D board's models: their embedded textures are loaded from blob URLs (fetch, or <img> on older browsers).
+    expect(csp).toContain("connect-src 'self' blob:");
     expect(csp).toContain("frame-ancestors 'none'");
     // The 3D board's decoders compile WebAssembly; JavaScript eval stays forbidden.
     expect(csp).not.toMatch(/'unsafe-eval'/);

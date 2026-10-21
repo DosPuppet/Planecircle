@@ -264,6 +264,11 @@ if (!ci && !flag("no-ui") && (full || flag("ui") || uiTouched)) {
       (await group([
         { name: "lang-smoke", cmd: `npx tsx tools/lang-smoke.ts ${full ? 150 : 50}`, show: /^ok: both languages.*$/ },
       ])) && ok;
+    // The 3D board under the production CSP (Vite sends none): the bundle step's build, served by the game server.
+    ok =
+      (await group([
+        { name: "csp-smoke", cmd: "npx tsx tools/csp-smoke.ts", show: /^ok: the 3D board loads under the production CSP$/ },
+      ])) && ok;
     // Latency of the high AI in real time: alone (a parallel load would skew the measurement), full verification.
     if (full)
       ok =
