@@ -85,19 +85,32 @@ export function frameTable(o: {
   return centered(hi);
 }
 
+/** Room a diorama asks for around the table so its scenery shows: shares of the screen's width (each side) and height. */
+export interface Room {
+  side: number;
+  top: number;
+}
+
 /**
  * The seats and the camera together: seen at an angle the table looks shallower than the screen, so the battlefields are
- * made deeper (larger cards) until the table fills the band the HUD leaves in height as well as in width.
+ * made deeper (larger cards) until the table fills the band the HUD leaves in height as well as in width, less the
+ * `room` a diorama keeps around it (a narrower table, as on a narrower screen).
  */
 export function frameSeats(
   viewport: { w: number; h: number },
   players: string[],
   insets: { top: number; center: number; bottom: number },
+  room: Room = { side: 0, top: 0 },
 ): { table: Table; framing: Framing; depth: number } {
   const aspect = viewport.w / Math.max(1, viewport.h);
-  const margin = { top: insets.top / Math.max(1, viewport.h), bottom: insets.bottom / Math.max(1, viewport.h), side: 0.01 };
+  const margin = {
+    top: insets.top / Math.max(1, viewport.h) + room.top,
+    bottom: insets.bottom / Math.max(1, viewport.h),
+    side: 0.01 + room.side,
+  };
+  const laid = { w: viewport.w * (1 - 2 * room.side), h: viewport.h };
   const at = (depth: number) => {
-    const table = seatTable(viewport, players, insets, depth);
+    const table = seatTable(laid, players, insets, depth);
     const bounds = tableBounds(table);
     const framing = frameTable({ aspect, bounds, margin });
     const vp = viewProjection(framing, aspect);

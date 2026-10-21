@@ -137,7 +137,7 @@ Local images (proxies, alternate versions) can replace Scryfall's for the cards,
 
 The 3D board (Graphics: 3D, PLAN-W) plays on a wooden table dressed with CC0 models and materials from Poly Haven (candles, lamp, lantern, chest, books, goblets, sword, shield; an HDRI for the light). They are never in Git.
 
-1. `deploy/update.sh` builds them (`npm run arena-assets`): the first time, it downloads the assets listed in `tools/arena-assets.json` (each checked against its pinned md5), compresses them (KTX2 textures, meshopt geometry) into `data/arena/` (about 12 MB, budget 25 MB), with `CREDITS.md`; afterwards, only when the manifest changes. `MTGX_ARENA=0` skips it; another location is given by `MTGX_ARENA_DIR`. A failure (no network) does not stop the update: the 3D board keeps its plain table.
+1. `deploy/update.sh` builds them (`npm run arena-assets`): the first time, it downloads the assets listed in `tools/arena-assets.json` (each checked against its pinned md5), compresses them (KTX2 textures, meshopt geometry) into `data/arena/<id>/`, one folder per arena (the tavern about 12 MB, the shrine's materials and models; budget 25 MB each), with `CREDITS.md`; afterwards, only when the manifest changes. `MTGX_ARENA=0` skips it; another location is given by `MTGX_ARENA_DIR`. A failure (no network) does not stop the update: the 3D board keeps its plain table.
 2. The server serves them on `/arena/` (hashed files cached for a year); without the folder, an empty manifest.
 3. Their decoders compile WebAssembly: the CSP allows `'wasm-unsafe-eval'` (never JavaScript `eval`) and workers made from blobs.
 4. An asset changed upstream stops the build with a message: check it, then `npm run arena-assets -- --pin` writes its new md5 into the manifest.

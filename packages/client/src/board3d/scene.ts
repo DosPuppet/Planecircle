@@ -40,6 +40,7 @@ import type { Lang } from "../translate";
 import { type Bounds, clearOfRim, outward, propPose } from "./arena";
 import type { Arena, ArenaMaterial } from "./assets";
 import type { Framing } from "./camera";
+import { type Diorama, seasonOf } from "./diorama";
 import type { Fx3d } from "./fxmap";
 import type { CardNode } from "./model";
 import { Springs } from "./motion";
@@ -206,6 +207,8 @@ export class TableScene {
   private tableGroup = new Group();
   /** The arena (W5): its props, their flames, the rim they stand around. */
   private arena: Arena | null = null;
+  /** A diorama built in code (PLAN-X), in place of the tavern's props. */
+  private diorama: Diorama | null = null;
   private propGroup = new Group();
   private rim: Bounds | null = null;
   private cardGroup = new Group();
@@ -332,9 +335,14 @@ export class TableScene {
     return this.frame !== 0;
   }
 
-  /** The arena is drawn (dev checks). */
+  /** The arena is drawn (dev checks): the tavern's props, or a diorama. */
   get arenaShown(): boolean {
-    return !!this.arena && this.propGroup.children.length > 0;
+    return !!this.arena && (!!this.diorama || this.propGroup.children.length > 0);
+  }
+
+  /** The diorama drawn, by name (dev checks). */
+  get dioramaShown(): string | null {
+    return this.diorama ? (this.arena?.manifest.diorama ?? null) : null;
   }
 
   /** Card images asked for and settled (arrived or failed): the loading screen waits for them. */
@@ -388,6 +396,7 @@ export class TableScene {
     }
     this.onQuality(q);
     this.flameShadows();
+    this.diorama?.setQuality(q);
     this.post?.dispose();
     this.post = p.bloom ? new Post(this.renderer, this.scene, this.camera, p.samples) : null;
     this.post?.setSize(this.viewport.w, this.viewport.h, this.renderer.getPixelRatio());
@@ -460,6 +469,7 @@ export class TableScene {
     const effects = this.runEffects(now, Math.min(0.25, ms / 1000));
     this.syncHand();
     this.flicker(now);
+    this.diorama?.update(dt, now / 1000);
     this.renders++;
     if (this.post) this.post.render();
     else this.renderer.render(this.scene, this.camera);
@@ -468,15 +478,23 @@ export class TableScene {
       this.renderer.render(this.handScene, this.camera);
       this.renderer.autoClear = true;
     }
-    // Animation frames follow each other (the governor judges them); between them, the fire alone, slower.
-    this.continued = moving || effects || now < this.liveUntil;
+    // Animation frames follow each other (the governor judges them, and a diorama at the full rate); between them,
+    // the fire or a diorama held to a lower rate, by a timer.
+    const ambient = this.ambientFps();
+    this.continued = moving || effects || now < this.liveUntil || ambient >= 50;
     if (this.continued) this.frame = requestAnimationFrame(this.tick);
-    else if (this.wavering && !this.ambientTimer)
+    else if (ambient > 0 && !this.ambientTimer)
       this.ambientTimer = window.setTimeout(() => {
         this.ambientTimer = 0;
         this.requestRender();
-      }, 50);
+      }, 1000 / ambient);
   };
+
+  /** Frames a second the board keeps drawing between moves: a diorama's rate, the fire's 20, or none. */
+  private ambientFps(): number {
+    if (this.speed !== 1) return 0;
+    return Math.max(this.diorama?.fps(this.governor.level) ?? 0, this.wavering ? 20 : 0);
+  }
 
   /**
    * The fire wavers: with the arena, above the lowest quality, at the normal pace (not with reduced motion, nor in the
@@ -754,6 +772,8 @@ export class TableScene {
     ] as const) {
       const m = new Mesh(new BoxGeometry(w, height, d), this.rimMat);
       m.castShadow = true;
+      m.userData.rim = true;
+      m.visible = !this.diorama;
       m.position.set(x, height / 2 - 0.02, z);
       this.tableGroup.add(m);
     }
@@ -770,6 +790,7 @@ export class TableScene {
     cam.updateProjectionMatrix();
     for (const child of this.tableGroup.children) child.receiveShadow = true;
     this.placeFire();
+    if (this.rim) this.diorama?.layout(this.rim);
     this.renderer.shadowMap.needsUpdate = true;
     this.placeProps();
     // The pool's light falls off with the square of its height: the same light on the table whatever its size.
@@ -779,10 +800,6 @@ export class TableScene {
     this.requestRender();
   }
 
-  /**
-   * The arena (null: the plain table): its HDRI lights the scene and shows in reflections, its wood covers the table,
-   * its leather and carved wood the mats and the rim, its props stand around the rim.
-   */
   /** The fireplace off the table's left side, low, its light across the table (its strength grows with its distance). */
   // (Its light is a point light: see the constructor.)
   private placeFire() {
@@ -792,11 +809,21 @@ export class TableScene {
     const midZ = (rim.z0 + rim.z1) / 2;
     this.fire.position.set(rim.x0 - 7, 4.5, midZ - 2);
     const d = this.fire.position.distanceTo(new Vector3(midX, 0, midZ));
-    this.fireBase = this.arena ? 3 * d * d : 0;
+    // The tavern's fire; a diorama has its own lights.
+    this.fireBase = this.arena && !this.diorama ? 3 * d * d : 0;
     this.fire.intensity = this.fireBase;
   }
 
-  setArena(arena: Arena | null): void {
+  /**
+   * The arena (null: the plain table): its HDRI lights the scene and shows in reflections, its wood covers the table,
+   * its leather and carved wood the mats and the rim, its props stand around the rim; or a diorama built in code.
+   */
+  async setArena(arena: Arena | null): Promise<void> {
+    // A diorama (PLAN-X): its code, its ground and its lights in place of the tavern's.
+    if (arena?.manifest.diorama) {
+      await this.setDiorama(arena);
+      return;
+    }
     this.arena = arena;
     // The fireplace lights the arena: the pool over the middle goes (once, while the loading screen still covers the
     // board: the materials are compiled again for one light less, and every light costs on every pixel).
@@ -834,6 +861,33 @@ export class TableScene {
     }
     this.placeProps();
     this.placeFire();
+    this.applyQuality(this.governor.level);
+  }
+
+  /**
+   * The shrine's diorama (PLAN-X): its code loaded (a chunk of its own), built around the table; the tavern's ground,
+   * rim, fire and pool give way to it. Done while the loading screen covers the board (its lights compile once).
+   */
+  private async setDiorama(arena: Arena) {
+    const { createShrine } = await import("./shrine/shrine");
+    this.arena = arena;
+    this.pool.visible = false;
+    this.ground.visible = false;
+    for (const child of this.tableGroup.children) if (child.userData.rim) child.visible = false;
+    this.scene.environment = arena.environment;
+    this.scene.environmentIntensity = 0.35;
+    this.diorama = createShrine({
+      scene: this.scene,
+      renderer: this.renderer,
+      camera: this.camera,
+      key: this.key,
+      hemi: this.hemi,
+      arena,
+      quality: this.governor.level,
+      season: seasonOf(new Date()),
+    });
+    this.scene.add(this.diorama.group);
+    if (this.rim) this.diorama.layout(this.rim);
     this.applyQuality(this.governor.level);
   }
 
@@ -1076,6 +1130,7 @@ export class TableScene {
     this.propGroup.clear();
     this.canvas.removeEventListener("webglcontextlost", this.onContextLost);
     this.post?.dispose();
+    this.diorama?.dispose();
     this.particles.dispose();
     this.runes.dispose();
     for (const m of this.rimMaterials.values()) m.dispose();

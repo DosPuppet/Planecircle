@@ -1,7 +1,7 @@
 import { type CardFace, msg, type ObjectView } from "@mtgx/engine";
 import { useEffect, useRef, useState } from "react";
 import { SoundControl } from "../audio/SoundControl";
-import { BOARD_THEMES } from "../boardThemes";
+import { ARENAS_3D, BOARD_THEMES } from "../boardThemes";
 import { glossaryForKeyword } from "../glossary/entries";
 import { termsIn } from "../glossary/match";
 import { useGlossary } from "../glossary/store";
@@ -357,6 +357,37 @@ const QUALITY_LABEL = {
   low: msg("ctx:quality|low"),
 };
 
+/** The 3D board's arena (PLAN-X): the tavern table or the shrine's diorama; in the drawer and on the home screen. */
+export function Arena3dChoice() {
+  const arena = useGame((s) => s.arena3d);
+  const setArena = useGame((s) => s.setArena3d);
+  const t = useT();
+  const loc = useLocalize();
+  const labels = {
+    tavern: [msg("ctx:arena|Tavern"), msg("A wooden table by a fireplace, candles and lanterns")],
+    shrine: [msg("ctx:arena|Shrine"), msg("A shrine over a bay at night: torii, pagoda, lanterns, koi, yokai (animated)")],
+  } as const;
+  return (
+    <div className="pace-control">
+      <span>{t("3D arena")}</span>
+      <div className="seg">
+        {ARENAS_3D.map((a) => (
+          <button
+            key={a}
+            type="button"
+            className={arena === a ? "on" : ""}
+            aria-pressed={arena === a}
+            title={loc(labels[a][1])}
+            onClick={() => setArena(a)}
+          >
+            {loc(labels[a][0])}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** The 3D board's quality: automatic (stepped down on slow frames) or chosen by hand, even beyond the device's means. */
 function Quality3dControl() {
   const quality = useGame((s) => s.quality3d);
@@ -431,6 +462,7 @@ function GraphicsControl() {
         </button>
       </div>
       {drawn3d && <Quality3dControl />}
+      {(drawn3d || effects === "3d") && <Arena3dChoice />}
       {drawn3d && <Board3dNote renderer={support.renderer ?? t("unknown")} />}
     </div>
   );

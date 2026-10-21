@@ -5,7 +5,7 @@
  * with the DOM board's own code. Loaded on demand (chunks `board3d` and `three`).
  */
 import "./board3d.css";
-import type { ObjectView, PlayerView } from "@mtgx/engine";
+import { msg, type ObjectView, type PlayerView } from "@mtgx/engine";
 import { type CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Arrows } from "../board/Arrows";
 import { ActionPanel, CenterStrip, Hand, OpponentHand, PlayerBar, useBoardTheme, usePermanentGlow } from "../board/Board";
@@ -19,7 +19,8 @@ import { probe3d } from "../graphics";
 import { useT } from "../localize";
 import { myActions, subscribeUpdates, useGame } from "../store";
 import { type Arena, loadArena } from "./assets";
-import { frameSeats, viewProjection } from "./camera";
+import { frameSeats, type Room, viewProjection } from "./camera";
+import { DIORAMA_ROOM } from "./diorama";
 import { fxFor } from "./fxmap";
 import { type CardNode, pileNodes, tableNodes } from "./model";
 import {
@@ -68,7 +69,7 @@ function projectRect(vp: Mat4, size: { w: number; h: number }, table: Table, r: 
   return { left, top, width: Math.max(...pts.map((p) => p.x)) - left, height: Math.max(...pts.map((p) => p.y)) - top };
 }
 
-export default function Board3D({ onFail }: { onFail: () => void }) {
+export default function Board3D({ arena: arenaId, onFail }: { arena: string; onFail: () => void }) {
   const view = useGame((s) => s.view);
   const lang = useGame((s) => s.lang);
   const attackers = useGame((s) => s.attackers);
@@ -92,6 +93,8 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
   // Loading screen: the arena (its share of files), then the card images on the table; then it fades out.
   const [arenaShare, setArenaShare] = useState(0);
   const [arenaDone, setArenaDone] = useState(false);
+  /** The room a diorama keeps around the table. */
+  const [room, setRoom] = useState<Room | undefined>(undefined);
   const [cards, setCards] = useState({ started: 0, settled: 0 });
   const [ready, setReady] = useState<"loading" | "leaving" | "ready">("loading");
 
@@ -141,11 +144,17 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
     // The arena (W5), when it was built: the board plays on the plain table until it has loaded.
     let alive = true;
     let arena: Arena | null = null;
-    void loadArena(scene.webgl, (share) => alive && setArenaShare(share))
-      .then((a) => {
+    void loadArena(scene.webgl, arenaId, (share) => alive && setArenaShare(share))
+      .then(async (a) => {
         if (!alive) return a?.dispose();
         arena = a;
-        scene.setArena(a);
+        await scene.setArena(a);
+        if (alive) setRoom(a?.manifest.diorama ? DIORAMA_ROOM[a.manifest.diorama] : undefined);
+      })
+      .catch((e) => {
+        // A decoder that fails, a file missing: the plain table, and the player is told.
+        console.warn("3D board: arena not loaded", e);
+        if (alive) useGame.getState().notify(msg("The 3D arena could not be loaded: the plain table instead."));
       })
       .finally(() => alive && setArenaDone(true));
     return () => {
@@ -162,8 +171,8 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
   const playersKey = players.join(" ");
   // biome-ignore lint/correctness/useExhaustiveDependencies: the players are keyed by playersKey
   const { table, framing } = useMemo(
-    () => frameSeats({ w: m.w, h: m.h }, players, { top: m.top, center: m.center, bottom: m.bottom }),
-    [m, playersKey],
+    () => frameSeats({ w: m.w, h: m.h }, players, { top: m.top, center: m.center, bottom: m.bottom }, room),
+    [m, playersKey, room],
   );
   const aspect = m.w / Math.max(1, m.h);
   const vp = useMemo(() => viewProjection(framing, aspect), [framing, aspect]);
@@ -293,13 +302,13 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
     );
   }, [handKey, lang, handSource]);
   // The quality chosen in Graphics, changed while the board is drawn.
+  // (Compared with the choice applied last, not skipped once: React runs an effect twice in development, and the
+  // quality the scene started with, `?quality=` included, would be replaced.)
   const quality3d = useGame((s) => s.quality3d);
-  const firstQuality = useRef(true);
+  const appliedQuality = useRef(quality3d);
   useEffect(() => {
-    if (firstQuality.current) {
-      firstQuality.current = false;
-      return;
-    }
+    if (appliedQuality.current === quality3d) return;
+    appliedQuality.current = quality3d;
     sceneRef.current?.setQuality(quality3d === "auto" ? autoQuality() : quality3d, quality3d === "auto");
   }, [quality3d]);
   // The DOM hand moves by its own springs (hover, drag, a card coming in): the meshes follow while it does.
@@ -328,6 +337,7 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
       drawing: () => sceneRef.current?.drawing ?? false,
       handShown: () => sceneRef.current?.handShown ?? 0,
       arenaShown: () => sceneRef.current?.arenaShown ?? false,
+      diorama: () => sceneRef.current?.dioramaShown ?? null,
       quality: () => sceneRef.current?.quality,
       particles: () => sceneRef.current?.particlesAlive ?? 0,
       renders: () => sceneRef.current?.renders ?? 0,

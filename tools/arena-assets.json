@@ -1,125 +1,258 @@
 {
-  "about": "Arena of the 3D board (PLAN-W W5): CC0 assets from Poly Haven (polyhaven.com, CC0-1.0), downloaded and optimized by tools/arena-assets.ts into data/arena/ (outside Git). md5: the main file's, pinned by --pin; a different file upstream stops the build. Props: one scale for all (metersToWorld: the models are in meters; a card, 63 mm, is about 1.1 world units, 12 keeps them a little smaller than life so they stay in the frame), an anchor on the table's rim, a preferred offset (world units; the board pushes a prop outward until it is clear of the battlefields), a turn in degrees; `light`: a flame at its top. Only objects that belong on a table: a chest, a shield or a sword would be wider than the battlefield.",
-  "budgetBytes": 26214400,
-  "hdri": {
-    "id": "warm_restaurant_night",
-    "res": "1k",
-    "md5": "484f0fe0ce07ae50b9374e0481c617ca"
-  },
-  "materials": [
-    {
-      "slot": "tabletop",
-      "id": "wood_table_worn",
-      "res": "2k",
-      "tile": 14,
-      "maps": ["diff", "nor_gl", "arm"],
-      "md5": "44d2440f1581401e0ea65133c0e11d79"
+  "about": "Arenas of the 3D board (PLAN-W, PLAN-X): CC0 assets from Poly Haven (polyhaven.com, CC0-1.0), downloaded and optimized by tools/arena-assets.ts into data/arena/<arena>/ (outside Git). md5: the main file's, pinned by --pin; a different file upstream stops the build. An arena is a tavern table dressed with props (`props`: one scale for all, `metersToWorld`; an anchor on the rim, a preferred offset pushed outward until clear of the battlefields, a turn; `light`: a flame at the top), or a diorama built in code (`diorama`) that uses these materials and models.",
+  "budgetBytes": 104857600,
+  "arenas": {
+    "tavern": {
+      "metersToWorld": 12,
+      "hdri": {
+        "id": "warm_restaurant_night",
+        "res": "1k",
+        "md5": "484f0fe0ce07ae50b9374e0481c617ca"
+      },
+      "materials": [
+        {
+          "slot": "tabletop",
+          "id": "wood_table_worn",
+          "res": "2k",
+          "tile": 14,
+          "maps": ["diff", "nor_gl", "arm"],
+          "md5": "44d2440f1581401e0ea65133c0e11d79"
+        },
+        {
+          "slot": "rim",
+          "id": "dark_wood",
+          "res": "1k",
+          "tile": 4,
+          "maps": ["diff", "nor_gl", "arm"],
+          "md5": "47fa883f1bb33acc5711245f64b75975"
+        },
+        {
+          "slot": "mat",
+          "id": "fabric_leather_02",
+          "res": "1k",
+          "tile": 3,
+          "maps": ["nor_gl", "arm"],
+          "md5": "1600b3fed674702eaa350cd627278a0f"
+        }
+      ],
+      "models": [
+        {
+          "id": "wooden_candlestick",
+          "res": "1k",
+          "simplify": 0.25,
+          "md5": "26894e96c7c914a995c3a5151c875a4e"
+        },
+        {
+          "id": "vintage_oil_lamp",
+          "res": "1k",
+          "md5": "95aefcb2ccfad1f5e10dd69522ec09ed"
+        },
+        {
+          "id": "wooden_lantern_01",
+          "res": "1k",
+          "md5": "e31edca6461023e076183cb74721b0b9"
+        },
+        {
+          "id": "brass_goblets",
+          "res": "1k",
+          "md5": "9e76131d099b3dcdadb82c1d2d8bd536"
+        },
+        {
+          "id": "book_encyclopedia_set_01",
+          "res": "1k",
+          "simplify": 0.3,
+          "md5": "d0a77d421a6ea2c9d82bcaaa64e8479b"
+        },
+        {
+          "id": "wine_bottles_01",
+          "res": "1k",
+          "simplify": 0.4,
+          "md5": "56ed090c274714cccafefe08f5b9c1a8"
+        },
+        {
+          "id": "brass_candleholders",
+          "res": "1k",
+          "simplify": 0.35,
+          "md5": "c813a8f9856bcab38f87da3ca8aef74d"
+        }
+      ],
+      "props": [
+        {
+          "model": "brass_candleholders",
+          "anchor": "far-left",
+          "at": [-3.5, -1.5],
+          "turn": 25,
+          "light": true
+        },
+        {
+          "model": "wooden_candlestick",
+          "anchor": "left",
+          "at": [-1.2, -1],
+          "turn": 0,
+          "light": true
+        },
+        {
+          "model": "book_encyclopedia_set_01",
+          "anchor": "far-left",
+          "at": [-1.5, 1.6],
+          "turn": -70
+        },
+        {
+          "model": "vintage_oil_lamp",
+          "anchor": "far-right",
+          "at": [2, -1.6],
+          "turn": 0,
+          "light": true
+        },
+        {
+          "model": "brass_goblets",
+          "anchor": "far-right",
+          "at": [1.4, 1.2],
+          "turn": 15
+        },
+        {
+          "model": "wine_bottles_01",
+          "anchor": "far-right",
+          "at": [4.2, 0.2],
+          "turn": 70
+        },
+        {
+          "model": "wooden_lantern_01",
+          "anchor": "right",
+          "at": [1.6, -0.5],
+          "turn": 20,
+          "light": true
+        }
+      ]
     },
-    {
-      "slot": "rim",
-      "id": "dark_wood",
-      "res": "1k",
-      "tile": 4,
-      "maps": ["diff", "nor_gl", "arm"],
-      "md5": "47fa883f1bb33acc5711245f64b75975"
-    },
-    {
-      "slot": "mat",
-      "id": "fabric_leather_02",
-      "res": "1k",
-      "tile": 3,
-      "maps": ["nor_gl", "arm"],
-      "md5": "1600b3fed674702eaa350cd627278a0f"
+    "shrine": {
+      "diorama": "shrine",
+      "hdri": {
+        "id": "pond_bridge_night",
+        "res": "1k",
+        "md5": "ac23d37c0de6836f0f543f49a41e111f"
+      },
+      "materials": [
+        {
+          "slot": "stage",
+          "id": "hinoki_planks",
+          "res": "2k",
+          "tile": 6,
+          "maps": ["diff", "nor_gl", "arm"],
+          "md5": "4f0ad5facbc907b88c079a1c109bf820"
+        },
+        {
+          "slot": "cedar",
+          "id": "japanese_cedar_planks",
+          "res": "1k",
+          "tile": 3,
+          "maps": ["diff", "nor_gl", "arm"],
+          "md5": "a88e63ae003679e2d356807c57363eaf"
+        },
+        {
+          "slot": "roof",
+          "id": "grey_roof_tiles",
+          "res": "1k",
+          "tile": 2,
+          "maps": ["diff", "nor_gl", "arm"],
+          "md5": "9a0d2c1ca66e79972c7c35cefa238cf7"
+        },
+        {
+          "slot": "stone",
+          "id": "japanese_stone_wall",
+          "res": "1k",
+          "tile": 2,
+          "maps": ["diff", "nor_gl", "arm"],
+          "md5": "b4c088dad912242317866f042ccb83ab"
+        },
+        {
+          "slot": "gravel",
+          "id": "gravel_floor",
+          "res": "1k",
+          "tile": 3,
+          "maps": ["diff", "nor_gl", "arm"],
+          "md5": "4f055e1545dcf41f347600fbb01d9ac2"
+        },
+        {
+          "slot": "sand",
+          "id": "coast_sand_01",
+          "res": "1k",
+          "tile": 4,
+          "maps": ["diff", "nor_gl", "arm"],
+          "md5": "a1e243fc8635806381505c7dc44b192a"
+        },
+        {
+          "slot": "ground",
+          "id": "forest_ground_04",
+          "res": "1k",
+          "tile": 4,
+          "maps": ["diff", "nor_gl", "arm"],
+          "md5": "6ad9df4d731a238299806f739a26af83"
+        },
+        {
+          "slot": "bark",
+          "id": "japanese_cedar_bark",
+          "res": "1k",
+          "tile": 1,
+          "maps": ["diff", "nor_gl", "arm"],
+          "md5": "51e45ec05fc2d9ce21f38f2613704fc7"
+        }
+      ],
+      "models": [
+        {
+          "id": "rock_moss_set_01",
+          "res": "2k",
+          "simplify": 0.5,
+          "md5": "c45cebb55c848a11233126f691557ca0"
+        },
+        {
+          "id": "fern_02",
+          "res": "1k",
+          "simplify": 0.5,
+          "md5": "cf276874d37bfb73c299504a6b355b77"
+        },
+        {
+          "id": "rock_moss_set_02",
+          "res": "2k",
+          "simplify": 0.5,
+          "md5": "6161594df6870389d65b7d95fa6461b0"
+        },
+        {
+          "id": "rock_07",
+          "res": "2k",
+          "simplify": 0.6,
+          "md5": "903924785f3c43703b77ffd692897814"
+        },
+        {
+          "id": "rock_09",
+          "res": "2k",
+          "simplify": 0.6,
+          "md5": "8b5710ab01c1e4425b898757e5cdbcf2"
+        },
+        {
+          "id": "shrub_02",
+          "res": "1k",
+          "simplify": 0.5,
+          "md5": "8f7254d279c0c49c0b3edfe260aa5c86"
+        },
+        {
+          "id": "shrub_03",
+          "res": "1k",
+          "md5": "2c1ef10ff17e23f81d29c851d1409c9a"
+        },
+        {
+          "id": "shrub_04",
+          "res": "1k",
+          "simplify": 0.5,
+          "md5": "eba22f7e018dd3d9ed951150c2092f17"
+        },
+        {
+          "id": "tree_stump_01",
+          "res": "1k",
+          "simplify": 0.5,
+          "md5": "fedfc620634a8dbaf6345413b13abe1a"
+        }
+      ]
     }
-  ],
-  "models": [
-    {
-      "id": "wooden_candlestick",
-      "res": "1k",
-      "simplify": 0.25,
-      "md5": "26894e96c7c914a995c3a5151c875a4e"
-    },
-    {
-      "id": "vintage_oil_lamp",
-      "res": "1k",
-      "md5": "95aefcb2ccfad1f5e10dd69522ec09ed"
-    },
-    {
-      "id": "wooden_lantern_01",
-      "res": "1k",
-      "md5": "e31edca6461023e076183cb74721b0b9"
-    },
-    {
-      "id": "brass_goblets",
-      "res": "1k",
-      "md5": "9e76131d099b3dcdadb82c1d2d8bd536"
-    },
-    {
-      "id": "book_encyclopedia_set_01",
-      "res": "1k",
-      "simplify": 0.3,
-      "md5": "d0a77d421a6ea2c9d82bcaaa64e8479b"
-    },
-    {
-      "id": "wine_bottles_01",
-      "res": "1k",
-      "simplify": 0.4,
-      "md5": "56ed090c274714cccafefe08f5b9c1a8"
-    },
-    {
-      "id": "brass_candleholders",
-      "res": "1k",
-      "simplify": 0.35,
-      "md5": "c813a8f9856bcab38f87da3ca8aef74d"
-    }
-  ],
-  "props": [
-    {
-      "model": "brass_candleholders",
-      "anchor": "far-left",
-      "at": [-3.5, -1.5],
-      "turn": 25,
-      "light": true
-    },
-    {
-      "model": "wooden_candlestick",
-      "anchor": "left",
-      "at": [-1.2, -1.0],
-      "turn": 0,
-      "light": true
-    },
-    {
-      "model": "book_encyclopedia_set_01",
-      "anchor": "far-left",
-      "at": [-1.5, 1.6],
-      "turn": -70
-    },
-    {
-      "model": "vintage_oil_lamp",
-      "anchor": "far-right",
-      "at": [2.0, -1.6],
-      "turn": 0,
-      "light": true
-    },
-    {
-      "model": "brass_goblets",
-      "anchor": "far-right",
-      "at": [1.4, 1.2],
-      "turn": 15
-    },
-    {
-      "model": "wine_bottles_01",
-      "anchor": "far-right",
-      "at": [4.2, 0.2],
-      "turn": 70
-    },
-    {
-      "model": "wooden_lantern_01",
-      "anchor": "right",
-      "at": [1.6, -0.5],
-      "turn": 20,
-      "light": true
-    }
-  ],
-  "metersToWorld": 12
+  }
 }

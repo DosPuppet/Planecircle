@@ -4,6 +4,7 @@ import { type Format, isGameRecord, msg } from "@mtgx/engine";
 import { useEffect, useMemo, useState } from "react";
 import { SoundControl } from "../audio/SoundControl";
 import { ManaCost } from "../board/Card";
+import { Arena3dChoice } from "../board/Sidebar";
 import { resolveBoardTheme } from "../boardThemes";
 import { Dialog } from "../Dialog";
 import { deckCover, deckDescription, deckName, useAllDecks } from "../decks/store";
@@ -368,6 +369,7 @@ export function Lobby() {
             <div className="lobby-more-panel">
               <ImageRelayToggle />
               <CustomArtToggle />
+              <Arena3dChoice />
             </div>
           </details>
         </div>

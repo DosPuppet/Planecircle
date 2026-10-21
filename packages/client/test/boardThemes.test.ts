@@ -3,10 +3,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   BOARD_THEMES,
   domEffects,
+  loadArena3d,
   loadBoardTheme,
   loadEffects,
   loadQuality3d,
   resolveBoardTheme,
+  saveArena3d,
   saveBoardTheme,
   saveEffects,
   saveQuality3d,
@@ -80,6 +82,10 @@ describe("board textures", () => {
     expect(loadQuality3d()).toBe("low");
     store.set("planecircle.quality3d", "ultra");
     expect(loadQuality3d()).toBe("auto");
+    // The 3D arena (PLAN-X): the tavern by default, the shrine remembered.
+    expect(loadArena3d()).toBe("tavern");
+    saveArena3d("shrine");
+    expect(loadArena3d()).toBe("shrine");
     vi.stubGlobal("localStorage", {
       getItem: () => {
         throw new Error("unavailable");

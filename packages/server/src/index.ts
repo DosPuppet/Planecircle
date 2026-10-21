@@ -298,13 +298,15 @@ const ART: ServedDir = {
 };
 
 /**
- * Arena of the 3D board (PLAN-W): /arena/<id>.<hash>.(glb|ktx2|hdr), /arena/manifest.json and the basis transcoder
- * (/arena/basis/basis_transcoder.js|wasm), from the directory built by `tools/arena-assets.ts`.
+ * Arenas of the 3D board (PLAN-W, PLAN-X): /arena/<arena>/<id>.<hash>.(glb|ktx2|hdr), /arena/<arena>/manifest.json and
+ * the shared basis transcoder (/arena/basis/basis_transcoder.js|wasm), from the directory built by
+ * `tools/arena-assets.ts`.
  */
 export const ARENA_PREFIX = "/arena/";
 const ARENA: ServedDir = {
-  // <asset>[.<map>][.<hash>].<type>: "jug_01.0123abcd.glb", "tabletop.nor_gl.89abcdef.ktx2", "basis/basis_transcoder.js".
-  path: /^\/arena\/((?:basis\/)?[a-z0-9_-]+(?:\.[a-z_]+)?(?:\.[a-f0-9]{8})?\.(glb|ktx2|hdr|json|js|wasm))$/,
+  // <arena>/<asset>[.<map>][.<hash>].<type>: "tavern/jug_01.0123abcd.glb", "shrine/stage.nor_gl.89abcdef.ktx2",
+  // "basis/basis_transcoder.js": one folder level, no other.
+  path: /^\/arena\/((?:[a-z]+\/)?[a-z0-9_-]+(?:\.[a-z_]+)?(?:\.[a-f0-9]{8})?\.(glb|ktx2|hdr|json|js|wasm))$/,
   types: {
     glb: "model/gltf-binary",
     ktx2: "image/ktx2",
@@ -331,7 +333,7 @@ function serveDir(spec: ServedDir, dir: string | undefined, req: IncomingMessage
     return;
   }
   if (!file || !existsSync(file)) {
-    if (spec.empty !== undefined && name === "manifest.json") {
+    if (spec.empty !== undefined && /(^|\/)manifest\.json$/.test(name)) {
       res.writeHead(200, { ...SECURITY_HEADERS, "Content-Type": type, "Cache-Control": "no-cache" });
       res.end(req.method === "HEAD" ? undefined : spec.empty);
     } else res.writeHead(404).end();

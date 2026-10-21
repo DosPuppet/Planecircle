@@ -45,12 +45,15 @@ import { soundsFor } from "./audio/eventSounds";
 import { playSound, preloadSounds } from "./audio/sfx";
 import { findObjectEl } from "./board/layout";
 import {
+  type Arena3d,
   type BoardThemeChoice,
   type Effects,
+  loadArena3d,
   loadBoardTheme,
   loadEffects,
   loadQuality3d,
   type Quality3d,
+  saveArena3d,
   saveBoardTheme,
   saveEffects,
   saveQuality3d,
@@ -318,6 +321,9 @@ interface Store {
   /** The 3D board failed (WebGL context lost): the DOM board for the rest of the session (PLAN-W). */
   board3dFailed: boolean;
   failBoard3d(): void;
+  /** The 3D board's arena (PLAN-X): the tavern or the shrine (`boardThemes.ts`). */
+  arena3d: Arena3d;
+  setArena3d(a: Arena3d): void;
   /** The 3D board's quality: automatic (the governor) or chosen by hand (`boardThemes.ts`). */
   quality3d: Quality3d;
   setQuality3d(q: Quality3d): void;
@@ -1221,6 +1227,11 @@ export const useGame = create<Store>((set, get) => {
       // Choosing 3D again tries it again.
       set({ effects, board3dFailed: false });
       saveEffects(effects);
+    },
+    arena3d: loadArena3d(),
+    setArena3d(arena3d) {
+      set({ arena3d });
+      saveArena3d(arena3d);
     },
     quality3d: loadQuality3d(),
     setQuality3d(quality3d) {

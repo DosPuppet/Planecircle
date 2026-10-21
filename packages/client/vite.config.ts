@@ -46,13 +46,13 @@ function arena(): Plugin {
     name: "mtgx-arena",
     configureServer(server) {
       server.middlewares.use("/arena", (req, res, next) => {
-        const m = req.url?.match(/^\/((?:basis\/)?[a-z0-9_-]+(?:\.[a-z_]+)?(?:\.[a-f0-9]{8})?\.(glb|ktx2|hdr|json|js|wasm))$/);
+        const m = req.url?.match(/^\/((?:[a-z]+\/)?[a-z0-9_-]+(?:\.[a-z_]+)?(?:\.[a-f0-9]{8})?\.(glb|ktx2|hdr|json|js|wasm))$/);
         if (!m?.[1] || !m[2]) return next();
         const file = join(dir, m[1]);
         res.setHeader("Content-Type", TYPES[m[2]] ?? "application/octet-stream");
         res.setHeader("Cache-Control", "no-cache");
         if (existsSync(file)) return res.end(readFileSync(file));
-        if (m[1] === "manifest.json") return res.end('{"version":0}\n');
+        if (/(^|\/)manifest\.json$/.test(m[1])) return res.end('{"version":0}\n');
         res.statusCode = 404;
         res.end();
       });

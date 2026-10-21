@@ -88,6 +88,8 @@ const Board3D = lazy(() => import("./board3d/Board3D"));
 function GameBoard() {
   const hasView = useGame((s) => !!s.view);
   const wants3d = useGame((s) => s.effects === "3d") || forced3d();
+  // Another arena: a new scene, behind the loading screen.
+  const arena = useGame((s) => s.arena3d);
   const failed = useGame((s) => s.board3dFailed);
   const fail = useGame((s) => s.failBoard3d);
   // A phone in portrait keeps the DOM board (its portrait layout); turned to landscape, the 3D board comes back.
@@ -95,7 +97,7 @@ function GameBoard() {
   if (failed || !hasView || !wants3d || portrait || !canTry3d(probe3d())) return <Board />;
   return (
     <Suspense fallback={<Loading3DBoard />}>
-      <Board3D onFail={fail} />
+      <Board3D key={arena} arena={arena} onFail={fail} />
     </Suspense>
   );
 }

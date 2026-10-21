@@ -5,19 +5,32 @@ import { type ArenaManifest, clearOfRim, outward, propPose } from "../../src/boa
 import { frameSeats } from "../../src/board3d/camera";
 import { tableBounds } from "../../src/board3d/seats";
 
-const source = JSON.parse(
-  readFileSync(new URL("../../../../tools/arena-assets.json", import.meta.url), "utf8"),
-) as ArenaManifest & {
+type SourceArena = ArenaManifest & {
   models: { id: string; md5: string }[];
   materials: { slot: string; maps: string[]; md5: string }[];
+  hdri?: { md5: string };
 };
+const arenas = (
+  JSON.parse(readFileSync(new URL("../../../../tools/arena-assets.json", import.meta.url), "utf8")) as {
+    arenas: Record<string, SourceArena>;
+  }
+).arenas;
+const source = arenas.tavern as SourceArena;
+const shrine = arenas.shrine as SourceArena;
 
 describe("arena of the 3D board", () => {
   it("the source manifest: CC0 assets pinned, every prop on a listed model", () => {
-    const ids = new Set(source.models.map((m) => m.id));
-    for (const m of [...source.models, ...source.materials]) expect(m.md5, JSON.stringify(m)).toMatch(/^[a-f0-9]{32}$/);
-    for (const p of source.props ?? []) expect(ids.has(p.model), p.model).toBe(true);
+    // PLAN-X: several arenas, the tavern with props, the shrine a diorama built in code.
+    expect(Object.keys(arenas).sort()).toEqual(["shrine", "tavern"]);
+    for (const [id, a] of Object.entries(arenas)) {
+      const ids = new Set(a.models.map((m) => m.id));
+      for (const m of [...a.models, ...a.materials, ...(a.hdri ? [a.hdri] : [])])
+        expect(m.md5, `${id}: ${JSON.stringify(m)}`).toMatch(/^[a-f0-9]{32}$/);
+      for (const p of a.props ?? []) expect(ids.has(p.model), p.model).toBe(true);
+    }
     expect(source.materials.map((m) => m.slot).sort()).toEqual(["mat", "rim", "tabletop"]);
+    expect(shrine.diorama).toBe("shrine");
+    expect(shrine.props ?? []).toEqual([]);
     // One scale for every prop (their proportions stay those of life).
     expect(source.metersToWorld).toBeGreaterThan(5);
   });

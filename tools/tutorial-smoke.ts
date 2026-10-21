@@ -29,7 +29,7 @@ const browser = await chromium.launch(
 // The 3D lesson plays on the plain table: SwiftShader draws the arena at a frame every few seconds (board3d-smoke has
 // its own check of the arena).
 const plainTable = (p: import("playwright").Page) =>
-  BOARD3D ? p.route("**/arena/manifest.json", (r) => r.fulfill({ json: { version: 0 } })) : Promise.resolve();
+  BOARD3D ? p.route("**/arena/*/manifest.json", (r) => r.fulfill({ json: { version: 0 } })) : Promise.resolve();
 const page = await browser.newPage({ viewport: { width: 1500, height: 880 } });
 await plainTable(page);
 const errors: string[] = [];

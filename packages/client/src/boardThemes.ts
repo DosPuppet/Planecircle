@@ -114,6 +114,30 @@ export function saveQuality3d(q: Quality3d): void {
   }
 }
 
+/** The arena of the 3D board (PLAN-X): the tavern table, or the shrine's diorama. Kept in `localStorage`. */
+export type Arena3d = "tavern" | "shrine";
+
+export const ARENAS_3D: Arena3d[] = ["tavern", "shrine"];
+
+const ARENA_KEY = "planecircle.arena3d";
+
+export function loadArena3d(): Arena3d {
+  try {
+    const v = localStorage.getItem(ARENA_KEY);
+    return v === "shrine" ? "shrine" : "tavern";
+  } catch {
+    return "tavern";
+  }
+}
+
+export function saveArena3d(a: Arena3d): void {
+  try {
+    localStorage.setItem(ARENA_KEY, a);
+  } catch {
+    // storage unavailable: setting not kept
+  }
+}
+
 /** The texture displayed: the chosen one, or, for "random", a texture drawn from `roll` (a number in [0, 1)). */
 export function resolveBoardTheme(choice: BoardThemeChoice, roll: number): BoardTheme {
   if (choice !== "random") return choice;

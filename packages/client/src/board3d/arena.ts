@@ -19,6 +19,8 @@ export interface Prop {
 /** data/arena/manifest.json; version 0: nothing built (the plain table). */
 export interface ArenaManifest {
   version: number;
+  /** A diorama built in code (PLAN-X: "shrine"), dressed with these materials and models; none: the props table. */
+  diorama?: string;
   /** World units per meter, for every prop (their models are in meters). */
   metersToWorld?: number;
   hdri?: string;

@@ -68,4 +68,21 @@ describe("3D board seats and camera together", () => {
       expect(depth).toBeGreaterThanOrEqual(1);
       expect(table.seats[0]?.zone.h).toBeCloseTo(((h - INSETS.top - INSETS.center - INSETS.bottom) / 2) * depth, 6);
     });
+
+  it("a diorama's room: a narrower table, framed inside wider margins", () => {
+    const [w, h] = [1600, 900];
+    const room = { side: 0.06, top: 0.05 };
+    const plain = tableBounds(frameSeats({ w, h }, ["p1", "p2"], INSETS).table);
+    const { table, framing } = frameSeats({ w, h }, ["p1", "p2"], INSETS, room);
+    const b = tableBounds(table);
+    expect(b.x1 - b.x0).toBeCloseTo((plain.x1 - plain.x0) * (1 - 2 * room.side), 6);
+    const vp = viewProjection(framing, w / h);
+    const ndc = (x: number, z: number) => {
+      const [nx, ny, , nw] = transform(vp, [x, 0, z]);
+      return { x: nx / nw, y: ny / nw };
+    };
+    // The near corners inside the side margins, the far edge below the top one.
+    expect(Math.abs(ndc(b.x0, b.z1).x)).toBeLessThanOrEqual(1 - 2 * (0.01 + room.side) + 1e-6);
+    expect(ndc(0, b.z0).y).toBeLessThanOrEqual(1 - 2 * (INSETS.top / h + room.top) + 1e-6);
+  });
 });
