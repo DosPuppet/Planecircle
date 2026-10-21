@@ -21,7 +21,7 @@ import {
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
-  PCFSoftShadowMap,
+  PCFShadowMap,
   PerspectiveCamera,
   PlaneGeometry,
   PointLight,
@@ -277,7 +277,7 @@ export class TableScene {
     this.renderer = new WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
     this.renderer.toneMapping = ACESFilmicToneMapping;
     // Shadows drawn again only when something moves (`needsUpdate`), soft.
-    this.renderer.shadowMap.type = PCFSoftShadowMap;
+    this.renderer.shadowMap.type = PCFShadowMap;
     this.renderer.shadowMap.autoUpdate = false;
     const anisotropy = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
     this.textures = new CardTextures(TEXTURE_BUDGET, anisotropy, () => this.requestRender());
