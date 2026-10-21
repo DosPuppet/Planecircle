@@ -67,11 +67,11 @@ function haloTexture(): CanvasTexture {
   c.height = h;
   const g = c.getContext("2d") as CanvasRenderingContext2D;
   g.shadowColor = "#fff";
-  g.shadowBlur = 12;
+  g.shadowBlur = 16;
   g.shadowOffsetX = w * 3;
   g.fillStyle = "#fff";
-  // The bright part reaches the card's edge (the plane is 1.3 cards wide), the blur fades beyond it.
-  g.fillRect(-w * 3 + w * 0.12, h * 0.1, w * 0.76, h * 0.8);
+  // The bright part reaches a little past the card's edge (the plane is 1.36 cards wide), the blur fades beyond it.
+  g.fillRect(-w * 3 + w * 0.105, h * 0.085, w * 0.79, h * 0.83);
   return new CanvasTexture(c);
 }
 
@@ -218,10 +218,10 @@ export class TableScene {
   private handGroup = new Group();
   /** The hand has a scene of its own, drawn after the post-processing: its cards keep their colors (no tone mapping). */
   private handScene = new Scene();
-  private hand = new Map<string, { mesh: Mesh; halo: Mesh; key: string }>();
+  private hand = new Map<string, { mesh: Mesh; halo: Mesh; shine: Mesh; key: string }>();
   /** The glow of a card of the hand (W6): a halo just behind it, in the hand's order (the next card covers it). */
   private haloMap = haloTexture();
-  private haloFace = new PlaneGeometry(1.3, CARD_RATIO * 1.24);
+  private haloFace = new PlaneGeometry(1.36, CARD_RATIO * 1.28);
   private handFace: ShapeGeometry;
   private handSource: () => HandPose[] = () => [];
   private viewport = { w: 1, h: 1 };
@@ -333,6 +333,11 @@ export class TableScene {
   /** The arena is drawn (dev checks). */
   get arenaShown(): boolean {
     return !!this.arena && this.propGroup.children.length > 0;
+  }
+
+  /** Card images asked for and settled (arrived or failed): the loading screen waits for them. */
+  get cardImages(): { started: number; settled: number } {
+    return { started: this.textures.started, settled: this.textures.settled };
   }
 
   /** Particles alive (dev checks). */
@@ -967,19 +972,34 @@ export class TableScene {
           map: this.haloMap,
           alphaMap: this.haloMap,
           transparent: true,
-          opacity: 0.9,
           depthTest: false,
           depthWrite: false,
         });
         haloMaterial.toneMapped = false;
-        card = { mesh: new Mesh(this.handFace, material), halo: new Mesh(this.haloFace, haloMaterial), key: "" };
+        // And a light added on top of it: the halo shines on the dark mats as on the wood.
+        const shineMaterial = new MeshBasicMaterial({
+          map: this.haloMap,
+          transparent: true,
+          blending: AdditiveBlending,
+          depthTest: false,
+          depthWrite: false,
+        });
+        shineMaterial.toneMapped = false;
+        card = {
+          mesh: new Mesh(this.handFace, material),
+          halo: new Mesh(this.haloFace, haloMaterial),
+          shine: new Mesh(this.haloFace, shineMaterial),
+          key: "",
+        };
         card.mesh.visible = false;
         card.halo.visible = false;
-        this.handGroup.add(card.halo, card.mesh);
+        card.shine.visible = false;
+        this.handGroup.add(card.halo, card.shine, card.mesh);
         this.hand.set(c.uid, card);
       }
-      const halo = card.halo.material as MeshBasicMaterial;
-      halo.color.set(this.glowColors[c.glow ?? ""] ?? "#000000");
+      const glow = this.glowColors[c.glow ?? ""] ?? "#000000";
+      (card.halo.material as MeshBasicMaterial).color.set(glow);
+      (card.shine.material as MeshBasicMaterial).color.set(glow).multiplyScalar(0.55);
       card.halo.userData.on = !!c.glow;
       if (card.key !== key) {
         const material = card.mesh.material as MeshBasicMaterial;
@@ -990,9 +1010,10 @@ export class TableScene {
     }
     for (const [uid, card] of this.hand) {
       if (seen.has(uid)) continue;
-      this.handGroup.remove(card.mesh, card.halo);
+      this.handGroup.remove(card.mesh, card.halo, card.shine);
       (card.mesh.material as MeshBasicMaterial).dispose();
       (card.halo.material as MeshBasicMaterial).dispose();
+      (card.shine.material as MeshBasicMaterial).dispose();
       this.hand.delete(uid);
     }
     this.live(700);
@@ -1027,6 +1048,11 @@ export class TableScene {
       card.halo.scale.copy(card.mesh.scale);
       card.halo.renderOrder = HAND_ORDER + 2 * p.order - 1;
       card.halo.visible = card.halo.userData.on === true;
+      card.shine.position.copy(card.mesh.position);
+      card.shine.quaternion.copy(card.mesh.quaternion);
+      card.shine.scale.copy(card.mesh.scale);
+      card.shine.renderOrder = HAND_ORDER + 2 * p.order - 0.5;
+      card.shine.visible = card.halo.visible;
       this.springs.remember(p.uid, { x: at.x, y: at.y, z: at.z, w: p.w * unit, h: p.h * unit, rot: 0 });
     }
   }

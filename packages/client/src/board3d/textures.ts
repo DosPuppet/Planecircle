@@ -144,6 +144,9 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 
 export class CardTextures {
   private cache: Lru<CanvasTexture>;
+  /** Card images asked for, and those arrived or failed (the loading screen waits for them). */
+  started = 0;
+  settled = 0;
 
   /** `changed`: a texture got its image (draw again); `anisotropy`: the GPU's best for cards seen at an angle. */
   constructor(
@@ -193,6 +196,15 @@ export class CardTextures {
   private async fillFull(g: CanvasRenderingContext2D, t: CanvasTexture, face: CardFace, frame: string, name: string, lang: Lang) {
     const src = faceImage(face, lang);
     if (!src) return;
+    this.started++;
+    try {
+      await this.fillWhole(g, t, src, frame, name);
+    } finally {
+      this.settled++;
+    }
+  }
+
+  private async fillWhole(g: CanvasRenderingContext2D, t: CanvasTexture, src: string, frame: string, name: string) {
     try {
       paintFull(g, frame, name, await loadImage(src));
       t.needsUpdate = true;
@@ -204,6 +216,15 @@ export class CardTextures {
 
   /** Paints the image once it arrives: the art crop, else the whole card, else the frame alone stays. */
   private async fill(g: CanvasRenderingContext2D, t: CanvasTexture, face: CardFace, frame: string, name: string, lang: Lang) {
+    this.started++;
+    try {
+      await this.fillArt(g, t, face, frame, name, lang);
+    } finally {
+      this.settled++;
+    }
+  }
+
+  private async fillArt(g: CanvasRenderingContext2D, t: CanvasTexture, face: CardFace, frame: string, name: string, lang: Lang) {
     const crop = faceArt(face, lang);
     const tries = [crop, { src: faceImage(face, lang), full: true }].filter(
       (x, i, all): x is { src: string; full: boolean } => !!x?.src && all.findIndex((y) => y?.src === x.src) === i,

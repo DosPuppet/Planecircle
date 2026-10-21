@@ -87,6 +87,8 @@ async function open(
   ais = 1,
   noArena = false,
   quality = "low",
+  /** Run on the page before the game starts (to watch it). */
+  before?: (page: Page) => Promise<unknown>,
 ) {
   const ctx = await browser.newContext({ viewport });
   if (noArena) await ctx.route("**/arena/manifest.json", (r) => r.fulfill({ json: { version: 0 } }));
@@ -98,12 +100,15 @@ async function open(
   });
   // Low quality by default: SwiftShader draws shadows and bloom far too slowly for the interactions.
   await page.goto(`http://localhost:5173/?fast${flag ? `&board3d=force&quality=${quality}` : ""}`, { timeout: 120_000 });
+  await before?.(page);
   await page.evaluate(
     ([deck, sb, n]) => (window as unknown as DevWindow).__mtgx.getState().startGame(deck, Array(n).fill(deck), sb),
     [DECK, sandbox, ais] as const,
   );
-  await page.getByRole("button", { name: "Garder" }).click({ timeout: 30_000 });
-  await page.waitForTimeout(2500);
+  await page.getByRole("button", { name: "Garder" }).click({ timeout: 120_000 });
+  // The 3D board's loading screen covers the board until the table is ready.
+  if (flag) await page.locator(".board3d-loading").waitFor({ state: "detached", timeout: 120_000 });
+  await page.waitForTimeout(1500);
   return { page, three, close: () => ctx.close() };
 }
 
@@ -171,8 +176,28 @@ async function until(page: Page, want: (p: string) => boolean, tries = 80) {
 
 // 1. The 3D board, 1600×900: proxies, then a land and an attack through them (without the arena: SwiftShader draws it
 // at a frame or two a second; it has its own check below).
-let g = await open({ width: 1600, height: 900 }, true, { p1: ME, p2: OPP }, 1, true);
+// The loading screen (engine, arena, cards) is watched from the start of the game: its bar, then its leaving.
+let loadingSeen = { seen: false, most: 0 };
+let g = await open({ width: 1600, height: 900 }, true, { p1: ME, p2: OPP }, 1, true, "low", (p) =>
+  // A string: tsx would wrap a named function with a helper the page does not have.
+  p.evaluate(`(() => {
+    window.__loading = { seen: false, most: 0 };
+    const watch = () => {
+      const el = document.querySelector(".board3d-loading");
+      if (!el) return;
+      window.__loading.seen = true;
+      window.__loading.most = Math.max(window.__loading.most, Number(el.getAttribute("aria-valuenow")));
+    };
+    new MutationObserver(watch).observe(document.body, { subtree: true, childList: true, attributes: true });
+  })()`),
+);
 let page = g.page;
+loadingSeen = await page.evaluate(() => (window as unknown as { __loading: { seen: boolean; most: number } }).__loading);
+check(
+  loadingSeen.seen && loadingSeen.most >= 80 && (await page.locator(".board3d-loading").count()) === 0,
+  "a loading screen with its progress covers the board until the table is ready",
+  loadingSeen,
+);
 check(await page.locator(".board3d canvas").isVisible(), "the 3D board is drawn (?board3d=force)");
 check(g.three.length > 0, "three.js loaded with the 3D board", g.three.length);
 await page.screenshot({ path: `${OUT}/1-board-1600.png` });

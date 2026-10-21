@@ -12,6 +12,7 @@ import { ActionPanel, CenterStrip, Hand, OpponentHand, PlayerBar, useBoardTheme,
 import { Card } from "../board/Card";
 import { Effects } from "../board/Effects";
 import { handGlow, playableCards } from "../board/glows";
+import { Loading3D } from "../board/Loading3D";
 import { StackReveal } from "../board/StackReveal";
 import { fastMode } from "../fast";
 import { useT } from "../localize";
@@ -84,6 +85,11 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<TableScene | null>(null);
   const [m, setMeasures] = useState<Measures>({ w: 0, h: 0, top: 0, center: 0, bottom: 0 });
+  // Loading screen: the arena (its share of files), then the card images on the table; then it fades out.
+  const [arenaShare, setArenaShare] = useState(0);
+  const [arenaDone, setArenaDone] = useState(false);
+  const [cards, setCards] = useState({ started: 0, settled: 0 });
+  const [ready, setReady] = useState<"loading" | "leaving" | "ready">("loading");
 
   // The board and its HUD measured: the table takes what the HUD leaves.
   useLayoutEffect(() => {
@@ -129,11 +135,13 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
     // The arena (W5), when it was built: the board plays on the plain table until it has loaded.
     let alive = true;
     let arena: Arena | null = null;
-    void loadArena(scene.webgl).then((a) => {
-      if (!alive) return a?.dispose();
-      arena = a;
-      scene.setArena(a);
-    });
+    void loadArena(scene.webgl, (share) => alive && setArenaShare(share))
+      .then((a) => {
+        if (!alive) return a?.dispose();
+        arena = a;
+        scene.setArena(a);
+      })
+      .finally(() => alive && setArenaDone(true));
     return () => {
       alive = false;
       useGame.getState().setBoard3dQuality(null);
@@ -322,6 +330,25 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
     };
   }, []);
 
+  // The table is ready when the arena has come (or is not built), the card images on the table have arrived (or
+  // failed) and a frame has been drawn; 20 s at most, a slow network must not hold the game.
+  useEffect(() => {
+    if (ready !== "loading") return;
+    const since = performance.now();
+    const timer = window.setInterval(() => {
+      const scene = sceneRef.current;
+      if (!scene) return;
+      const images = scene.cardImages;
+      setCards((cur) => (cur.started === images.started && cur.settled === images.settled ? cur : images));
+      const settled = images.started > 0 ? images.settled >= images.started : performance.now() - since > 1500;
+      if ((arenaDone && settled && scene.renders > 0) || performance.now() - since > 20_000) {
+        setReady("leaving");
+        window.setTimeout(() => setReady("ready"), 450);
+      }
+    }, 150);
+    return () => window.clearInterval(timer);
+  }, [ready, arenaDone]);
+
   if (!view) return null;
   const me = view.players[view.viewer] as PlayerView;
   const opponents = view.opponents.map((id) => view.players[id]).filter((p): p is PlayerView => !!p);
@@ -434,6 +461,19 @@ export default function Board3D({ onFail }: { onFail: () => void }) {
       <Arrows />
       <Effects />
       <StackReveal />
+      {ready !== "ready" && (
+        <Loading3D
+          progress={!arenaDone ? 0.15 + 0.65 * arenaShare : 0.8 + 0.2 * (cards.started ? cards.settled / cards.started : 0)}
+          step={
+            !arenaDone
+              ? t("Building the arena… {n}%", { n: Math.round(arenaShare * 100) })
+              : cards.settled < cards.started
+                ? t("Painting the cards… {done}/{total}", { done: cards.settled, total: cards.started })
+                : t("Lighting the table…")
+          }
+          leaving={ready === "leaving"}
+        />
+      )}
     </div>
   );
 }

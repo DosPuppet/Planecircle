@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect } from "react";
 import { Board, useMainAction } from "./board/Board";
+import { Loading3DBoard } from "./board/Loading3D";
 import { ReplayBar } from "./board/ReplayBar";
 import { DrawerToggle, PreviewFloat, Sidebar, TouchPreview } from "./board/Sidebar";
 import { domEffects } from "./boardThemes";
@@ -93,7 +94,7 @@ function GameBoard() {
   const portrait = useMedia(PORTRAIT_PHONE);
   if (failed || !hasView || !wants3d || portrait || !probe3d().ok) return <Board />;
   return (
-    <Suspense fallback={<Board />}>
+    <Suspense fallback={<Loading3DBoard />}>
       <Board3D onFail={fail} />
     </Suspense>
   );

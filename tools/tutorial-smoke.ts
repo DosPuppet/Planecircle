@@ -62,12 +62,23 @@ const gameView = (p: Page) =>
 const objectEl = (id: string) => page.locator(`[data-oid="${id}"], [data-oids~="${id}"]`).first();
 
 /** Click like a player: the cards of the hand overlap, so aim at their visible corner (top left). */
+/** On the 3D board, its loading screen covers the board until the table is ready. */
+async function loaded(): Promise<void> {
+  if (BOARD3D)
+    await page
+      .locator(".board3d-loading")
+      .waitFor({ state: "detached", timeout: 120_000 })
+      .catch(() => {});
+}
+
 async function clickObj(id: string, v: GameView): Promise<void> {
+  await loaded();
   const inHand = v.hand.some((o) => o.id === id);
   await objectEl(id).click(inHand ? { position: { x: 14, y: 30 } } : undefined);
 }
 
 async function clickMain(): Promise<void> {
+  await loaded();
   const ok = page.locator(".stack-reveal-ok");
   if (await ok.isVisible().catch(() => false)) await ok.click();
   else await page.locator('[data-tuto="main-button"]').click();

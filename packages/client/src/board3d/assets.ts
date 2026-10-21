@@ -4,6 +4,7 @@
  * (manifest version 0) or something fails: null, and the 3D board keeps its plain table.
  */
 import {
+  LoadingManager,
   type Material,
   type Mesh,
   type Object3D,
@@ -38,16 +39,25 @@ export interface Arena {
   dispose(): void;
 }
 
-export async function loadArena(renderer: WebGLRenderer): Promise<Arena | null> {
+/**
+ * `progress`: the share of the arena's files loaded, in [0, 1] (the loading screen's bar); the total is known from the
+ * manifest, so the bar never goes back.
+ */
+export async function loadArena(renderer: WebGLRenderer, progress: (share: number) => void = () => {}): Promise<Arena | null> {
   const res = await fetch(`${BASE}manifest.json`, { cache: "no-cache" }).catch(() => null);
   const manifest = res?.ok ? ((await res.json()) as ArenaManifest) : null;
   if (!manifest?.version || !manifest.hdri) return null;
-  const ktx2 = new KTX2Loader().setTranscoderPath(`${BASE}basis/`).detectSupport(renderer);
-  const gltf = new GLTFLoader().setKTX2Loader(ktx2).setMeshoptDecoder(MeshoptDecoder);
+  const maps = Object.values(manifest.materials ?? {}).reduce((n, m) => n + [m.diff, m.nor_gl, m.arm].filter(Boolean).length, 0);
+  // The HDRI, the maps, the models, and the transcoder's two files.
+  const expected = 1 + maps + Object.keys(manifest.models ?? {}).length + 2;
+  const manager = new LoadingManager();
+  manager.onProgress = (_url, loaded) => progress(Math.min(1, loaded / expected));
+  const ktx2 = new KTX2Loader(manager).setTranscoderPath(`${BASE}basis/`).detectSupport(renderer);
+  const gltf = new GLTFLoader(manager).setKTX2Loader(ktx2).setMeshoptDecoder(MeshoptDecoder);
   const pmrem = new PMREMGenerator(renderer);
   const owned: { dispose(): void }[] = [ktx2, pmrem];
   try {
-    const hdr = await new HDRLoader().loadAsync(`${BASE}${manifest.hdri}`);
+    const hdr = await new HDRLoader(manager).loadAsync(`${BASE}${manifest.hdri}`);
     const environment = pmrem.fromEquirectangular(hdr).texture;
     hdr.dispose();
     owned.push(environment);
