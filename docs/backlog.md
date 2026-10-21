@@ -94,6 +94,13 @@ Per card, in `docs/approximations.md`. Cards the plans left explicitly documente
 - The fire wavers between moves (an exception to "no endless animation", at most 20 frames a second): to reconsider if a battery measure shows its cost.
 - Interface tests on a machine without `data/art/`: ui, tutorial and commander smokes fail on the 404 of `/art/manifest.json` (the server could answer an empty manifest, as `/arena/` does); `server/test/ai-seats.test.ts` (a room closing after a concession, 3 players) fails now and then under the load of `verify`.
 
+## PLAN-X: not done (2026-10-21)
+
+- The shrine seen whole: the play camera shows only its corners and edges (the moon, the torii's top and the bay beyond the far edge are off screen, seen only in the water's reflection); an opening flyover at a game's start, the HUD hidden for a few seconds, would show it.
+- Tuning on a real GPU (the moon's glints and their bloom, the veil's strength, the lanterns' warmth, the koi's visibility): judged on SwiftShader screenshots only.
+- Medium's 30 frames a second come from a timer, which the governor does not judge: a device too slow for Medium stays there (the player can choose Low).
+- Seasons of the northern hemisphere only; no ambient sounds (water lapping, cicadas, wind chimes); the bamboo behind the hall shows little on a 16:9 screen.
+
 ## AI
 
 - Multiplayer: ISMCTS is for duels only; Commander at two uses it (kept after a 40-game measure); in 3 to 4 players the heuristic level plays. The 1.5 to 4 s per medium decision on large boards (PLAN-C C17) no longer holds: on 2026-10-09 the bench's Commander line (four precons) measured 5.7 ms on average on boards of 50 to 62 permanents, 308 ms at worst.

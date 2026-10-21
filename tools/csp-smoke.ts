@@ -92,7 +92,7 @@ for (const arena of arenas.length ? arenas : ["tavern"]) {
       .textContent()
       .catch(() => "")) ?? "";
   check(!blocked.length, `${arena}: nothing blocked by the CSP, every texture loaded`, blocked.slice(0, 4));
-  check(!/arène 3D|3D arena/.test(toast), `${arena}: the arena loaded (no toast)`, toast);
+  check(!/arène 3D|3D arena/.test(toast), `${arena}: the arena loaded (no toast)`, toast); // i18n-ignore: the French interface
   check(!errors.length, `${arena}: no page error`, errors.slice(0, 3));
   await page.screenshot({ path: `${OUT}/${arena}.png`, timeout: 120_000 });
   await ctx.close();

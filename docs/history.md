@@ -403,3 +403,20 @@ Rules 95 -> 102 (96: Cryptex; 97 to 102: S2, S3, S4, S6c, S6d-e, S8b); every no-
 - **W9:** documentation.
 
 **Bilan.** Bundle: `index` 2,392 KB (no growth to speak of), `index.css` 68 KB, lazy `three` 734 KB and `Board3D` 50 KB; the arena about 11 MB outside Git. Tests: 13 unit test files in `client/test/board3d/`, server routes and CSP, board3d-smoke (30 checks), `tutorial-smoke --3d`. Each lot passed `npm run verify -- --set FDN --ui` except tests failing for this machine (`/art/manifest.json` 404 without `data/art/`; load timeouts of two parallel interface chains) and the `server/test/ai-seats.test.ts` flake under load (passes alone). Kept in the DOM, by choice: the opponents' hands (backs in their bars) and the stack panel. Not done: see `docs/backlog.md` ("PLAN-W: not done").
+
+## 19. PLAN-X: a second 3D arena, the shrine diorama (2026-10-21)
+
+**Context and goal.** After PLAN-W, the user asked for another 3D battlefield to choose, closer to MTG Arena's animated dioramas: a traditional Japanese setting at night (torii, shrine buildings, pagoda, seasonal vegetation, koi, tidal water, yokai, fireflies and insects, glowing lanterns, a slight moving fog), detailed around the battlefield. User decisions: models built in code with Poly Haven CC0 materials and models; animation by quality (High 60 frames a second, Medium 30, Low still); seasons from the real date; the arena chosen in the drawer and on the home screen. Plan: `docs/plans/PLAN-X.md`; conventions: `docs/ui.md` ("The shrine").
+
+**Lots (2026-10-21, one commit each; no rules change).**
+- **X0:** several arenas (`data/arena/<id>/`, budget raised to 100 MB by the user), the choice, the diorama hook (season, room around the table, continuous animation at the quality's rate).
+- **X1:** the ground: the plan (pure), terrain, stage, tidal water with reflections, the night sky as the water's environment, mist.
+- **X2:** the architecture, placed for the camera (measured: nothing tall beyond the far edge shows): the torii beside the stage, the hall, the pagoda on its islet and its bridge, paper, stone and floating lanterns, tatami.
+- **X3:** the seasons: trees grown in code (Poly Haven's are scans of millions of triangles), bamboo, grass, shrubs, falling petals, leaves or snow, snow on what faces the sky.
+- **X4:** koi, fireflies, moths, the yokai (hitodama, kitsune-bi, chōchin-obake, kodama) after the user's rule (walking ones never on the mats, flying ones rarely over the cards), and the veil of mist over the battlefield the user asked for.
+- **X5:** documentation, full verification.
+
+**Fixed on the way (reported by the user from the production server).** The 3D board froze at a third of its loading: three.js's basis transcoder builds functions with `new Function`, blocked by the CSP in the KTX2 workers, silently; `tools/basis-transcoder.ts` rewrites them as closures, and `loadArena` gives up after 20 s without a file. The models' textures were blocked too (`blob:` fetches): `connect-src` and `img-src` allow `blob:`. Vite sends no CSP, so the interface tests saw neither: `tools/csp-smoke.ts` now plays on the production build served by the game server. In development, StrictMode had replaced the interface tests' `?quality=` by the automatic quality (they drew in High).
+
+**Bilan.** Bundle: lazy `shrine` 64 KB, `Board3D` 55 KB, `three` 766 KB; the shrine's assets 18 MB outside Git (the tavern 11 MB). Tests: plan, paths, seasons, trees, the transcoder under no-eval, the framing's room; board3d-smoke (the shrine animates in Medium, rests in Low); csp-smoke. Not done: see `docs/backlog.md` ("PLAN-X: not done").
+
