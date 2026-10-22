@@ -13,7 +13,6 @@ import {
   BoxGeometry,
   CanvasTexture,
   Color,
-  ConeGeometry,
   DynamicDrawUsage,
   Group,
   InstancedBufferAttribute,
@@ -25,6 +24,8 @@ import {
   type PerspectiveCamera,
   PlaneGeometry,
   Quaternion,
+  type SpotLight,
+  SRGBColorSpace,
   Vector3,
 } from "three";
 import { merged, placed } from "../shrine/kit";
@@ -63,6 +64,81 @@ function beamTexture(): CanvasTexture {
   return new CanvasTexture(c);
 }
 
+/** A maglev car's side: silver panels, a cyan and magenta stripe, doors, lit windows with passengers, the line's name. */
+function trainLivery(): { map: CanvasTexture; emissive: CanvasTexture } {
+  const W = 512;
+  const H = 128;
+  const make = () => {
+    const c = document.createElement("canvas");
+    c.width = W;
+    c.height = H;
+    return [c, c.getContext("2d") as CanvasRenderingContext2D] as const;
+  };
+  const [c, g] = make();
+  const [e, h] = make();
+  const metal = g.createLinearGradient(0, 0, 0, H);
+  metal.addColorStop(0, "#e6e9ef");
+  metal.addColorStop(0.55, "#b9bfca");
+  metal.addColorStop(1, "#7d8494");
+  g.fillStyle = metal;
+  g.fillRect(0, 0, W, H);
+  h.fillStyle = "#000";
+  h.fillRect(0, 0, W, H);
+  // Panel seams.
+  g.fillStyle = "rgba(40,44,55,0.5)";
+  for (let x = 0; x < W; x += 64) g.fillRect(x, 0, 2, H);
+  g.fillRect(0, 22, W, 2);
+  // The stripe along the car, glowing.
+  for (const [ctx, alpha] of [
+    [g, 1],
+    [h, 0.9],
+  ] as const) {
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = "#22e4ff";
+    ctx.fillRect(0, 92, W, 7);
+    ctx.fillStyle = "#ff2bd6";
+    ctx.fillRect(0, 101, W, 4);
+    ctx.globalAlpha = 1;
+  }
+  // Windows: lit, a passenger here and there; doors between.
+  let seed = 7;
+  const r = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+  for (let x = 14; x < W - 40; x += 50) {
+    if ((x - 14) % 200 === 150) {
+      g.fillStyle = "#5d6473";
+      g.fillRect(x, 30, 34, 82);
+      g.fillStyle = "#2b2f3a";
+      g.fillRect(x + 16, 30, 2, 82);
+      continue;
+    }
+    g.fillStyle = "#1a1f2b";
+    g.fillRect(x, 34, 40, 44);
+    const warm = r() < 0.7;
+    h.fillStyle = warm ? "#ffe2a8" : "#cfe4ff";
+    h.fillRect(x + 1, 35, 38, 42);
+    h.fillStyle = "rgba(15,12,18,0.9)";
+    for (let k = 0; k < 2; k++)
+      if (r() < 0.5) {
+        const px = x + 8 + r() * 24;
+        h.beginPath();
+        h.arc(px, 52, 5, 0, Math.PI * 2);
+        h.fill();
+        h.fillRect(px - 6, 57, 12, 20);
+      }
+  }
+  g.font = "bold 13px sans-serif";
+  g.fillStyle = "#1b2030";
+  g.fillText("ZERO-G LINE", W - 110, 18);
+  const map = new CanvasTexture(c);
+  map.colorSpace = SRGBColorSpace;
+  const emissive = new CanvasTexture(e);
+  emissive.colorSpace = SRGBColorSpace;
+  return { map, emissive };
+}
+
 /** A flying car's lane: a straight line it goes along (wrapping), at a height. */
 interface Lane {
   from: Vector3;
@@ -78,7 +154,13 @@ export interface Traffic {
   dispose(): void;
 }
 
-export function createTraffic(o: { plan: NeonPlan; camera: PerspectiveCamera; amount: number }): Traffic {
+export function createTraffic(o: {
+  plan: NeonPlan;
+  camera: PerspectiveCamera;
+  amount: number;
+  /** The searchlights (real spotlights, created once with the diorama; placed here). */
+  spots: SpotLight[];
+}): Traffic {
   const { plan, camera } = o;
   const group = new Group();
   const owned: { dispose(): void }[] = [];
@@ -88,6 +170,17 @@ export function createTraffic(o: { plan: NeonPlan; camera: PerspectiveCamera; am
   };
   const { roof, deck, street } = plan;
   const glow = own(glowTexture());
+  // The searchlights' places: low on the facades across the canyons, aimed up across at the towers and the roof.
+  const spotPlaces: [Vector3, Vector3][] = [
+    [new Vector3(roof.x0 - 4.2, deck - 2.2, roof.z0 + 3.5), new Vector3(roof.x0, deck + 1.5, roof.z0 + 1)],
+    [new Vector3(roof.x1 + 4.2, deck - 1.6, roof.z0 + 1.5), new Vector3(roof.x1, deck + 1.2, roof.z0 + 4)],
+    [new Vector3((roof.x0 + roof.x1) / 2 + 3, deck - 3, roof.z0 - 4.2), new Vector3((roof.x0 + roof.x1) / 2, deck + 2, roof.z0)],
+  ];
+  o.spots.forEach((spot, k) => {
+    const [at, aim] = spotPlaces[k % spotPlaces.length] as [Vector3, Vector3];
+    spot.position.copy(at);
+    spot.target.position.copy(aim);
+  });
   const m = new Matrix4();
   const p = new Vector3();
   const s = new Vector3();
@@ -132,8 +225,8 @@ export function createTraffic(o: { plan: NeonPlan; camera: PerspectiveCamera; am
   // Flying cars: lanes beside the roof (under the deck on the near side), and beyond its far edge.
   const lanes: Lane[] = [
     {
-      from: new Vector3(roof.x0 - 1.4, deck - 0.6, roof.z1 + 8),
-      to: new Vector3(roof.x0 - 1.4, deck - 0.6, roof.z0 - 18),
+      from: new Vector3(roof.x0 - 3.1, deck + 0.3, roof.z1 + 8),
+      to: new Vector3(roof.x0 - 3.1, deck + 0.3, roof.z0 - 18),
       speed: 3.2,
       cars: 3,
       color: NEON[1] as string,
@@ -247,36 +340,32 @@ export function createTraffic(o: { plan: NeonPlan; camera: PerspectiveCamera; am
   ledMesh.frustumCulled = false;
   own(ledMesh);
 
-  // Searchlights from the streets, rising through the canyons beside us.
-  const coneGeo = own(new ConeGeometry(1.1, 22, 20, 1, true));
-  coneGeo.translate(0, -11, 0);
-  coneGeo.rotateX(Math.PI);
-  const searchlights = [
-    { at: new Vector3(roof.x0 - 1.5, street, roof.z0 + 3), color: "#9fd8ff", phase: 0 },
-    { at: new Vector3(roof.x1 + 1.6, street, roof.z0 - 1), color: "#ffd2f6", phase: 1.9 },
-    { at: new Vector3(roof.x0 - 6, street, roof.z0 - 4), color: "#bfffe6", phase: 3.3 },
-  ].map((sl) => {
-    const mat = own(
-      new MeshBasicMaterial({
-        map: beam,
-        color: new Color(sl.color).multiplyScalar(0.22),
-        blending: AdditiveBlending,
-        depthWrite: false,
-        transparent: true,
-        side: 2,
-      }),
+  // Searchlights: real coloured spotlights (created with the diorama) on the facades across the canyons, sweeping over
+  // the towers and the roof's edge; a lamp glowing at each.
+  const searchlights = o.spots.map((spot, k) => {
+    const lamp = new Mesh(
+      own(new PlaneGeometry(1, 1)),
+      own(
+        new MeshBasicMaterial({
+          map: glow,
+          color: spot.color.clone().multiplyScalar(2.2),
+          blending: AdditiveBlending,
+          depthWrite: false,
+          transparent: true,
+        }),
+      ),
     );
-    const cone = new Mesh(coneGeo, mat);
-    cone.position.copy(sl.at);
-    cone.renderOrder = 3;
-    group.add(cone);
-    return { cone, phase: sl.phase };
+    lamp.renderOrder = 5;
+    group.add(lamp, spot.target);
+    return { spot, lamp, phase: k * 2.1, aim: spot.target.position.clone() };
   });
 
   // The maglev: a guideway beside the roof's left, the train sweeping along it.
   const railZ = { from: roof.z1 + 14, to: roof.z0 - 26 };
-  const railX = roof.x0 - 2.3;
-  const railY = deck - 3.2;
+  // Out over the canyon, a little under the roof's level: the camera sees it pass (lower and closer, our tower's
+  // facade would hide it).
+  const railX = roof.x0 - 1.9;
+  const railY = deck - 0.55;
   const guide = new Mesh(
     own(new BoxGeometry(0.3, 0.16, railZ.from - railZ.to)),
     own(new MeshStandardMaterial({ color: "#3a3f4c", roughness: 0.6, metalness: 0.5 })),
@@ -287,32 +376,26 @@ export function createTraffic(o: { plan: NeonPlan; camera: PerspectiveCamera; am
     own(new MeshBasicMaterial({ color: new Color("#22e4ff").multiplyScalar(1.8) })),
   );
   stripe.position.set(railX + 0.16, railY - 0.1, (railZ.from + railZ.to) / 2);
-  const carGeo = own(new BoxGeometry(0.5, 0.42, 1.9));
-  const train = new InstancedMesh(
-    carGeo,
-    own(
-      new MeshStandardMaterial({
-        color: "#d9dde6",
-        roughness: 0.35,
-        metalness: 0.6,
-        emissive: new Color("#ffe6b0"),
-        emissiveIntensity: 0.35,
-      }),
-    ),
-    TRAIN_CARS,
+  // The train's cars: a livery on their sides (windows lit, passengers, doors, a stripe, the line's name), a dark roof.
+  const livery = trainLivery();
+  owned.push(livery.map, livery.emissive);
+  const side = own(
+    new MeshStandardMaterial({
+      map: livery.map,
+      emissiveMap: livery.emissive,
+      emissive: new Color("#ffffff"),
+      emissiveIntensity: 1.6,
+      roughness: 0.3,
+      metalness: 0.55,
+    }),
   );
+  const roofMat = own(new MeshStandardMaterial({ color: "#2a2e38", roughness: 0.4, metalness: 0.7 }));
+  const carGeo = own(new BoxGeometry(0.5, 0.42, 1.9));
+  const train = new InstancedMesh(carGeo, [side, side, roofMat, roofMat, roofMat, roofMat], TRAIN_CARS);
   train.instanceMatrix.setUsage(DynamicDrawUsage);
   train.frustumCulled = false;
   own(train);
-  const windowsBand = new InstancedMesh(
-    own(new BoxGeometry(0.52, 0.12, 1.75)),
-    own(new MeshBasicMaterial({ color: new Color("#ffe9b8").multiplyScalar(1.8) })),
-    TRAIN_CARS,
-  );
-  windowsBand.instanceMatrix.setUsage(DynamicDrawUsage);
-  windowsBand.frustumCulled = false;
-  own(windowsBand);
-  group.add(streetMesh, carMesh, lightMesh, trailMesh, droneMesh, ledMesh, guide, stripe, train, windowsBand);
+  group.add(streetMesh, carMesh, lightMesh, trailMesh, droneMesh, ledMesh, guide, stripe, train);
 
   const dir = new Vector3();
   const look = new Quaternion();
@@ -374,7 +457,15 @@ export function createTraffic(o: { plan: NeonPlan; camera: PerspectiveCamera; am
       ledMesh.instanceMatrix.needsUpdate = true;
       if (ledMesh.instanceColor) ledMesh.instanceColor.needsUpdate = true;
       for (const sl of searchlights) {
-        sl.cone.rotation.set(0.35 * Math.sin(t * 0.23 + sl.phase), 0, 0.35 * Math.cos(t * 0.17 + sl.phase));
+        sl.spot.target.position.set(
+          sl.aim.x + 3.5 * Math.sin(t * 0.23 + sl.phase),
+          sl.aim.y + 2 * Math.sin(t * 0.31 + sl.phase * 2),
+          sl.aim.z + 4 * Math.cos(t * 0.17 + sl.phase),
+        );
+        sl.spot.target.updateMatrixWorld();
+        sl.lamp.position.copy(sl.spot.position);
+        sl.lamp.quaternion.copy(camera.quaternion);
+        sl.lamp.scale.setScalar(0.9 + 0.1 * Math.sin(t * 13 + sl.phase));
       }
       // The train: a pass every TRAIN_EVERY seconds, at speed.
       const run = (t % TRAIN_EVERY) / 5;
@@ -383,10 +474,8 @@ export function createTraffic(o: { plan: NeonPlan; camera: PerspectiveCamera; am
         p.set(railX, railY + 0.21, head + k * 2.0);
         if (run > 1.4) p.y = -1000;
         train.setMatrixAt(k, m.compose(p, q.identity(), s.set(1, 1, 1)));
-        windowsBand.setMatrixAt(k, m.compose(p.clone().setY(p.y + 0.06), q, s.set(1, 1, 1)));
       }
       train.instanceMatrix.needsUpdate = true;
-      windowsBand.instanceMatrix.needsUpdate = true;
     },
     dispose() {
       for (const x of owned) x.dispose();

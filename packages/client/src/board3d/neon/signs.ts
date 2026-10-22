@@ -12,6 +12,7 @@
  */
 import {
   AdditiveBlending,
+  CanvasTexture,
   Color,
   DoubleSide,
   Group,
@@ -37,7 +38,7 @@ const LATIN = ["RAMEN", "CYBER", "NIGHT", "BAR", "NEON", "HOTEL", "KARAOKE", "PH
 /** Neon brands along the roofs' edges (invented). */
 const BRANDS = ["NEXA", "OMNI", "SYNTH", "KAIJU", "DREAM", "MANA", "ZERO-G", "HYPER"];
 /** A screen's light's strength (it falls off fast: it lights what is near). */
-export const SCREEN_LIGHT = 3.2;
+export const SCREEN_LIGHT = 5.5;
 /** Seconds each ad stays on a screen. */
 export const AD_SECONDS = 6;
 const SLIDES = 4;
@@ -78,9 +79,35 @@ void main() {
   float scan = 0.82 + 0.18 * sin((vUv.y + t * 0.07) * 320.0);
   float flicker = 0.93 + 0.07 * sin(t * 37.0) * sin(t * 13.0);
   float edge = smoothstep(0.0, 0.03, vUv.x) * smoothstep(1.0, 0.97, vUv.x) * smoothstep(0.0, 0.04, vUv.y) * smoothstep(1.0, 0.96, vUv.y);
-  col = col * scan * flicker * 1.6 + uTint * (1.0 - edge) * 0.8;
+  col = col * scan * flicker * 3.2 + uTint * (1.0 - edge) * 1.4;
   gl_FragColor = vec4(col, 1.0);
 }`;
+
+/** The ad a screen shows at a time, and whether it is glitching to the next (the screen shader's clock). */
+function showing(seed: number, t: number): { shown: number; glitch: boolean } {
+  const tt = t + seed * 3.7;
+  const slide = Math.floor(tt / AD_SECONDS);
+  const into = (tt / AD_SECONDS - slide) * AD_SECONDS;
+  return {
+    shown: (((slide + (into > AD_SECONDS - 0.12 ? 1 : 0)) % SLIDES) + SLIDES) % SLIDES,
+    glitch: into < 0.45 || into > AD_SECONDS - 0.25,
+  };
+}
+
+/** A screen's glow: bright at its middle, fading out past its edges. */
+function haloTexture(): CanvasTexture {
+  const c = document.createElement("canvas");
+  c.width = 128;
+  c.height = 128;
+  const g = c.getContext("2d") as CanvasRenderingContext2D;
+  const r = g.createRadialGradient(64, 64, 10, 64, 64, 64);
+  r.addColorStop(0, "rgba(255,255,255,0.7)");
+  r.addColorStop(0.5, "rgba(255,255,255,0.25)");
+  r.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = r;
+  g.fillRect(0, 0, 128, 128);
+  return new CanvasTexture(c);
+}
 
 export interface Signs {
   group: Group;
@@ -159,7 +186,8 @@ export function createSigns(o: {
 
   // Screens.
   const time = { value: 0 };
-  const screens: { seed: number; colors: Color[]; at: Vector3; normal: Vector3 }[] = [];
+  const screens: { seed: number; colors: Color[]; at: Vector3; normal: Vector3; halo: MeshBasicMaterial }[] = [];
+  const haloTex = own(haloTexture());
   const screen = (w: number, h: number, at: Vector3, turn: number, seed: number) => {
     const ad = adSlides(seed, SLIDES);
     own(ad.texture);
@@ -183,7 +211,31 @@ export function createSigns(o: {
     m.rotation.y = turn;
     m.renderOrder = 1;
     group.add(m);
-    screens.push({ seed, colors: ad.colors, at: at.clone(), normal: new Vector3(Math.sin(turn), 0, Math.cos(turn)) });
+    // Its glow around it, the color of the ad showing.
+    const halo = new Mesh(
+      own(new PlaneGeometry(w * 1.7, h * 2)),
+      own(
+        new MeshBasicMaterial({
+          map: haloTex,
+          transparent: true,
+          depthWrite: false,
+          blending: AdditiveBlending,
+          side: DoubleSide,
+        }),
+      ),
+    );
+    halo.position.copy(at);
+    halo.rotation.y = turn;
+    halo.translateZ(-0.01);
+    halo.renderOrder = 2;
+    group.add(halo);
+    screens.push({
+      seed,
+      colors: ad.colors,
+      at: at.clone(),
+      normal: new Vector3(Math.sin(turn), 0, Math.cos(turn)),
+      halo: halo.material,
+    });
   };
   // Frames on the roof's side ledges, near the far corners, turned to the viewer (their light falls on the table).
   const frameZ = plan.stage.z0 + 0.9;
@@ -285,14 +337,15 @@ export function createSigns(o: {
       word.lookAt(o.camera.position);
       holoMat.opacity = 0.45 + 0.15 * Math.sin(t * 9);
       for (const { s, phase } of beacons) s.material.opacity = (t * 0.8 + phase) % 1 < 0.15 ? 1 : 0.08;
+      // Every screen's glow: the ad's color, dimmed through the glitch.
+      for (const sc of screens) {
+        const { shown, glitch } = showing(sc.seed, t);
+        sc.halo.color.copy(sc.colors[shown] as Color).multiplyScalar(glitch ? 0.3 + 0.5 * Math.abs(Math.sin(t * 60)) : 0.85);
+      }
       // The screens' lights, on the shader's clock: the ad's color, out through the glitch between two ads.
       hue.setRGB(0, 0, 0);
       lit.forEach((sc, k) => {
-        const tt = t + sc.seed * 3.7;
-        const slide = Math.floor(tt / AD_SECONDS);
-        const into = (tt / AD_SECONDS - slide) * AD_SECONDS;
-        const glitch = into < 0.45 || into > AD_SECONDS - 0.25;
-        const shown = (((slide + (into > AD_SECONDS - 0.12 ? 1 : 0)) % SLIDES) + SLIDES) % SLIDES;
+        const { shown, glitch } = showing(sc.seed, t);
         const light = o.lights[k] as PointLight;
         light.color.copy(sc.colors[shown] as Color);
         light.intensity = SCREEN_LIGHT * (glitch ? 0.25 + 0.75 * Math.abs(Math.sin(t * 60)) : 0.9 + 0.1 * Math.sin(t * 37));

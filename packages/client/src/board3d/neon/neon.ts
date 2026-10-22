@@ -16,6 +16,7 @@ import {
   type MeshStandardMaterial,
   PointLight,
   type Scene,
+  SpotLight,
   Vector2,
   type WebGLProgramParametersWithUniforms,
 } from "three";
@@ -151,7 +152,13 @@ export function createNeon(ctx: DioramaContext): Diorama {
     l.castShadow = false;
     return l;
   });
-  group.add(...screenLights);
+  // The searchlights: coloured spotlights sweeping the towers (placed by the traffic).
+  const spots = ["#22e4ff", "#ff2bd6", "#ffb020"].map((color) => {
+    const spot = new SpotLight(color, 90, 0, 0.4, 0.8, 1.3);
+    spot.castShadow = false;
+    return spot;
+  });
+  group.add(...screenLights, ...spots);
   ctx.scene.add(group);
   lightsReflected(ctx.scene);
   ctx.scene.remove(group);
@@ -206,7 +213,7 @@ export function createNeon(ctx: DioramaContext): Diorama {
     planar.set(quality === "high", 0.5);
     wet.set(quality === "high");
     const signs = createSigns({ plan, camera: ctx.camera, beacons: city.beacons, lights: screenLights });
-    const traffic = createTraffic({ plan, camera: ctx.camera, amount });
+    const traffic = createTraffic({ plan, camera: ctx.camera, amount, spots });
     const weather = createWeather({ plan, camera: ctx.camera, vents: city.vents, amount });
     // The big sign's light: on the roof's left, near the far corner, over the parapet.
     ctx.fire.position.set(plan.roof.x0 + 0.2, plan.deck + 1.4, plan.stage.z0 + 0.9);
