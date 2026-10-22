@@ -1,0 +1,18 @@
+# PLAN-Y — a third 3D arena: the neon city (2026-10-22)
+
+## Context
+
+After the shrine (PLAN-X), the user asked for a cyberpunk diorama: "neons, lots of light sources, fake advertisements, buildings, reflections, moving lights… always in movement"; then, after a first look: real windows (diverse, light coming out), rain moved by a gusting wind, realistic wet ground where it falls, more neon and screens changing their images whose light moves with what they show and reflects on the battlefield, "even if heavy for the GPU". The arena's French name stays "Neon city".
+
+## Design
+
+- **Seen from the table's camera** (as PLAN-X measured): the battlefields on a rooftop helipad; the roof narrow on the sides, so the camera looks past its edges down into the canyons (wide avenues beside our tower, streets 24 units below); its clutter on the far ledge; nothing raised on the near side; two towers beyond the far corners.
+- **Modules** (`client/src/board3d/neon/`, a lazy chunk): `plan.ts` (pure, tested: the city below the roof, nothing on it, the towers beside the far corners), `city.ts` (buildings merged per facade style, our tower, roof, parapet, helipad deck, clutter), `textures.ts` (four facade styles with varied lit interiors bleeding light, invented ads with each slide's color, neon words, the mats' hex grid; Latin words when no katakana font), `signs.ts` (blade signs, neon brands, screens glitching from ad to ad, a hologram, beacons; four real lights before the screens nearest the table, colored by the ad shown and flashing through its glitch), `traffic.ts` (street light streams, flying cars with trails, drones, searchlights, a maglev), `weather.ts` (rain in a gusting wind, few drops over the cards, splashes, steam), `neon.ts` (lights, the wet deck: puddles darker and glossy, rain ripples drawn per pixel, a planar reflection at the highest quality).
+- **Shared:** `board3d/planar.ts` (the planar reflection, from the shrine's water, which now uses it); `DIORAMAS` in `diorama.ts` loads a diorama by its manifest's name.
+- **Lights:** the scene's fire light is a big magenta sign humming and stuttering on the left; four screen lights created once with the diorama (no light added during play).
+
+## Tracking
+
+| Lot | State | Commit |
+|---|---|---|
+| Y0 | Done: the arena (assets 8 MB: a night-city HDRI, metal plates, concrete, asphalt, corrugated iron, a grate), the whole diorama, the user's second round (facades, wind, ripples, screens and their light), tests (plan, arena list, board3d-smoke and csp-smoke for the neon city). Screenshots taken on the laptop's RTX 4080 (a headed Chromium on WSLg, see CLAUDE.md) | (this commit) |

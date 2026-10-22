@@ -11,8 +11,8 @@
  *   board, turned to landscape it draws the 3D board;
  * - the arena (data/arena/<id>/, `npm run arena-assets`) dresses the table when it was built; without it (an empty
  *   manifest), the plain table, without errors;
- * - the shrine (PLAN-X), chosen in the settings: its diorama drawn, animated between moves at its quality's rate, still
- *   in Low.
+ * - the dioramas (PLAN-X's shrine, PLAN-Y's neon city), chosen in the settings: drawn, animated between moves at their
+ *   quality's rate, still in Low.
  * Screenshots in test-results/board3d/.
  *
  * Requires: `npm run dev` running (restarted after an engine change).
@@ -362,10 +362,10 @@ if (built) {
 
 // 3d'. The shrine (PLAN-X), chosen before the game: its diorama, animated between moves (30 frames a second in Medium,
 // fewer in SwiftShader), still in Low.
-if (existsSync("data/arena/shrine/manifest.json"))
+for (const diorama of ["shrine", "neon"].filter((id) => existsSync(`data/arena/${id}/manifest.json`)))
   for (const quality of ["medium", "low"]) {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
-    await ctx.addInitScript(() => localStorage.setItem("planecircle.arena3d", "shrine"));
+    await ctx.addInitScript((id) => localStorage.setItem("planecircle.arena3d", id), diorama);
     const sp = await ctx.newPage();
     sp.on("pageerror", (e) => errors.push(e.message));
     await sp.goto(`http://localhost:5173/?board3d=force&quality=${quality}`, { timeout: 120_000 });
@@ -386,18 +386,17 @@ if (existsSync("data/arena/shrine/manifest.json"))
       await new Promise((r) => setTimeout(r, 4000));
       return { diorama: w.__board3d?.diorama(), rate: w.__board3d?.ambient(), frames: (w.__board3d?.renders() ?? 0) - before };
     });
-    await sp.screenshot({ path: `${OUT}/5b-shrine-${quality}.png`, timeout: 120_000 });
+    await sp.screenshot({ path: `${OUT}/5b-${diorama}-${quality}.png`, timeout: 120_000 });
     if (quality === "low")
-      check(shrine.diorama === "shrine" && shrine.rate === 0 && shrine.frames === 0, "the shrine in Low: still", shrine);
+      check(shrine.diorama === diorama && shrine.rate === 0 && shrine.frames === 0, `the ${diorama} in Low: still`, shrine);
     else
       check(
-        shrine.diorama === "shrine" && shrine.rate === 30 && shrine.frames >= 1,
-        "the shrine in Medium: animated between moves (30 frames a second)",
+        shrine.diorama === diorama && shrine.rate === 30 && shrine.frames >= 1,
+        `the ${diorama} in Medium: animated between moves (30 frames a second)`,
         shrine,
       );
     await ctx.close();
   }
-else console.log("(shrine not built: npm run arena-assets)");
 
 // 3e. Four players (W8): the three opponents side by side on the far half, every proxy on its card.
 g = await open({ width: 1600, height: 900 }, true, { p1: ME, p2: OPP, p3: OPP, p4: OPP }, 3, true);

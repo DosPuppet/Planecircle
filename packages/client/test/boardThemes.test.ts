@@ -86,6 +86,8 @@ describe("board textures", () => {
     expect(loadArena3d()).toBe("tavern");
     saveArena3d("shrine");
     expect(loadArena3d()).toBe("shrine");
+    saveArena3d("neon");
+    expect(loadArena3d()).toBe("neon");
     vi.stubGlobal("localStorage", {
       getItem: () => {
         throw new Error("unavailable");

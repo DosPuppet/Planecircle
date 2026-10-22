@@ -114,17 +114,20 @@ export function saveQuality3d(q: Quality3d): void {
   }
 }
 
-/** The arena of the 3D board (PLAN-X): the tavern table, or the shrine's diorama. Kept in `localStorage`. */
-export type Arena3d = "tavern" | "shrine";
+/**
+ * The arena of the 3D board (PLAN-X, PLAN-Y): the tavern table, the shrine's diorama or the neon city's. Kept in
+ * `localStorage`.
+ */
+export type Arena3d = "tavern" | "shrine" | "neon";
 
-export const ARENAS_3D: Arena3d[] = ["tavern", "shrine"];
+export const ARENAS_3D: Arena3d[] = ["tavern", "shrine", "neon"];
 
 const ARENA_KEY = "planecircle.arena3d";
 
 export function loadArena3d(): Arena3d {
   try {
     const v = localStorage.getItem(ARENA_KEY);
-    return v === "shrine" ? "shrine" : "tavern";
+    return ARENAS_3D.find((a) => a === v) ?? "tavern";
   } catch {
     return "tavern";
   }

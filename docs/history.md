@@ -421,3 +421,7 @@ Rules 95 -> 102 (96: Cryptex; 97 to 102: S2, S3, S4, S6c, S6d-e, S8b); every no-
 
 **Bilan.** Bundle: lazy `shrine` 64 KB, `Board3D` 55 KB, `three` 766 KB; the shrine's assets 18 MB outside Git (the tavern 11 MB). Tests: plan, paths, seasons, trees, the transcoder under no-eval, the framing's room; board3d-smoke (the shrine animates in Medium, rests in Low); csp-smoke. Not done: see `docs/backlog.md` ("PLAN-X: not done").
 
+## 20. PLAN-Y: a third 3D arena, the neon city (2026-10-22)
+
+The user asked for a cyberpunk diorama, always moving. The battlefields lie on a rooftop helipad over a megacity at night: facades with lit windows, screens glitching from ad to ad whose light (four real lights) colors the table, neon signs, flying cars, street traffic far below, drones, searchlights, a maglev, rain in a gusting wind with ripples in the deck's puddles and, in High, the city's reflection in them. Built in code with Poly Haven materials (8 MB); the planar reflection moved to `board3d/planar.ts` (the shrine's water uses it). Screenshots were taken on the laptop's RTX 4080 through WSLg for the first time. Plan: `docs/plans/PLAN-Y.md`.
+

@@ -55,7 +55,7 @@ check(
 const browser = await chromium.launch({
   args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"],
 });
-const arenas = ["tavern", "shrine"].filter((id) => existsSync(`data/arena/${id}/manifest.json`));
+const arenas = ["tavern", "shrine", "neon"].filter((id) => existsSync(`data/arena/${id}/manifest.json`));
 if (!arenas.length) console.log("(no arena built: the plain table only; npm run arena-assets)");
 for (const arena of arenas.length ? arenas : ["tavern"]) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });

@@ -21,7 +21,13 @@ import type { Quality } from "./quality";
 export type Season = "spring" | "summer" | "autumn" | "winter";
 
 /** The room each diorama keeps around the table (a narrower table), so its scenery shows at the sides and beyond. */
-export const DIORAMA_ROOM: Record<string, Room> = { shrine: { side: 0.06, top: 0.05 } };
+export const DIORAMA_ROOM: Record<string, Room> = { shrine: { side: 0.06, top: 0.05 }, neon: { side: 0.06, top: 0.05 } };
+
+/** Each diorama's code, by the name its arena's manifest gives (a lazy chunk each). */
+export const DIORAMAS: Record<string, () => Promise<DioramaFactory>> = {
+  shrine: () => import("./shrine/shrine").then((m) => m.createShrine),
+  neon: () => import("./neon/neon").then((m) => m.createNeon),
+};
 
 /** The season in Japan on a date: spring from March, summer from June, autumn from September, winter from December. */
 export function seasonOf(date: Date): Season {

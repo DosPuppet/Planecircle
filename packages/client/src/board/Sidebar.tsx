@@ -357,7 +357,7 @@ const QUALITY_LABEL = {
   low: msg("ctx:quality|low"),
 };
 
-/** The 3D board's arena (PLAN-X): the tavern table or the shrine's diorama; in the drawer and on the home screen. */
+/** The 3D board's arena (PLAN-X, PLAN-Y): the tavern, the shrine or the neon city; in the drawer and on the home screen. */
 export function Arena3dChoice() {
   const arena = useGame((s) => s.arena3d);
   const setArena = useGame((s) => s.setArena3d);
@@ -366,6 +366,10 @@ export function Arena3dChoice() {
   const labels = {
     tavern: [msg("ctx:arena|Tavern"), msg("A wooden table by a fireplace, candles and lanterns")],
     shrine: [msg("ctx:arena|Shrine"), msg("A shrine over a bay at night: torii, pagoda, lanterns, koi, yokai (animated)")],
+    neon: [
+      msg("ctx:arena|Neon city"),
+      msg("A rooftop over a megacity at night: neon, holographic ads, flying cars, rain (animated)"),
+    ],
   } as const;
   return (
     <div className="pace-control">

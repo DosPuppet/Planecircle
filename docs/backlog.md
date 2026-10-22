@@ -101,6 +101,10 @@ Per card, in `docs/approximations.md`. Cards the plans left explicitly documente
 - Medium's 30 frames a second come from a timer, which the governor does not judge: a device too slow for Medium stays there (the player can choose Low).
 - Seasons of the northern hemisphere only; no ambient sounds (water lapping, cicadas, wind chimes); the bamboo behind the hall shows little on a 16:9 screen.
 
+## PLAN-Y: not done (2026-10-22)
+
+- The neon city: no sound (rain, traffic, hum of the signs); the screens' lights are four (the nearest screens); judged on the RTX 4080 only, not yet on a modest GPU in Medium.
+
 ## AI
 
 - Multiplayer: ISMCTS is for duels only; Commander at two uses it (kept after a 40-game measure); in 3 to 4 players the heuristic level plays. The 1.5 to 4 s per medium decision on large boards (PLAN-C C17) no longer holds: on 2026-10-09 the bench's Commander line (four precons) measured 5.7 ms on average on boards of 50 to 62 permanents, 308 ms at worst.

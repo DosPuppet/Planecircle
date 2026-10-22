@@ -40,7 +40,7 @@ import type { Lang } from "../translate";
 import { type Bounds, clearOfRim, outward, propPose } from "./arena";
 import type { Arena, ArenaMaterial } from "./assets";
 import type { Framing } from "./camera";
-import { type Diorama, seasonNow } from "./diorama";
+import { DIORAMAS, type Diorama, seasonNow } from "./diorama";
 import type { Fx3d } from "./fxmap";
 import type { CardNode } from "./model";
 import { Springs } from "./motion";
@@ -879,18 +879,19 @@ export class TableScene {
   }
 
   /**
-   * The shrine's diorama (PLAN-X): its code loaded (a chunk of its own), built around the table; the tavern's ground,
+   * A diorama (PLAN-X: the shrine; PLAN-Y: the neon city): its code loaded (a chunk of its own), built around the table; the tavern's ground,
    * rim, fire and pool give way to it. Done while the loading screen covers the board (its lights compile once).
    */
   private async setDiorama(arena: Arena) {
-    const { createShrine } = await import("./shrine/shrine");
+    const create = await DIORAMAS[arena.manifest.diorama as string]?.();
+    if (!create) return;
     this.arena = arena;
     this.pool.visible = false;
     this.ground.visible = false;
     for (const child of this.tableGroup.children) if (child.userData.rim) child.visible = false;
     this.scene.environment = arena.environment;
     this.scene.environmentIntensity = 0.35;
-    this.diorama = createShrine({
+    this.diorama = create({
       scene: this.scene,
       renderer: this.renderer,
       camera: this.camera,

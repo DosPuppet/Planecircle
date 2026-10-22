@@ -253,6 +253,57 @@
           "md5": "fedfc620634a8dbaf6345413b13abe1a"
         }
       ]
+    },
+    "neon": {
+      "diorama": "neon",
+      "hdri": {
+        "id": "modern_buildings_night",
+        "res": "1k",
+        "md5": "3067e8d9e8e961e6a11ff45c055a5fbd"
+      },
+      "materials": [
+        {
+          "slot": "deck",
+          "id": "metal_plate_02",
+          "res": "2k",
+          "tile": 2,
+          "maps": ["diff", "nor_gl", "arm"],
+          "md5": "519b43cf88b4b6ea74bd259e976f2170"
+        },
+        {
+          "slot": "concrete",
+          "id": "concrete_wall_008",
+          "res": "1k",
+          "tile": 3,
+          "maps": ["diff", "nor_gl", "arm"],
+          "md5": "6a0f87fbfea261d797661c47e05b25ad"
+        },
+        {
+          "slot": "asphalt",
+          "id": "asphalt_02",
+          "res": "1k",
+          "tile": 4,
+          "maps": ["diff", "nor_gl", "arm"],
+          "md5": "fa19772d4817754c3efab708c651f5a8"
+        },
+        {
+          "slot": "corrugated",
+          "id": "corrugated_iron_02",
+          "res": "1k",
+          "tile": 2,
+          "maps": ["diff", "nor_gl", "arm"],
+          "md5": "0437ba7acc3a60e9a00245580ae7e10b"
+        },
+        {
+          "slot": "grate",
+          "id": "metal_grate_rusty",
+          "res": "1k",
+          "tile": 1.5,
+          "maps": ["diff", "nor_gl", "arm"],
+          "md5": "96ca939eb6dd637959ee64d1a03bb2ab"
+        }
+      ],
+      "models": []
     }
   }
 }

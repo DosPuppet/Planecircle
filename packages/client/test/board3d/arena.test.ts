@@ -21,7 +21,8 @@ const shrine = arenas.shrine as SourceArena;
 describe("arena of the 3D board", () => {
   it("the source manifest: CC0 assets pinned, every prop on a listed model", () => {
     // PLAN-X: several arenas, the tavern with props, the shrine a diorama built in code.
-    expect(Object.keys(arenas).sort()).toEqual(["shrine", "tavern"]);
+    expect(Object.keys(arenas).sort()).toEqual(["neon", "shrine", "tavern"]);
+    expect(arenas.neon?.diorama).toBe("neon");
     for (const [id, a] of Object.entries(arenas)) {
       const ids = new Set(a.models.map((m) => m.id));
       for (const m of [...a.models, ...a.materials, ...(a.hdri ? [a.hdri] : [])])
