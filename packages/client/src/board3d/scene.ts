@@ -473,7 +473,7 @@ export class TableScene {
       if (p) this.place(card, p);
     }
     // A card in flight moves its shadow; still, the shadow map stays as it is.
-    if (moving) this.renderer.shadowMap.needsUpdate = true;
+    if (moving || this.diorama?.liveShadows) this.renderer.shadowMap.needsUpdate = true;
     // Particles go by the real time (a slow device must not make them last longer), within reason.
     const effects = this.runEffects(now, Math.min(0.25, ms / 1000));
     this.syncHand();

@@ -23,6 +23,7 @@ import {
   MeshStandardMaterial,
   type PerspectiveCamera,
   PlaneGeometry,
+  type PointLight,
   Quaternion,
   type SpotLight,
   SRGBColorSpace,
@@ -34,6 +35,8 @@ import type { NeonPlan } from "./plan";
 import { NEON } from "./textures";
 
 export const TRAIN_EVERY = 25;
+/** The train's light (its lit windows, as one light carried along). */
+const TRAIN_LIGHT = 32;
 const TRAIN_CARS = 5;
 
 function glowTexture(): CanvasTexture {
@@ -160,6 +163,8 @@ export function createTraffic(o: {
   amount: number;
   /** The searchlights (real spotlights, created once with the diorama; placed here). */
   spots: SpotLight[];
+  /** The train's light (created once with the diorama): its windows' glow, carried along, casting shadows. */
+  trainLight: PointLight;
 }): Traffic {
   const { plan, camera } = o;
   const group = new Group();
@@ -362,10 +367,10 @@ export function createTraffic(o: {
 
   // The maglev: a guideway beside the roof's left, the train sweeping along it.
   const railZ = { from: roof.z1 + 14, to: roof.z0 - 26 };
-  // Out over the canyon, a little under the roof's level: the camera sees it pass (lower and closer, our tower's
-  // facade would hide it).
-  const railX = roof.x0 - 1.9;
-  const railY = deck - 0.55;
+  // Out over the canyon, its windows just above the roof's level: their light falls across the table (lower, the
+  // parapet would stop it, and our tower's facade would hide the train).
+  const railX = roof.x0 - 0.75;
+  const railY = deck + 0.05;
   const guide = new Mesh(
     own(new BoxGeometry(0.3, 0.16, railZ.from - railZ.to)),
     own(new MeshStandardMaterial({ color: "#3a3f4c", roughness: 0.6, metalness: 0.5 })),
@@ -476,6 +481,11 @@ export function createTraffic(o: {
         train.setMatrixAt(k, m.compose(p, q.identity(), s.set(1, 1, 1)));
       }
       train.instanceMatrix.needsUpdate = true;
+      // Its light, at the middle car, above the parapet: on while the train passes beside the roof.
+      const middle = head + (TRAIN_CARS / 2) * 2.0;
+      const beside = run <= 1.4 && middle < roof.z1 + 4 && middle > roof.z0 - 4;
+      o.trainLight.position.set(railX + 0.3, railY + 0.85, middle);
+      o.trainLight.intensity = beside ? TRAIN_LIGHT : 0;
     },
     dispose() {
       for (const x of owned) x.dispose();

@@ -69,6 +69,8 @@ export interface Diorama {
   readonly group: Object3D;
   /** It lights the scene's fire (which then casts the shadows; with the moon's at the highest quality). */
   readonly fireLit: boolean;
+  /** Its lights move and cast shadows: the shadow maps are drawn again every frame (else only when a card moves). */
+  readonly liveShadows?: boolean;
   /** Frames a second it animates at, at a quality (0: still). */
   fps(q: Quality): number;
   /** Lays it out around the table's rim (world units), again when the screen changes shape. */

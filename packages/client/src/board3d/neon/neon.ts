@@ -158,7 +158,28 @@ export function createNeon(ctx: DioramaContext): Diorama {
     spot.castShadow = false;
     return spot;
   });
-  group.add(...screenLights, ...spots);
+  // The train's light: warm, carried along beside the roof.
+  const trainLight = new PointLight("#ffd9a0", 0, 0, 1.4);
+  group.add(...screenLights, ...spots, trainLight);
+  /** The lights that cast shadows at a quality (each costs a shadow map drawn every frame). */
+  const shadowCasters = (q: Quality) => {
+    const high = q === "high";
+    const on = q !== "low";
+    for (const [light, cast, size] of [
+      [trainLight, on, 512],
+      [screenLights[0], high, 512],
+      [screenLights[1], high, 512],
+      ...spots.map((s) => [s, high, 1024] as const),
+    ] as const) {
+      if (!light) continue;
+      light.castShadow = cast;
+      light.shadow.mapSize.set(size, size);
+      light.shadow.bias = -0.002;
+      light.shadow.normalBias = 0.03;
+      light.shadow.camera.near = 0.2;
+      light.shadow.camera.far = 30;
+    }
+  };
   ctx.scene.add(group);
   lightsReflected(ctx.scene);
   ctx.scene.remove(group);
@@ -179,6 +200,7 @@ export function createNeon(ctx: DioramaContext): Diorama {
   ctx.mats.needsUpdate = true;
 
   let quality = ctx.quality;
+  shadowCasters(quality);
   let rim: Bounds | null = null;
   let parts: {
     plan: NeonPlan;
@@ -213,7 +235,7 @@ export function createNeon(ctx: DioramaContext): Diorama {
     planar.set(quality === "high", 0.5);
     wet.set(quality === "high");
     const signs = createSigns({ plan, camera: ctx.camera, beacons: city.beacons, lights: screenLights });
-    const traffic = createTraffic({ plan, camera: ctx.camera, amount, spots });
+    const traffic = createTraffic({ plan, camera: ctx.camera, amount, spots, trainLight });
     const weather = createWeather({ plan, camera: ctx.camera, vents: city.vents, amount });
     // The big sign's light: on the roof's left, near the far corner, over the parapet.
     ctx.fire.position.set(plan.roof.x0 + 0.2, plan.deck + 1.4, plan.stage.z0 + 0.9);
@@ -242,6 +264,9 @@ export function createNeon(ctx: DioramaContext): Diorama {
   return {
     group,
     fireLit: true,
+    get liveShadows() {
+      return quality !== "low";
+    },
     fps: (q: Quality) => (q === "high" ? 60 : q === "medium" ? 30 : 0),
     layout(r: Bounds) {
       rim = r;
@@ -254,6 +279,7 @@ export function createNeon(ctx: DioramaContext): Diorama {
     setQuality(q: Quality) {
       if (q === quality) return;
       quality = q;
+      shadowCasters(q);
       build();
     },
     dispose() {
