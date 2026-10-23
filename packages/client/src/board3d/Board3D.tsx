@@ -97,6 +97,54 @@ export default function Board3D({ arena: arenaId, onFail }: { arena: string; onF
   const [room, setRoom] = useState<Room | undefined>(undefined);
   const [cards, setCards] = useState({ started: 0, settled: 0 });
   const [ready, setReady] = useState<"loading" | "leaving" | "ready">("loading");
+  const readyRef = useRef(ready);
+  readyRef.current = ready;
+  // A diorama built again (a new size, a new quality) holds the page's script for a moment (its meshes, its shaders
+  // compiled at the next frame): the loading screen first, painted before the work starts, the changes of a resize
+  // gathered (150 ms), then gone once the scene has drawn again. The tavern and the first load do the work at once.
+  const [rebuild, setRebuild] = useState<"off" | "on" | "leaving">("off");
+  const works = useRef(new Map<string, () => void>());
+  const rebuildRun = useRef(0);
+  const heavy = useCallback((kind: string, work: () => void) => {
+    const scene = sceneRef.current;
+    if (!scene || readyRef.current !== "ready" || !scene.dioramaShown) {
+      work();
+      return;
+    }
+    works.current.set(kind, work);
+    setRebuild("on");
+    const run = ++rebuildRun.current;
+    const current = () => run === rebuildRun.current;
+    window.setTimeout(() => {
+      if (!current()) return;
+      // Two frames: the loading screen is on the screen before the script is held.
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          if (!current()) return;
+          for (const w of works.current.values()) w();
+          works.current.clear();
+          const drawn = scene.renders;
+          const since = performance.now();
+          const wait = () => {
+            if (!current()) return;
+            if (scene.renders <= drawn && performance.now() - since < 3000) {
+              requestAnimationFrame(wait);
+              return;
+            }
+            setRebuild("leaving");
+            window.setTimeout(() => current() && setRebuild("off"), 450);
+          };
+          requestAnimationFrame(wait);
+        }),
+      );
+    }, 150);
+  }, []);
+  useEffect(
+    () => () => {
+      rebuildRun.current++;
+    },
+    [],
+  );
 
   // The board and its HUD measured: the table takes what the HUD leaves.
   useLayoutEffect(() => {
@@ -285,9 +333,11 @@ export default function Board3D({ arena: arenaId, onFail }: { arena: string; onF
   }, [theme]);
   useEffect(() => {
     if (!m.w || !m.h) return;
-    sceneRef.current?.setView(m.w, m.h, framing);
-    sceneRef.current?.setTable(table);
-  }, [m, framing, table]);
+    heavy("layout", () => {
+      sceneRef.current?.setView(m.w, m.h, framing);
+      sceneRef.current?.setTable(table);
+    });
+  }, [m, framing, table, heavy]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: redrawn when the cards or their places change (signature)
   useEffect(() => {
     sceneRef.current?.setCards([...nodes, ...piles], lang, start);
@@ -309,8 +359,8 @@ export default function Board3D({ arena: arenaId, onFail }: { arena: string; onF
   useEffect(() => {
     if (appliedQuality.current === quality3d) return;
     appliedQuality.current = quality3d;
-    sceneRef.current?.setQuality(quality3d === "auto" ? autoQuality() : quality3d, quality3d === "auto");
-  }, [quality3d]);
+    heavy("quality", () => sceneRef.current?.setQuality(quality3d === "auto" ? autoQuality() : quality3d, quality3d === "auto"));
+  }, [quality3d, heavy]);
   // The DOM hand moves by its own springs (hover, drag, a card coming in): the meshes follow while it does.
   useEffect(() => {
     const row = bottomRef.current;
@@ -501,6 +551,7 @@ export default function Board3D({ arena: arenaId, onFail }: { arena: string; onF
           leaving={ready === "leaving"}
         />
       )}
+      {ready === "ready" && rebuild !== "off" && <Loading3D step={t("Rebuilding the arena…")} leaving={rebuild === "leaving"} />}
     </div>
   );
 }

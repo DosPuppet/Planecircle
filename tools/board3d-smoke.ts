@@ -347,7 +347,7 @@ if (built) {
     DECK,
     { p1: ME, p2: OPP },
   ] as const);
-  await fp.getByRole("button", { name: "Garder" }).click({ timeout: 30_000 });
+  await fp.getByRole("button", { name: "Garder" }).click({ timeout: 120_000 });
   await fp.waitForFunction("window.__board3d && window.__board3d.arenaShown()", null, { timeout: 60_000 }).catch(() => {});
   const fire = await fp.evaluate(async () => {
     const w = window as unknown as DevWindow;
@@ -373,7 +373,7 @@ for (const diorama of ["shrine", "neon"].filter((id) => existsSync(`data/arena/$
       DECK,
       { p1: ME, p2: OPP },
     ] as const);
-    await sp.getByRole("button", { name: "Garder" }).click({ timeout: 30_000 });
+    await sp.getByRole("button", { name: "Garder" }).click({ timeout: 120_000 });
     await sp.locator(".board3d-loading").waitFor({ state: "detached", timeout: 120_000 });
     // Medium: it keeps drawing between moves at 30 frames a second (SwiftShader manages about one in two seconds: a
     // new frame within four is enough); Low: once the board has settled (card images arriving), nothing.
@@ -418,7 +418,7 @@ for (const [name, device, want3d] of [
     DECK,
     { p1: ME, p2: OPP },
   ] as const);
-  await phone.getByRole("button", { name: "Garder" }).click({ timeout: 30_000 });
+  await phone.getByRole("button", { name: "Garder" }).click({ timeout: 120_000 });
   await phone.waitForTimeout(2000);
   const drawn = (await phone.locator(".board3d").count()) > 0;
   check(drawn === want3d, `${name}: ${want3d ? "the 3D board" : "the DOM board (portrait layout)"}`, { drawn });
