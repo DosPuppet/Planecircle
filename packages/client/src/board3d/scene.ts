@@ -37,7 +37,7 @@ import {
 } from "three";
 import { CARD_RATIO } from "../board/layout";
 import type { Lang } from "../translate";
-import { type Bounds, clearOfRim, outward, propPose } from "./arena";
+import { type Bounds, clearOfRim, outward, propPose, tavernScale } from "./arena";
 import type { Arena, ArenaMaterial } from "./assets";
 import type { Framing } from "./camera";
 import { DIORAMAS, type Diorama, seasonNow } from "./diorama";
@@ -821,7 +821,8 @@ export class TableScene {
     if (!rim) return;
     const midX = (rim.x0 + rim.x1) / 2;
     const midZ = (rim.z0 + rim.z1) / 2;
-    this.fire.position.set(rim.x0 - 7, 4.5, midZ - 2);
+    const k = tavernScale(rim);
+    this.fire.position.set(rim.x0 - 7 * k, 4.5 * k, midZ - 2 * k);
     const d = this.fire.position.distanceTo(new Vector3(midX, 0, midZ));
     // The tavern's fire; a diorama has its own lights.
     this.fireBase = this.arena && !this.diorama ? 3 * d * d : 0;
@@ -919,11 +920,13 @@ export class TableScene {
     const rim = this.rim;
     if (!arena || !rim) return;
     const box = new Box3();
-    const scale = arena.manifest.metersToWorld ?? 12;
+    // Smaller around a smaller table (a phone): the room seen from the table keeps its proportions.
+    const k = tavernScale(rim);
+    const scale = (arena.manifest.metersToWorld ?? 12) * k;
     for (const p of arena.manifest.props ?? []) {
       const model = arena.models.get(p.model);
       if (!model) continue;
-      const pose = propPose(p, rim);
+      const pose = propPose({ ...p, at: [p.at[0] * k, p.at[1] * k] }, rim);
       const prop = new Group();
       prop.add(model.clone(true));
       prop.rotation.y = pose.turn;
@@ -938,8 +941,8 @@ export class TableScene {
         prop.updateMatrixWorld(true);
         box.setFromObject(prop);
         if (clearOfRim({ x0: box.min.x, x1: box.max.x, z0: box.min.z, z1: box.max.z }, rim)) break;
-        prop.position.x += ox * 0.25;
-        prop.position.z += oz * 0.25;
+        prop.position.x += ox * 0.25 * k;
+        prop.position.z += oz * 0.25 * k;
       }
       if (p.light) {
         // A flame at its top; the higher it stands, the stronger, to light the table as a candle does.

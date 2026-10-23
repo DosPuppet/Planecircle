@@ -54,6 +54,17 @@ export function propPose(p: Prop, b: Bounds): { x: number; z: number; turn: numb
   return { x: ax + p.at[0], z: az + p.at[1], turn: (p.turn * Math.PI) / 180 };
 }
 
+/** The rim's width the tavern was dressed for (a 1600 px wide screen, 100 px per world unit). */
+const TAVERN_WIDTH = 16;
+
+/**
+ * The tavern's scale around a table: the world is laid in screen pixels, so a phone's table is half as wide as a
+ * desktop's; its props, their offsets and its fireplace shrink with it (never grow: a large screen keeps them as made).
+ */
+export function tavernScale(b: Bounds): number {
+  return Math.min(1, Math.max(0.45, (b.x1 - b.x0) / TAVERN_WIDTH));
+}
+
 /** Away from the table, from an anchor: the way a prop is pushed until it is clear of the battlefields. */
 export function outward(anchor: Prop["anchor"]): [number, number] {
   const ways: Record<Prop["anchor"], [number, number]> = {

@@ -1,8 +1,8 @@
 /** 3D board (PLAN-W W5): the arena's props stand around the table, never on a battlefield, at real size. */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { type ArenaManifest, clearOfRim, outward, propPose } from "../../src/board3d/arena";
-import { frameSeats } from "../../src/board3d/camera";
+import { type ArenaManifest, clearOfRim, outward, propPose, tavernScale } from "../../src/board3d/arena";
+import { frameSeats, roomOn } from "../../src/board3d/camera";
 import { tableBounds } from "../../src/board3d/seats";
 
 type SourceArena = ArenaManifest & {
@@ -67,5 +67,25 @@ describe("arena of the 3D board", () => {
     expect(outward("right")).toEqual([1, 0]);
     expect(clearOfRim({ x0: -10, x1: -8.5, z0: 0, z1: 1 }, b)).toBe(true);
     expect(clearOfRim({ x0: -10, x1: -7.5, z0: 0, z1: 1 }, b)).toBe(false);
+  });
+
+  it("shrinks the tavern with a phone's table, never grows it on a large screen", () => {
+    const rim = (w: number, h: number) =>
+      tableBounds(frameSeats({ w, h }, ["p1", "p2"], { top: 70, center: 30, bottom: 90 }, roomOn({ w, h })).table);
+    expect(tavernScale(rim(1600, 900))).toBe(1);
+    expect(tavernScale(rim(2560, 1440))).toBe(1);
+    const phone = tavernScale(rim(844, 390));
+    expect(phone).toBeGreaterThan(0.4);
+    expect(phone).toBeLessThan(0.6);
+  });
+
+  it("keeps a little more room around the table on a phone in landscape", () => {
+    const shrine = { side: 0.06, top: 0.05 };
+    expect(roomOn({ w: 1600, h: 900 }, shrine)).toBe(shrine);
+    expect(roomOn({ w: 1600, h: 900 })).toBeUndefined();
+    const phone = roomOn({ w: 844, h: 390 }, shrine);
+    expect(phone?.side).toBeGreaterThan(shrine.side);
+    expect(phone?.top).toBeGreaterThan(shrine.top);
+    expect(roomOn({ w: 844, h: 390 })?.side).toBeGreaterThan(0);
   });
 });

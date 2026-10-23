@@ -19,7 +19,7 @@ import { probe3d } from "../graphics";
 import { useT } from "../localize";
 import { myActions, subscribeUpdates, useGame } from "../store";
 import { type Arena, loadArena } from "./assets";
-import { frameSeats, type Room, viewProjection } from "./camera";
+import { frameSeats, type Room, roomOn, viewProjection } from "./camera";
 import { DIORAMA_ROOM } from "./diorama";
 import { fxFor } from "./fxmap";
 import { type CardNode, pileNodes, tableNodes } from "./model";
@@ -219,7 +219,7 @@ export default function Board3D({ arena: arenaId, onFail }: { arena: string; onF
   const playersKey = players.join(" ");
   // biome-ignore lint/correctness/useExhaustiveDependencies: the players are keyed by playersKey
   const { table, framing } = useMemo(
-    () => frameSeats({ w: m.w, h: m.h }, players, { top: m.top, center: m.center, bottom: m.bottom }, room),
+    () => frameSeats({ w: m.w, h: m.h }, players, { top: m.top, center: m.center, bottom: m.bottom }, roomOn(m, room)),
     [m, playersKey, room],
   );
   const aspect = m.w / Math.max(1, m.h);

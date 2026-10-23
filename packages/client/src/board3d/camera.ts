@@ -91,6 +91,18 @@ export interface Room {
   top: number;
 }
 
+/** Below this height (CSS px: a phone held sideways), a little more room around the table. */
+const SHORT = 520;
+
+/**
+ * The room kept around the table on a screen: on a short one (a phone in landscape), a little more, so the scenery
+ * shows past the table's edges (the arena around it, laid in screen pixels, is large next to a phone's table).
+ */
+export function roomOn(viewport: { w: number; h: number }, room?: Room): Room | undefined {
+  if (viewport.h >= SHORT) return room;
+  return { side: (room?.side ?? 0) + 0.04, top: (room?.top ?? 0) + 0.03 };
+}
+
 /**
  * The seats and the camera together: seen at an angle the table looks shallower than the screen, so the battlefields are
  * made deeper (larger cards) until the table fills the band the HUD leaves in height as well as in width, less the
