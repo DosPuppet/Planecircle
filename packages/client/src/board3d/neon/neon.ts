@@ -14,9 +14,7 @@ import {
   Group,
   type Light,
   type MeshStandardMaterial,
-  PointLight,
   type Scene,
-  SpotLight,
   Vector2,
   type WebGLProgramParametersWithUniforms,
 } from "three";
@@ -27,6 +25,7 @@ import type { Quality } from "../quality";
 import { noise } from "../shrine/plan";
 import { reflected } from "../shrine/water";
 import { type City, createCity } from "./city";
+import { createLighting, createRig, type Lighting } from "./lighting";
 import { type NeonPlan, neonPlan } from "./plan";
 import { createSigns, type Signs } from "./signs";
 import { hexMat } from "./textures";
@@ -42,8 +41,6 @@ const DETAIL: Record<Quality, { amount: number }> = {
 /** The big sign's light: its strength and its fall-off. */
 const SIGN = 7;
 const SIGN_DECAY = 1.6;
-/** Screens throwing real light (the nearest the table). */
-const SCREEN_LIGHTS = 4;
 
 /**
  * The deck's wet patches: puddles where a noise is high, darker and glossy; the rain's ripples in them (rings born at
@@ -146,40 +143,10 @@ export function createNeon(ctx: DioramaContext): Diorama {
   ctx.fire.color.set("#ff2bd6");
   ctx.fire.decay = SIGN_DECAY;
   ctx.fire.distance = 0;
-  // The screens' lights, for good (a light added later compiles every material again): the signs place and color them.
-  const screenLights = Array.from({ length: SCREEN_LIGHTS }, () => {
-    const l = new PointLight("#ffffff", 0, 0, 1.8);
-    l.castShadow = false;
-    return l;
-  });
-  // The searchlights: coloured spotlights sweeping the towers (placed by the traffic).
-  const spots = ["#22e4ff", "#ff2bd6", "#ffb020"].map((color) => {
-    const spot = new SpotLight(color, 90, 0, 0.4, 0.8, 1.3);
-    spot.castShadow = false;
-    return spot;
-  });
-  // The train's light: warm, carried along beside the roof.
-  const trainLight = new PointLight("#ffd9a0", 0, 0, 1.4);
-  group.add(...screenLights, ...spots, trainLight);
-  /** The lights that cast shadows at a quality (each costs a shadow map drawn every frame). */
-  const shadowCasters = (q: Quality) => {
-    const high = q === "high";
-    const on = q !== "low";
-    for (const [light, cast, size] of [
-      [trainLight, on, 512],
-      [screenLights[0], high, 512],
-      [screenLights[1], high, 512],
-      ...spots.map((s) => [s, high, 1024] as const),
-    ] as const) {
-      if (!light) continue;
-      light.castShadow = cast;
-      light.shadow.mapSize.set(size, size);
-      light.shadow.bias = -0.002;
-      light.shadow.normalBias = 0.03;
-      light.shadow.camera.near = 0.2;
-      light.shadow.camera.far = 30;
-    }
-  };
+  // The real lights, for good (a light added later compiles every material again): the modules place and drive them.
+  const rig = createRig();
+  group.add(...rig.lights);
+  const maxTextures = ctx.renderer.capabilities.maxTextures;
   ctx.scene.add(group);
   lightsReflected(ctx.scene);
   ctx.scene.remove(group);
@@ -200,7 +167,7 @@ export function createNeon(ctx: DioramaContext): Diorama {
   ctx.mats.needsUpdate = true;
 
   let quality = ctx.quality;
-  shadowCasters(quality);
+  rig.shadows(quality, maxTextures);
   let rim: Bounds | null = null;
   let parts: {
     plan: NeonPlan;
@@ -210,15 +177,17 @@ export function createNeon(ctx: DioramaContext): Diorama {
     weather: Weather;
     planar: PlanarReflection;
     wet: ReturnType<typeof wetDeck>;
+    lighting: Lighting;
   } | null = null;
 
   const clear = () => {
     if (!parts) return;
-    group.remove(parts.city.group, parts.signs.group, parts.traffic.group, parts.weather.group);
+    group.remove(parts.city.group, parts.signs.group, parts.traffic.group, parts.weather.group, parts.lighting.group);
     parts.city.dispose();
     parts.signs.dispose();
     parts.traffic.dispose();
     parts.weather.dispose();
+    parts.lighting.dispose();
     parts.planar.dispose();
     parts = null;
   };
@@ -234,14 +203,15 @@ export function createNeon(ctx: DioramaContext): Diorama {
     const wet = wetDeck(city.deck.material as MeshStandardMaterial, planar, rainTime);
     planar.set(quality === "high", 0.5);
     wet.set(quality === "high");
-    const signs = createSigns({ plan, camera: ctx.camera, beacons: city.beacons, lights: screenLights });
-    const traffic = createTraffic({ plan, camera: ctx.camera, amount, spots, trainLight });
+    const signs = createSigns({ plan, camera: ctx.camera, beacons: city.beacons, lights: rig.screens });
+    const traffic = createTraffic({ plan, camera: ctx.camera, amount, trainLight: rig.train });
     const weather = createWeather({ plan, camera: ctx.camera, vents: city.vents, amount });
+    const lighting = createLighting({ plan, camera: ctx.camera, rig, beacons: signs.beaconSpots });
     // The big sign's light: on the roof's left, near the far corner, over the parapet.
     ctx.fire.position.set(plan.roof.x0 + 0.2, plan.deck + 1.4, plan.stage.z0 + 0.9);
     for (const o of [city.group, signs.group, traffic.group]) reflected(o);
-    group.add(city.group, signs.group, traffic.group, weather.group);
-    parts = { plan, city, signs, traffic, weather, planar, wet };
+    group.add(city.group, signs.group, traffic.group, weather.group, lighting.group);
+    parts = { plan, city, signs, traffic, weather, planar, wet, lighting };
     step(clock);
   };
 
@@ -253,6 +223,7 @@ export function createNeon(ctx: DioramaContext): Diorama {
     rainTime.value = t;
     parts.signs.update(t);
     parts.traffic.update(t);
+    parts.lighting.update(t, parts.traffic.vehicles, parts.traffic.drones);
     parts.weather.update(t, parts.signs.hue);
     // The big sign hums, and now and then stutters off.
     const out = noise(Math.floor(t * 4), 7) < 0.06 ? 0.15 : 1;
@@ -279,7 +250,7 @@ export function createNeon(ctx: DioramaContext): Diorama {
     setQuality(q: Quality) {
       if (q === quality) return;
       quality = q;
-      shadowCasters(q);
+      rig.shadows(q, maxTextures);
       build();
     },
     dispose() {

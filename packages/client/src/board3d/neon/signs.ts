@@ -114,6 +114,8 @@ export interface Signs {
   update(time: number): void;
   /** The light the screens throw now (the sky's light follows it). */
   readonly hue: Color;
+  /** The beacons' places (their real lights blink with their lamps). */
+  readonly beaconSpots: Vector3[];
   dispose(): void;
 }
 
@@ -322,6 +324,7 @@ export function createSigns(o: {
   return {
     group,
     hue,
+    beaconSpots: beacons.map(({ s }) => s.position.clone()),
     update(t: number) {
       time.value = t;
       for (const b of blades) {

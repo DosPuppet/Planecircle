@@ -4,7 +4,6 @@
  * - flying cars on lanes beside the roof and beyond its far edge, each its lights and a trail; on the near side they
  *   fly under the deck (anything raised there would rise into your battlefield);
  * - drones hovering by the roof's sides, their lights blinking;
- * - searchlights rising from the streets through the canyons, sweeping;
  * - a maglev train crossing on its guideway beside the roof every `TRAIN_EVERY` seconds, its windows lit.
  * Every position a function of the time (no state). Instanced and additive: a few draw calls.
  */
@@ -25,7 +24,6 @@ import {
   PlaneGeometry,
   type PointLight,
   Quaternion,
-  type SpotLight,
   SRGBColorSpace,
   Vector3,
 } from "three";
@@ -153,6 +151,10 @@ interface Lane {
 
 export interface Traffic {
   group: Group;
+  /** Each flying car now (its place, its heading, its lane's color), the nearest lanes first: their thrusters' lights. */
+  vehicles: { pos: Vector3; dir: Vector3; color: Color }[];
+  /** Each drone's place now: their downlights. */
+  drones: Vector3[];
   update(time: number): void;
   dispose(): void;
 }
@@ -161,8 +163,6 @@ export function createTraffic(o: {
   plan: NeonPlan;
   camera: PerspectiveCamera;
   amount: number;
-  /** The searchlights (real spotlights, created once with the diorama; placed here). */
-  spots: SpotLight[];
   /** The train's light (created once with the diorama): its windows' glow, carried along, casting shadows. */
   trainLight: PointLight;
 }): Traffic {
@@ -175,17 +175,6 @@ export function createTraffic(o: {
   };
   const { roof, deck, street } = plan;
   const glow = own(glowTexture());
-  // The searchlights' places: low on the facades across the canyons, aimed up across at the towers and the roof.
-  const spotPlaces: [Vector3, Vector3][] = [
-    [new Vector3(roof.x0 - 4.2, deck - 2.2, roof.z0 + 3.5), new Vector3(roof.x0, deck + 1.5, roof.z0 + 1)],
-    [new Vector3(roof.x1 + 4.2, deck - 1.6, roof.z0 + 1.5), new Vector3(roof.x1, deck + 1.2, roof.z0 + 4)],
-    [new Vector3((roof.x0 + roof.x1) / 2 + 3, deck - 3, roof.z0 - 4.2), new Vector3((roof.x0 + roof.x1) / 2, deck + 2, roof.z0)],
-  ];
-  o.spots.forEach((spot, k) => {
-    const [at, aim] = spotPlaces[k % spotPlaces.length] as [Vector3, Vector3];
-    spot.position.copy(at);
-    spot.target.position.copy(aim);
-  });
   const m = new Matrix4();
   const p = new Vector3();
   const s = new Vector3();
@@ -278,6 +267,7 @@ export function createTraffic(o: {
       offset: k / lane.cars + noise(l, k) * 0.2,
     })),
   );
+  const vehicles = cars.map((car) => ({ pos: new Vector3(), dir: new Vector3(1, 0, 0), color: new Color(car.lane.color) }));
   const body = own(
     merged([placed(new BoxGeometry(0.42, 0.1, 0.2), [0, 0, 0]), placed(new BoxGeometry(0.22, 0.08, 0.16), [-0.02, 0.08, 0])]),
   );
@@ -322,6 +312,7 @@ export function createTraffic(o: {
     { x: roof.x1 + 0.9, z: roof.z0 + 3.4, y: deck + 0.9, phase: 2.1 },
     { x: (roof.x0 + roof.x1) / 2 - 3, z: roof.z0 - 1.2, y: deck + 0.5, phase: 4.3 },
   ];
+  const dronesAt = drones.map((d) => new Vector3(d.x, d.y, d.z));
   const droneBody = own(
     merged([
       placed(new BoxGeometry(0.16, 0.04, 0.16), [0, 0, 0]),
@@ -344,26 +335,6 @@ export function createTraffic(o: {
   ledMesh.instanceColor = new InstancedBufferAttribute(new Float32Array(drones.length * 6), 3);
   ledMesh.frustumCulled = false;
   own(ledMesh);
-
-  // Searchlights: real coloured spotlights (created with the diorama) on the facades across the canyons, sweeping over
-  // the towers and the roof's edge; a lamp glowing at each.
-  const searchlights = o.spots.map((spot, k) => {
-    const lamp = new Mesh(
-      own(new PlaneGeometry(1, 1)),
-      own(
-        new MeshBasicMaterial({
-          map: glow,
-          color: spot.color.clone().multiplyScalar(2.2),
-          blending: AdditiveBlending,
-          depthWrite: false,
-          transparent: true,
-        }),
-      ),
-    );
-    lamp.renderOrder = 5;
-    group.add(lamp, spot.target);
-    return { spot, lamp, phase: k * 2.1, aim: spot.target.position.clone() };
-  });
 
   // The maglev: a guideway beside the roof's left, the train sweeping along it.
   const railZ = { from: roof.z1 + 14, to: roof.z0 - 26 };
@@ -407,6 +378,8 @@ export function createTraffic(o: {
   const yAxis = new Vector3(0, 1, 0);
   return {
     group,
+    vehicles,
+    drones: dronesAt,
     update(t: number) {
       streams.forEach((st, i) => {
         const len = st.a.distanceTo(st.b);
@@ -426,6 +399,11 @@ export function createTraffic(o: {
         dir.subVectors(to, from).normalize();
         look.setFromAxisAngle(yAxis, Math.atan2(-dir.z, dir.x));
         carMesh.setMatrixAt(i, m.compose(p, look, s.set(1, 1, 1)));
+        const v = vehicles[i];
+        if (v) {
+          v.pos.copy(p);
+          v.dir.copy(dir);
+        }
         const front = p.clone().addScaledVector(dir, 0.24);
         const back = p.clone().addScaledVector(dir, -0.24);
         lightMesh.setMatrixAt(i * 3, m.compose(front, camera.quaternion, s.setScalar(0.3)));
@@ -449,6 +427,7 @@ export function createTraffic(o: {
         );
         q.setFromAxisAngle(yAxis, t * 0.3 + d.phase);
         droneMesh.setMatrixAt(i, m.compose(p, q, s.set(1, 1, 1)));
+        dronesAt[i]?.copy(p);
         const blink = (t * 1.3 + d.phase) % 1 < 0.12;
         ledMesh.setMatrixAt(i * 2, m.compose(p.clone().setY(p.y - 0.03), camera.quaternion, s.setScalar(0.18)));
         ledMesh.setColorAt(i * 2, c.set(blink ? "#ff3030" : "#300808"));
@@ -461,17 +440,6 @@ export function createTraffic(o: {
       droneMesh.instanceMatrix.needsUpdate = true;
       ledMesh.instanceMatrix.needsUpdate = true;
       if (ledMesh.instanceColor) ledMesh.instanceColor.needsUpdate = true;
-      for (const sl of searchlights) {
-        sl.spot.target.position.set(
-          sl.aim.x + 3.5 * Math.sin(t * 0.23 + sl.phase),
-          sl.aim.y + 2 * Math.sin(t * 0.31 + sl.phase * 2),
-          sl.aim.z + 4 * Math.cos(t * 0.17 + sl.phase),
-        );
-        sl.spot.target.updateMatrixWorld();
-        sl.lamp.position.copy(sl.spot.position);
-        sl.lamp.quaternion.copy(camera.quaternion);
-        sl.lamp.scale.setScalar(0.9 + 0.1 * Math.sin(t * 13 + sl.phase));
-      }
       // The train: a pass every TRAIN_EVERY seconds, at speed.
       const run = (t % TRAIN_EVERY) / 5;
       const head = railZ.from + (railZ.to - railZ.from) * run;

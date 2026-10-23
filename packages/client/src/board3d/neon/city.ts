@@ -98,7 +98,9 @@ export function createCity(plan: NeonPlan, materials: Record<string, ArenaMateri
       }),
     );
     const mesh = new Mesh(own(merged(list.map((b) => buildingBox(b, street, TILE[style])))), material);
+    // They take and cast shadows: the searchlights sweep them, one tower shading the next.
     mesh.receiveShadow = true;
+    mesh.castShadow = true;
     group.add(mesh);
   }
 
