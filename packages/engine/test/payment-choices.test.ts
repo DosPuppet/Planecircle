@@ -1,12 +1,14 @@
 /**
  * Payment choices (PLAN-L L7): Phyrexian mana paid with life or mana as the player chooses (107.4f), the color of a
- * hybrid symbol chosen for any hybrid cost (107.4e).
+ * hybrid symbol chosen for any hybrid cost (107.4e). The automatic payment with multicolor lands: the color of a land
+ * tapped by hand, the least flexible lands first, the colors the rest of the hand needs spared.
  */
 import { describe, expect, it } from "vitest";
 import { RulesError } from "../src/errors";
 import { legalActions } from "../src/legal";
-import type { GameState } from "../src/types";
-import { act, idOf, lands, scenario } from "./helpers";
+import { canPay, manaSources, parseManaCost } from "../src/mana";
+import type { GameState, ManaType } from "../src/types";
+import { act, cast, castable, idOf, lands, scenario, settle } from "./helpers";
 
 const castOption = (s: GameState, card: string) => legalActions(s, "p1").find((a) => a.type === "cast" && a.card === card);
 const tappedLands = (s: GameState, name: string) =>
@@ -75,5 +77,91 @@ describe("payment choices (PLAN-L L7)", () => {
     const g = act(setup(), "p1", { type: "cast", card, hybridAs: "G" });
     expect([tappedLands(g, "Plains"), tappedLands(g, "Forest")]).toEqual([0, 1]);
     expect(() => act(setup(), "p1", { type: "cast", card, hybridAs: "U" })).toThrow(RulesError);
+  });
+});
+
+describe("automatic payment and multicolor lands", () => {
+  it("by hand: a dual land offers each of its colors and produces the chosen one", () => {
+    const s = scenario({ p1: { battlefield: ["Dismal Backwater", "Meticulous Archive"] } });
+    const backwater = idOf(s, "p1", "battlefield", "Dismal Backwater");
+    const archive = idOf(s, "p1", "battlefield", "Meticulous Archive");
+    const offered = (id: string) =>
+      legalActions(s, "p1").flatMap((a) => (a.type === "tapForMana" && a.source === id ? [a.colors] : []));
+    expect(offered(backwater)).toEqual([["U", "B"]]);
+    expect(offered(archive)).toEqual([["W"], ["U"]]);
+    let t = act(s, "p1", { type: "tapForMana", source: backwater, ability: 0, color: "B" });
+    t = act(t, "p1", { type: "tapForMana", source: archive, ability: 1, color: "U" });
+    expect(t.players.p1?.manaPool).toMatchObject({ W: 0, U: 1, B: 1 });
+  });
+
+  it("a land with two basic land types or a Verge is tapped after a basic land, whatever the order they were played in", () => {
+    // Meticulous Archive (Plains Island) has one ability per color: it is still a dual land, kept for later.
+    for (const order of [
+      ["Meticulous Archive", "Plains"],
+      ["Plains", "Meticulous Archive"],
+    ]) {
+      const s = cast(scenario({ p1: { battlefield: order, hand: ["Healer's Hawk"] } }), "p1", "Healer's Hawk");
+      expect([tappedLands(s, "Plains"), tappedLands(s, "Meticulous Archive")]).toEqual([1, 0]);
+    }
+    // Gloomlake Verge ({U}, or {B} with an Island or a Swamp): Duress paid with the Swamp, Opt still castable.
+    const v = cast(scenario({ p1: { battlefield: ["Gloomlake Verge", "Swamp"], hand: ["Duress", "Opt"] } }), "p1", "Duress", {
+      targets: { t: ["p2"] },
+    });
+    expect([tappedLands(v, "Swamp"), tappedLands(v, "Gloomlake Verge")]).toEqual([1, 0]);
+    expect(castable(v, "p1", idOf(v, "p1", "hand", "Opt"))).toBe(true);
+  });
+
+  it("the colors the rest of the hand needs are spared (as on Arena)", () => {
+    // Opt ({U}) with Dismal Backwater (U/B) and Mystic Monastery (U/R/W): the land whose other colors no card needs.
+    const pay = (other: string) => {
+      const s = settle(
+        cast(scenario({ p1: { battlefield: ["Dismal Backwater", "Mystic Monastery"], hand: ["Opt", other] } }), "p1", "Opt"),
+      );
+      return [
+        tappedLands(s, "Dismal Backwater"),
+        tappedLands(s, "Mystic Monastery"),
+        castable(s, "p1", idOf(s, "p1", "hand", other)),
+      ];
+    };
+    expect(pay("Duress")).toEqual([0, 1, true]);
+    expect(pay("Healer's Hawk")).toEqual([1, 0, true]);
+  });
+
+  it("castable exactly when a payment exists: the solver against every color of every land (500 random boards)", () => {
+    const pool = ["Plains", "Island", "Swamp", "Mountain", "Forest", "Wastes", "Dismal Backwater", "Blossoming Sands"];
+    pool.push("Jungle Hollow", "Mystic Monastery", "Adarkar Wastes", "Meticulous Archive", "Gloomlake Verge", "Mana Confluence");
+    let seed = 7;
+    const random = (n: number) => {
+      seed = (seed * 1103515245 + 12345) % 2 ** 31;
+      return seed % n;
+    };
+    const payable = (options: ManaType[][], colored: ManaType[], generic: number): boolean => {
+      const pick = (i: number, got: ManaType[]): boolean => {
+        if (i === options.length) {
+          const left = [...got];
+          for (const m of colored) {
+            const k = left.indexOf(m);
+            if (k < 0) return false;
+            left.splice(k, 1);
+          }
+          return left.length >= generic;
+        }
+        return pick(i + 1, got) || (options[i] ?? []).some((m) => pick(i + 1, [...got, m]));
+      };
+      return pick(0, []);
+    };
+    const wrong: string[] = [];
+    for (let n = 0; n < 500; n++) {
+      const board = Array.from({ length: 1 + random(6) }, () => pool[random(pool.length)] as string);
+      const s = scenario({ p1: { battlefield: board } });
+      const colored = Array.from({ length: 1 + random(Math.min(4, board.length)) }, () => "WUBRG"[random(5)] as ManaType);
+      const generic = random(3);
+      const text = `${generic ? `{${generic}}` : ""}${colored.map((m) => `{${m}}`).join("")}`;
+      // The types each land can produce now (a Verge's {B} needs an Island or a Swamp).
+      const sources = manaSources(s, "p1");
+      const options = s.battlefield.map((id) => [...new Set(sources.filter((x) => x.id === id).flatMap((x) => x.colors))]);
+      if (canPay(s, "p1", parseManaCost(text)) !== payable(options, colored, generic)) wrong.push(`${board.join(", ")}: ${text}`);
+    }
+    expect(wrong).toEqual([]);
   });
 });

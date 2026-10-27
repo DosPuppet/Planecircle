@@ -409,6 +409,11 @@ export interface ManaPurpose {
    * (`CastChoices.phyrexianLife`); absent: mana first, life for the symbols the mana does not cover.
    */
   phyrexianLife?: number;
+  /**
+   * The automatic payment (`payMana`): the types of mana the player's other cards ask for (`wantedTypes`). The sources
+   * that produce fewer of them are used first, so that the rest of the hand stays castable (as on Arena).
+   */
+  spare?: ReadonlySet<ManaType>;
 }
 
 /**
@@ -591,8 +596,8 @@ export function manaSources(
       out.push({ id, ability: DELVE, colors: [], amount: 1, isCreature: false, sacrifice: false, delve: true, key: id });
     }
   }
-  // Preference: lands, then creatures, then sacrificed sources, then convoke and waterbending, then delve; the least
-  // flexible first.
+  // Preference: lands, then creatures, then sacrificed sources, then convoke and waterbending, then delve; then those
+  // that produce the fewest types the rest of the hand needs (`purpose.spare`); then the least flexible.
   // Objects chosen by the player (convoke, improvise, waterbending, delve): first, they must be used.
   const chosen = (x: ManaSource) =>
     (x.convoke && purpose?.only?.convoke) ||
@@ -616,7 +621,36 @@ export function manaSources(
                 : x.isCreature
                   ? 1
                   : 0;
-  return out.sort((a, b) => rank(a) - rank(b) || a.colors.length - b.colors.length);
+  // The flexibility of a permanent: every type its abilities produce. A Verge or a land with two basic land types has
+  // one ability per color, but it is as flexible as a gain land: it is kept for later, after the basic lands.
+  const types = new Map<string, Set<ManaType>>();
+  for (const x of out) {
+    const set = types.get(x.key) ?? new Set<ManaType>();
+    for (const c of x.colors) set.add(c);
+    types.set(x.key, set);
+  }
+  const spare = purpose?.spare;
+  const wanted = (x: ManaSource) => (spare ? [...(types.get(x.key) ?? [])].filter((c) => spare.has(c)).length : 0);
+  const flexibility = (x: ManaSource) => types.get(x.key)?.size ?? 0;
+  return out.sort(
+    (a, b) => rank(a) - rank(b) || wanted(a) - wanted(b) || flexibility(a) - flexibility(b) || a.colors.length - b.colors.length,
+  );
+}
+
+/**
+ * The types of mana the player's other cards ask for (the hand, their commanders in the command zone), which the
+ * automatic payment spares (`ManaPurpose.spare`).
+ */
+function wantedTypes(s: GameState, player: PlayerId): Set<ManaType> {
+  const out = new Set<ManaType>();
+  const p = s.players[player];
+  for (const id of [...(p?.hand ?? []), ...(p?.command ?? [])]) {
+    const c = s.objects[id] ? defOf(s, id).manaCost : null;
+    if (!c) continue;
+    for (const m of MANA_TYPES) if (c.colored[m]) out.add(m);
+    for (const m of [...(c.hybrid ?? []).flat(), ...(c.twoHybrid ?? []), ...(c.phyrexian ?? [])]) out.add(m);
+  }
+  return out;
 }
 
 /**
@@ -1041,7 +1075,8 @@ export function payMana(
     if (split.life) payLife(s, player, split.life);
     cost = split.cost;
   }
-  const plan = solvePayment(s, player, cost, exclude, purpose);
+  const spare = wantedTypes(s, player);
+  const plan = solvePayment(s, player, cost, exclude, spare.size ? { ...purpose, spare } : purpose);
   if (!plan) throw new RulesError(msg("Not enough mana"));
   // The objects chosen by the player for convoke (or improvise, waterbending, delve) are all used.
   const tapped = new Set(plan.taps.map((t) => t.id));

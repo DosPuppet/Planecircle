@@ -662,8 +662,11 @@ export const RECORD_VERSION = 1;
  * - 211: the evidence an ability collects as a cost is chosen before the mana, which no longer exiles it (Cryptex
  *   collects other cards; Tenth District Hero, strict fuzz MKM seed 512); `legalActions` doesn't count the mana of the
  *   permanent a bargain sacrifices (a Treasure: Johann's Stopgap, strict fuzz WOE seed 411), nor that of the evidence.
+ * - 212: the automatic payment ranks a source by every type its permanent produces (a land with two basic land types or
+ *   a Verge is a dual land, tapped after the basic lands, whatever the order they were played in), and first uses the
+ *   sources that produce the fewest types the player's other cards need (hand, command zone; `ManaPurpose.spare`).
  */
-export const RULES_VERSION = 211;
+export const RULES_VERSION = 212;
 
 /** One checkpoint every N decisions (plus the last one of the game). */
 export const CHECKPOINT_EVERY = 25;
