@@ -38,10 +38,11 @@ const BUDGET: Record<string, number> = {
 /**
  * Stylesheet (PLAN-V): 56.5 KB before the MTGA restyle, 59 KB after it, 60.4 KB with the phone portrait layout,
  * 62.1 KB with the safe areas and the phone deck editor, 65.6 KB with the Arena-style home screen (2026-10-15; the old
- * home rules stay for the online and tutorial menus). A change deletes the rules it replaces.
+ * home rules stay for the online and tutorial menus), 68.2 KB with the online room where each player chooses their deck
+ * (2026-10-27). A change deletes the rules it replaces.
  */
 const CSS_BUDGET: Record<string, number> = {
-  index: 68 * KB,
+  index: 69 * KB,
 };
 
 execSync("npm run build -w @mtgx/client", { stdio: "pipe" });

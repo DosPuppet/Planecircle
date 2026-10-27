@@ -96,6 +96,21 @@ describe("Commander en ligne", () => {
   });
 });
 
+describe("Commander: deck chosen in the room", () => {
+  it("the deck sent in the room needs its commander; the AI seats are ready at once", async () => {
+    const port = await start();
+    const [a] = await connect(port, 1);
+    a?.send({ type: "create", name: "Alice", format: "commander", players: 2, ai: { count: 1, level: "beginner" } });
+    const created = await a!.next("room", (m) => m.room.players.length === 2);
+    expect([created.room.status, created.room.players.map((p) => p.ready)]).toEqual(["waiting", [false, true]]);
+    a?.send({ type: "deck", deck: PLAINS_99 });
+    expect((await a!.next("error")).code).toBe("deck");
+    a?.send({ type: "deck", deck: PLAINS_99, commander: ARAHBO });
+    const u = await a!.next("update");
+    expect(u.view.players.p1?.commanders?.[0]?.zone).toBe("command");
+  }, 30_000);
+});
+
 describe("resuming a three-player Commander room", () => {
   it("after a server restart, everyone resumes with their token: commanders and 40 life kept", async () => {
     const dataDir = mkdtempSync(join(tmpdir(), "mtgx-rooms-"));

@@ -350,22 +350,25 @@ interface Store {
   startScenario(scenario: ScenarioSpec): void;
   openTutorial(): void;
   openOnline(): void;
+  /** Creates an online room; each player chooses their deck in it (`chooseDeck`). */
   createRoom(
     name: string,
-    deck: DeckEntries,
     opts?: {
-      sideboard?: DeckEntries;
       bestOf?: 1 | 3;
       format?: Format;
       /** Number of players of the room (2 by default). */
       players?: 2 | 3 | 4;
-      /** Commander: the commander. */
-      commander?: DeckEntries;
       /** Seats held by the server's AI and its level (PLAN-E, E14). */
       ai?: { count: number; level: AiLevel };
     },
   ): void;
-  joinRoom(code: string, name: string, deck: DeckEntries, sideboard?: DeckEntries, commander?: DeckEntries): void;
+  joinRoom(code: string, name: string): void;
+  /** Online room, before a match or between two matches: the deck for the next match, then ready. */
+  chooseDeck(deck: { main: DeckEntries; sideboard?: DeckEntries; commander?: DeckEntries }): void;
+  /** No longer ready, to choose another deck. */
+  unready(): void;
+  /** After a match: back to the room, to choose another deck for the next one. */
+  openRoom(): void;
   /** Resumes this tab's online game (reconnection token), on load or after a disconnection. */
   resumeOnline(): void;
   /** Page opening: resumes this page's online game, otherwise the saved local game. */
@@ -1362,35 +1365,41 @@ export const useGame = create<Store>((set, get) => {
       set({ screen: "online", tutorialGame: false });
     },
 
-    createRoom(name, deck, opts = {}) {
+    createRoom(name, opts = {}) {
       set({ localMatch: null });
       connectRemote().raw({
         type: "create",
         name,
-        deck,
-        sideboard: opts.sideboard,
         bestOf: opts.bestOf,
         format: opts.format,
         ...(opts.players && opts.players > 2 ? { players: opts.players } : {}),
-        ...(opts.commander?.length ? { commander: opts.commander } : {}),
         ...(opts.ai?.count ? { ai: opts.ai } : {}),
         version: VERSION,
       });
       saveName(name);
     },
 
-    joinRoom(code, name, deck, sideboard, commander) {
+    joinRoom(code, name) {
       set({ localMatch: null });
-      connectRemote().raw({
-        type: "join",
-        code,
-        name,
-        deck,
-        sideboard,
-        ...(commander?.length ? { commander } : {}),
-        version: VERSION,
-      });
+      connectRemote().raw({ type: "join", code, name, version: VERSION });
       saveName(name);
+    },
+
+    chooseDeck(deck) {
+      (get().session as RemoteSession | null)?.raw({
+        type: "deck",
+        deck: deck.main,
+        ...(deck.sideboard?.length ? { sideboard: deck.sideboard } : {}),
+        ...(deck.commander?.length ? { commander: deck.commander } : {}),
+      });
+    },
+
+    unready() {
+      (get().session as RemoteSession | null)?.raw({ type: "unready" });
+    },
+
+    openRoom() {
+      if (get().online?.code) set({ screen: "online" });
     },
 
     resumeAtStartup() {

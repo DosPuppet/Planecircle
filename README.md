@@ -117,15 +117,15 @@ npm run dev          # http://localhost:5173
 ### Playing online (2 to 4 players)
 
 - **In development:** `npm run server` (game server, port 8787) and `npm run dev`. Open two tabs, then "Against a player": one creates the game, the other joins with the code or the link.
-- **Rooms:** Standard, Unlimited or Commander format; 2 to 4 seats, each held by a player or by a server AI (the game starts when all human seats are taken). With several players, a player who leaves concedes and the game goes on without them.
+- **Rooms:** Standard, Unlimited or Commander format; 2 to 4 seats, each held by a player or by a server AI. Each player chooses their deck in the room, legal in its format, then clicks "Ready": the game starts when all the seats are taken and everyone is ready (an AI always is). With several players, a player who leaves concedes and the game goes on without them.
 - **On a local network:** `npm run build` then `npm run server`. The server also serves the interface: your opponent opens the displayed "network" address (`http://<ip>:8787`).
 - **On a server (Internet, HTTPS):** Node + pm2 behind nginx, with a subdomain. The step-by-step guide is in [docs/deployment.md](docs/deployment.md); the files are in `deploy/` (pm2 configuration, nginx site, update script).
 - **Best-of-three match (BO3, duels only):** tick it when creating the room (and, against the AI, on the home screen). Between two games, each player adjusts their deck with their sideboard (same cards in total, legal deck), then the loser of the previous game starts the next one. The match stops at two wins.
 - **Room rules:**
   - 60 s per decision, with a rope shown during the last 20;
   - on expiry, a default decision is played; 3 expirations count as a loss;
-  - after a disconnection, 60 s to come back (by reloading the page), otherwise a loss;
-  - rematch possible in the same room.
+  - after a disconnection, 60 s to come back (by reloading the page), otherwise a loss (before the first game: the seat is freed);
+  - after a match, the same room plays the next one: "Rematch" with the same deck, or "Change the deck" back to the room to choose another.
 - **Environment variables:** `PORT`, `HOST` (`127.0.0.1` behind nginx), `MTGX_DECISION_MS`, `MTGX_GRACE_MS`, `MTGX_MAX_ROOMS`, `MTGX_DATA_DIR` (game saves, resumed after a restart; `data/rooms` by default), `MTGX_MAX_ROOMS_PER_IP` (4), `MTGX_ORIGINS` (origins allowed for the WebSocket besides the site itself), `MTGX_MAX_HEAP_MB`; AI seats: `MTGX_AI_WORKERS` (2), `MTGX_MAX_AI_ROOMS` (12), `MTGX_MAX_RSS_MB` (640). `/healthz` reports the server state (details in [docs/deployment.md](docs/deployment.md)).
 
 ### Replays and game export
@@ -174,6 +174,7 @@ Card images come from Scryfall (`cards.scryfall.io`). Some networks (company, sc
 | `npm run coverage [-- --set all\|standard\|<EXT>] [-- --text [--color W]] [-- --card "<name>"] [-- --deck <id\|all>] [-- --audit]` | Cards handled per set, Oracle texts of the remaining cards, text and script of a card; `--deck`: cards of a Commander deck to script; `--audit`: gaps between the Oracle text and the script of handled cards |
 | `npm run server` | Online game server (WebSocket `/ws`, also serves `packages/client/dist`) |
 | `npm run online-smoke [-- --base <url>]` | Online duel between two browsers: room, invitation link, rope, resume after reload, rematch (dev server by default, or `--base` toward a production server or nginx) |
+| `npx tsx tools/lobby-smoke.ts` | Online room: deck chosen in the room, ready states, another deck for the rematch, AI seat (`npm run server` and `npm run dev` running) |
 | `npm run proxy-smoke` | Image relay: Scryfall blocked (automatic switch to `/scry/`), "Images through the Planecircle server" checkbox (dev server running) |
 | `npm run bo3-smoke` | BO3 match against the AI: sideboard between games, loser starts, match outcome (dev server running) |
 | `npm run replay-smoke` | Replays: game against the AI exported, then reopened in the viewer (forward, back, end, point of view) (dev server running) |

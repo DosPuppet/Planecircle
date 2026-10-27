@@ -552,6 +552,14 @@ export function startServer(opts: ServerOptions = {}): Promise<RunningServer> {
             if (!current) throw new ClientError("state", msg("No game in progress."));
             current.room.rematch(current.seat).catch(fail);
             return;
+          case "deck":
+            if (!current) throw new ClientError("state", msg("No game in progress."));
+            current.room.chooseDeck(current.seat, message.deck, message.sideboard, message.commander).catch(fail);
+            return;
+          case "unready":
+            if (!current) throw new ClientError("state", msg("No game in progress."));
+            current.room.unready(current.seat).catch(fail);
+            return;
           case "sideboard":
             if (!current) throw new ClientError("state", msg("No game in progress."));
             current.room.sideboard(current.seat, message.main, message.sideboard).catch(fail);

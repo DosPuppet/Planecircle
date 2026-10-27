@@ -1,7 +1,8 @@
 /**
  * Rooms of two to four players (duel, multiplayer, Commander): one game (GameHost), a timer per decision, disconnections
  * with a return delay (a player who does not come back concedes: with more players, the game goes on without them),
- * rematch, BO3 in a duel. The server is authoritative on everything.
+ * rematch, BO3 in a duel. Each player chooses their deck in the room, before the first match and between two matches.
+ * The server is authoritative on everything.
  */
 import { createHash, randomBytes, randomInt, randomUUID } from "node:crypto";
 import {
@@ -185,7 +186,10 @@ interface SavedRoom {
 interface SeatState {
   seat: Seat;
   name: string;
-  /** Deck and sideboard of the current game (can change between the games of a BO3). */
+  /**
+   * Deck and sideboard of the current game (can change between the games of a BO3); empty until the player has chosen
+   * it (`chooseDeck`).
+   */
   deck: DeckEntries;
   side: DeckEntries;
   /** Commander: the commander (empty outside Commander). */
@@ -194,14 +198,16 @@ interface SeatState {
   ai?: AiLevel;
   /** Deck and sideboard at the start of the match: a sideboard swap must keep the same cards. */
   original: { main: DeckEntries; sideboard: DeckEntries };
-  /** Between two games: sideboard confirmed, ready for the next one. */
+  /**
+   * Ready for the next game: deck chosen (before a match, or after one: the rematch), sideboard confirmed (between two
+   * games of a BO3).
+   */
   ready: boolean;
   /** Reconnection token: known in memory, empty after a resume until the player has come back. */
   token: string;
   tokenHash: string;
   peer: Peer | null;
   timeouts: number;
-  rematch: boolean;
   /** Return deadline after a disconnection (Date.now()), or null if connected. */
   graceDeadline: number | null;
   graceTimer: ReturnType<typeof setTimeout> | null;
@@ -282,6 +288,24 @@ function checkCommander(raw: unknown): DeckEntries {
 }
 
 /**
+ * A deck chosen by a player (on creation, on arrival or in the room): deck, sideboard (none in Commander) and commander
+ * (Commander only), legal in the room's format.
+ */
+function checkDeckChoice(
+  format: Format,
+  deck: unknown,
+  sideboard: unknown,
+  commanderRaw: unknown,
+): { deck: DeckEntries; side: DeckEntries; commander: DeckEntries } {
+  const commander = format === "commander" ? checkCommander(commanderRaw) : [];
+  const d = checkDeck(deck, format, format === "commander" ? commander : undefined);
+  return { deck: d, side: format === "commander" ? [] : checkSide(d, sideboard, format), commander };
+}
+
+/** No deck yet: the player chooses it in the room. */
+const NO_DECK = { deck: [], side: [], commander: [] };
+
+/**
  * Checks the shape and the legality of a received deck: legal in the room's format and fully playable. Commander: with
  * its commander (`commander`).
  */
@@ -329,11 +353,14 @@ export class Room {
     private readonly config: RoomConfig,
     private readonly onClose: (room: Room) => void,
   ) {
-    // Nobody joins: the room is closed and its creator told.
+    // Nobody joins, or the players never get ready: the room is closed and its players told.
     this.waitingTimer = setTimeout(() => {
       if (this.status !== "waiting") return;
-      for (const s of this.seats)
-        s.peer?.send({ type: "error", code: "closed", message: msg("Room closed: no opponent joined it in time.") });
+      const message =
+        this.seats.length < this.size
+          ? msg("Room closed: no opponent joined it in time.")
+          : msg("Room closed: the players didn't choose their deck in time.");
+      for (const s of this.seats) s.peer?.send({ type: "error", code: "closed", message });
       this.close();
     }, config.waitingMs);
     this.waitingTimer.unref?.();
@@ -370,12 +397,12 @@ export class Room {
       commander,
       ...(ai ? { ai } : {}),
       original: { main: deck, sideboard: side },
-      ready: false,
+      // A deck sent with the arrival: ready at once.
+      ready: deck.length > 0,
       token: "",
       tokenHash: "",
       peer,
       timeouts: 0,
-      rematch: false,
       graceDeadline: null,
       graceTimer: null,
     };
@@ -385,8 +412,55 @@ export class Room {
     this.seats.sort((a, b) => (a.seat < b.seat ? -1 : 1));
     this.cancelCleanup();
     this.broadcastRoom();
-    if (this.seats.length === this.size) this.enqueue(() => this.start());
+    this.enqueue(() => this.startWhenReady());
     return seat;
+  }
+
+  /**
+   * Before a match (the room fills up) or after one: the deck for the next match, legal in the room's format, then
+   * ready. The player can change it as long as the match hasn't started.
+   */
+  chooseDeck(seat: SeatState, deck: unknown, sideboard: unknown, commander: unknown): Promise<void> {
+    return this.enqueue(async () => {
+      if (this.status !== "waiting" && this.status !== "over")
+        throw new ClientError("state", msg("The deck can only be changed before a match."));
+      const chosen = checkDeckChoice(this.match.format ?? "standard", deck, sideboard, commander);
+      seat.deck = chosen.deck;
+      seat.side = chosen.side;
+      seat.commander = chosen.commander;
+      seat.original = { main: chosen.deck, sideboard: chosen.side };
+      seat.ready = true;
+      this.broadcastRoom();
+      await this.startWhenReady();
+    });
+  }
+
+  /** No longer ready, to choose another deck (before the match starts). */
+  unready(seat: SeatState): Promise<void> {
+    return this.enqueue(async () => {
+      if (this.status !== "waiting" && this.status !== "over")
+        throw new ClientError("state", msg("The deck can only be changed before a match."));
+      seat.ready = false;
+      this.broadcastRoom();
+    });
+  }
+
+  /**
+   * The next match starts when the room is full and every player is ready: an AI always is, a human is connected and
+   * has chosen their deck. After a match: score reset, decks as chosen (before the sideboard swaps of a BO3).
+   */
+  private async startWhenReady(): Promise<void> {
+    if (this.status !== "waiting" && this.status !== "over") return;
+    if (this.seats.length < this.size || !this.seats.every((s) => s.ai || (s.ready && s.peer && s.deck.length > 0))) return;
+    if (this.status === "over") {
+      this.match = { ...this.match, wins: {}, game: 0, winner: null };
+      this.nextStarter = null;
+      for (const s of this.seats) {
+        s.deck = s.original.main;
+        s.side = s.original.sideboard;
+      }
+    }
+    await this.start();
   }
 
   // -------------------------------------------------------------------------
@@ -398,7 +472,6 @@ export class Room {
     this.waitingTimer = null;
     for (const s of this.seats) {
       s.timeouts = 0;
-      s.rematch = false;
       s.ready = false;
     }
     this.match = { ...this.match, game: this.match.game + 1 };
@@ -581,7 +654,6 @@ export class Room {
         ready: false,
         peer: null,
         timeouts: 0,
-        rematch: false,
         graceDeadline: null,
         graceTimer: null,
       });
@@ -747,22 +819,13 @@ export class Room {
     });
   }
 
+  /** After a match: ready for the next one with the same deck (AI seats always accept it). */
   rematch(seat: SeatState): Promise<void> {
     return this.enqueue(async () => {
       if (this.status !== "over") throw new ClientError("state", msg("The game is not over."));
-      seat.rematch = true;
+      seat.ready = true;
       this.broadcastRoom();
-      // AI seats always accept the rematch.
-      if (this.seats.length === this.size && this.seats.every((s) => s.ai || (s.rematch && s.peer))) {
-        // New match: score reset, original decks.
-        this.match = { ...this.match, wins: {}, game: 0, winner: null };
-        this.nextStarter = null;
-        for (const s of this.seats) {
-          s.deck = s.original.main;
-          s.side = s.original.sideboard;
-        }
-        await this.start();
-      }
+      await this.startWhenReady();
     });
   }
 
@@ -785,12 +848,18 @@ export class Room {
     this.sendOpponentStatus();
   }
 
-  /** Connection lost: the others are told; without a return in time, loss (or room removed). */
+  /**
+   * Connection lost: the others are told; without a return in time, loss (or room removed). Before the first match, the
+   * seat is freed: a player who has gone would keep the match from starting.
+   */
   disconnect(seat: SeatState): void {
     seat.peer = null;
-    if (this.status === "playing") {
+    if (this.status === "playing" || this.status === "waiting") {
       seat.graceDeadline = Date.now() + this.config.graceMs;
-      seat.graceTimer = setTimeout(() => this.enqueue(() => this.abandon(seat)), this.config.graceMs);
+      seat.graceTimer = setTimeout(
+        () => this.enqueue(async () => (this.status === "waiting" ? this.removeWaiting(seat) : this.abandon(seat))),
+        this.config.graceMs,
+      );
       seat.graceTimer.unref?.();
     }
     this.broadcastRoom();
@@ -802,11 +871,8 @@ export class Room {
   leave(seat: SeatState): Promise<void> {
     return this.enqueue(async () => {
       if (this.status === "waiting") {
-        this.seats.splice(this.seats.indexOf(seat), 1);
-        // No human left (only AI seats remain): the room closes.
-        if (!this.seats.some((s) => !s.ai)) this.close();
-        else this.broadcastRoom();
-        return;
+        seat.peer = null;
+        return this.removeWaiting(seat);
       }
       seat.peer = null;
       // Between two games of a BO3: leaving concedes the match.
@@ -819,6 +885,20 @@ export class Room {
       this.broadcastRoom();
       this.scheduleCleanupIfIdle();
     });
+  }
+
+  /** Before the first match: the seat is freed (a player who left, or who has not come back in time). */
+  private removeWaiting(seat: SeatState): void {
+    if (seat.graceTimer) clearTimeout(seat.graceTimer);
+    seat.graceTimer = null;
+    seat.graceDeadline = null;
+    const i = this.seats.indexOf(seat);
+    // Come back in time (the grace delay): the seat stays.
+    if (i < 0 || seat.peer) return;
+    this.seats.splice(i, 1);
+    // No human left (only AI seats remain): the room closes.
+    if (!this.seats.some((s) => !s.ai)) this.close();
+    else this.broadcastRoom();
   }
 
   private async abandon(seat: SeatState): Promise<void> {
@@ -897,8 +977,7 @@ export class Room {
           seat: s.seat,
           name: s.name,
           connected: !!s.peer || !!s.ai,
-          rematch: s.rematch || !!s.ai,
-          ready: s.ready,
+          ready: s.ready || !!s.ai,
           ...(s.ai ? { ai: s.ai } : {}),
         })),
         match: this.match,
@@ -1042,10 +1121,8 @@ export class RoomManager {
     const n = cleanName(name);
     const format: Format = isFormat(opts.format) || opts.format === "commander" ? (opts.format as Format) : "standard";
     const players = opts.players === 3 || opts.players === 4 ? opts.players : 2;
-    const commander = format === "commander" ? checkCommander(opts.commander) : [];
-    const d = checkDeck(deck, format, format === "commander" ? commander : undefined);
-    // No sideboard in Commander.
-    const side = format === "commander" ? [] : checkSide(d, opts.sideboard, format);
+    // The deck is optional: otherwise the creator chooses it in the room.
+    const chosen = deck === undefined || deck === null ? NO_DECK : checkDeckChoice(format, deck, opts.sideboard, opts.commander);
     if (this.rooms.size >= this.config.maxRooms) throw new ClientError("busy", msg("Server full, try again later."));
     // Memory: refuse a room rather than let pm2 restart the server (and cut all the games).
     const heapMb = process.memoryUsage().heapUsed / 1_048_576;
@@ -1067,7 +1144,7 @@ export class RoomManager {
       ...(players > 2 ? { seats: players, wins: {} } : {}),
     };
     this.rooms.set(room.code, room);
-    const seat = room.addPlayer(n, d, peer, side, commander);
+    const seat = room.addPlayer(n, chosen.deck, peer, chosen.side, chosen.commander);
     // AI seats: filled at once, with playable precons of the format drawn at random.
     if (ai) {
       const decks = aiDecks(format);
@@ -1116,12 +1193,10 @@ export class RoomManager {
     );
     if (!room) throw new ClientError("room", msg("Room not found: check the code."));
     if (room.status !== "waiting" || room.seats.length >= room.size) throw new ClientError("full", msg("This room is full."));
-    // The deck must be legal in the format chosen by the room's creator.
+    // The deck (optional: otherwise chosen in the room) must be legal in the format chosen by the room's creator.
     const format = room.match.format ?? "standard";
-    const commander = format === "commander" ? checkCommander(commanderRaw) : [];
-    const d = checkDeck(deck, format, format === "commander" ? commander : undefined);
-    const side = format === "commander" ? [] : checkSide(d, sideboard, format);
-    return { room, seat: room.addPlayer(cleanName(name), d, peer, side, commander) };
+    const chosen = deck === undefined || deck === null ? NO_DECK : checkDeckChoice(format, deck, sideboard, commanderRaw);
+    return { room, seat: room.addPlayer(cleanName(name), chosen.deck, peer, chosen.side, chosen.commander) };
   }
 
   byToken(token: unknown): { room: Room; seat: SeatState } | null {

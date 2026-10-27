@@ -10,6 +10,7 @@
   "tools/bo3-smoke.ts": "drives the French interface (default language): French button labels and texts it clicks or reads",
   "tools/commander-smoke.ts": "drives the French interface (default language): French button labels and texts it clicks or reads",
   "tools/deck-smoke.ts": "drives the French interface (default language): French button labels and texts it clicks or reads",
+  "tools/lobby-smoke.ts": "drives the French interface (default language): French button labels and texts it clicks or reads",
   "tools/online-smoke.ts": "drives the French interface (default language): French button labels and texts it clicks or reads",
   "tools/tutorial-smoke.ts": "drives the French interface (default language): French button labels and texts it clicks or reads",
   "tools/ui-smoke.ts": "drives the French interface (default language): French button labels and texts it clicks or reads"

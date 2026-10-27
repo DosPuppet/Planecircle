@@ -17,8 +17,10 @@ import type { AutopilotSettings, CardFace, Decision, Format, GameEvent, GameReco
  *   lists the cards of the game; the interface searches the whole catalog.
  * - 5: custom art by art set: a `customArt` of the view (face, token, player) may be the set's name ("custom:<set>"
  *   printings).
+ * - 6: the deck is chosen in the room: optional on create and join, `deck` (then ready) and `unready` before a match and
+ *   between two matches; `players[].ready` replaces `players[].rematch`.
  */
-export const PROTOCOL_VERSION = 5;
+export const PROTOCOL_VERSION = 6;
 
 /** Client versions (protocol and engine rules). */
 export interface ClientVersion {
@@ -64,12 +66,22 @@ export interface RoomInfo {
   seat: Seat;
   /** Reconnection token of the recipient (kept for `rejoin`). */
   token: string;
-  /** `sideboard`: between two games of a BO3, each player adjusts their deck with their sideboard. */
+  /**
+   * `waiting`: the room fills up and the players choose their deck; `sideboard`: between two games of a BO3, each
+   * player adjusts their deck with their sideboard; `over`: the match is over, the players choose their deck for the
+   * next one (or the same: rematch).
+   */
   status: "waiting" | "playing" | "sideboard" | "over";
-  /** `ready`: sideboard confirmed, ready for the next game; `ai`: seat held by the server AI (its level). */
-  players: { seat: Seat; name: string; connected: boolean; rematch: boolean; ready: boolean; ai?: AiLevel }[];
+  /**
+   * `ready`: ready for the next game (deck chosen before a match or for the rematch; sideboard confirmed between two
+   * games of a BO3); an AI seat always is. `ai`: seat held by the server AI (its level).
+   */
+  players: { seat: Seat; name: string; connected: boolean; ready: boolean; ai?: AiLevel }[];
   match: MatchInfo;
-  /** Current deck and sideboard of the recipient (between games: starting point of the swap); their commander. */
+  /**
+   * Current deck and sideboard of the recipient (between games: starting point of the swap); their commander. Empty
+   * until they have chosen it.
+   */
   deck: { main: DeckEntries; sideboard: DeckEntries; commander?: DeckEntries };
 }
 
@@ -77,7 +89,8 @@ export type ClientMessage =
   | {
       type: "create";
       name: string;
-      deck: DeckEntries;
+      /** The creator's deck, ready at once (optional: otherwise chosen in the room, `deck`). */
+      deck?: DeckEntries;
       sideboard?: DeckEntries;
       bestOf?: 1 | 3;
       format?: Format;
@@ -93,7 +106,8 @@ export type ClientMessage =
       type: "join";
       code: string;
       name: string;
-      deck: DeckEntries;
+      /** The deck of the joining player, ready at once (optional: otherwise chosen in the room, `deck`). */
+      deck?: DeckEntries;
       sideboard?: DeckEntries;
       /** Commander: the commander of the joining player. */
       commander?: DeckEntries;
@@ -103,7 +117,15 @@ export type ClientMessage =
   | { type: "leave" }
   | { type: "decision"; decision: Decision }
   | { type: "settings"; settings: Partial<AutopilotSettings> }
+  /** After a match: ready for the next one with the same deck. */
   | { type: "rematch" }
+  /**
+   * Before a match (the room fills up) or after one: the deck for the next match (legal in the room's format; Commander:
+   * with its commander), then ready. It can be changed as long as the match hasn't started.
+   */
+  | { type: "deck"; deck: DeckEntries; sideboard?: DeckEntries; commander?: DeckEntries }
+  /** No longer ready, to choose another deck (before the match starts). */
+  | { type: "unready" }
   /** Between two games (BO3): deck and sideboard for the next game (same cards in total), then ready. */
   | { type: "sideboard"; main: DeckEntries; sideboard: DeckEntries }
   /** Record of the finished game (replay, bug report); refused during the game (decks, seed). */

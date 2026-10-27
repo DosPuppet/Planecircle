@@ -1,7 +1,8 @@
 /**
  * End-to-end test of online play: two browsers (separate contexts) play a duel through the server.
- * A creates the game, B joins through the invitation link; both play by clicking, then the rope, the resumption after
- * a page reload, the end of the game and the rematch are checked. Screenshots in test-results/online/.
+ * A creates the game, B joins through the invitation link; each chooses their deck in the room (the preselected one) and
+ * says they are ready; both play by clicking, then the rope, the resumption after a page reload, the end of the game and
+ * the rematch are checked. Screenshots in test-results/online/.
  *
  * Requires: `npm run server` (MTGX_DECISION_MS=45000 advised) and `npm run dev` running.
  * Usage: npm run online-smoke -- [maxRounds] [--base http://127.0.0.1:8787]
@@ -106,12 +107,14 @@ await a.getByPlaceholder("Pseudo visible par votre adversaire").fill("Alice");
 await a.getByRole("button", { name: "Créer", exact: true }).click();
 const code = (await a.getByTestId("room-code").innerText({ timeout: 10_000 })).trim();
 check(/^[A-Z0-9]{6}$/.test(code), `room created (code ${code})`);
+await a.getByTestId("room-ready").click();
 await a.screenshot({ path: `${OUT}/1-waiting.png` });
 
 const b = await open(browser, "B", `${BASE}/?room=${code}`);
 await b.getByPlaceholder("Pseudo visible par votre adversaire").fill("Bob");
 check((await b.getByLabel("Code du salon").inputValue()) === code, "the invitation link prefills the code");
 await b.getByRole("button", { name: "Rejoindre" }).click();
+await b.getByTestId("room-ready").click({ timeout: 10_000 });
 
 /** Mulligans are decided one after the other (the first player first): keep as soon as asked. */
 async function keepBoth(): Promise<void> {

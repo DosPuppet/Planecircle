@@ -2690,6 +2690,41 @@ button.emblem-chip.activatable {
   letter-spacing: 12px;
   color: var(--gold);
 }
+/* The room: the players and their state, the deck for the next match. */
+.online-room {
+  width: min(520px, 100%);
+  margin: 0 auto;
+}
+.online-room h2 {
+  margin: 0;
+}
+.online-room .deck-pick,
+.online-seats {
+  align-self: stretch;
+  text-align: left;
+}
+.online-seats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.online-seats li {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.online-seats li.ready {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+.online-seats li.free {
+  border-style: dashed;
+  opacity: 0.6;
+}
 .waiting-dots::after {
   content: "…";
   animation: blink 1.2s steps(2) infinite;

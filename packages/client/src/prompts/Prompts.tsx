@@ -992,6 +992,7 @@ function GameOver({ view }: { view: GameView }) {
   const backToLobby = useGame((s) => s.backToLobby);
   const online = useGame((s) => s.online);
   const rematch = useGame((s) => s.rematch);
+  const openRoom = useGame((s) => s.openRoom);
   const localMatch = useGame((s) => s.localMatch);
   const replay = useGame((s) => !!s.replay);
   const nextGame = useGame((s) => s.nextGame);
@@ -1008,7 +1009,8 @@ function GameOver({ view }: { view: GameView }) {
   if (!view.over || coached || replay) return null;
   const me = online?.players.find((p) => p.seat === online.seat);
   const opp = online?.players.find((p) => p.seat !== online.seat);
-  // Multiplayer: the rematch waits until all the other players, still connected, accept it.
+  // Multiplayer: the rematch waits until all the other players, still connected, accept it (`ready` once the match is
+  // over: the next match's deck chosen, the same one for a rematch).
   const others = online?.players.filter((p) => p.seat !== online.seat) ?? [];
   const multi = others.length > 1;
   const othersConnected = others.every((p) => p.connected);
@@ -1077,19 +1079,19 @@ function GameOver({ view }: { view: GameView }) {
           onSubmit={nextGame}
         />
       )}
-      {online && !multi && opp?.rematch && !me?.rematch && (
+      {online && !between && !multi && opp?.ready && !me?.ready && (
         <p className="hint">{t("{name} offers a rematch.", { name: opp.name })}</p>
       )}
-      {online && multi && others.some((p) => p.rematch) && !me?.rematch && (
+      {online && !between && multi && others.some((p) => p.ready) && !me?.ready && (
         <p className="hint">
-          {others.filter((p) => p.rematch).length > 1
+          {others.filter((p) => p.ready).length > 1
             ? t("{names} offer a rematch.", {
                 names: others
-                  .filter((p) => p.rematch)
+                  .filter((p) => p.ready)
                   .map((p) => p.name)
                   .join(", "),
               })
-            : t("{name} offers a rematch.", { name: others.find((p) => p.rematch)?.name ?? "" })}
+            : t("{name} offers a rematch.", { name: others.find((p) => p.ready)?.name ?? "" })}
         </p>
       )}
       <div className="modal-actions">
@@ -1097,19 +1099,25 @@ function GameOver({ view }: { view: GameView }) {
           <button
             type="button"
             className="btn primary"
-            disabled={!!me?.rematch || !othersConnected}
+            disabled={!!me?.ready || !othersConnected}
             onClick={rematch}
             title={
               !othersConnected ? (multi ? t("A player has left the game") : t("Your opponent has left the game")) : undefined
             }
           >
-            {me?.rematch
+            {me?.ready
               ? multi
                 ? t("Waiting for the other players…")
                 : opp?.name
                   ? t("Waiting for {name}…", { name: opp.name })
                   : t("Waiting for the opponent…")
               : t("Rematch")}
+          </button>
+        )}
+        {/* Another deck for the next match: back to the room. */}
+        {online && !between && (
+          <button type="button" className="btn" data-testid="change-deck" onClick={openRoom}>
+            {t("Change the deck")}
           </button>
         )}
         <button type="button" className="btn ghost" onClick={() => setViewing(true)}>

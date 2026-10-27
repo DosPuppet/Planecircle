@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { WebSocket } from "ws";
 import { type RunningServer, startServer } from "../src/index";
 import { checkDeck, ipKey } from "../src/rooms";
-import { Client, duel, GREEN, server, VERSION } from "./helpers";
+import { Client, duel, GREEN, RED, server, VERSION } from "./helpers";
 
 let srv: RunningServer | null = null;
 const clients: Client[] = [];
@@ -153,12 +153,104 @@ describe("complete game", () => {
     await a.next("update", (m) => m.view.over);
     await b.next("update", (m) => m.view.over);
     a.send({ type: "rematch" });
-    expect((await b.next("room", (m) => m.room.players.some((p) => p.rematch))).room.status).toBe("over");
+    expect((await b.next("room", (m) => m.room.players.some((p) => p.ready))).room.status).toBe("over");
     b.send({ type: "rematch" });
     const fresh = await a.next("update", (m) => !m.view.over);
     expect(fresh.view.players.p1?.life).toBe(20);
     const room = await b.next("room", (m) => m.room.status === "playing");
-    expect(room.room.players.every((p) => !p.rematch)).toBe(true);
+    expect(room.room.players.every((p) => !p.ready)).toBe(true);
+  });
+});
+
+/** Names of the cards of an update's hand (first update of a game: the opening hand). */
+const handNames = (m: { view: { hand: { name: string }[] } }) => m.view.hand.map((c) => c.name);
+const inDeck = (deck: typeof GREEN) => (name: string) => deck.some(([, n]) => n === name);
+
+describe("deck chosen in the room", () => {
+  /** Alice creates a room without a deck, Bob joins it without a deck. */
+  async function emptyRoom(port: number) {
+    const [a, b] = await Promise.all([Client.connect(port), Client.connect(port)]);
+    clients.push(a, b);
+    a.send({ type: "create", name: "Alice" });
+    const created = await a.next("room");
+    b.send({ type: "join", code: created.room.code, name: "Bob" });
+    await a.next("room", (m) => m.room.players.length === 2);
+    return { a, b, code: created.room.code };
+  }
+
+  it("the room fills up without decks; the game starts when both have chosen theirs, with those decks", async () => {
+    const port = await start();
+    const { a, b } = await emptyRoom(port);
+    const full = await b.next("room", (m) => m.room.players.length === 2);
+    expect(full.room.status).toBe("waiting");
+    expect(full.room.players.map((p) => p.ready)).toEqual([false, false]);
+    expect(full.room.deck.main).toEqual([]);
+    a.send({ type: "deck", deck: GREEN });
+    const one = await b.next("room", (m) => m.room.players.some((p) => p.ready));
+    expect([one.room.status, one.room.players.map((p) => p.ready)]).toEqual(["waiting", [true, false]]);
+    b.send({ type: "deck", deck: RED });
+    // The room's "playing" comes before the first update (`next` consumes the messages it skips).
+    expect((await a.next("room", (m) => m.room.status === "playing")).room.deck.main).toEqual(GREEN);
+    expect(handNames(await a.next("update")).every(inDeck(GREEN))).toBe(true);
+    expect(handNames(await b.next("update")).every(inDeck(RED))).toBe(true);
+  });
+
+  it("a player changes their deck before the start: the last one chosen is played; unready holds the start", async () => {
+    const port = await start();
+    const { a, b } = await emptyRoom(port);
+    a.send({ type: "deck", deck: GREEN });
+    await a.next("room", (m) => m.room.players[0]?.ready === true);
+    a.send({ type: "unready" });
+    await b.next("room", (m) => m.room.players[0]?.ready === false);
+    b.send({ type: "deck", deck: RED });
+    await a.next("room", (m) => m.room.players[1]?.ready === true);
+    // Alice is no longer ready: no game yet.
+    expect(a.received.some((m) => m.type === "update")).toBe(false);
+    a.send({ type: "deck", deck: RED });
+    expect(handNames(await a.next("update")).every(inDeck(RED))).toBe(true);
+  });
+
+  it("an illegal deck is refused in the room; the deck can't be changed during a game", async () => {
+    const port = await start();
+    const { a, b } = await emptyRoom(port);
+    a.send({ type: "deck", deck: [[40, "Forest"]] });
+    expect((await a.next("error")).code).toBe("deck");
+    a.send({ type: "deck", deck: GREEN });
+    b.send({ type: "deck", deck: RED });
+    await a.next("update");
+    a.send({ type: "deck", deck: RED });
+    expect((await a.next("error")).code).toBe("state");
+    a.send({ type: "unready" });
+    expect((await a.next("error")).code).toBe("state");
+  });
+
+  it("between two matches: another deck for the next match, in the same room", async () => {
+    const port = await start();
+    const { a, b } = await pair(port, false);
+    a.send({ type: "decision", decision: { type: "concede" } });
+    await a.next("update", (m) => m.view.over);
+    await b.next("update", (m) => m.view.over);
+    // Alice played GREEN (pair): she takes RED for the rematch, Bob keeps his deck.
+    a.send({ type: "deck", deck: RED });
+    const ready = await b.next("room", (m) => m.room.players[0]?.ready === true);
+    expect(ready.room.status).toBe("over");
+    b.send({ type: "rematch" });
+    const room = await a.next("room", (m) => m.room.status === "playing");
+    expect([room.room.deck.main, room.room.match.game, room.room.match.wins]).toEqual([RED, 1, {}]);
+    expect(handNames(await a.next("update", (m) => !m.view.over)).every(inDeck(RED))).toBe(true);
+  });
+
+  it("a player who leaves the waiting room, or doesn't come back in time, frees their seat", async () => {
+    const port = await start({ graceMs: 150 });
+    const { a, b, code } = await emptyRoom(port);
+    b.send({ type: "leave" });
+    expect((await a.next("room", (m) => m.room.players.length === 1)).room.status).toBe("waiting");
+    const c = await Client.connect(port);
+    clients.push(c);
+    c.send({ type: "join", code, name: "Chloe" });
+    await a.next("room", (m) => m.room.players.length === 2);
+    await c.close();
+    expect((await a.next("room", (m) => m.room.players.length === 1, 5000)).room.players[0]?.name).toBe("Alice");
   });
 });
 
