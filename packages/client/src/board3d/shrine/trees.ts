@@ -49,6 +49,78 @@ function rng(seed: number): () => number {
   };
 }
 
+/** A momiji leaf with its center at (x, y): seven pointed lobes fanned from the stem, the middle one `s` long toward
+ * `turn`, the basal pair small and pointing back; toothed edges, a stem, veins in `vein`. Filled with the current style. */
+export function mapleLeaf(g: CanvasRenderingContext2D, x: number, y: number, s: number, turn: number, vein: string): void {
+  const lobes: [number, number][] = [
+    [-1.95, 0.45],
+    [-1.25, 0.76],
+    [-0.62, 0.94],
+    [0, 1],
+    [0.62, 0.94],
+    [1.25, 0.76],
+    [1.95, 0.45],
+  ];
+  const sinus = [0.2, 0.28, 0.3, 0.3, 0.28, 0.2];
+  // A point `d` along the lobe at angle `a` from the middle one, `l` across it (toward greater angles).
+  const on = (a: number, d: number, l: number): [number, number] => {
+    const t = turn + a;
+    return [x + (Math.cos(t) * d - Math.sin(t) * l) * s, y + (Math.sin(t) * d + Math.cos(t) * l) * s];
+  };
+  // One edge of a lobe, from its sinus to its tip, toothed.
+  const edge = (a: number, len: number, from: [number, number], side: number): [number, number][] => {
+    const c1 = on(a, 0.4 * len, side * 0.17 * len);
+    const c2 = on(a, 0.75 * len, side * 0.07 * len);
+    const tip = on(a, len, 0);
+    const out: [number, number][] = [];
+    const n = 16;
+    for (let k = 0; k <= n; k++) {
+      const t = k / n;
+      const u = 1 - t;
+      const w = [u * u * u, 3 * u * u * t, 3 * u * t * t, t * t * t] as const;
+      let px = w[0] * from[0] + w[1] * c1[0] + w[2] * c2[0] + w[3] * tip[0];
+      let py = w[0] * from[1] + w[1] * c1[1] + w[2] * c2[1] + w[3] * tip[1];
+      // Teeth leaning toward the tip, none at the sinus or the tip.
+      if (k % 2 && t > 0.2 && t < 0.85) {
+        const across = side * 0.03 * len * s;
+        const along = 0.025 * len * s;
+        px += Math.cos(turn + a) * along - Math.sin(turn + a) * across;
+        py += Math.sin(turn + a) * along + Math.cos(turn + a) * across;
+      }
+      out.push([px, py]);
+    }
+    return out;
+  };
+  const stem = turn + Math.PI;
+  const outline: [number, number][] = [[x + Math.cos(stem - 0.3) * 0.08 * s, y + Math.sin(stem - 0.3) * 0.08 * s]];
+  lobes.forEach(([a, len], i) => {
+    const before = outline[outline.length - 1] as [number, number];
+    const next = lobes[i + 1];
+    const after: [number, number] = next
+      ? on((a + next[0]) / 2, sinus[i] as number, 0)
+      : [x + Math.cos(stem + 0.3) * 0.08 * s, y + Math.sin(stem + 0.3) * 0.08 * s];
+    outline.push(...edge(a, len, before, -1).slice(1), ...edge(a, len, after, 1).reverse().slice(1));
+  });
+  g.beginPath();
+  for (const [px, py] of outline) g.lineTo(px, py);
+  g.fill();
+  g.lineCap = "round";
+  g.strokeStyle = g.fillStyle;
+  g.lineWidth = Math.max(1, s * 0.05);
+  g.beginPath();
+  g.moveTo(x, y);
+  g.quadraticCurveTo(...on(Math.PI, 0.3, 0.06), ...on(Math.PI, 0.6, 0.12));
+  g.stroke();
+  g.strokeStyle = vein;
+  g.lineWidth = Math.max(1, s * 0.025);
+  for (const [a, len] of lobes) {
+    g.beginPath();
+    g.moveTo(x, y);
+    g.lineTo(...on(a, len * 0.85, 0));
+    g.stroke();
+  }
+}
+
 /** The leaves, light gray on transparent: each card's instance color gives its hue. */
 function atlas(): CanvasTexture {
   const c = document.createElement("canvas");
@@ -93,22 +165,7 @@ function atlas(): CanvasTexture {
       const s = 30 + r() * 16;
       const turn = r() * Math.PI * 2;
       g.fillStyle = `rgb(${225 + r() * 25}, ${225 + r() * 25}, ${225 + r() * 25})`;
-      g.beginPath();
-      for (let p = 0; p <= 14; p++) {
-        const a = turn + (p / 14) * Math.PI * 2;
-        const rr = p % 2 ? s * 0.4 : s;
-        g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
-      }
-      g.fill();
-      g.strokeStyle = "rgba(120, 110, 100, 0.6)";
-      g.lineWidth = 1.5;
-      for (let p = 0; p < 7; p++) {
-        const a = turn + (p / 7) * Math.PI * 2;
-        g.beginPath();
-        g.moveTo(x, y);
-        g.lineTo(x + Math.cos(a) * s * 0.9, y + Math.sin(a) * s * 0.9);
-        g.stroke();
-      }
+      mapleLeaf(g, x, y, s, turn, "rgba(120, 110, 100, 0.6)");
     }
   });
   // Leaves: a cluster of pointed ovals on twigs.

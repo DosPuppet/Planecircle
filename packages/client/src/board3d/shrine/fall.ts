@@ -20,6 +20,7 @@ import {
 } from "three";
 import type { ShrinePlan } from "./plan";
 import type { SeasonLook } from "./season";
+import { mapleLeaf } from "./trees";
 
 /** Share of the falling things allowed to start over the battlefields. */
 export const OVER_TABLE = 0.12;
@@ -31,28 +32,25 @@ function sprite(kind: "petal" | "leaf" | "snow"): CanvasTexture {
   const g = c.getContext("2d") as CanvasRenderingContext2D;
   g.fillStyle = "#ffffff";
   g.beginPath();
-  if (kind === "snow") {
+  if (kind === "leaf") {
+    // A momiji leaf, its stem down; its veins a little darker than the tint.
+    mapleLeaf(g, 32, 38, 30, -Math.PI / 2, "rgba(150, 130, 120, 0.7)");
+  } else if (kind === "snow") {
     const r = g.createRadialGradient(32, 32, 0, 32, 32, 30);
     r.addColorStop(0, "rgba(255,255,255,1)");
     r.addColorStop(0.6, "rgba(255,255,255,0.8)");
     r.addColorStop(1, "rgba(255,255,255,0)");
     g.fillStyle = r;
     g.arc(32, 32, 30, 0, Math.PI * 2);
-  } else if (kind === "petal") {
+  } else {
     // A sakura petal: an oval notched at its tip.
     g.moveTo(32, 60);
     g.bezierCurveTo(4, 44, 10, 8, 26, 6);
     g.lineTo(32, 14);
     g.lineTo(38, 6);
     g.bezierCurveTo(54, 8, 60, 44, 32, 60);
-  } else {
-    for (let p = 0; p <= 14; p++) {
-      const a = (p / 14) * Math.PI * 2 - Math.PI / 2;
-      const r = p % 2 ? 11 : 28;
-      g.lineTo(32 + Math.cos(a) * r, 34 + Math.sin(a) * r);
-    }
   }
-  g.fill();
+  if (kind !== "leaf") g.fill();
   const t = new CanvasTexture(c);
   t.colorSpace = SRGBColorSpace;
   return t;
@@ -80,7 +78,7 @@ export function createFall(plan: ShrinePlan, look: NonNullable<SeasonLook["falli
   mesh.renderOrder = 3;
   const { stage, rim } = plan;
   const area = { x0: stage.x0 - 5, x1: stage.x1 + 5, z0: stage.z0 - 4, z1: stage.z1 + 1.5 };
-  const size = look.kind === "snow" ? 0.05 : look.kind === "petal" ? 0.07 : 0.11;
+  const size = look.kind === "snow" ? 0.05 : look.kind === "petal" ? 0.07 : 0.13;
   const fall = look.kind === "snow" ? 0.16 : look.kind === "petal" ? 0.22 : 0.3;
   let seed = 17;
   const rand = () => {
