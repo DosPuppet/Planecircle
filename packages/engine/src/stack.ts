@@ -60,6 +60,7 @@ import {
   opponentsOf,
   removeFromGame,
   rulesEvent,
+  seeHandCards,
   shuffle,
   sickForActivation,
   snapshot,
@@ -2701,6 +2702,7 @@ export function castSpell(s: GameState, player: PlayerId, card: ObjectId, choice
   // Beholding cards from the hand: they are revealed.
   const revealed = beheldIds.filter((id) => s.objects[id]?.zone === "hand");
   if (revealed.length) emit({ type: "reveal", player, defIds: revealed.map((id) => s.objects[id]?.defId ?? "") });
+  seeHandCards(s, revealed, s.playerOrder);
   // Permanents another cost still needs (sacrificed, sacrificed instead of a discard, or the kicker's sacrificed, blighted
   // or returned permanent): the payment doesn't use their mana abilities that sacrifice them (Treasure).
   const neededForCosts = [

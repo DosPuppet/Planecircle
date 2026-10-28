@@ -97,6 +97,11 @@ export type ChoiceRequest = ChoiceBase &
         options: string[];
         min: number;
         max: number;
+        /**
+         * Cards shown with the options that can't be chosen: the rest of another player's hand looked at (Deep-Cavern
+         * Bat: its lands; Duress: its creatures and lands).
+         */
+        unchoosable?: string[];
         /** Constraint between the chosen options: same player or different players (the player of each option). */
         group?: { kind: "same" | "different"; holders: Record<string, string> };
       }

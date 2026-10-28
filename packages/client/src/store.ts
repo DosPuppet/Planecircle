@@ -301,6 +301,8 @@ interface Store {
   graveyardOpen: string | null;
   /** Exile being viewed (cards owned by this player). */
   exileOpen: string | null;
+  /** Opponent's hand being viewed: the cards of it you have seen (Deep-Cavern Bat, Duress). */
+  handOpen: string | null;
   fx: Fx[];
   turnBanner: { id: number; text: string; mine: boolean } | null;
   spotlight: { id: number; face: CardFace; who: string } | null;
@@ -478,6 +480,7 @@ interface Store {
   toggleSelection(id: string): void;
   openGraveyard(player: string | null): void;
   openExile(player: string | null): void;
+  openHand(player: string | null): void;
 }
 
 /**
@@ -1216,6 +1219,7 @@ export const useGame = create<Store>((set, get) => {
     drawerOpen: false,
     graveyardOpen: null,
     exileOpen: null,
+    handOpen: null,
     fx: [],
     turnBanner: null,
     spotlight: null,
@@ -2237,6 +2241,10 @@ export const useGame = create<Store>((set, get) => {
 
     openExile(player) {
       set({ exileOpen: player });
+    },
+
+    openHand(player) {
+      set({ handOpen: player });
     },
   };
 });

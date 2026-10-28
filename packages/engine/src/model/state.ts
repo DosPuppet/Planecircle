@@ -184,6 +184,11 @@ export interface GameObject {
   linked?: ObjectId[];
   /** Exiled face down (406.3): the players who may look at it (empty: nobody). */
   exiledFaceDown?: PlayerId[];
+  /**
+   * Card in a hand that other players have seen (looked at or revealed: Deep-Cavern Bat, Duress, Gitaxian Probe): their
+   * view of that hand shows it (`PlayerView.knownHand`) until it leaves the hand (it is then another object).
+   */
+  knownTo?: PlayerId[];
   /** Unearthed (702.84a): if it would leave the battlefield, it is exiled instead. */
   exileIfLeaves?: boolean;
   /** Creatures that saddled or crewed this permanent (cost paid this turn). */

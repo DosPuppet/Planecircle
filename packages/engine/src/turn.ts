@@ -56,6 +56,7 @@ import {
   opponentsOf,
   P1P1,
   rulesEvent,
+  seeHandCards,
   shuffle,
   syncControl,
   tapObject,
@@ -328,6 +329,7 @@ export function answerLeylines(s: GameState, player: PlayerId, cards: ObjectId[]
     // turn, which hasn't begun yet).
     if (o && l !== true && l.revealFirstUpkeep) {
       emit({ type: "reveal", player, defIds: [o.defId] });
+      seeHandCards(s, [id], s.playerOrder);
       createDelayed(s, player, id, o.defId, { targets: [], effects: l.revealFirstUpkeep, bound: {}, vars: {} }, "nextUpkeep");
       const d = s.delayed[s.delayed.length - 1];
       if (d) d.notBeforeTurn = s.turn.number;

@@ -525,6 +525,37 @@ button {
 .opp-back .card-back {
   box-shadow: var(--shadow-1);
 }
+/* Cards seen in this hand (Deep-Cavern Bat, Duress): the hand is a button, an eye and their number under it. */
+.opp-hand.known {
+  position: relative;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.opp-hand-known {
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  translate: -50% 0;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 0 7px;
+  border-radius: 8px;
+  background: rgba(14, 17, 23, 0.85);
+  color: var(--gold);
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: var(--shadow-1);
+}
+.opp-hand.known:hover .opp-hand-known {
+  background: var(--gold);
+  color: #111;
+}
 
 /* Battlefield (layout computed in board/layout.ts):
    front row = creatures; back row = lands, then artifacts and enchantments;

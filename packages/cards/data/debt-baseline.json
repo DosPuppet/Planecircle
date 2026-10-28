@@ -196,7 +196,7 @@
   "ceilings": {
     "Single-card values": 152,
     "CardDef": 52,
-    "GameObject": 51,
+    "GameObject": 52,
     "StackItem": 29,
     "PlayerState": 24,
     "GameState": 39,
@@ -347,6 +347,7 @@
     "PLAN-M M10d [rules 206]: medium card lifts — CostDef.manaOfSource (embalm granted, Cursecloth Wrappings), ActivatedAbilityDef.fromLibraryTop (plot from the library, Fblthp), CastInfo.modes (modes chosen, Riku of Many Paths), Effect fields castNow.discard (The Infamous Cruelclaw) and sacrifice.exploit (Henry Wu); single-card values +3: spent.what modes (Riku of Many Paths), playerEffect duration nextCombat (Bumi, Unleashed), action exploit (Henry Wu; the exploit keyword's event): CostDef 31 → 32, ActivatedAbilityDef 19 → 20, CastInfo 10 → 11, Effect (fields) 635 → 637, Single-card values 148 → 151: Single-card values 148 → 151, CostDef 31 → 32, ActivatedAbilityDef 19 → 20, CastInfo 10 → 11, Effect (fields) 635 → 637",
     "PLAN-M M11a/b: CostDef.reveal ('you may reveal a [filter] card from your hand', the four reveal lands, a pay effect asked as it enters) 32 -> 33; counterOnOrCreate.store (the Army that got amass's counters: Goblin Plate Mail attaches to it) Effect (fields) 637 -> 638: CostDef 32 → 33, Effect (fields) 637 → 638",
     "PLAN-M M11c [rules 208]: GameState.offStack, the queue of actions outside the stack (an arrival outside a resolution that asks questions: a return from a linked exile with an Aura host among several, 'as it enters' effects, riot or a shock land; Gemstone Caverns' exile from the hand), run at the next check before priority as a resolution without the stack: GameState 38 → 39",
-    "North Wind Avatar [rules 209]: the sideboard as the zone outside the game (400.11b; Zone \"sideboard\", PlayerState.sideboard, PlayerSetup.sideboard); pickFromZone zone \"sideboard\" is written by one card for now, the generic form that Extrapolate the Impossible and Turtles Forever can use (\"from outside the game\"): Single-card values 151 → 152, PlayerState 23 → 24"
+    "North Wind Avatar [rules 209]: the sideboard as the zone outside the game (400.11b; Zone \"sideboard\", PlayerState.sideboard, PlayerSetup.sideboard); pickFromZone zone \"sideboard\" is written by one card for now, the generic form that Extrapolate the Impossible and Turtles Forever can use (\"from outside the game\"): Single-card values 151 → 152, PlayerState 23 → 24",
+    "Cards seen in another player's hand (look, reveal, Duress family, Deep-Cavern Bat): field GameObject.knownTo, read by the view (PlayerView.knownHand): GameObject 51 → 52"
   ]
 }

@@ -11,6 +11,8 @@ The game screen follows MTG Arena, as phase-rs does. The DOM board (graphics "fu
   - `hover` stays in the store after the pointer leaves, because the tutorial reads it. `hoverLive` says whether the pointer is still on the card. `previewHold` keeps the preview open during a tutorial step.
   - On a touch screen, a long press opens `TouchPreview`.
 - **Opponents** sit at the top, centered: avatar, counts, and their hand as card backs fanned and cut by the screen edge (`OpponentHand`).
+  - When you have seen cards of that hand (Deep-Cavern Bat, Duress, Gitaxian Probe: `PlayerView.knownHand`), the hand becomes a button with an eye and their number under it; a click opens `HandViewer` (`prompts/Prompts.tsx`): the cards seen that are still there, face up, the others face down. The 3D board uses the same component.
+  - A choice in another player's hand shows the whole hand: the cards that can't be chosen (`unchoosable`) come after the options, greyed (`dim`), not clickable.
 - **Center line:**
   - a hairline across the table;
   - the phase pills on the left, the current step underlined in the color of the player whose turn it is;

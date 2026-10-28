@@ -190,6 +190,11 @@ export interface PlayerView {
   rad?: number;
   /** Turns the player will skip (Ral Zarek, Guest Lecturer), absent when none. */
   skipTurns?: number;
+  /**
+   * Cards of this player's hand that the viewer has seen (looked at or revealed) and that are still there, in hand
+   * order; absent when there are none (and for the viewer's own hand).
+   */
+  knownHand?: ObjectView[];
 }
 
 export type PendingView =
@@ -592,6 +597,7 @@ export function projectView(s: GameState, viewer: PlayerId): GameView {
   for (const p of s.playerOrder) {
     const pl = s.players[p];
     if (!pl) continue;
+    const known = p === viewer ? [] : pl.hand.filter((id) => s.objects[id]?.knownTo?.includes(viewer));
     players[p] = {
       id: p,
       name: pl.name,
@@ -604,6 +610,7 @@ export function projectView(s: GameState, viewer: PlayerId): GameView {
       ...(pl.counters?.poison ? { poison: pl.counters.poison } : {}),
       ...(pl.counters?.rad ? { rad: pl.counters.rad } : {}),
       ...(turnsToSkip(s, p) ? { skipTurns: turnsToSkip(s, p) } : {}),
+      ...(known.length ? { knownHand: known.map((id) => objectView(s, id)) } : {}),
       graveyard: pl.graveyard.map((id) => objectView(s, id)),
       manaPool: { ...pl.manaPool },
       ...(pl.restrictedMana?.length ? { restrictedMana: pl.restrictedMana.map((m) => m.type) } : {}),
@@ -666,7 +673,14 @@ export function projectView(s: GameState, viewer: PlayerId): GameView {
           break;
         }
         const r = p.request;
-        const ids = r.type === "pick" ? r.options : r.type === "order" ? r.items : r.type === "divide" ? r.among : [];
+        const ids =
+          r.type === "pick"
+            ? [...r.options, ...(r.unchoosable ?? [])]
+            : r.type === "order"
+              ? r.items
+              : r.type === "divide"
+                ? r.among
+                : [];
         pending = { ...p, objects: ids.filter((id) => s.objects[id]).map((id) => objectView(s, id)) };
         const trig =
           p.purpose.kind === "triggerTarget" || p.purpose.kind === "triggerMode"

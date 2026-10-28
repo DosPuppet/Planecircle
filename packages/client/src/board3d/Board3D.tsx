@@ -523,7 +523,7 @@ export default function Board3D({ arena: arenaId, onFail }: { arena: string; onF
         {opponents.map((opp) => (
           <div key={opp.id} className={`top-row ${opp.lost ? "eliminated" : ""}`}>
             <PlayerBar player={opp} isMe={false} />
-            <OpponentHand count={opp.handCount} custom={opp.customArt} />
+            <OpponentHand player={opp} />
           </div>
         ))}
       </div>

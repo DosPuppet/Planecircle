@@ -10,7 +10,7 @@ import { announceDiscard, announceDiscardBatch, cardRefOf, evalAmount, moveDisca
 import { bump } from "../layers";
 import { availableMana, canPay, costToText, manaValue, payCostText, payMana } from "../mana";
 import { beholdOptions, collectEvidence, evidenceCards, pickEvidence, timesCost } from "../stack";
-import { bent, emit, isPlayer, moveObject, shuffle } from "../state";
+import { bent, emit, isPlayer, moveObject, seeHandCards, shuffle } from "../state";
 import { payableLife } from "../statics";
 import { matchesCard, matchesObjectFilter } from "../targets";
 import { msg } from "../text";
@@ -374,8 +374,10 @@ function payBehold(
   const chosen = answer.map(String).find((id) => options.includes(id));
   if (!chosen) return { skip: e.skip };
   r.vars.$beheld = [1];
-  if (s.objects[chosen]?.zone === "hand")
+  if (s.objects[chosen]?.zone === "hand") {
     emit({ type: "reveal", player: ctx.controller, defIds: [s.objects[chosen]?.defId ?? ""] });
+    seeHandCards(s, [chosen], s.playerOrder);
+  }
   return;
 }
 

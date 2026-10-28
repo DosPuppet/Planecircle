@@ -51,6 +51,7 @@ import {
   registerDef,
   removeFromGame,
   rulesEvent,
+  seeHandCards,
   shuffle,
   tapObject,
   turnFaceUp,
@@ -439,8 +440,21 @@ export const HANDLERS: OpHandlers = {
       hand = shown.map(String).filter((id) => fullHand.includes(id));
       if (hand.length !== n) throw new RulesError(msg("Reveal exactly {n} card(s)", { n }));
     }
+    // Another player's hand: the chooser sees it whole (revealed cards: everyone), and keeps knowing these cards.
+    const theirs = p !== ctx.controller;
+    if (theirs) {
+      const revealed = e.reveal !== undefined;
+      if (seeHandCards(s, hand, revealed ? s.playerOrder : [ctx.controller]).length)
+        emit({
+          type: "reveal",
+          player: revealed ? p : ctx.controller,
+          defIds: hand.map((id) => s.objects[id]?.defId ?? ""),
+          ...(revealed ? {} : { look: true }),
+        });
+    }
     const options = hand.filter((id) => matchesCard(s, p, id, { ...e.filter, controller: undefined }));
     if (options.length === 0) return;
+    const unchoosable = theirs ? hand.filter((id) => !options.includes(id)) : [];
     const answer = r.vars[key("pick")];
     if (!answer) {
       const best = [...options].sort(
@@ -455,6 +469,7 @@ export const HANDLERS: OpHandlers = {
             intent: "pickCards",
             prompt: e.untilLeaves || e.optional ? msg("You may exile a card") : msg("Choose the card to exile"),
             options,
+            ...(unchoosable.length ? { unchoosable } : {}),
             min: e.untilLeaves || e.optional ? 0 : 1,
             max: 1,
             suggested: best.slice(0, 1),
@@ -884,6 +899,12 @@ export const HANDLERS: OpHandlers = {
         continue;
       }
       const chooser = e.chooser === "controller" ? ctx.controller : p;
+      // Duress, Cracked Skull: the chooser sees the whole hand (Klaw: only the cards revealed, below), and keeps knowing
+      // these cards.
+      const full = s.players[p]?.hand ?? [];
+      const looked = chooser !== p && e.reveal === undefined && !e.random;
+      if (looked && seeHandCards(s, full, [chooser]).length)
+        emit({ type: "reveal", player: chooser, defIds: full.map((id) => s.objects[id]?.defId ?? ""), look: true });
       let chosen: string[];
       const unless = e.unlessFilter;
       const exempt = unless ? hand.filter((id) => matchesCard(s, p, id, { ...unless, controller: undefined })) : [];
@@ -949,7 +970,9 @@ export const HANDLERS: OpHandlers = {
             pool = shown.map(String).filter((id) => hand.includes(id));
           }
           emit({ type: "reveal", player: p, defIds: pool.map((id) => s.objects[id]?.defId ?? "") });
+          seeHandCards(s, pool, s.playerOrder);
         }
+        const unchoosable = looked ? full.filter((id) => !pool.includes(id)) : [];
         const answer = r.vars[key(`discard-${p}`)];
         if (!answer) {
           const max = Math.min(n, pool.length);
@@ -967,6 +990,7 @@ export const HANDLERS: OpHandlers = {
                       : msg("Discard {n} card(s)", { n })
                     : msg("Choose {n} card(s) that this player discards", { n: max }),
                 options: [...pool],
+                ...(unchoosable.length ? { unchoosable } : {}),
                 min: e.optional ? 0 : max,
                 max,
                 suggested: e.optional ? [] : pool.slice(0, max),
@@ -1113,6 +1137,8 @@ export const HANDLERS: OpHandlers = {
         defIds: ids.map((id) => s.objects[id]?.defId ?? ""),
         ...(e.reveal ? {} : { look: true }),
       });
+    // Cards of a hand: known as long as they stay there (the opponent's hand can be viewed again).
+    seeHandCards(s, ids, e.reveal ? s.playerOrder : [ctx.controller]);
     return;
   },
   pair(s, _r, e, ctx) {

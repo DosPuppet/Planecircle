@@ -65,6 +65,8 @@ const ICONS = {
   crown: "M3 7l4.5 4L12 4l4.5 7L21 7l-2 12H5L3 7zm3 14h12v2H6v-2z",
   // A city: three crenellated towers.
   city: "M2 21V10h2V8h2v2h1V5h2v2h2V5h2v2h2V5h2v5h1V8h2v2h2v11h-8v-4a2 2 0 0 0-4 0v4H2z",
+  // An eye: cards seen in an opponent's hand.
+  eye: "M12 5C6.5 5 2.7 8.6 1 12c1.7 3.4 5.5 7 11 7s9.3-3.6 11-7c-1.7-3.4-5.5-7-11-7zm0 11.5a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9zm0-2.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4z",
 };
 
 function Icon({ d }: { d: string }) {
@@ -1084,16 +1086,39 @@ export function Hand({ ghost = false }: { ghost?: boolean }) {
   );
 }
 
-/** An opponent's hand: card backs fanned at the top edge of the screen, as on MTGA. */
-export function OpponentHand({ count, custom }: { count: number; custom?: boolean | string }) {
+/**
+ * An opponent's hand: card backs fanned at the top edge of the screen, as on MTGA. With cards you have seen in it
+ * (Deep-Cavern Bat, Duress, Gitaxian Probe), an eye and their number: a click shows them again.
+ */
+export function OpponentHand({ player }: { player: PlayerView }) {
+  const openHand = useGame((s) => s.openHand);
+  const t = useT();
+  const count = player.handCount;
+  const known = player.knownHand?.length ?? 0;
+  const backs = Array.from({ length: count }, (_, i) => (
+    <span key={i} className="opp-back" style={{ "--i": i } as CSSProperties}>
+      <CardBack width="var(--back-w)" custom={player.customArt} />
+    </span>
+  ));
+  if (!known)
+    return (
+      <div className="opp-hand" style={{ "--n": count } as CSSProperties}>
+        {backs}
+      </div>
+    );
   return (
-    <div className="opp-hand" style={{ "--n": count } as CSSProperties}>
-      {Array.from({ length: count }, (_, i) => (
-        <span key={i} className="opp-back" style={{ "--i": i } as CSSProperties}>
-          <CardBack width="var(--back-w)" custom={custom} />
-        </span>
-      ))}
-    </div>
+    <button
+      type="button"
+      className="opp-hand known"
+      style={{ "--n": count } as CSSProperties}
+      title={t("Cards you have seen in this hand (click to view)")}
+      onClick={() => openHand(player.id)}
+    >
+      {backs}
+      <span className="opp-hand-known">
+        <Icon d={ICONS.eye} /> {known}
+      </span>
+    </button>
   );
 }
 
@@ -1330,7 +1355,7 @@ export function Board() {
         {opponents.map((opp) => (
           <div key={opp.id} className={`top-row ${opp.lost ? "eliminated" : ""}`}>
             <PlayerBar player={opp} isMe={false} />
-            <OpponentHand count={opp.handCount} custom={opp.customArt} />
+            <OpponentHand player={opp} />
           </div>
         ))}
       </div>

@@ -11,7 +11,7 @@ import {
   plainText,
 } from "@mtgx/engine";
 import { useEffect, useState } from "react";
-import { Card, ManaCost, RulesText } from "../board/Card";
+import { Card, CardBack, ManaCost, RulesText } from "../board/Card";
 import { Dialog } from "../Dialog";
 import { faceName, type Lang } from "../i18n";
 import { useLocalize, useT } from "../localize";
@@ -879,6 +879,47 @@ function ExileViewer() {
   );
 }
 
+/**
+ * An opponent's hand: the cards you have seen in it (looked at or revealed) and that are still there, the others face
+ * down.
+ */
+function HandViewer() {
+  const open = useGame((s) => s.handOpen);
+  const view = useGame((s) => s.view);
+  const close = useGame((s) => s.openHand);
+  const t = useT();
+  if (!open || !view) return null;
+  const player = view.players[open];
+  if (!player) return null;
+  const known = player.knownHand ?? [];
+  const unknown = Math.max(0, player.handCount - known.length);
+  return (
+    <Dialog
+      className="wide"
+      onClose={() => close(null)}
+      title={t("Hand — {player} ({n})", { player: player.name, n: player.handCount })}
+    >
+      <div className="hand-picker">
+        {player.handCount === 0 && <p className="hint">{t("Empty.")}</p>}
+        {known.map((c) => (
+          <Card key={c.uid} face={c} obj={c} width="var(--pick-w)" />
+        ))}
+        {Array.from({ length: unknown }, (_, i) => (
+          <CardBack key={i} width="var(--pick-w)" custom={player.customArt} />
+        ))}
+      </div>
+      {unknown > 0 && known.length > 0 && (
+        <p className="hint">{t("Face down: the cards you haven't seen ({n}).", { n: unknown })}</p>
+      )}
+      <div className="modal-actions">
+        <button type="button" className="btn" onClick={() => close(null)}>
+          {t("Close")}
+        </button>
+      </div>
+    </Dialog>
+  );
+}
+
 function GraveyardViewer() {
   const open = useGame((s) => s.graveyardOpen);
   const view = useGame((s) => s.view);
@@ -1299,6 +1340,7 @@ export function Prompts() {
       <LandChoice />
       <GraveyardViewer />
       <ExileViewer />
+      <HandViewer />
       <GameOver view={view} />
       <Eliminated view={view} />
     </>

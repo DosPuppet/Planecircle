@@ -159,6 +159,8 @@ function ChoiceModal({ view }: { view: GameView }) {
       };
       const cards = req.options.every((id) => objects.some((x) => x.id === id));
       const shown = shownOptions(req.options, values.map(String), query, searchable, cards);
+      // The rest of another player's hand looked at (Deep-Cavern Bat: its lands), shown greyed after the options.
+      const unchoosable = (req.unchoosable ?? []).flatMap((id) => objects.filter((x) => x.id === id));
       body = (
         <>
           {long && (
@@ -185,6 +187,9 @@ function ChoiceModal({ view }: { view: GameView }) {
                     onClick={() => toggle(id)}
                   />
                 ))}
+                {unchoosable.map((o) => (
+                  <Card key={o.id} face={o} obj={o} width="var(--pick-w)" dim />
+                ))}
               </div>
             )}
           </ZoneTabbed>
@@ -196,6 +201,7 @@ function ChoiceModal({ view }: { view: GameView }) {
                   max: req.max,
                   count: values.length,
                 })}
+            {unchoosable.length > 0 && ` — ${t("the greyed cards can't be chosen")}`}
           </p>
         </>
       );

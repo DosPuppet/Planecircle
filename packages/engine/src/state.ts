@@ -381,6 +381,23 @@ export function isPlayer(s: GameState, id: string): boolean {
   return id in s.players;
 }
 
+/**
+ * Cards of a hand seen by `players` (looked at or revealed): they keep knowing them while they stay in that hand
+ * (`GameObject.knownTo`). Returns the cards that were new to one of them (nothing to show again otherwise).
+ */
+export function seeHandCards(s: GameState, ids: readonly ObjectId[], players: readonly PlayerId[]): ObjectId[] {
+  const fresh: ObjectId[] = [];
+  for (const id of ids) {
+    const o = s.objects[id];
+    if (o?.zone !== "hand") continue;
+    const add = players.filter((p) => p !== o.owner && !o.knownTo?.includes(p));
+    if (add.length === 0) continue;
+    o.knownTo = [...(o.knownTo ?? []), ...add];
+    fresh.push(id);
+  }
+  return fresh;
+}
+
 // ---------------------------------------------------------------------------
 // Players (N players: duel, multiplayer, Commander)
 // ---------------------------------------------------------------------------
